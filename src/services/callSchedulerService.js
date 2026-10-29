@@ -77,7 +77,7 @@ export class CallSchedulerService {
       callRequest: updated,
       lead,
       confirmationMessageBuyer: `Namaste Ji! Factory director sahab se baat ho gayi hai. Aapki call ${timeStr} par schedule ho gayi hai. Humare director sahab aapse is number par call karenge!`,
-      dossierMessageOwner: `🔔 *CALL CONFIRMED (${timeStr})*\nBuyer: ${lead?.buyer_name || 'IndiaMART Buyer'}\nMobile: +${lead?.buyer_phone}\nProduct: ${lead?.product_inquired}\nCity: ${lead?.buyer_city || 'Not specified'}\nOne-Tap Call Link: https://wa.me/${lead?.buyer_phone}`
+      dossierMessageOwner: `🔔 *CALL CONFIRMED (${timeStr})*\nBuyer: ${lead?.buyer_name || 'B2B Buyer'}\nMobile: +${lead?.buyer_phone}\nProduct: ${lead?.product_inquired}\nCity: ${lead?.buyer_city || 'Not specified'}\nOne-Tap Call Link: https://wa.me/${lead?.buyer_phone}`
     };
   }
 

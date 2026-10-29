@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- MartFlow AI — Production Multi-Tenant Supabase Schema & Row-Level Security (RLS)
 -- Enables strict zero-overlap tenant isolation, Google Auth, per-tenant WhatsApp,
--- product catalogs, IndiaMART leads, and dual payment transactions.
+-- product catalogs, B2B leads, and dual payment transactions.
 -- ==============================================================================
 
 -- 1. Enable necessary cryptographic and UUID extensions
@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 5. IndiaMART & WhatsApp Leads Table
+-- 5. B2B & WhatsApp Leads Table
 CREATE TABLE IF NOT EXISTS public.leads (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
@@ -253,3 +253,4 @@ CREATE POLICY "Tenant Catalog Read Isolation" ON storage.objects
         bucket_id = 'catalogs'
         AND (storage.foldername(name))[1] = public.current_user_org_id()::text
     );
+

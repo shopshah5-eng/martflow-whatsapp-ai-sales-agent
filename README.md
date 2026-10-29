@@ -1,4 +1,4 @@
-# 🚀 MartFlow AI — Production IndiaMART WhatsApp AI Sales SaaS
+# 🚀 MartFlow AI — Production B2B WhatsApp AI Sales SaaS
 
 > **Autonomous Multi-Tenant B2B Sales & Deal Closing SaaS for Indian Manufacturers & Wholesalers.**  
 > Grounded in real catalog specs with zero hallucinations, 2-way factory owner call booking, sub-10 second WhatsApp brochure dispatch, and multi-tenant PostgreSQL/Supabase architecture.
@@ -12,7 +12,7 @@
 ## 🌟 Executive Summary
 
 **MartFlow AI** transforms slow, manual marketplace inquiry follow-ups into an **Autonomous 24/7 AI Sales Representative** operating directly on WhatsApp for Indian factories and industrial suppliers:
-1. **⚡ Sub-10s IndiaMART Engagement**: Ingests incoming buyer inquiries via official webhook, verifies identity, and dispatches the exact matching PDF brochure on WhatsApp in under 10 seconds.
+1. **⚡ Sub-10s Inbound Engagement**: Ingests incoming buyer inquiries via official webhook, verifies identity, and dispatches the exact matching PDF brochure on WhatsApp in under 10 seconds.
 2. **🎙️ Natural Voice Notes (On-Demand)**: Speaks conversational Hindi, Hinglish, and English encoded in 48kHz mono Opus OGG (`audio/ogg; codecs=opus`) strictly on-demand.
 3. **📑 Multi-Format Catalog Knowledge**: Ingests PDF catalogs, Excel (`.xlsx`, `.xls`), and CSV files into structured, tenant-isolated product specifications with zero price hallucination.
 4. **🤝 Two-Way Factory Owner Call Scheduling**: Coordinates between buyer request and factory owner via WhatsApp, parses natural language free-time slots, and dispatches 1-tap dial links.
@@ -25,7 +25,7 @@
 ```mermaid
 graph TD
     subgraph WebhookIngestion["Inbound Ingestion"]
-        IM["IndiaMART Push API"] --> WH_IM["POST /api/webhook/indiamart"]
+        IM["B2B Push API"] --> WH_IM["POST /api/webhook/b2b"]
         WA["Meta WhatsApp Cloud API"] --> WH_WA["POST /api/webhook/whatsapp"]
     end
 
@@ -83,7 +83,7 @@ The frontend interface follows the design principles of Linear, Stripe, and Verc
 6. **Call Scheduler** (`#calls`): 2-way call booking log, proposed vs confirmed time slots, owner alert status, and 1-tap WhatsApp dial links.
 7. **Analytics** (`#analytics`): Calculated strictly from real database records (zero synthetic data).
 8. **Team & Roles** (`#team`): Workspace members list with RBAC roles (`owner`, `admin`, `sales_manager`, `sales_agent`) and invitations.
-9. **Settings** (`#settings`): Company profile, IndiaMART webhook URL with 1-click copy, and AI deal-making rules.
+9. **Settings** (`#settings`): Company profile, B2B webhook URL with 1-click copy, and AI deal-making rules.
 10. **Billing** (`#billing`): Subscription plans (Starter, Growth, Enterprise), usage counters, and Razorpay payment integration readiness.
 
 ---
@@ -122,8 +122,8 @@ ok 3 - AUTH: Phone OTP generates 6-digit code, verifies successfully, and reject
 ok 4 - CALL SCHEDULER: 2-way call request, slot confirmation, status transition, and dossier generation
 # Subtest: CATALOG PROCESSING: Ingests CSV spreadsheet into structured product records
 ok 5 - CATALOG PROCESSING: Ingests CSV spreadsheet into structured product records
-# Subtest: INDIAMART WEBHOOK: Ingests valid payload, rejects missing phone, and deduplicates repeated events
-ok 6 - INDIAMART WEBHOOK: Ingests valid payload, rejects missing phone, and deduplicates repeated events
+# Subtest: B2B WEBHOOK: Ingests valid payload, rejects missing phone, and deduplicates repeated events
+ok 6 - B2B WEBHOOK: Ingests valid payload, rejects missing phone, and deduplicates repeated events
 # Subtest: MULTI-TENANT ISOLATION: Organization B cannot access Organization A leads or products
 ok 7 - MULTI-TENANT ISOLATION: Organization B cannot access Organization A leads or products
 1..7
@@ -138,7 +138,7 @@ ok 7 - MULTI-TENANT ISOLATION: Organization B cannot access Organization A leads
 | :--- | :--- | :--- | :--- |
 | **Google Gemini API** | AI Deal Making & Catalog Reasoning | `GEMINI_API_KEY` | Get free key from [Google AI Studio](https://aistudio.google.com/) |
 | **Meta WhatsApp Cloud API** | Official WhatsApp Business Platform | `WHATSAPP_CLOUD_TOKEN`<br>`WHATSAPP_PHONE_NUMBER_ID`<br>`WHATSAPP_WABA_ID`<br>`WHATSAPP_VERIFY_TOKEN` | Create Meta App at [developers.facebook.com](https://developers.facebook.com/) > WhatsApp > API Setup |
-| **IndiaMART Push API** | Real-time Buyer Inquiries | `INDIAMART_GLID`<br>`INDIAMART_CRM_KEY` | Set webhook in IndiaMART Seller Portal to `https://[your-domain]/api/webhook/indiamart` |
+| **B2B Push API** | Real-time Buyer Inquiries | `B2B_MARKETPLACE_GLID`<br>`B2B_CRM_KEY` | Set webhook in B2B Seller Portal to `https://[your-domain]/api/webhook/b2b` |
 | **Supabase / PostgreSQL** | Multi-Tenant Database & Auth | `DATABASE_URL`<br>`SUPABASE_URL`<br>`SUPABASE_SERVICE_ROLE_KEY` | Run migration `migrations/001_initial_schema.sql` in Supabase SQL Editor |
 | **Razorpay** | SaaS Subscriptions & Billing | `RAZORPAY_KEY_ID`<br>`RAZORPAY_KEY_SECRET` | Create plans in Razorpay Dashboard > Subscriptions |
 

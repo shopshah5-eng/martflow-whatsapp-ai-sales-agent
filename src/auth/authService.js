@@ -78,7 +78,7 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
     is_phone_verified: false
   });
 
-  // 2. Create Organization (Tenant) with Unique IndiaMART Webhook Key
+  // 2. Create Organization (Tenant) with Unique B2B Webhook Key
   const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.random().toString(36).slice(2, 6);
   const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
   const organization = db.insert('organizations', {

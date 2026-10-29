@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { signUp } from '../src/auth/authService.js';
-import { IndiaMartWebhook } from '../src/integrations/indiamart/indiamartWebhook.js';
+import { B2BWebhook } from '../src/integrations/b2b/b2bWebhook.js';
 import { LeadService } from '../src/services/leadService.js';
 
-test('INDIAMART WEBHOOK: Ingests valid payload, rejects missing phone, and deduplicates repeated events', async () => {
+test('B2B WEBHOOK: Ingests valid payload, rejects missing phone, and deduplicates repeated events', async () => {
   const org = await signUp({
     email: `webhook_test_${Date.now()}@mfg.in`,
     password: 'Password123!',
@@ -23,7 +23,7 @@ test('INDIAMART WEBHOOK: Ingests valid payload, rejects missing phone, and dedup
   };
 
   // 1. Initial Webhook Ingestion
-  const res1 = await IndiaMartWebhook.handleIncomingWebhook(org.organization.id, validPayload);
+  const res1 = await B2BWebhook.handleIncomingWebhook(org.organization.id, validPayload);
   assert.equal(res1.status, 'accepted');
   assert.equal(res1.isDuplicate, false);
   assert.ok(res1.leadId);
@@ -35,7 +35,7 @@ test('INDIAMART WEBHOOK: Ingests valid payload, rejects missing phone, and dedup
   assert.equal(leadDetail.lead.buyer_city, 'Ludhiana');
 
   // 2. Idempotency & Deduplication Check: Same event ID sent again
-  const res2 = await IndiaMartWebhook.handleIncomingWebhook(org.organization.id, validPayload);
+  const res2 = await B2BWebhook.handleIncomingWebhook(org.organization.id, validPayload);
   assert.equal(res2.status, 'duplicate_ignored');
   assert.equal(res2.isDuplicate, true);
   assert.equal(res2.leadId, res1.leadId, 'Must return same lead ID for duplicate event');
@@ -45,7 +45,7 @@ test('INDIAMART WEBHOOK: Ingests valid payload, rejects missing phone, and dedup
     SENDER_NAME: 'Anonymous Buyer',
     QUERY_PRODUCT_NAME: 'Blender'
   };
-  const res3 = await IndiaMartWebhook.handleIncomingWebhook(org.organization.id, malformedPayload);
+  const res3 = await B2BWebhook.handleIncomingWebhook(org.organization.id, malformedPayload);
   assert.equal(res3.status, 'rejected');
 });
 

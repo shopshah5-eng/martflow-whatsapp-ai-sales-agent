@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MartFlow AI — IndiaMART WhatsApp AI Sales SaaS</title>
+  <title>MartFlow AI — B2B WhatsApp AI Sales SaaS</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -186,7 +186,7 @@
           <div>
             <div class="font-bold text-emerald-300 flex items-center gap-1.5 flex-wrap">
               <span>🎁 48-Hour Live Trial Available</span>
-              <span class="text-slate-300 font-normal text-[11px]">(25 Free IndiaMART Leads Included)</span>
+              <span class="text-slate-300 font-normal text-[11px]">(25 Free Buyer Leads Included)</span>
             </div>
             <div id="trialCountdownText" class="text-[11px] text-emerald-200/90 font-mono mt-0.5 font-medium">
               47h 59m left • 23/25 trial leads remaining
@@ -243,7 +243,7 @@
             <div onclick="openAnyDeskHelpModal()" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
               <div class="flex items-center space-x-2 text-xs font-semibold text-amber-300">
                 <span class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white text-[10px] font-bold">3</span>
-                <span id="step3Title">3. Connect IndiaMART (Or Free Help)</span>
+                <span id="step3Title">3. Connect B2B Portal (Or Free Help)</span>
               </div>
               <p id="step3Desc" class="text-[11px] text-slate-400 mt-1">Copy webhook URL or have our engineer connect via AnyDesk in 10 mins.</p>
             </div>
@@ -308,7 +308,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Lead Management</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Filter, assign, qualify, and export IndiaMART inquiries.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Filter, assign, qualify, and export B2B inquiries.</p>
           </div>
           <div class="flex space-x-2">
             <button onclick="exportLeadsCsv()" class="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-sm transition inline-flex items-center">
@@ -499,7 +499,7 @@
                   <span class="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">⭐ Zero Ban Risk • All-Inclusive</span>
                 </div>
               </div>
-              <p class="text-xs text-slate-600">We set up and verify your official WhatsApp Cloud API for you. Meta messaging charges for up to 500 IndiaMART leads/mo are 100% included.</p>
+              <p class="text-xs text-slate-600">We set up and verify your official WhatsApp Cloud API for you. Meta messaging charges for up to 500 buyer leads/mo are 100% included.</p>
               
               <div class="p-3 bg-emerald-50/50 border border-emerald-100 rounded-lg text-xs space-y-1.5 text-slate-700">
                 <div class="flex items-center text-emerald-800 font-medium">✓ Zero Facebook Credit Card needed</div>
@@ -575,7 +575,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
           <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-2">
-            <span class="text-xs font-semibold text-slate-500 uppercase">Total IndiaMART Leads</span>
+            <span class="text-xs font-semibold text-slate-500 uppercase">Total B2B Leads</span>
             <div id="anTotalLeads" class="text-3xl font-bold text-slate-900">0</div>
             <p class="text-xs text-slate-400">Total inquiries captured</p>
           </div>
@@ -622,7 +622,7 @@
       <section id="view-settings" class="hidden space-y-6">
         <div>
           <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Settings</h1>
-          <p class="text-xs text-slate-500 mt-0.5">Manage company identity, IndiaMART webhook credentials, and AI deal rules.</p>
+          <p class="text-xs text-slate-500 mt-0.5">Manage company identity, B2B webhook credentials, and AI deal rules.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -630,7 +630,7 @@
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-sm font-bold text-slate-900">Factory Profile & Owner Alerts</h3>
-              <p class="text-xs text-slate-500 mt-0.5">Basic information used by AI when replying to IndiaMART buyers.</p>
+              <p class="text-xs text-slate-500 mt-0.5">Basic information used by AI when replying to B2B buyers.</p>
             </div>
             <div class="space-y-3 text-xs">
               <div>
@@ -656,7 +656,7 @@
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-sm font-bold text-slate-900">🔧 Engineer Setup & Webhook Settings</h3>
-              <p class="text-xs text-slate-500 mt-0.5">Paste into IndiaMART Seller Portal or connect persistent cloud server.</p>
+              <p class="text-xs text-slate-500 mt-0.5">Paste into B2B Seller Portal / CRM or connect persistent cloud server.</p>
             </div>
             <div class="space-y-3 text-xs">
               <div>
@@ -667,8 +667,8 @@
                 </div>
               </div>
               <div>
-                <label class="block font-semibold text-slate-700 mb-1">IndiaMART CRM Key / Secret (Optional)</label>
-                <input type="password" id="indiamartCrmKeyInput" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <label class="block font-semibold text-slate-700 mb-1">B2B CRM Key / Secret (Optional)</label>
+                <input type="password" id="b2bCrmKeyInput" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">Backend Server API URL (For Railway / Render / VPS)</label>
@@ -717,7 +717,7 @@
           <!-- Progress bar -->
           <div class="space-y-1.5 pt-2">
             <div class="flex justify-between text-xs font-medium text-slate-300">
-              <span>IndiaMART Buyer Leads Processed</span>
+              <span>B2B Buyer Leads Processed</span>
               <span id="memLeadQuotaText" class="font-bold text-white">2 / 25 Leads Included</span>
             </div>
             <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
@@ -732,7 +732,7 @@
           <div class="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
             <div class="space-y-1">
               <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">Full Factory License</span>
-              <h2 class="text-lg font-bold text-slate-900 mt-1">Activate Autonomous IndiaMART Sales for Your Factory</h2>
+              <h2 class="text-lg font-bold text-slate-900 mt-1">Activate Autonomous B2B Sales for Your Factory</h2>
               <p class="text-xs text-slate-500">Transform missed inquiries into qualified deal consultations without hiring extra sales staff.</p>
             </div>
 
@@ -766,7 +766,7 @@
                   <span class="text-emerald-600 font-extrabold text-sm">✓</span>
                   <span>15-Minute Done-For-You AnyDesk Setup</span>
                 </div>
-                <p class="text-slate-600">Zero technical hassle. Our senior engineers connect your IndiaMART CRM and test live.</p>
+                <p class="text-slate-600">Zero technical hassle. Our senior engineers connect your B2B CRM and test live.</p>
               </div>
             </div>
 
@@ -804,7 +804,7 @@
               <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Risk-Free VIP Onboarding</span>
               <h3 class="text-base font-bold text-slate-900">Lock VIP AnyDesk Engineer Deposit</h3>
               <div class="text-3xl font-extrabold text-indigo-600">₹999 <span class="text-xs font-normal text-slate-500">deposit</span></div>
-              <p class="text-xs text-slate-500">100% adjusted into your final factory license. Our engineer sets up your IndiaMART webhooks, catalogs & WhatsApp live.</p>
+              <p class="text-xs text-slate-500">100% adjusted into your final factory license. Our engineer sets up your B2B webhooks, catalogs & WhatsApp live.</p>
 
               <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
                 <div class="flex items-center text-slate-800 font-semibold">✓ 15-Minute Remote AnyDesk Setup</div>
@@ -912,9 +912,9 @@
       <div class="space-y-4">
         <div class="flex items-center space-x-2">
           <span class="text-lg">⚡</span>
-          <h2 class="text-lg font-bold text-slate-900">Test Inbound IndiaMART Lead</h2>
+          <h2 class="text-lg font-bold text-slate-900">Test Inbound Buyer Lead</h2>
         </div>
-        <p class="text-xs text-slate-500">Simulate a buyer submitting an inquiry on IndiaMART. Tests instant lead ingestion and auto-WhatsApp dispatch.</p>
+        <p class="text-xs text-slate-500">Simulate a buyer submitting an inquiry on B2B marketplace. Tests instant lead ingestion and auto-WhatsApp dispatch.</p>
 
         <div class="space-y-3 text-xs">
           <div>
@@ -1101,7 +1101,7 @@
       </div>
       <div>
         <h3 class="text-base font-bold text-slate-900">Done-For-You AnyDesk Connection</h3>
-        <p class="text-xs text-slate-500 mt-0.5">Let our integration engineers connect your IndiaMART CRM and catalog brochures on AnyDesk or Google Meet.</p>
+        <p class="text-xs text-slate-500 mt-0.5">Let our integration engineers connect your B2B CRM and catalog brochures on AnyDesk or Google Meet.</p>
       </div>
 
       <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs space-y-1.5 text-slate-700">
@@ -1110,7 +1110,7 @@
         <div>✓ Live test inquiry verified together</div>
       </div>
 
-      <a id="anyDeskWaBtn" href="https://wa.me/919825012345?text=Namaste%20MartFlow%20Team!%20Please%20connect%20via%20AnyDesk%20to%20set%20up%20my%20IndiaMART%20integration" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+      <a id="anyDeskWaBtn" href="https://wa.me/919825012345?text=Namaste%20MartFlow%20Team!%20Please%20connect%20via%20AnyDesk%20to%20set%20up%20my%20B2B%20integration" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
         Chat with Engineer on WhatsApp →
       </a>
     </div>
@@ -1127,7 +1127,7 @@
         ⭐
       </div>
       <h2 id="upgradePlanTitle" class="text-lg font-bold text-slate-900">Upgrade Plan</h2>
-      <p class="text-xs text-slate-600">To upgrade your monthly IndiaMART lead quota or activate multi-user team seats, contact our onboarding director via WhatsApp:</p>
+      <p class="text-xs text-slate-600">To upgrade your monthly buyer lead quota or activate multi-user team seats, contact our onboarding director via WhatsApp:</p>
 
       <div class="p-3 bg-slate-50 border border-gray-200 rounded-lg text-xs space-y-1 text-left font-mono">
         <div><strong>UPI ID:</strong> payments@martflow.ai</div>
@@ -1194,7 +1194,7 @@
       <!-- SIGNUP FORM -->
       <div id="signupFormBlock" class="hidden space-y-4">
         <h2 class="text-lg lg:text-xl font-bold text-slate-900">Create Company Workspace</h2>
-        <p class="text-xs text-slate-500">Start closing IndiaMART deals automatically on WhatsApp.</p>
+        <p class="text-xs text-slate-500">Start closing B2B machinery deals automatically on WhatsApp.</p>
 
         <!-- Google / Gmail OAuth Button -->
         <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-lg text-slate-700 font-semibold text-xs hover:bg-gray-50 transition flex items-center justify-center space-x-2 shadow-sm">
@@ -1279,7 +1279,7 @@
             name: 'Bharat PackTech Machinery (Interactive Demo)',
             slug: 'bharat-packtech',
             plan: 'growth',
-            webhook_key: 'whk_preview_india_mart_9825'
+            webhook_key: 'whk_preview_b2b_9825'
           },
           user: {
             id: 'usr_demo_preview',
@@ -1337,7 +1337,7 @@
           leads: [
             {
               id: 'lead_demo_1',
-              source: 'indiamart',
+              source: 'b2b_portal',
               buyer_name: 'Amit Bansal',
               buyer_phone: '919811223344',
               buyer_city: 'Faridabad, Haryana',
@@ -1351,7 +1351,7 @@
             },
             {
               id: 'lead_demo_2',
-              source: 'indiamart',
+              source: 'b2b_portal',
               buyer_name: 'Vikramjit Singh',
               buyer_phone: '919876543210',
               buyer_city: 'Ludhiana, Punjab',
@@ -1390,7 +1390,7 @@
               {
                 id: 'msg_2',
                 sender_type: 'ai',
-                content: 'Namaste Amit ji! 🙏 Welcome to Bharat PackTech. We received your IndiaMART inquiry.\n\nAttached is our official technical brochure. Ex-factory price for the 50-60 pouches/min model is ₹2,45,000 + GST with 1-Year Comprehensive Warranty.\n\nWhat product and pouch sizes are you planning to pack?',
+                content: 'Namaste Amit ji! 🙏 Welcome to Bharat PackTech. We received your B2B inquiry.\n\nAttached is our official technical brochure. Ex-factory price for the 50-60 pouches/min model is ₹2,45,000 + GST with 1-Year Comprehensive Warranty.\n\nWhat product and pouch sizes are you planning to pack?',
                 created_at: new Date(Date.now() - 3540000).toISOString()
               },
               {
@@ -1495,7 +1495,7 @@
         const cleanDigits = String(body.buyerPhone || '919825012345').replace(/\D/g, '');
         const newLead = {
           id: 'lead_sim_' + Date.now(),
-          source: 'indiamart_simulation',
+          source: 'b2b_simulation',
           buyer_name: body.buyerName || 'Simulated Buyer',
           buyer_phone: cleanDigits,
           buyer_city: body.city || 'Delhi NCR',
@@ -2017,7 +2017,7 @@
         // Update settings inputs if present
         if (currentOrg.webhook_key) {
           const origin = window.location.origin;
-          document.getElementById('webhookUrlInput').value = `${origin}/api/webhook/indiamart/${currentOrg.webhook_key}`;
+          document.getElementById('webhookUrlInput').value = `${origin}/api/webhook/b2b/${currentOrg.webhook_key}`;
         }
       } else {
         topOrgBadge.classList.add('hidden');
@@ -2061,7 +2061,7 @@
       document.getElementById('dashboardLeadsTable').innerHTML = `
         <div class="py-10 text-center text-slate-400 text-xs">
           <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
-          No leads yet. Connect your IndiaMART integration or click "⚡ Test Inbound Lead" above.
+          No leads yet. Connect your B2B integration or click "⚡ Test Inbound Lead" above.
         </div>
       `;
     }
@@ -2088,7 +2088,7 @@
         const cleanPhone = String(l.buyer_phone || '').replace(/\D/g, '');
         html += `
           <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="switchView('leads')">
-            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'IndiaMART Buyer')}<div class="text-[11px] text-slate-400 font-normal font-mono">+${escapeHtml(cleanPhone)}</div></td>
+            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'B2B Buyer')}<div class="text-[11px] text-slate-400 font-normal font-mono">+${escapeHtml(cleanPhone)}</div></td>
             <td class="py-3 px-4 text-slate-700">${escapeHtml(l.product_inquired || 'General Machine')}</td>
             <td class="py-3 px-4 text-slate-500">${escapeHtml(l.buyer_city || '—')}</td>
             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 uppercase">${escapeHtml(l.status)}</span></td>
@@ -2139,7 +2139,7 @@
           const isPdfSent = Boolean(l.pdf_brochure_sent || l.brochure_sent);
           html += `
             <tr class="hover:bg-slate-50 transition">
-              <td class="py-3.5 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'IndiaMART Buyer')}</td>
+              <td class="py-3.5 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'B2B Buyer')}</td>
               <td class="py-3.5 px-4 text-slate-600 font-mono">+${escapeHtml(cleanPhone)}</td>
               <td class="py-3.5 px-4 text-slate-800">${escapeHtml(l.product_inquired || 'Machine')}</td>
               <td class="py-3.5 px-4 text-slate-500">${escapeHtml(l.buyer_city || 'India')}</td>
@@ -2225,7 +2225,7 @@
         const lead = data.lead;
         const conv = data.conversation;
 
-        document.getElementById('chatBuyerName').textContent = lead?.buyer_name || 'IndiaMART Buyer';
+        document.getElementById('chatBuyerName').textContent = lead?.buyer_name || 'B2B Buyer';
         document.getElementById('chatBuyerPhone').textContent = `+${lead?.buyer_phone || ''} | ${lead?.product_inquired || 'General Machine'}`;
         document.getElementById('chatModeControls').classList.remove('hidden');
         document.getElementById('chatModeControls').classList.add('flex');
@@ -2339,7 +2339,7 @@
               <div class="font-mono text-emerald-600 font-semibold mt-1 text-xs">+${escapeHtml(st.connectedNumber)}</div>
             </div>
           `;
-          msgEl.textContent = 'Socket is active and listening for IndiaMART buyer inquiries.';
+          msgEl.textContent = 'Socket is active and listening for inbound buyer inquiries.';
         } else if (st.status === 'qr_ready' && st.qrDataUrl) {
           badge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full';
           dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse';
@@ -2395,7 +2395,7 @@
       }
 
       try {
-        showToast('Dispatched test IndiaMART inquiry...', 'info');
+        showToast('Dispatched test inbound buyer inquiry...', 'info');
         await apiFetch('/api/leads/simulate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -2682,7 +2682,7 @@
     function copyWebhookUrl() {
       const el = document.getElementById('webhookUrlInput');
       navigator.clipboard.writeText(el.value);
-      showToast('IndiaMART Webhook URL copied to clipboard!', 'success');
+      showToast('B2B Webhook URL copied to clipboard!', 'success');
     }
 
     // 16. Google (Gmail) OAuth & Supabase Auth Flow
@@ -3007,7 +3007,7 @@
 
       const anyDeskWaBtn = document.getElementById('anyDeskWaBtn');
       if (anyDeskWaBtn) {
-        const msg = encodeURIComponent('Namaste MartFlow Team! Please connect via AnyDesk to set up my IndiaMART & WhatsApp catalog.');
+        const msg = encodeURIComponent('Namaste MartFlow Team! Please connect via AnyDesk to set up my B2B portal & WhatsApp catalog.');
         anyDeskWaBtn.href = `https://wa.me/${cleanOwnerDigits}?text=${msg}`;
       }
       const modal = document.getElementById('anyDeskModal');
@@ -3029,7 +3029,7 @@
         step1Desc: 'Scan from your official sales phone or secondary SIM.',
         step2Title: '2. Drop Machine PDF Brochures',
         step2Desc: 'Upload PDF, Excel, or CSV catalogs. AI extracts specs & pricing.',
-        step3Title: '3. Connect IndiaMART (Or Free Help)',
+        step3Title: '3. Connect B2B Portal (Or Free Help)',
         step3Desc: 'Copy webhook URL or have our engineer connect via AnyDesk in 10 mins.',
         dashOverviewTitle: 'Factory Sales Dashboard',
         dashOverviewSub: 'Real-time buyer qualification & instant WhatsApp dispatch.',
@@ -3046,7 +3046,7 @@
         step1Desc: 'Apne factory sales mobile ya secondary SIM se scan karein.',
         step2Title: '2. Machine PDF Brochure Upload Karein',
         step2Desc: 'PDF, Excel ya CSV dalein. AI machine specs & rate turant extract karega.',
-        step3Title: '3. IndiaMART Connect Karein (Free Help)',
+        step3Title: '3. B2B Portal Connect Karein (Free Help)',
         step3Desc: 'Webhook copy karein ya humare engineer se AnyDesk par 10 min mein connect karwayein.',
         dashOverviewTitle: 'Factory Sales Dashboard',
         dashOverviewSub: 'Live buyer qualification aur WhatsApp par turant machine brochure dispatch.',
@@ -3107,7 +3107,7 @@
       localStorage.setItem('mf_trial_start', String(Date.now()));
       localStorage.setItem('mf_trial_leads_left', '25');
       updateTrialDisplay();
-      showToast('48-Hour Live Trial active! 25 Free IndiaMART leads ready.', 'success');
+      showToast('48-Hour Live Trial active! 25 Free inbound buyer leads ready.', 'success');
     }
 
     // Initialize on page load

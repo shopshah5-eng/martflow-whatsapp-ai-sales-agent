@@ -84,7 +84,7 @@ test('API ROUTES: Authenticated multi-tenant endpoints behave correctly', async 
     assert.ok(csvText.includes('Amit Bansal'));
 
     // 7. Tenant Webhook by Key
-    const webhookRes = await fetch(`${baseUrl}/api/webhook/indiamart/${demo.organization.webhook_key || demo.organization.id}`, {
+    const webhookRes = await fetch(`${baseUrl}/api/webhook/b2b/${demo.organization.webhook_key || demo.organization.id}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

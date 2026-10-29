@@ -862,9 +862,11 @@ Respond STRICTLY as valid JSON without markdown fences:
 }
 
 // ============================================================================
-// CORE INDIAMART LEAD DISPATCHER (SENDS GREETING + PDF CATALOG IN 8 SECONDS)
+// CORE B2B LEAD DISPATCHER (SENDS GREETING + PDF CATALOG IN 8 SECONDS)
 // ============================================================================
-async function processNewIndiaMartLead({ name, phone, productQuery, city = '', message = '', source = 'IndiaMART Push API', customDelaySec }) {
+async function processNewB2BLead({ name, phone, productQuery, city = '', message = '', source = 'B2B Push API', customDelaySec }) {
+// Alias for compatibility
+const processNewB2BLead = processNewB2BLead;
   const cleanPhone = normalizePhone(phone);
   if (!cleanPhone || cleanPhone.length < 10) {
     throw new Error('Valid 10-digit WhatsApp mobile number required.');
@@ -908,14 +910,14 @@ async function processNewIndiaMartLead({ name, phone, productQuery, city = '', m
   const openerGreeting = lead.name ? `Namaste *${lead.name} ji*!` : 'Namaste Ji!';
   const openerText =
     `${openerGreeting} 🙏\n\n` +
-    `Thank you for your *IndiaMART* enquiry regarding *${product.name}* at *${config.companyName}*.\n\n` +
+    `Thank you for your enquiry regarding *${product.name}* at *${config.companyName}*.\n\n` +
     `📄 Main aapko hamara *Technical PDF Brochure & Price List* neeche bhej raha hoon (${product.priceRange}).\n\n` +
     `Exact model aur final GST quotation dene ke liye bas batayein *(Text ya Voice Note bhej sakte hain)*:\n` +
     `1️⃣ Aapko *kya item aur kitni capacity* chahiye?\n` +
     `2️⃣ Delivery kis *City* mein chahiye?`;
 
   const leadDisplay = lead.name ? `${lead.name} (+${cleanPhone})` : `Customer (+${cleanPhone})`;
-  addLog(`New IndiaMART Lead: ${leadDisplay} -> ${product.name}. Waiting ${delaySec}s...`);
+  addLog(`New B2B Lead: ${leadDisplay} -> ${product.name}. Waiting ${delaySec}s...`);
 
   // Run async after natural human-like delay
   setTimeout(async () => {
@@ -978,7 +980,7 @@ async function parseClientConfirmedTime(text) {
   // Use Gemini if available to parse natural language Hinglish/English time availability
   if (config.geminiApiKey && config.geminiApiKey.trim().length > 15) {
     try {
-      const prompt = `A machinery factory owner was asked on WhatsApp: "When are you free for a call with an IndiaMART customer?"
+      const prompt = `A machinery factory owner was asked on WhatsApp: "When are you free for a call with an inbound B2B customer?"
 The owner replied: "${clean}"
 
 Extract their exact available time slot and reformat it into a concise, polite time string (e.g. "Today at 4:00 PM", "Tomorrow at 11:30 AM", "Today at 6:00 PM", "Within 30 minutes", "Monday at 10:00 AM").
@@ -1139,7 +1141,7 @@ async function handleClientAdminMessage({ msg, rawRemote, incomingText, phoneDig
     const recentLead = leads[0];
     const replyText =
       `Namaste Sir! 🙏\n\n` +
-      `Aapka IndiaMART AI 24/7 active hai aur live inquiries handle kar raha hai.\n\n` +
+      `Aapka B2B Sales AI 24/7 active hai aur live inquiries handle kar raha hai.\n\n` +
       `📊 *Today's Status:*\n` +
       `• Total Enquiries: ${leads.length}\n` +
       `• Latest Lead: ${recentLead ? `${recentLead.name} (${recentLead.productName})` : 'None yet'}\n\n` +
@@ -1256,8 +1258,8 @@ async function handleIncomingWhatsAppMessage(msg) {
     }
   } catch (syncErr) {}
 
-  // Check if buyer clicked our 1-Tap "IndiaMART Demo Trigger" link!
-  const isFirstTrigger = incomingText.toLowerCase().includes('indiamart enquiry') || incomingText.toLowerCase().includes('send catalog');
+  // Check if buyer clicked our 1-Tap "B2B Demo Trigger" link!
+  const isFirstTrigger = incomingText.toLowerCase().includes('b2b enquiry') || incomingText.toLowerCase().includes('send catalog');
   let lead = leads.find((l) => l.phone === phoneDigits);
 
   if (!lead || isFirstTrigger) {
@@ -1454,7 +1456,7 @@ async function handleIncomingWhatsAppMessage(msg) {
         try {
           const ownerJid = await resolveWhatsAppJid(ownerDigits);
           const alertMsg =
-            `🔥 *HOT INDIAMART LEAD QUALIFIED!* 🔥\n\n` +
+            `🔥 *HOT B2B BUYER LEAD QUALIFIED!* 🔥\n\n` +
             `👤 *Buyer:* ${lead.name}\n` +
             `📞 *Mobile:* +${lead.phone}\n` +
             `⚙️ *Machine:* ${lead.productName}\n` +
@@ -1478,7 +1480,7 @@ async function handleIncomingWhatsAppMessage(msg) {
 }
 
 // ============================================================================
-// REST API ROUTES FOR DASHBOARD, SIMULATOR & OFFICIAL INDIAMART PUSH WEBHOOK
+// REST API ROUTES FOR DASHBOARD, SIMULATOR & B2B PUSH WEBHOOK
 // ============================================================================
 app.get('/api/test-audio', async (req, res) => {
   try {
@@ -1558,7 +1560,7 @@ app.post('/api/config', (req, res) => {
 app.post('/api/simulate-lead', async (req, res) => {
   try {
     const { name, phone, productQuery, city, message, delaySec } = req.body;
-    const lead = await processNewIndiaMartLead({
+    const lead = await processNewB2BLead({
       name: name || 'Rajesh Ji',
       phone,
       productQuery: productQuery || 'Automatic Pouch Packing Machine',
@@ -1573,12 +1575,12 @@ app.post('/api/simulate-lead', async (req, res) => {
   }
 });
 
-// 2. Official IndiaMART Push API Webhook Endpoint (Ready for real paying clients!)
-app.post('/api/webhook/indiamart', async (req, res) => {
+// 2. Official B2B Push API Webhook Endpoint (Ready for real paying clients!)
+app.post('/api/webhook/b2b', async (req, res) => {
   try {
     let raw = req.body?.RESPONSE || req.body || {};
     const body = Array.isArray(raw) ? (raw[0] || {}) : raw;
-    const name = body.SENDER_NAME || body.sender_name || body.name || 'IndiaMART Buyer';
+    const name = body.SENDER_NAME || body.sender_name || body.name || 'B2B Buyer';
     const phone = body.SENDER_MOBILE || body.sender_mobile || body.MOBILE || body.phone || '';
     const productQuery = body.QUERY_PRODUCT_NAME || body.PRODUCT_NAME || body.subject || 'Packaging Machine';
     const city = body.SENDER_CITY || body.city || '';
@@ -1587,13 +1589,13 @@ app.post('/api/webhook/indiamart', async (req, res) => {
     if (!phone) {
       return res.status(200).json({ status: 'ignored', reason: 'No SENDER_MOBILE in payload' });
     }
-    const lead = await processNewIndiaMartLead({
+    const lead = await processNewB2BLead({
       name,
       phone,
       productQuery,
       city,
       message,
-      source: 'IndiaMART Official Webhook'
+      source: 'B2B Official Webhook'
     });
     res.status(200).json({ status: 'success', leadId: lead.id });
   } catch (err) {
@@ -1657,7 +1659,7 @@ app.get('/api/leads.csv', (req, res) => {
   ].map(esc).join(','));
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="IndiaMART_Qualified_Leads.csv"');
+  res.setHeader('Content-Disposition', 'attachment; filename="MartFlow_B2B_Qualified_Leads.csv"');
   res.send([headers.join(','), ...rows].join('\n'));
 });
 
@@ -1667,7 +1669,7 @@ app.post('/api/leads/clear', (req, res) => {
   res.json({ ok: true });
 });
 
-// Public Buyer Enquiry Page (/demo) — Looks like an instant IndiaMART Quote Form
+// Public Buyer Enquiry Page (/demo) — Looks like an instant B2B Quote Form
 app.get('/demo', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'demo.html'));
 });
@@ -1903,7 +1905,7 @@ app.post('/api/callbacks/request-demo', async (req, res) => {
 
 const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, '0.0.0.0', () => {
-  addLog(`IndiaMART WhatsApp AI Server running at http://localhost:${PORT}`);
+  addLog(`MartFlow B2B WhatsApp AI Server running at http://localhost:${PORT}`);
   initCatalogKnowledge();
   // Auto-resume existing WhatsApp session if auth_info/creds.json already exists!
   if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {

@@ -1,9 +1,9 @@
 @echo off
-title IndiaMART -> 10-Sec WhatsApp AI Command Center
+title MartFlow AI -> 10-Sec WhatsApp AI Command Center
 cd /d "%~dp0"
 
 echo ==============================================================
-echo   IndiaMART -> 10-Second WhatsApp AI Demo (Windows Launcher)
+echo   MartFlow AI -> 10-Second WhatsApp AI Demo (Windows Launcher)
 echo ==============================================================
 echo.
 

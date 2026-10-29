@@ -120,3 +120,4 @@ test('WHATSAPP MULTI-SESSION ISOLATION: Org A socket & auth are distinct from Or
   assert.ok(instanceB.authDir.includes(orgB), 'Org B auth directory must be isolated');
   assert.notEqual(instanceA.authDir, instanceB.authDir, 'Auth directories must never overlap');
 });
+

@@ -47,7 +47,7 @@ export class AIService {
     if (geminiKey && geminiKey.trim().length > 15) {
       try {
         const systemPrompt = `You are the Senior Technical Sales Executive at "${aiSettings.company_name}" (${aiSettings.city_base}).
-You are speaking directly with an IndiaMART B2B buyer on WhatsApp.
+You are speaking directly with an inbound B2B buyer on WhatsApp.
 
 CRITICAL DEAL-MAKING RULES:
 1. TONE & LANGUAGE:

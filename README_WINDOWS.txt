@@ -1,5 +1,5 @@
 ====================================================================
-  INDIAMART -> 10-SECOND WHATSAPP AI DEMO & PRODUCTION KIT (WINDOWS)
+  MARTFLOW AI -> 10-SECOND WHATSAPP AI DEMO & PRODUCTION KIT (WINDOWS)
 ====================================================================
 
 HOW TO RUN ON YOUR WINDOWS LAPTOP IN 60 SECONDS:
@@ -19,13 +19,13 @@ HOW TO RUN ON YOUR WINDOWS LAPTOP IN 60 SECONDS:
    - This unlocks Hindi/Punjabi WhatsApp VOICE NOTE listening + full Gemini 2.5 AI!
    - Even WITHOUT a key, the built-in Hinglish Machinery Sales Brain works automatically!
 
-HOW TO DEMO LIVE TO AN INDIAMART OWNER ON A PHONE CALL:
+HOW TO DEMO LIVE TO A B2B FACTORY OWNER ON A PHONE CALL:
 
-1. Go to https://dir.indiamart.com and search "Pouch Packing Machine" or "Liquid Filling Machine".
+1. Search for industrial machinery or packing machine categories.
 2. Pick manufacturers with the "TrustSEAL Verified" or "Star Supplier" badge.
 3. Call the owner using the Teleprompter script at the bottom of your dashboard.
 4. While on speakerphone, type THEIR Name + Mobile Number into Card #2 and click:
-   "Fire Live IndiaMART Enquiry + Send PDF Brochure Now".
+   "Fire Live Inbound Enquiry + Send PDF Brochure Now".
 5. In 8 seconds, their phone dings with a personalized Hinglish greeting + real PDF Catalog!
 6. Tell them: "Sir ek mushkil customer banke rate ya bijli load poochiye (text ya Voice Note)!"
 7. Close for Rs. 12,000 one-time setup (Rs. 6,000 upfront on UPI to configure their catalogs tonight).
@@ -34,6 +34,6 @@ HOW TO DELIVER TO A PAYING CLIENT TONIGHT:
 - Put their real PDF brochures inside the "catalogs/" folder.
 - Change Company Name & Owner Alert Phone in Card #4.
 - Double-click "PUBLIC_DEMO_LINK_WINDOWS.bat" (or deploy on a Rs. 380/month VPS) and paste:
-    https://<your-domain>/api/webhook/indiamart
-  into their seller.indiamart.com -> Lead Manager -> Push API!
+    https://<your-domain>/api/webhook/b2b
+  into their B2B Seller Portal -> Push API!
 ====================================================================

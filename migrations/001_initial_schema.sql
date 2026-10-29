@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS invitations (
 CREATE TABLE IF NOT EXISTS integration_connections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    provider VARCHAR(50) NOT NULL CHECK (provider IN ('whatsapp_cloud', 'whatsapp_baileys', 'indiamart', 'gemini', 'razorpay')),
+    provider VARCHAR(50) NOT NULL CHECK (provider IN ('whatsapp_cloud', 'whatsapp_baileys', 'b2b_push', 'gemini', 'razorpay')),
     status VARCHAR(50) DEFAULT 'disconnected' CHECK (status IN ('connected', 'disconnected', 'pending', 'error')),
     credentials_encrypted JSONB DEFAULT '{}',
     webhook_secret VARCHAR(255),
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS leads (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
     source_event_id VARCHAR(255),
-    source VARCHAR(100) DEFAULT 'IndiaMART',
+    source VARCHAR(100) DEFAULT 'B2B Portal',
     buyer_name VARCHAR(255),
     buyer_phone VARCHAR(50) NOT NULL,
     buyer_city VARCHAR(100),

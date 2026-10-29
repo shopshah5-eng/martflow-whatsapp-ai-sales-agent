@@ -1,7 +1,7 @@
 {
   "name": "martflow-ai",
   "version": "1.0.0",
-  "description": "MartFlow AI — Production IndiaMART WhatsApp AI Sales SaaS",
+  "description": "MartFlow AI — Production B2B WhatsApp AI Sales SaaS",
   "type": "module",
   "main": "server.js",
   "scripts": {

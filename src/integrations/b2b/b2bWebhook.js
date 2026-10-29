@@ -1,5 +1,5 @@
 /**
- * MartFlow AI — Official IndiaMART Push API Webhook Handler
+ * MartFlow AI — Official B2B Push API Webhook Handler
  * Verifies authenticity, validates schemas, deduplicates events, and stores leads.
  */
 
@@ -8,8 +8,8 @@ import path from 'path';
 import { LeadService } from '../../services/leadService.js';
 import db from '../../db/index.js';
 
-export class IndiaMartWebhook {
-  // Normalize raw IndiaMART Push API or CRM payload
+export class B2BWebhook {
+  // Normalize raw B2B Push API or CRM payload
   static normalizePayload(rawBody) {
     let payload = rawBody;
     if (payload?.RESPONSE) payload = payload.RESPONSE;
@@ -36,7 +36,7 @@ export class IndiaMartWebhook {
   // Process incoming webhook request
   static async handleIncomingWebhook(organizationId, rawBody, authToken = null) {
     if (!organizationId) {
-      throw new Error('Tenant identification required for IndiaMART webhook.');
+      throw new Error('Tenant identification required for B2B webhook.');
     }
 
     const normalized = this.normalizePayload(rawBody);
@@ -44,26 +44,26 @@ export class IndiaMartWebhook {
     if (!normalized.buyerMobile || normalized.buyerMobile.length < 10) {
       return {
         status: 'rejected',
-        reason: 'Missing or invalid SENDER_MOBILE in IndiaMART inquiry payload.'
+        reason: 'Missing or invalid SENDER_MOBILE in B2B inquiry payload.'
       };
     }
 
     // Verify webhook token if organization has configured one
     const conn = db.findOne('integration_connections', (c) =>
-      c.organization_id === organizationId && c.provider === 'indiamart'
+      c.organization_id === organizationId && (c.provider === 'b2b_push')
     );
 
     if (conn && conn.webhook_secret && authToken && conn.webhook_secret !== authToken) {
       return {
         status: 'unauthorized',
-        reason: 'Invalid IndiaMART authentication token or signature.'
+        reason: 'Invalid B2B authentication token or signature.'
       };
     }
 
     // Deduplicate and insert lead
     const result = LeadService.createOrDeduplicateLead(organizationId, {
       source_event_id: normalized.eventId,
-      source: 'IndiaMART Official Push API',
+      source: 'B2B Official Push API',
       buyer_name: normalized.buyerName,
       buyer_phone: normalized.buyerMobile,
       buyer_city: normalized.city,
@@ -100,7 +100,7 @@ export class IndiaMartWebhook {
           ) || products[0];
 
           const greetingName = normalized.buyerName ? ` ${normalized.buyerName} Ji` : ' Ji';
-          const messageText = `Namaste${greetingName}! 🙏\n\nThank you for your IndiaMART enquiry regarding *${normalized.productQuery}* with *${aiSettings.company_name}*.\n\nMain aapko hamara official *Technical PDF Brochure* attach kar raha hoon.\n\nExact machine model aur GST quotation dene ke liye bas batayein:\n1️⃣ Machine kis *City* mein deliver karni hai?\n2️⃣ Aapki *Daily production / capacity requirement* kya hai?`;
+          const messageText = `Namaste${greetingName}! 🙏\n\nThank you for your enquiry regarding *${normalized.productQuery}* with *${aiSettings.company_name}*.\n\nMain aapko hamara official *Technical PDF Brochure* attach kar raha hoon.\n\nExact machine model aur GST quotation dene ke liye bas batayein:\n1️⃣ Machine kis *City* mein deliver karni hai?\n2️⃣ Aapki *Daily production / capacity requirement* kya hai?`;
 
           let catalogPath = null;
           if (matched && matched.brochure_filename) {
@@ -147,18 +147,18 @@ export class IndiaMartWebhook {
     };
   }
 
-  // Handle IndiaMART Webhook by Tenant Webhook Key
+  // Handle B2B Webhook by Tenant Webhook Key
   static async handleWebhookByKey(webhookKey, rawBody, authToken = null) {
     let org = db.findByWebhookKey ? db.findByWebhookKey(webhookKey) : null;
     if (!org) {
       org = db.findOne('organizations', (o) => o.webhook_key === webhookKey || o.id === webhookKey);
     }
     if (!org) {
-      throw new Error(`Invalid or unregistered IndiaMART webhook key: ${webhookKey}`);
+      throw new Error(`Invalid or unregistered B2B webhook key: ${webhookKey}`);
     }
     return this.handleIncomingWebhook(org.id, rawBody, authToken);
   }
 }
 
-export default IndiaMartWebhook;
+export default B2BWebhook;
 

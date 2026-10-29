@@ -25,7 +25,7 @@ export class LeadService {
     const newLead = db.insert('leads', {
       organization_id: organizationId,
       source_event_id: leadData.source_event_id || `lead_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-      source: leadData.source || 'IndiaMART',
+      source: leadData.source || 'B2B Portal',
       buyer_name: leadData.buyer_name ? leadData.buyer_name.trim() : null,
       buyer_phone: cleanPhone,
       buyer_city: leadData.buyer_city ? leadData.buyer_city.trim() : null,

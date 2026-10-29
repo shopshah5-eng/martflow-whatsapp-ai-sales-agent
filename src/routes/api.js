@@ -1,6 +1,6 @@
 /**
  * MartFlow AI — Modular SaaS API Router
- * Fully authenticated, tenant-isolated REST endpoints with live WhatsApp & IndiaMART integration.
+ * Fully authenticated, tenant-isolated REST endpoints with live WhatsApp & B2B integration.
  */
 
 import express from 'express';
@@ -13,7 +13,7 @@ import { CallSchedulerService } from '../services/callSchedulerService.js';
 import { AnalyticsService } from '../services/analyticsService.js';
 import { AIService } from '../services/aiService.js';
 import { WhatsAppAdapter } from '../integrations/whatsapp/whatsappAdapter.js';
-import { IndiaMartWebhook } from '../integrations/indiamart/indiamartWebhook.js';
+import { B2BWebhook } from '../integrations/b2b/b2bWebhook.js';
 import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
 import db from '../db/index.js';
 
@@ -119,7 +119,7 @@ router.post('/leads/simulate', authenticate, async (req, res) => {
       QUERY_MESSAGE: message
     };
 
-    const webhookRes = await IndiaMartWebhook.handleIncomingWebhook(req.organizationId, payload);
+    const webhookRes = await B2BWebhook.handleIncomingWebhook(req.organizationId, payload);
     const lead = webhookRes.leadId ? db.findById('leads', webhookRes.leadId) : null;
     res.json({ ok: true, lead, leadId: webhookRes.leadId, ...webhookRes });
   } catch (err) {
@@ -183,7 +183,7 @@ router.get('/conversations', authenticate, (req, res) => {
       leadId: conv.lead_id,
       mode: conv.mode || 'ai',
       isUnread: conv.is_unread,
-      buyerName: lead?.buyer_name || 'IndiaMART Buyer',
+      buyerName: lead?.buyer_name || 'B2B Buyer',
       buyerPhone: lead?.buyer_phone || '',
       buyerCity: lead?.buyer_city || '',
       productInquired: lead?.product_inquired || '',
@@ -482,25 +482,25 @@ router.get('/settings/team', authenticate, (req, res) => {
 // ==========================================
 // 9. REAL WEBHOOK INGESTION ENDPOINTS
 // ==========================================
-router.post('/webhook/indiamart/:webhookKey', async (req, res) => {
+router.post(['/webhook/b2b/:webhookKey'], async (req, res) => {
   try {
-    const token = req.headers['x-indiamart-token'] || req.query.token;
-    const result = await IndiaMartWebhook.handleWebhookByKey(req.params.webhookKey, req.body, token);
+    const token = req.headers['x-b2b-token'] || req.query.token;
+    const result = await B2BWebhook.handleWebhookByKey(req.params.webhookKey, req.body, token);
     res.json(result);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
 
-router.post('/webhook/indiamart', async (req, res) => {
+router.post(['/webhook/b2b'], async (req, res) => {
   try {
     let orgId = req.query.orgId || req.headers['x-tenant-id'];
     if (!orgId) {
       const defaultOrg = db.findOne('organizations', () => true);
       orgId = defaultOrg ? defaultOrg.id : null;
     }
-    const token = req.headers['x-indiamart-token'] || req.query.token;
-    const result = await IndiaMartWebhook.handleIncomingWebhook(orgId, req.body, token);
+    const token = req.headers['x-b2b-token'] || req.query.token;
+    const result = await B2BWebhook.handleIncomingWebhook(orgId, req.body, token);
     res.json(result);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
