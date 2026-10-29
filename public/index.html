@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -144,9 +146,17 @@
           <span>Company Settings</span>
         </button>
 
-        <button onclick="switchView('billing')" id="nav-billing" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
-          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-          <span>Billing & Plan</span>
+        <button onclick="switchView('billing')" id="nav-billing" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <div class="flex items-center space-x-3">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            <span>Membership & Plan</span>
+          </div>
+          <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Active</span>
+        </button>
+
+        <button onclick="switchView('engineer')" id="nav-engineer" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100 transition hidden">
+          <span class="text-xs">🛠️</span>
+          <span class="font-semibold text-xs">Engineer Console</span>
         </button>
       </div>
 
@@ -675,99 +685,217 @@
       </section>
 
       <!-- ============================================== -->
-      <!-- VIEW 9: BILLING -->
+      <!-- VIEW 9: WORKSPACE MEMBERSHIP & PLAN ACTIVATION -->
       <!-- ============================================== -->
       <section id="view-billing" class="hidden space-y-6">
-        <div>
-          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Billing & Plans</h1>
-          <p class="text-xs text-slate-500 mt-0.5">Manage your MartFlow AI subscription and lead allowances.</p>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Membership & Activation</h1>
+            <p class="text-xs text-slate-500 mt-0.5">High-intent autonomous AI sales closing for your manufacturing factory.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="memStatusBadge" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              🎁 48-Hour Live Trial Active
+            </span>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-          <!-- PLAN 1: 48-HOUR LIVE TRIAL -->
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative hover:border-emerald-300 transition">
-            <span class="absolute -top-2.5 left-4 text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">Test Drive</span>
-            <div class="space-y-3">
-              <h3 class="text-base font-bold text-slate-900 mt-1">48-Hour Live Trial</h3>
-              <div class="text-2xl font-extrabold text-slate-900">₹0 <span class="text-xs font-normal text-slate-500">/ 2 Days</span></div>
-              <p class="text-xs text-slate-500">Test on real IndiaMART buyers with zero risk before committing.</p>
-              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
-                <li class="flex items-center">✓ 25 Free IndiaMART Enquiries</li>
-                <li class="flex items-center">✓ 2 Machine PDF Brochures</li>
-                <li class="flex items-center">✓ Instant WhatsApp Dispatch (<10s)</li>
-                <li class="flex items-center">✓ Hinglish Deal Qualification AI</li>
-                <li class="flex items-center text-indigo-600 font-semibold">✓ ₹999 VIP Pilot (100% Adjusted)</li>
-              </ul>
+        <!-- CARD 1: TRIAL STATUS & LIVE LEADS USAGE BAR -->
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-sm border border-slate-800 space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Live Workspace Quota</span>
+              <h3 class="text-lg font-bold">48-Hour Live Trial: Real Buyer Inquiries</h3>
+              <p class="text-xs text-slate-300">Your factory workspace is live. AI qualifies buyers, attaches machine PDFs, and schedules owner calls.</p>
             </div>
-            <div class="space-y-2 pt-3">
-              <button onclick="startSelfTrial()" class="w-full py-2 bg-emerald-600 text-white font-semibold rounded-lg text-xs hover:bg-emerald-700 transition shadow-sm">
-                Start Free 48h Self-Trial
+            <div class="text-right">
+              <div class="text-xs text-slate-300">Trial Time Remaining:</div>
+              <div id="memCountdownDisplay" class="text-base font-mono font-bold text-emerald-300 mt-0.5">47h 55m remaining</div>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="space-y-1.5 pt-2">
+            <div class="flex justify-between text-xs font-medium text-slate-300">
+              <span>IndiaMART Buyer Leads Processed</span>
+              <span id="memLeadQuotaText" class="font-bold text-white">2 / 25 Leads Included</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+              <div id="memLeadProgressBar" class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 8%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2: FACTORY OUTCOME LICENSE & TAILORED QUOTE (ZERO CONFUSING PUBLIC TIERS) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left 2 Cols: Business Outcomes -->
+          <div class="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
+            <div class="space-y-1">
+              <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">Full Factory License</span>
+              <h2 class="text-lg font-bold text-slate-900 mt-1">Activate Autonomous IndiaMART Sales for Your Factory</h2>
+              <p class="text-xs text-slate-500">Transform missed inquiries into qualified deal consultations without hiring extra sales staff.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
+                <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
+                  <span>Instant PDF Brochure Dispatch (&lt;10s)</span>
+                </div>
+                <p class="text-slate-600">Sends accurate machine model specs, capacity & factory photos while buyer is hot.</p>
+              </div>
+
+              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
+                <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
+                  <span>Natural Hinglish Deal Closing AI</span>
+                </div>
+                <p class="text-slate-600">Grounded strictly in your uploaded catalog. Asks delivery city, budget & capacity.</p>
+              </div>
+
+              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
+                <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
+                  <span>Zero Missed Night & Sunday Inquiries</span>
+                </div>
+                <p class="text-slate-600">70% of machinery inquiries arrive after 7 PM. MartFlow closes while competitors sleep.</p>
+              </div>
+
+              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
+                <div class="font-bold text-slate-900 flex items-center gap-1.5">
+                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
+                  <span>15-Minute Done-For-You AnyDesk Setup</span>
+                </div>
+                <p class="text-slate-600">Zero technical hassle. Our senior engineers connect your IndiaMART CRM and test live.</p>
+              </div>
+            </div>
+
+            <!-- Custom Activation Quote / Code Unlock -->
+            <div class="p-4 bg-indigo-50/60 border border-indigo-100 rounded-xl space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h4 class="text-xs font-bold text-indigo-950">Have an Enterprise Offer Code or Custom Quote?</h4>
+                  <p class="text-[11px] text-indigo-800">Enter your partner coupon code or activation reference to unlock your tailored factory rate.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <input type="text" id="offerCodeInput" placeholder="e.g. VIP999" class="px-3 py-1.5 text-xs border border-indigo-200 rounded-lg uppercase font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                  <button onclick="submitActivationCode()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+                    Apply
+                  </button>
+                </div>
+              </div>
+
+              <!-- Tailored Invoice Banner (If custom_quote_inr is active) -->
+              <div id="customQuoteBanner" class="hidden p-3 bg-white border border-emerald-300 rounded-lg flex items-center justify-between">
+                <div>
+                  <span class="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded">Tailored Proposal Unlocked</span>
+                  <div class="text-sm font-bold text-slate-900 mt-0.5">Special Factory Activation: <span id="customQuoteAmountText" class="text-indigo-600 font-extrabold">₹14,999</span></div>
+                </div>
+                <button onclick="openActivationModal('Tailored Factory License', document.getElementById('customQuoteAmountText').textContent, 'Custom Tailored Factory Activation')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+                  Activate Now →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Col: Instant Action Card -->
+          <div class="bg-white border-2 border-indigo-600 rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5">
+            <div class="space-y-3">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Risk-Free VIP Onboarding</span>
+              <h3 class="text-base font-bold text-slate-900">Lock VIP AnyDesk Engineer Deposit</h3>
+              <div class="text-3xl font-extrabold text-indigo-600">₹999 <span class="text-xs font-normal text-slate-500">deposit</span></div>
+              <p class="text-xs text-slate-500">100% adjusted into your final factory license. Our engineer sets up your IndiaMART webhooks, catalogs & WhatsApp live.</p>
+
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center text-slate-800 font-semibold">✓ 15-Minute Remote AnyDesk Setup</div>
+                <div class="flex items-center text-slate-800 font-semibold">✓ Live Test Inquiry Verified Together</div>
+                <div class="flex items-center text-slate-800 font-semibold">✓ 100% Money-Back Guarantee</div>
+              </div>
+            </div>
+
+            <div class="space-y-2 pt-2">
+              <button onclick="openActivationModal('VIP Pilot Done-For-You Deposit', '₹999', '100% Adjusted in Final Factory Plan')" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-2">
+                <span>⚡ Lock ₹999 Deposit & Connect</span>
               </button>
-              <button onclick="openActivationModal('VIP Pilot Done-For-You', '₹999', '100% Adjusted in Final Plan')" class="w-full py-1.5 border border-indigo-200 text-indigo-700 bg-indigo-50 font-semibold rounded-lg text-xs hover:bg-indigo-100 transition">
-                ⚡ Book ₹999 Engineer Setup
+              <button onclick="openAnyDeskHelpModal()" class="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-gray-300 text-slate-700 font-semibold rounded-xl text-xs transition">
+                Talk to Sales Engineer on WhatsApp →
               </button>
             </div>
           </div>
+        </div>
+      </section>
 
-          <!-- PLAN 2: QUICK-LAUNCH QR PRO -->
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative hover:border-slate-400 transition">
-            <span class="absolute -top-2.5 left-4 text-[10px] font-bold uppercase bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full border border-slate-300">₹0 Message Cost</span>
-            <div class="space-y-3">
-              <h3 class="text-base font-bold text-slate-900 mt-1">Quick-Launch QR Pro</h3>
-              <div class="text-2xl font-extrabold text-slate-900">₹9,999 <span class="text-xs font-normal text-slate-500">one-time</span></div>
-              <p class="text-xs text-slate-500">+ ₹999/mo cloud hosting from Month 2. Uses dedicated sales phone QR.</p>
-              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
-                <li class="flex items-center font-bold text-emerald-700">✓ ₹0 Per-Message Fees (Zero Meta Cost)</li>
-                <li class="flex items-center">✓ Unlimited IndiaMART Enquiries 24×7</li>
-                <li class="flex items-center">✓ Up to 15 Machine PDF Brochures</li>
-                <li class="flex items-center">✓ Hinglish Voice/Text Deal AI</li>
-                <li class="flex items-center">✓ Instant Owner Alert & Excel Export</li>
-              </ul>
+      <!-- ============================================== -->
+      <!-- VIEW 10: ENGINEER CONSOLE (?admin=1) -->
+      <!-- ============================================== -->
+      <section id="view-engineer" class="hidden space-y-6">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">Engineer Console (?admin=1)</span>
+          </div>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight mt-1">Infrastructure, Database & Gateways</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Developer credentials for Supabase multi-tenant database, Razorpay API, and Merchant UPI.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Card 1: Supabase Multi-Tenant Config -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">⚡</span>
+              <h3 class="text-sm font-bold text-slate-900">Supabase Project & Google Auth</h3>
             </div>
-            <button onclick="openActivationModal('Quick-Launch QR Pro', '₹9,999', 'One-time setup with ₹0 message fee')" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 transition shadow-sm">
-              Get Quick-Launch QR Pro →
-            </button>
+            <p class="text-xs text-slate-500">Row-Level Security (RLS) is pre-configured in `supabase_schema.sql`. Paste keys below to activate live cloud DB.</p>
+
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Supabase Project URL</label>
+                <input type="text" id="engSupabaseUrl" placeholder="https://xyzcompany.supabase.co" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Supabase Anon Public Key</label>
+                <input type="password" id="engSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
+              <p class="text-[11px] text-slate-400">If blank, MartFlow seamlessly runs on isolated transactional local/in-browser storage.</p>
+            </div>
           </div>
 
-          <!-- PLAN 3: OFFICIAL META API ALL-INCLUSIVE (MOST POPULAR) -->
-          <div class="bg-white border-2 border-indigo-600 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative transform -translate-y-1 shadow-md">
-            <span class="absolute -top-3 left-4 text-[10px] font-bold uppercase bg-indigo-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">⭐ Most Popular • Zero Ban Risk</span>
-            <div class="space-y-3">
-              <h3 class="text-base font-bold text-slate-900 mt-1">Official Meta API All-Inclusive</h3>
-              <div class="text-2xl font-extrabold text-slate-900">₹3,499 <span class="text-xs font-normal text-slate-500">/ month</span></div>
-              <p class="text-xs text-slate-500">+ ₹4,999 one-time engineer onboarding. Zero Facebook credit card required.</p>
-              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
-                <li class="flex items-center font-bold text-indigo-700">✓ Official Meta WhatsApp Charges Included</li>
-                <li class="flex items-center">✓ Up to 500 IndiaMART Leads / month</li>
-                <li class="flex items-center">✓ 0% Ban Risk (Green-Tick Ready)</li>
-                <li class="flex items-center">✓ Interactive WhatsApp Buttons & Videos</li>
-                <li class="flex items-center">✓ Full Autonomous Deal Closing & Booking</li>
-              </ul>
+          <!-- Card 2: Merchant Payment Gateways (UPI & Razorpay) -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">💳</span>
+              <h3 class="text-sm font-bold text-slate-900">Payment Gateways (UPI & Razorpay)</h3>
             </div>
-            <button onclick="openActivationModal('Official Meta API All-Inclusive', '₹3,499 / mo', 'Official Meta API Charges Included')" class="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg text-xs hover:bg-indigo-700 transition shadow-md">
-              Activate Meta API All-Inclusive →
-            </button>
-          </div>
+            <p class="text-xs text-slate-500">Configure direct bank UPI settlement (0% MDR) and official Razorpay checkout SDK credentials.</p>
 
-          <!-- PLAN 4: FACTORY ANNUAL VIP -->
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative hover:border-amber-300 transition">
-            <span class="absolute -top-2.5 left-4 text-[10px] font-bold uppercase bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">Save ₹17,000 / Year</span>
-            <div class="space-y-3">
-              <h3 class="text-base font-bold text-slate-900 mt-1">Factory Annual VIP</h3>
-              <div class="text-2xl font-extrabold text-slate-900">₹24,999 <span class="text-xs font-normal text-slate-500">/ year</span></div>
-              <p class="text-xs text-slate-500">Complete enterprise turnkey solution with dedicated account manager.</p>
-              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
-                <li class="flex items-center font-bold text-amber-700">✓ Official Meta API Included (6,000 Leads/yr)</li>
-                <li class="flex items-center">✓ Unlimited Machine PDF Brochures</li>
-                <li class="flex items-center">✓ Multi-Salesman Lead Routing</li>
-                <li class="flex items-center">✓ Free Catalog Updates All Year</li>
-                <li class="flex items-center">✓ 24/7 Priority AnyDesk & WhatsApp SLA</li>
-              </ul>
+            <div class="space-y-3 text-xs">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Merchant UPI ID</label>
+                  <input type="text" id="engMerchantUpiId" placeholder="payments@martflow.ai" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+                </div>
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Merchant Display Name</label>
+                  <input type="text" id="engMerchantName" placeholder="MartFlow AI" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Razorpay Key ID (Optional)</label>
+                <input type="text" id="engRazorpayKeyId" placeholder="rzp_live_..." class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Backend Server API Base URL</label>
+                <input type="text" id="engApiBase" placeholder="https://api.martflow.ai (leave blank if local)" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
             </div>
-            <button onclick="openActivationModal('Factory Annual VIP', '₹24,999 / yr', 'Dedicated VIP Engineer Setup')" class="w-full py-2 border border-gray-300 font-semibold rounded-lg text-xs text-slate-800 hover:bg-slate-50 transition shadow-sm">
-              Upgrade to Annual VIP →
-            </button>
           </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button onclick="saveEngineerSettings()" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs shadow-sm transition">
+            Save Infrastructure Credentials
+          </button>
         </div>
       </section>
 
@@ -849,40 +977,82 @@
   </div>
 
   <!-- HIGH-TRUST PAYMENT & PLAN ACTIVATION MODAL -->
+  <!-- HIGH-TRUST DUAL PAYMENT & PLAN ACTIVATION MODAL -->
   <div id="activationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
       <button onclick="closeActivationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
       </button>
 
       <div class="text-center space-y-1">
         <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Instant VIP Activation</span>
-        <h2 id="actPlanTitle" class="text-lg font-bold text-slate-900 mt-2">Official Meta API All-Inclusive</h2>
-        <div id="actPlanPrice" class="text-2xl font-extrabold text-indigo-600">₹3,499 / month</div>
-        <p id="actPlanNote" class="text-xs text-slate-500">Official Meta WhatsApp API fees for 500 leads/mo 100% included.</p>
+        <h2 id="actPlanTitle" class="text-lg font-bold text-slate-900 mt-2">Factory Sales License</h2>
+        <div id="actPlanPrice" class="text-2xl font-extrabold text-indigo-600">₹999</div>
+        <p id="actPlanNote" class="text-xs text-slate-500">100% adjusted into final plan. Instant activation with AnyDesk support.</p>
       </div>
 
-      <!-- 3 Trust Guarantees -->
-      <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs space-y-1.5 text-slate-700">
-        <div class="flex items-center text-slate-800 font-medium">✓ <strong>15-Minute Engineer Setup</strong> via AnyDesk / Google Meet</div>
-        <div class="flex items-center text-slate-800 font-medium">✓ <strong>Zero API Complexity:</strong> We configure Meta WABA, tokens & templates</div>
-        <div class="flex items-center text-slate-800 font-medium">✓ <strong>100% Fee Adjustment:</strong> ₹999 trial fee is fully adjusted in final plan</div>
+      <!-- PAYMENT METHOD TABS -->
+      <div class="flex border-b border-gray-200 text-xs font-semibold">
+        <button id="payTabUpiBtn" onclick="switchPayTab('upi')" class="flex-1 py-2.5 text-center border-b-2 border-indigo-600 text-indigo-600 transition flex items-center justify-center space-x-1.5">
+          <span>⚡ Instant UPI QR (0% Fee)</span>
+        </button>
+        <button id="payTabRazorpayBtn" onclick="switchPayTab('razorpay')" class="flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center justify-center space-x-1.5">
+          <span>💳 Razorpay (Card / NetBanking)</span>
+        </button>
       </div>
 
-      <!-- Dynamic UPI QR Code & ID -->
-      <div class="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-3">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-indigo-900">Instant UPI Payment (Any App)</div>
-        <div class="bg-white p-2 rounded-xl inline-block border border-indigo-100 shadow-sm">
-          <img id="actUpiQr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dpayments%40martflow.ai%26pn%3DMartFlow%2520AI%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
+      <!-- TAB 1: INSTANT DIRECT UPI QR & UTR LOGGING -->
+      <div id="payTabUpiContent" class="space-y-3 pt-1">
+        <div class="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-3">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-indigo-900">Scan & Pay via GPay, PhonePe, Paytm, BHIM</div>
+          <div class="bg-white p-2 rounded-xl inline-block border border-indigo-100 shadow-sm">
+            <img id="actUpiQr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dpayments%40martflow.ai%26pn%3DMartFlow%2520AI%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
+          </div>
+          <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
+            <span id="actUpiIdText" class="text-slate-600 font-semibold truncate">UPI ID: payments@martflow.ai</span>
+            <button onclick="copyUpiId()" class="text-indigo-600 hover:text-indigo-800 font-bold ml-2 shrink-0">Copy</button>
+          </div>
+          <a id="actUpiMobileBtn" href="#" class="block w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition">
+            📱 Open in UPI App (GPay / PhonePe / Paytm)
+          </a>
         </div>
-        <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
-          <span class="text-slate-600 font-semibold truncate">UPI ID: payments@martflow.ai</span>
-          <button onclick="copyUpiId()" class="text-indigo-600 hover:text-indigo-800 font-bold ml-2 shrink-0">Copy</button>
+
+        <!-- 12-Digit UTR Input for Instant Activation -->
+        <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl space-y-2 text-xs">
+          <label class="block font-semibold text-slate-700">Enter 12-Digit Bank UTR / Reference No. After Payment:</label>
+          <div class="flex space-x-2">
+            <input type="text" id="actUtrInput" placeholder="e.g. 429381029384" class="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <button onclick="submitUtrVerification()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition shadow-sm shrink-0">
+              Verify UTR
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500">Your transaction will be verified in under 60 seconds.</p>
         </div>
+      </div>
+
+      <!-- TAB 2: RAZORPAY OFFICIAL CHECKOUT SDK -->
+      <div id="payTabRazorpayContent" class="hidden space-y-4 pt-1">
+        <div class="p-4 bg-slate-50 border border-gray-200 rounded-xl space-y-3 text-xs">
+          <div class="flex items-center space-x-2 text-indigo-700 font-bold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            <span>Razorpay Secure Business Checkout</span>
+          </div>
+          <p class="text-slate-600">Supports all major payment options with instant GST tax invoice:</p>
+          <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-700">
+            <div class="p-2 bg-white border border-gray-200 rounded">💳 Credit & Debit Cards</div>
+            <div class="p-2 bg-white border border-gray-200 rounded">🏦 50+ NetBanking Banks</div>
+            <div class="p-2 bg-white border border-gray-200 rounded">📱 UPI & Autopay</div>
+            <div class="p-2 bg-white border border-gray-200 rounded">🏢 Corporate Cards & EMI</div>
+          </div>
+        </div>
+
+        <button onclick="startRazorpayPayment()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-2">
+          <span>Pay Securely via Razorpay →</span>
+        </button>
       </div>
 
       <!-- 1-Click WhatsApp Direct Activation -->
-      <div class="space-y-2 pt-1">
+      <div class="space-y-2 pt-1 border-t border-gray-100">
         <a id="actWaBtn" href="https://wa.me/919825012345?text=Namaste%20MartFlow%20Team!%20I%20want%20to%20activate%20my%20factory%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
           ⚡ Confirm & Connect on WhatsApp (Under 10 Mins) →
         </a>
@@ -982,6 +1152,24 @@
       <div id="loginFormBlock" class="space-y-4">
         <h2 class="text-lg lg:text-xl font-bold text-slate-900">Sign in to MartFlow AI</h2>
         <p class="text-xs text-slate-500">Access your organization's sales intelligence workspace.</p>
+
+        <!-- Google / Gmail OAuth Button -->
+        <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-lg text-slate-700 font-semibold text-xs hover:bg-gray-50 transition flex items-center justify-center space-x-2 shadow-sm">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Continue with Google (Gmail)</span>
+        </button>
+
+        <div class="flex items-center my-2">
+          <div class="flex-grow border-t border-gray-200"></div>
+          <span class="px-2 text-[10px] text-slate-400 uppercase font-semibold">Or with Email</span>
+          <div class="flex-grow border-t border-gray-200"></div>
+        </div>
+
         <div class="space-y-3 text-xs">
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Business Email</label>
@@ -1007,6 +1195,24 @@
       <div id="signupFormBlock" class="hidden space-y-4">
         <h2 class="text-lg lg:text-xl font-bold text-slate-900">Create Company Workspace</h2>
         <p class="text-xs text-slate-500">Start closing IndiaMART deals automatically on WhatsApp.</p>
+
+        <!-- Google / Gmail OAuth Button -->
+        <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-lg text-slate-700 font-semibold text-xs hover:bg-gray-50 transition flex items-center justify-center space-x-2 shadow-sm">
+          <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Continue with Google (Gmail)</span>
+        </button>
+
+        <div class="flex items-center my-2">
+          <div class="flex-grow border-t border-gray-200"></div>
+          <span class="px-2 text-[10px] text-slate-400 uppercase font-semibold">Or with Email</span>
+          <div class="flex-grow border-t border-gray-200"></div>
+        </div>
+
         <div class="space-y-3 text-xs">
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Full Name</label>
@@ -1484,6 +1690,64 @@
         return csv;
       }
 
+      if (pathOnly === '/api/auth/google' && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const email = body.email || 'director@gmail.com';
+        const name = body.fullName || email.split('@')[0];
+        return {
+          ok: true,
+          token: 'mf_token_google_' + Date.now(),
+          user: { id: 'usr_google', email, fullName: name },
+          organization: { id: 'org_google', name: name + ' Manufacturing', plan_status: 'trial', monthly_lead_limit: 25, leads_used: 2, webhook_key: 'whk_preview_' + Date.now().toString(36) }
+        };
+      }
+
+      if (pathOnly === '/api/membership/status' || pathOnly === '/api/billing') {
+        const customQuote = localStorage.getItem('mf_custom_quote');
+        return {
+          ok: true,
+          membership: {
+            planStatus: 'trial',
+            trialEndsAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+            monthlyLeadLimit: 25,
+            leadsUsed: 2,
+            customQuoteInr: customQuote ? Number(customQuote) : null,
+            merchantUpiId: localStorage.getItem('mf_merchant_upi') || 'payments@martflow.ai',
+            merchantName: localStorage.getItem('mf_merchant_name') || 'MartFlow AI',
+            isRazorpayConfigured: Boolean(localStorage.getItem('mf_rzp_key_id')),
+            razorpayKeyId: localStorage.getItem('mf_rzp_key_id') || null
+          }
+        };
+      }
+
+      if (pathOnly === '/api/membership/unlock-code' && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const code = String(body.code || '').trim().toUpperCase();
+        let quote = 9999;
+        if (code === 'VIP999' || code === 'PILOT999') quote = 999;
+        else if (code.startsWith('OFFER') || code.startsWith('FACTORY')) quote = 14999;
+        else if (code.startsWith('ANNUAL') || code.startsWith('VIP')) quote = 24999;
+        localStorage.setItem('mf_custom_quote', String(quote));
+        return { ok: true, message: `Special factory rate of ₹${quote.toLocaleString('en-IN')} unlocked!`, customQuoteInr: quote };
+      }
+
+      if (pathOnly === '/api/payments/upi-verify' && method === 'POST') {
+        return { ok: true, message: 'UPI transaction verified! Workspace successfully activated.' };
+      }
+
+      if (pathOnly === '/api/payments/razorpay/create-order' && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const amount = parseInt(body.amountInr || 999, 10);
+        return { ok: true, orderId: 'order_mock_' + Date.now(), amount: amount * 100, currency: 'INR', keyId: localStorage.getItem('mf_rzp_key_id') || 'rzp_test_placeholder' };
+      }
+
+      if (pathOnly === '/api/payments/razorpay/verify' && method === 'POST') {
+        return { ok: true, message: 'Razorpay payment verified & workspace activated!' };
+      }
+
       return { ok: true, message: 'Simulated preview response' };
     }
 
@@ -1582,7 +1846,7 @@
 
     // 4. View Switching & Drawer Navigation
     function switchView(viewName) {
-      const views = ['dashboard', 'leads', 'conversations', 'catalog', 'whatsapp', 'calls', 'analytics', 'settings', 'billing'];
+      const views = ['dashboard', 'leads', 'conversations', 'catalog', 'whatsapp', 'calls', 'analytics', 'settings', 'billing', 'engineer'];
       views.forEach(v => {
         const el = document.getElementById(`view-${v}`);
         const nav = document.getElementById(`nav-${v}`);
@@ -1602,6 +1866,8 @@
       if (viewName === 'analytics') loadAnalyticsData();
       if (viewName === 'whatsapp') checkWaConnection();
       if (viewName === 'settings') loadSettingsData();
+      if (viewName === 'billing') loadMembershipData();
+      if (viewName === 'engineer') loadEngineerSettings();
     }
 
     function toggleMobileSidebar() {
@@ -2419,9 +2685,260 @@
       showToast('IndiaMART Webhook URL copied to clipboard!', 'success');
     }
 
-    // 16. Upgrade & Activation Modals
-    function openUpgradeModal(planName = 'Official Meta API All-Inclusive') {
-      openActivationModal(planName, '₹3,499 / mo', 'Managed Zero-Ban Setup');
+    // 16. Google (Gmail) OAuth & Supabase Auth Flow
+    async function handleGoogleSignIn() {
+      const supabaseUrl = localStorage.getItem('mf_supabase_url') || window.SUPABASE_URL;
+      const supabaseKey = localStorage.getItem('mf_supabase_anon_key') || window.SUPABASE_ANON_KEY;
+
+      if (window.supabase && supabaseUrl && supabaseKey) {
+        try {
+          const client = window.supabase.createClient(supabaseUrl, supabaseKey);
+          const { data, error } = await client.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: window.location.origin }
+          });
+          if (error) throw error;
+          return;
+        } catch (err) {
+          console.warn('Supabase OAuth notice, using seamless fallback:', err.message);
+        }
+      }
+
+      // Graceful zero-crash fallback: prompt for Gmail & auto-provision isolated tenant
+      const emailPrompt = prompt('Enter your Gmail address to continue:', 'director@gmail.com');
+      if (!emailPrompt) return;
+      const cleanEmail = emailPrompt.trim().toLowerCase();
+      const userName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ');
+
+      try {
+        const data = await apiFetch('/api/auth/google', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, fullName: userName })
+        });
+        currentAuthToken = data.token;
+        localStorage.setItem('mf_auth_token', currentAuthToken);
+        currentOrg = data.organization;
+        currentUser = data.user;
+        closeAuthModal();
+        updateAuthUI();
+        showToast(`Welcome! 48-Hour Live Trial workspace created for ${currentOrg.name}`, 'success');
+        loadDashboardData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // 17. Dual Payment Engine (Tabs, UPI QR & Razorpay SDK)
+    function switchPayTab(tab) {
+      const upiBtn = document.getElementById('payTabUpiBtn');
+      const rzpBtn = document.getElementById('payTabRazorpayBtn');
+      const upiContent = document.getElementById('payTabUpiContent');
+      const rzpContent = document.getElementById('payTabRazorpayContent');
+
+      if (tab === 'razorpay') {
+        upiBtn?.classList.remove('border-indigo-600', 'text-indigo-600');
+        upiBtn?.classList.add('border-transparent', 'text-slate-500');
+        rzpBtn?.classList.add('border-indigo-600', 'text-indigo-600');
+        rzpBtn?.classList.remove('border-transparent', 'text-slate-500');
+        upiContent?.classList.add('hidden');
+        rzpContent?.classList.remove('hidden');
+      } else {
+        rzpBtn?.classList.remove('border-indigo-600', 'text-indigo-600');
+        rzpBtn?.classList.add('border-transparent', 'text-slate-500');
+        upiBtn?.classList.add('border-indigo-600', 'text-indigo-600');
+        upiBtn?.classList.remove('border-transparent', 'text-slate-500');
+        rzpContent?.classList.add('hidden');
+        upiContent?.classList.remove('hidden');
+      }
+    }
+
+    async function submitUtrVerification() {
+      const utr = document.getElementById('actUtrInput')?.value?.trim();
+      if (!utr || utr.length < 8) {
+        showToast('Please enter a valid 12-digit UTR or Bank Reference Number.', 'error');
+        return;
+      }
+      const priceText = document.getElementById('actPlanPrice')?.textContent || '999';
+      const amountDigits = parseInt(priceText.replace(/\D/g, '') || '999', 10);
+
+      try {
+        const res = await apiFetch('/api/payments/upi-verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ utrReference: utr, amountInr: amountDigits })
+        });
+        showToast(res.message || 'Payment logged! Factory workspace verified.', 'success');
+        closeActivationModal();
+        loadMembershipData();
+        loadDashboardData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function startRazorpayPayment() {
+      const priceText = document.getElementById('actPlanPrice')?.textContent || '999';
+      const amountDigits = parseInt(priceText.replace(/\D/g, '') || '999', 10);
+      const planTitle = document.getElementById('actPlanTitle')?.textContent || 'Factory License';
+
+      try {
+        const orderData = await apiFetch('/api/payments/razorpay/create-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amountInr: amountDigits, planTitle })
+        });
+
+        const keyId = orderData.keyId || localStorage.getItem('mf_rzp_key_id');
+        if (!window.Razorpay || !keyId || keyId.includes('placeholder')) {
+          showToast('Razorpay keys not yet set — defaulting to 0% Fee Instant UPI QR.', 'info');
+          switchPayTab('upi');
+          return;
+        }
+
+        const options = {
+          key: keyId,
+          amount: orderData.amount,
+          currency: 'INR',
+          name: 'MartFlow AI',
+          description: planTitle,
+          order_id: orderData.orderId,
+          handler: async function (response) {
+            try {
+              await apiFetch('/api/payments/razorpay/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature
+                })
+              });
+              showToast('Payment successful! Factory workspace active.', 'success');
+              closeActivationModal();
+              loadMembershipData();
+              loadDashboardData();
+            } catch (vErr) {
+              showToast(vErr.message, 'error');
+            }
+          },
+          prefill: {
+            name: currentUser?.fullName || 'Factory Owner',
+            email: currentUser?.email || 'owner@factory.com',
+            contact: document.getElementById('settingOwnerPhone')?.value || ''
+          },
+          theme: { color: '#4f46e5' }
+        };
+
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } catch (err) {
+        showToast(err.message, 'error');
+        switchPayTab('upi');
+      }
+    }
+
+    async function submitActivationCode() {
+      const code = document.getElementById('offerCodeInput')?.value?.trim();
+      if (!code) {
+        showToast('Please enter an activation or partner coupon code.', 'error');
+        return;
+      }
+      try {
+        const res = await apiFetch('/api/membership/unlock-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code })
+        });
+        showToast(res.message || 'Activation offer unlocked!', 'success');
+        const banner = document.getElementById('customQuoteBanner');
+        const amountText = document.getElementById('customQuoteAmountText');
+        if (banner && amountText) {
+          amountText.textContent = `₹${(res.customQuoteInr || 9999).toLocaleString('en-IN')}`;
+          banner.classList.remove('hidden');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function loadMembershipData() {
+      if (!currentAuthToken) return;
+      try {
+        const res = await apiFetch('/api/membership/status');
+        const m = res.membership || {};
+        const leadLimit = m.monthlyLeadLimit || 25;
+        const leadsUsed = m.leadsUsed || 0;
+        const pct = Math.min(100, Math.round((leadsUsed / leadLimit) * 100));
+
+        const quotaText = document.getElementById('memLeadQuotaText');
+        if (quotaText) quotaText.textContent = `${leadsUsed} / ${leadLimit} Leads Included`;
+
+        const bar = document.getElementById('memLeadProgressBar');
+        if (bar) bar.style.width = `${pct}%`;
+
+        const countdown = document.getElementById('memCountdownDisplay');
+        const trialText = document.getElementById('trialCountdownText');
+        if (countdown && trialText) countdown.textContent = trialText.textContent;
+
+        if (m.customQuoteInr) {
+          const banner = document.getElementById('customQuoteBanner');
+          const amountText = document.getElementById('customQuoteAmountText');
+          if (banner && amountText) {
+            amountText.textContent = `₹${Number(m.customQuoteInr).toLocaleString('en-IN')}`;
+            banner.classList.remove('hidden');
+          }
+        }
+      } catch (err) {}
+    }
+
+    // 18. Engineer Console Settings (?admin=1)
+    function loadEngineerSettings() {
+      const urlEl = document.getElementById('engSupabaseUrl');
+      const keyEl = document.getElementById('engSupabaseKey');
+      const upiEl = document.getElementById('engMerchantUpiId');
+      const nameEl = document.getElementById('engMerchantName');
+      const rzpEl = document.getElementById('engRazorpayKeyId');
+      const apiEl = document.getElementById('engApiBase');
+
+      if (urlEl) urlEl.value = localStorage.getItem('mf_supabase_url') || '';
+      if (keyEl) keyEl.value = localStorage.getItem('mf_supabase_anon_key') || '';
+      if (upiEl) upiEl.value = localStorage.getItem('mf_merchant_upi') || 'payments@martflow.ai';
+      if (nameEl) nameEl.value = localStorage.getItem('mf_merchant_name') || 'MartFlow AI';
+      if (rzpEl) rzpEl.value = localStorage.getItem('mf_rzp_key_id') || '';
+      if (apiEl) apiEl.value = localStorage.getItem('mf_api_base') || '';
+    }
+
+    function saveEngineerSettings() {
+      const url = document.getElementById('engSupabaseUrl')?.value?.trim() || '';
+      const key = document.getElementById('engSupabaseKey')?.value?.trim() || '';
+      const upi = document.getElementById('engMerchantUpiId')?.value?.trim() || 'payments@martflow.ai';
+      const name = document.getElementById('engMerchantName')?.value?.trim() || 'MartFlow AI';
+      const rzp = document.getElementById('engRazorpayKeyId')?.value?.trim() || '';
+      const api = document.getElementById('engApiBase')?.value?.trim().replace(/\/+$/, '') || '';
+
+      if (url) localStorage.setItem('mf_supabase_url', url); else localStorage.removeItem('mf_supabase_url');
+      if (key) localStorage.setItem('mf_supabase_anon_key', key); else localStorage.removeItem('mf_supabase_anon_key');
+      localStorage.setItem('mf_merchant_upi', upi);
+      localStorage.setItem('mf_merchant_name', name);
+      if (rzp) localStorage.setItem('mf_rzp_key_id', rzp); else localStorage.removeItem('mf_rzp_key_id');
+
+      if (api) {
+        localStorage.setItem('mf_api_base', api);
+        API_BASE = api;
+        isStaticDemoMode = false;
+        localStorage.removeItem('mf_demo_mode');
+      } else {
+        localStorage.removeItem('mf_api_base');
+        API_BASE = '';
+      }
+
+      showToast('Infrastructure & gateway credentials saved successfully!', 'success');
+    }
+
+    // 19. Upgrade & Activation Modals
+    function openUpgradeModal(planName = 'Factory Sales License') {
+      openActivationModal(planName, '₹999', '100% Adjusted in Final Plan');
     }
 
     function closeUpgradeModal() {
@@ -2430,7 +2947,7 @@
       closeActivationModal();
     }
 
-    function openActivationModal(planName = 'Official Meta API All-Inclusive', price = '₹3,499 / mo', note = 'Official Meta WhatsApp API fees for 500 leads/mo 100% included.') {
+    function openActivationModal(planName = 'Factory Sales License', price = '₹999', note = '100% adjusted into final plan. Instant activation with AnyDesk support.') {
       const titleEl = document.getElementById('actPlanTitle');
       const priceEl = document.getElementById('actPlanPrice');
       const noteEl = document.getElementById('actPlanNote');
@@ -2438,13 +2955,24 @@
       if (priceEl) priceEl.textContent = price;
       if (noteEl) noteEl.textContent = note;
 
+      switchPayTab('upi');
+
       // Extract raw amount for UPI URL
       const cleanPriceDigits = price.replace(/\D/g, '') || '999';
-      const upiUrl = `upi://pay?pa=payments@martflow.ai&pn=MartFlow%20AI&am=${cleanPriceDigits}&cu=INR`;
+      const merchantUpi = localStorage.getItem('mf_merchant_upi') || 'payments@martflow.ai';
+      const merchantName = localStorage.getItem('mf_merchant_name') || 'MartFlow AI';
+      const upiUrl = `upi://pay?pa=${encodeURIComponent(merchantUpi)}&pn=${encodeURIComponent(merchantName)}&am=${cleanPriceDigits}&cu=INR&tn=MartFlow_Activation`;
+
       const qrEl = document.getElementById('actUpiQr');
       if (qrEl) {
         qrEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiUrl)}`;
       }
+
+      const mobileBtn = document.getElementById('actUpiMobileBtn');
+      if (mobileBtn) mobileBtn.href = upiUrl;
+
+      const upiIdText = document.getElementById('actUpiIdText');
+      if (upiIdText) upiIdText.textContent = `UPI ID: ${merchantUpi}`;
 
       // Dynamically resolve owner/escalation phone number
       const ownerInput = document.getElementById('settingOwnerPhone')?.value || '';
@@ -2467,8 +2995,9 @@
     }
 
     function copyUpiId() {
-      navigator.clipboard.writeText('payments@martflow.ai');
-      showToast('UPI ID payments@martflow.ai copied to clipboard!', 'success');
+      const upi = localStorage.getItem('mf_merchant_upi') || 'payments@martflow.ai';
+      navigator.clipboard.writeText(upi);
+      showToast(`UPI ID ${upi} copied to clipboard!`, 'success');
     }
 
     function openAnyDeskHelpModal() {
@@ -2490,7 +3019,7 @@
       if (modal) modal.classList.add('hidden');
     }
 
-    // 17. Language Toggle: English & Roman Hinglish
+    // 20. Language Toggle: English & Roman Hinglish
     let currentLang = localStorage.getItem('mf_lang') || 'en';
     const langDict = {
       en: {
@@ -2548,7 +3077,7 @@
       showToast(currentLang === 'hi' ? 'Language changed to Hinglish' : 'Language changed to English', 'info');
     }
 
-    // 18. 48-Hour Live Trial Management
+    // 21. 48-Hour Live Trial Management
     function initTrialCountdown() {
       if (!localStorage.getItem('mf_trial_start')) {
         localStorage.setItem('mf_trial_start', String(Date.now()));
@@ -2569,6 +3098,9 @@
 
       const leadsLeft = localStorage.getItem('mf_trial_leads_left') || '23';
       countdownEl.textContent = `${hours}h ${minutes}m left • ${leadsLeft}/25 trial leads remaining`;
+
+      const memCountdown = document.getElementById('memCountdownDisplay');
+      if (memCountdown) memCountdown.textContent = `${hours}h ${minutes}m remaining`;
     }
 
     function startSelfTrial() {
@@ -2583,6 +3115,14 @@
       checkAuthStatus();
       initTrialCountdown();
       applyLanguage(currentLang);
+      loadEngineerSettings();
+
+      // Check ?admin=1 query parameter to reveal Engineer Console
+      if (urlParams.get('admin') === '1') {
+        const engNav = document.getElementById('nav-engineer');
+        if (engNav) engNav.classList.remove('hidden');
+      }
+
       // Poll WhatsApp connection status every 10 seconds
       setInterval(() => {
         checkWaConnection();

@@ -80,9 +80,17 @@ export class IndiaMartWebhook {
 
     // Trigger Automated WhatsApp Brochure Dispatch (<10s)
     if (!result.isDuplicate) {
+      // Increment organization lead usage
+      const currentOrg = db.findById('organizations', organizationId);
+      if (currentOrg) {
+        db.update('organizations', organizationId, {
+          leads_used: (currentOrg.leads_used || 0) + 1
+        });
+      }
+
       setTimeout(async () => {
         try {
-          const { baileysManager } = await import('../whatsapp/baileysManager.js');
+          const { sendTenantWhatsApp } = await import('../whatsapp/baileysManager.js');
           const aiSettings = db.findOne('ai_settings', (s) => s.organization_id === organizationId) || {
             company_name: 'Our Manufacturing Works'
           };
@@ -102,7 +110,13 @@ export class IndiaMartWebhook {
             else if (fs.existsSync(legacyDir)) catalogPath = legacyDir;
           }
 
-          const sendRes = await baileysManager.sendMessage(normalized.buyerMobile, messageText, catalogPath);
+          const sendRes = await sendTenantWhatsApp(organizationId, {
+            toPhone: normalized.buyerMobile,
+            text: messageText,
+            attachmentPath: catalogPath,
+            fileName: matched?.brochure_filename
+          });
+
           if (sendRes.ok) {
             db.updateScoped('leads', result.lead.id, organizationId, {
               status: 'replied',
@@ -135,12 +149,12 @@ export class IndiaMartWebhook {
 
   // Handle IndiaMART Webhook by Tenant Webhook Key
   static async handleWebhookByKey(webhookKey, rawBody, authToken = null) {
-    let org = db.findOne('organizations', (o) => o.webhook_key === webhookKey || o.id === webhookKey);
+    let org = db.findByWebhookKey ? db.findByWebhookKey(webhookKey) : null;
     if (!org) {
-      org = db.findOne('organizations', () => true);
+      org = db.findOne('organizations', (o) => o.webhook_key === webhookKey || o.id === webhookKey);
     }
     if (!org) {
-      throw new Error(`Invalid or unregistered webhook key: ${webhookKey}`);
+      throw new Error(`Invalid or unregistered IndiaMART webhook key: ${webhookKey}`);
     }
     return this.handleIncomingWebhook(org.id, rawBody, authToken);
   }

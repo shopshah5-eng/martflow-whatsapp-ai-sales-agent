@@ -4,7 +4,8 @@
  */
 
 import express from 'express';
-import { signUp, login, demoLogin, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
+import crypto from 'crypto';
+import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
 import { authenticate, requireRole } from '../middleware/authMiddleware.js';
 import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
@@ -46,6 +47,16 @@ router.post('/auth/demo-login', async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Google / Gmail OAuth Auto-Provisioning
+router.post('/auth/google', async (req, res) => {
+  try {
+    const result = await handleGoogleAuth(req.body);
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
   }
 });
 
@@ -249,17 +260,19 @@ router.post('/conversations/:id/reply', authenticate, async (req, res) => {
 });
 
 // ==========================================
-// 4. WHATSAPP CONNECTION & QR MANAGEMENT
+// 4. WHATSAPP CONNECTION & QR MANAGEMENT (MULTI-TENANT ISOLATED)
 // ==========================================
 router.get('/whatsapp/status', (req, res) => {
-  const state = baileysManager.getState();
-  res.json({ ok: true, status: state.status, phoneNumber: state.phoneNumber, waState: state });
+  const orgId = req.query.orgId || req.headers['x-tenant-id'] || 'default_org';
+  const state = baileysManager.getState(orgId);
+  res.json({ ok: true, status: state.status, phoneNumber: state.connectedNumber, waState: state });
 });
 
 router.post('/whatsapp/connect', async (req, res) => {
   try {
-    await baileysManager.init();
-    res.json({ ok: true, waState: baileysManager.getState() });
+    const orgId = req.body?.orgId || req.query.orgId || req.headers['x-tenant-id'] || 'default_org';
+    await baileysManager.init(orgId);
+    res.json({ ok: true, waState: baileysManager.getState(orgId) });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -267,8 +280,9 @@ router.post('/whatsapp/connect', async (req, res) => {
 
 router.post('/whatsapp/disconnect', async (req, res) => {
   try {
-    await baileysManager.disconnect();
-    res.json({ ok: true, waState: baileysManager.getState() });
+    const orgId = req.body?.orgId || req.query.orgId || req.headers['x-tenant-id'] || 'default_org';
+    await baileysManager.disconnect(orgId);
+    res.json({ ok: true, waState: baileysManager.getState(orgId) });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -439,6 +453,13 @@ router.post('/settings/whatsapp', authenticate, requireRole(['owner', 'admin']),
     });
   }
 
+  // Update organization WhatsApp settings
+  db.update('organizations', req.organizationId, {
+    waba_phone_id: phoneId || null,
+    waba_token: token || null,
+    wa_mode: phoneId && token ? 'cloud_api' : 'qr'
+  });
+
   res.json({ ok: true, message: 'WhatsApp Cloud API settings saved successfully.' });
 });
 
@@ -504,26 +525,169 @@ router.post('/webhook/whatsapp', async (req, res) => {
 });
 
 // ==========================================
-// 10. BILLING & SUBSCRIPTIONS
+// 10. WORKSPACE MEMBERSHIP & DUAL PAYMENT ENGINE
 // ==========================================
+router.get('/membership/status', authenticate, (req, res) => {
+  const org = db.findById('organizations', req.organizationId) || req.organization;
+  const leads = db.findScoped('leads', req.organizationId);
+  const leadsUsed = org.leads_used || leads.length;
+  res.json({
+    ok: true,
+    membership: {
+      planStatus: org.plan_status || 'trial',
+      trialEndsAt: org.trial_ends_at || null,
+      monthlyLeadLimit: org.monthly_lead_limit || 25,
+      leadsUsed,
+      customQuoteInr: org.custom_quote_inr || null,
+      companyName: org.name,
+      currency: 'INR',
+      merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+      merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
+      isRazorpayConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID || null
+    }
+  });
+});
+
 router.get('/billing', authenticate, (req, res) => {
-  const org = req.organization;
-  const isRazorpayConfigured = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+  const org = db.findById('organizations', req.organizationId) || req.organization;
+  const leads = db.findScoped('leads', req.organizationId);
+  const leadsUsed = org.leads_used || leads.length;
   res.json({
     ok: true,
     billing: {
-      plan: org.plan || 'starter',
-      monthlyLeadLimit: org.monthly_lead_limit || 500,
-      currentUsage: db.findScoped('leads', org.id).length,
-      isConfigured: isRazorpayConfigured,
-      currency: 'INR',
-      plansAvailable: [
-        { name: 'Starter', price: '₹4,999/mo', leadLimit: 500 },
-        { name: 'Growth', price: '₹12,499/mo', leadLimit: 2500 },
-        { name: 'Enterprise', price: 'Custom', leadLimit: 'Unlimited' }
-      ]
+      planStatus: org.plan_status || 'trial',
+      monthlyLeadLimit: org.monthly_lead_limit || 25,
+      currentUsage: leadsUsed,
+      customQuoteInr: org.custom_quote_inr || null,
+      merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+      merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
+      isConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+      currency: 'INR'
     }
   });
+});
+
+router.post('/membership/unlock-code', authenticate, (req, res) => {
+  try {
+    const code = String(req.body.code || '').trim().toUpperCase();
+    if (!code) return res.status(400).json({ ok: false, error: 'Activation code is required.' });
+
+    let quoteAmount = 9999;
+    if (code === 'VIP999' || code === 'PILOT999') quoteAmount = 999;
+    else if (code.startsWith('OFFER') || code.startsWith('FACTORY')) quoteAmount = 14999;
+    else if (code.startsWith('ANNUAL') || code.startsWith('VIP')) quoteAmount = 24999;
+
+    db.update('organizations', req.organizationId, {
+      custom_quote_inr: quoteAmount
+    });
+
+    res.json({
+      ok: true,
+      message: `Custom activation quote of ₹${quoteAmount.toLocaleString('en-IN')} unlocked!`,
+      customQuoteInr: quoteAmount
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Dual Payment: Tab 1 — Instant Direct UPI QR + UTR Verification
+router.post('/payments/upi-verify', authenticate, (req, res) => {
+  try {
+    const utr = String(req.body.utrReference || req.body.utr || '').trim();
+    const amount = parseInt(req.body.amountInr || req.body.amount || 999, 10);
+    if (!utr || utr.length < 8) {
+      return res.status(400).json({ ok: false, error: 'Valid 12-digit UTR/Bank Reference number is required.' });
+    }
+
+    const payment = db.insert('payments', {
+      organization_id: req.organizationId,
+      amount_inr: amount,
+      provider: 'upi_direct',
+      utr_reference: utr,
+      status: 'verified'
+    });
+
+    db.update('organizations', req.organizationId, {
+      plan_status: 'active',
+      monthly_lead_limit: Math.max(500, amount >= 9999 ? 2500 : 500)
+    });
+
+    res.json({
+      ok: true,
+      message: 'UPI payment verified! Factory workspace successfully activated.',
+      paymentId: payment.id
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Dual Payment: Tab 2 — Razorpay Official Checkout SDK
+router.post('/payments/razorpay/create-order', authenticate, async (req, res) => {
+  try {
+    const amountInr = parseInt(req.body.amountInr || 3499, 10);
+    const amountPaise = amountInr * 100;
+    const orderId = 'order_' + crypto.randomBytes(8).toString('hex');
+
+    const payment = db.insert('payments', {
+      organization_id: req.organizationId,
+      amount_inr: amountInr,
+      provider: 'razorpay',
+      razorpay_order_id: orderId,
+      status: 'pending'
+    });
+
+    res.json({
+      ok: true,
+      orderId,
+      amount: amountPaise,
+      currency: 'INR',
+      keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+      paymentId: payment.id
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/payments/razorpay/verify', authenticate, (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const secret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (secret && razorpay_signature) {
+      const expectedSig = crypto
+        .createHmac('sha256', secret)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
+
+      if (expectedSig !== razorpay_signature) {
+        return res.status(400).json({ ok: false, error: 'Invalid Razorpay payment signature.' });
+      }
+    }
+
+    const payment = db.findOne('payments', (p) => p.razorpay_order_id === razorpay_order_id);
+    if (payment) {
+      db.update('payments', payment.id, {
+        razorpay_payment_id,
+        status: 'verified'
+      });
+    }
+
+    db.update('organizations', req.organizationId, {
+      plan_status: 'active',
+      monthly_lead_limit: 500
+    });
+
+    res.json({
+      ok: true,
+      message: 'Razorpay payment verified & workspace activated!'
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 export default router;

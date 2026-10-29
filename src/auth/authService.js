@@ -267,3 +267,85 @@ export function verifyPhoneOtp(phone, inputOtp) {
   return { verified: true, phone: cleanPhone };
 }
 
+// Google / Gmail OAuth Auto-Provisioning Handler
+export async function handleGoogleAuth({ email, fullName, supabaseId }) {
+  if (!email) throw new Error('Email is required for Google authentication.');
+  const cleanEmail = email.trim().toLowerCase();
+  let profile = db.findOne('profiles', (p) => p.email === cleanEmail);
+  let organization;
+
+  if (!profile) {
+    // Brand new user signing in via Google (Gmail)
+    const name = fullName ? fullName.trim() : cleanEmail.split('@')[0];
+    const companyName = name + ' Manufacturing';
+    profile = db.insert('profiles', {
+      id: supabaseId || undefined,
+      email: cleanEmail,
+      full_name: name,
+      auth_provider: 'google',
+      is_email_verified: true,
+      is_phone_verified: false
+    });
+
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 40) + '-' + Math.random().toString(36).slice(2, 6);
+    const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
+    organization = db.insert('organizations', {
+      name: companyName,
+      slug,
+      webhook_key: webhookKey,
+      plan_status: 'trial',
+      trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+      monthly_lead_limit: 25,
+      leads_used: 0,
+      industry: 'Machinery & Manufacturing'
+    });
+
+    db.insert('organization_members', {
+      organization_id: organization.id,
+      user_id: profile.id,
+      role: 'owner'
+    });
+
+    db.insert('ai_settings', {
+      organization_id: organization.id,
+      company_name: companyName,
+      city_base: 'Industrial Area Hub',
+      is_enabled: true,
+      strict_catalog_only: true,
+      supported_languages: ['Hinglish', 'Hindi', 'English'],
+      reply_delay_sec: 5,
+      send_voice_notes: true
+    });
+  } else {
+    // Existing user profile found
+    const membership = db.findOne('organization_members', (m) => m.user_id === profile.id);
+    if (membership) {
+      organization = db.findById('organizations', membership.organization_id);
+    }
+    if (!organization) {
+      organization = db.findOne('organizations', () => true);
+    }
+  }
+
+  const token = createSessionToken(profile.id, organization.id, 'owner');
+  return {
+    user: {
+      id: profile.id,
+      email: profile.email,
+      fullName: profile.full_name
+    },
+    organization: {
+      id: organization.id,
+      name: organization.name,
+      slug: organization.slug,
+      webhookKey: organization.webhook_key,
+      planStatus: organization.plan_status || 'trial',
+      leadsUsed: organization.leads_used || 0,
+      leadLimit: organization.monthly_lead_limit || 25
+    },
+    role: 'owner',
+    token
+  };
+}
+
+

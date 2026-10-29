@@ -1,7 +1,8 @@
 /**
- * MartFlow AI — Dedicated Baileys Multi-Device WhatsApp Socket Manager
- * Handles socket lifecycle, QR generation, Indian number normalization,
- * message streaming, and automatic catalog brochure dispatch.
+ * MartFlow AI — Production Multi-Tenant Baileys WhatsApp Session Manager
+ * Strict zero-overlap isolation: each organization has its own WASocket instance,
+ * dedicated auth state inside auth_info/${orgId}/, independent QR stream,
+ * and tenant-scoped AI conversation listener.
  */
 
 import fs from 'fs';
@@ -18,11 +19,13 @@ import {
 import db from '../../db/index.js';
 import { AIService } from '../../services/aiService.js';
 
-const AUTH_DIR = path.join(process.cwd(), 'auth_info');
+const BASE_AUTH_DIR = path.join(process.cwd(), 'auth_info');
 
-export class BaileysManager {
-  constructor() {
+export class TenantBaileysInstance {
+  constructor(orgId) {
+    this.orgId = orgId;
     this.sock = null;
+    this.authDir = path.join(BASE_AUTH_DIR, orgId);
     this.state = {
       status: 'disconnected', // 'disconnected' | 'connecting' | 'qr_ready' | 'connected'
       qrDataUrl: null,
@@ -36,13 +39,12 @@ export class BaileysManager {
 
   addLog(msg) {
     const timestamp = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
-    const line = `[${timestamp}] ${msg}`;
+    const line = `[${timestamp}] [Org: ${this.orgId.slice(0, 8)}] ${msg}`;
     this.state.logs.unshift(line);
     if (this.state.logs.length > 20) this.state.logs.pop();
     console.log(line);
   }
 
-  // Normalize Indian mobile numbers: 10 digits -> 91XXXXXXXXXX@s.whatsapp.net
   normalizeJid(phone) {
     if (!phone) return null;
     let clean = String(phone).replace(/[^0-9]/g, '');
@@ -53,6 +55,7 @@ export class BaileysManager {
 
   getState() {
     return {
+      orgId: this.orgId,
       status: this.state.status,
       connectedNumber: this.state.connectedNumber,
       qrDataUrl: this.state.qrDataUrl,
@@ -65,10 +68,14 @@ export class BaileysManager {
     if (this.isConnecting || this.state.status === 'connected') return;
     this.isConnecting = true;
     this.state.status = 'connecting';
-    this.state.lastEvent = 'Initializing WhatsApp multi-device engine...';
+    this.state.lastEvent = 'Initializing isolated WhatsApp socket...';
 
     try {
-      const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+      if (!fs.existsSync(this.authDir)) {
+        fs.mkdirSync(this.authDir, { recursive: true });
+      }
+
+      const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
       let version = [2, 3000, 1015901307];
       try {
         const v = await fetchLatestBaileysVersion();
@@ -125,120 +132,118 @@ export class BaileysManager {
             this.state.lastEvent = 'Logged out from phone. Click Connect to scan again.';
             this.addLog('Session logged out. Cleared local auth state.');
             try {
-              fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+              fs.rmSync(this.authDir, { recursive: true, force: true });
             } catch (e) {}
           } else {
             const isRestart = statusCode === DisconnectReason.restartRequired;
             this.state.status = 'connecting';
             this.state.lastEvent = isRestart
               ? 'Finalizing session handshake...'
-              : `Connection interrupted (code: ${statusCode || 'net'}). Auto-reconnecting...`;
-            this.addLog(`Socket closed (code: ${statusCode || 'network'}). Reconnecting in 2s...`);
+              : `Connection interrupted (code: ${statusCode || 'unknown'}). Reconnecting...`;
+            this.addLog(`Socket dropped. Attempting reconnect in 5s...`);
+
             if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-            this.reconnectTimer = setTimeout(() => this.init(), 2000);
+            this.reconnectTimer = setTimeout(() => {
+              this.isConnecting = false;
+              this.init();
+            }, 5000);
           }
         }
       });
 
-      // Handle Inbound WhatsApp Messages
-      this.sock.ev.on('messages.upsert', async ({ messages, type }) => {
-        if (type !== 'notify') return;
-        for (const msg of messages) {
+      // Tenant-isolated inbound WhatsApp message listener
+      this.sock.ev.on('messages.upsert', async (m) => {
+        if (m.type !== 'notify') return;
+
+        for (const msg of m.messages) {
           if (!msg.message || msg.key.fromMe) continue;
 
-          const remoteJid = msg.key.remoteJid || '';
-          // Ignore status broadcasts and WhatsApp groups
-          if (remoteJid === 'status@broadcast' || remoteJid.endsWith('@g.us')) continue;
+          const remoteJid = msg.key.remoteJid;
+          if (!remoteJid || remoteJid.includes('@g.us') || remoteJid.includes('broadcast')) continue;
 
-          // Resolve sender phone number
-          const phone = remoteJid.split('@')[0];
-          const text = msg.message.conversation ||
-                       msg.message.extendedTextMessage?.text ||
-                       msg.message.imageMessage?.caption ||
-                       msg.message.audioMessage ? '[Audio Voice Note]' : '';
+          const rawPhone = remoteJid.split('@')[0];
+          const phone = rawPhone.replace(/[^0-9]/g, '');
+
+          const text =
+            msg.message.conversation ||
+            msg.message.extendedTextMessage?.text ||
+            msg.message.imageMessage?.caption ||
+            '';
 
           if (!text) continue;
-          this.addLog(`Inbound WhatsApp message from +${phone}: "${text.slice(0, 40)}"`);
 
-          // Match lead across tenants
-          let lead = db.findOne('leads', (l) => l.buyer_phone && l.buyer_phone.endsWith(phone.slice(-10)));
-          let orgId = lead ? lead.organization_id : null;
+          this.addLog(`Inbound message from +${phone}: "${text.slice(0, 35)}..."`);
 
-          if (!orgId) {
-            const defaultOrg = db.findOne('organizations', () => true);
-            orgId = defaultOrg ? defaultOrg.id : null;
+          // Strictly scope lead lookup and mutation to this.orgId
+          let lead = db.findOne('leads', (l) =>
+            l.organization_id === this.orgId && l.buyer_phone.slice(-10) === phone.slice(-10)
+          );
+
+          if (!lead) {
+            lead = db.insert('leads', {
+              organization_id: this.orgId,
+              buyer_name: msg.pushName || 'WhatsApp Buyer',
+              buyer_phone: phone,
+              status: 'new'
+            });
           }
 
-          if (orgId) {
-            if (!lead) {
-              lead = db.insert('leads', {
-                organization_id: orgId,
-                source: 'WhatsApp Direct Inbound',
-                buyer_phone: phone,
-                status: 'new'
-              });
-            }
-
-            let conv = db.findOne('conversations', (c) => c.lead_id === lead.id);
-            if (!conv) {
-              conv = db.insert('conversations', {
-                organization_id: orgId,
-                lead_id: lead.id,
-                channel: 'whatsapp',
-                mode: 'ai',
-                is_unread: true
-              });
-            }
-
-            // Save inbound message
-            db.insert('messages', {
-              organization_id: orgId,
-              conversation_id: conv.id,
-              sender_type: 'buyer',
-              content: text,
-              delivery_status: 'delivered',
-              provider_message_id: msg.key.id
+          let conv = db.findOne('conversations', (c) => c.lead_id === lead.id);
+          if (!conv) {
+            conv = db.insert('conversations', {
+              organization_id: this.orgId,
+              lead_id: lead.id,
+              channel: 'whatsapp',
+              mode: 'ai',
+              is_unread: true
             });
+          }
 
-            // If conversation is in AI Auto-Pilot mode, generate catalog-grounded reply
-            if (conv.mode === 'ai') {
-              try {
-                // Show human-like typing presence
-                await this.sock.sendPresenceUpdate('composing', remoteJid);
+          // Save inbound message
+          db.insert('messages', {
+            organization_id: this.orgId,
+            conversation_id: conv.id,
+            sender_type: 'buyer',
+            content: text,
+            delivery_status: 'delivered',
+            provider_message_id: msg.key.id
+          });
 
-                const aiReplyObj = await AIService.generateSalesReply({
-                  organizationId: orgId,
-                  lead,
-                  incomingText: text
+          // If conversation is in AI Auto-Pilot mode, generate catalog-grounded reply
+          if (conv.mode === 'ai') {
+            try {
+              await this.sock.sendPresenceUpdate('composing', remoteJid);
+
+              const aiReplyObj = await AIService.generateSalesReply({
+                organizationId: this.orgId,
+                lead,
+                incomingText: text
+              });
+
+              if (aiReplyObj && aiReplyObj.reply) {
+                await new Promise((r) => setTimeout(r, 2000));
+                await this.sock.sendMessage(remoteJid, { text: aiReplyObj.reply });
+
+                db.insert('messages', {
+                  organization_id: this.orgId,
+                  conversation_id: conv.id,
+                  sender_type: 'ai',
+                  content: aiReplyObj.reply,
+                  delivery_status: 'sent'
                 });
 
-                if (aiReplyObj && aiReplyObj.reply) {
-                  // Slight realistic delay before sending
-                  await new Promise((r) => setTimeout(r, 2000));
-                  await this.sock.sendMessage(remoteJid, { text: aiReplyObj.reply });
-
-                  db.insert('messages', {
-                    organization_id: orgId,
-                    conversation_id: conv.id,
-                    sender_type: 'ai',
-                    content: aiReplyObj.reply,
-                    delivery_status: 'sent'
-                  });
-
-                  this.addLog(`AI Auto-Reply sent to +${phone}: "${aiReplyObj.reply.slice(0, 40)}..."`);
-                }
-              } catch (err) {
-                this.addLog(`AI Auto-Reply error: ${err.message}`);
-              } finally {
-                try {
-                  await this.sock.sendPresenceUpdate('paused', remoteJid);
-                } catch (e) {}
+                this.addLog(`AI Auto-Reply sent to +${phone}: "${aiReplyObj.reply.slice(0, 40)}..."`);
               }
+            } catch (err) {
+              this.addLog(`AI Auto-Reply error: ${err.message}`);
+            } finally {
+              try {
+                await this.sock.sendPresenceUpdate('paused', remoteJid);
+              } catch (e) {}
             }
           }
         }
       });
-
     } catch (err) {
       this.isConnecting = false;
       this.state.status = 'disconnected';
@@ -247,7 +252,6 @@ export class BaileysManager {
     }
   }
 
-  // Send Outbound Message via Live Socket
   async sendMessage(toPhone, text, attachmentPath = null, caption = '') {
     if (!this.sock || this.state.status !== 'connected') {
       return { ok: false, error: 'WhatsApp socket is not connected. Please pair via QR code.' };
@@ -295,7 +299,6 @@ export class BaileysManager {
     }
   }
 
-  // Disconnect & Clear Session
   async disconnect() {
     if (this.sock) {
       try {
@@ -308,13 +311,101 @@ export class BaileysManager {
     this.state.qrDataUrl = null;
     this.state.lastEvent = 'WhatsApp disconnected. Pairing data cleared.';
     try {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      fs.rmSync(this.authDir, { recursive: true, force: true });
     } catch (e) {}
-    this.addLog('Disconnected WhatsApp and cleared session keys.');
+    this.addLog('Disconnected WhatsApp and cleared tenant session keys.');
     return { ok: true };
   }
 }
 
-export const baileysManager = new BaileysManager();
+// Master Multi-Tenant Session Registry
+export class MultiTenantBaileysManager {
+  constructor() {
+    this.instances = new Map(); // orgId -> TenantBaileysInstance
+  }
+
+  getInstance(orgId = 'default_org') {
+    if (!this.instances.has(orgId)) {
+      this.instances.set(orgId, new TenantBaileysInstance(orgId));
+    }
+    return this.instances.get(orgId);
+  }
+
+  async init(orgId = 'default_org') {
+    return this.getInstance(orgId).init();
+  }
+
+  getState(orgId = 'default_org') {
+    return this.getInstance(orgId).getState();
+  }
+
+  async sendMessage(orgId = 'default_org', toPhone, text, attachmentPath = null, caption = '') {
+    // Handle overload where orgId is omitted: sendMessage(toPhone, text, attachmentPath, caption)
+    if (typeof orgId === 'string' && (orgId.startsWith('+') || orgId.length === 10 || /^\d+$/.test(orgId))) {
+      return this.getInstance('default_org').sendMessage(orgId, toPhone, text, attachmentPath);
+    }
+    return this.getInstance(orgId).sendMessage(toPhone, text, attachmentPath, caption);
+  }
+
+  async disconnect(orgId = 'default_org') {
+    return this.getInstance(orgId).disconnect();
+  }
+}
+
+export const baileysManager = new MultiTenantBaileysManager();
 export default baileysManager;
 
+// Unified Tenant WhatsApp Sender (Meta Cloud API if configured, else isolated Baileys)
+export async function sendTenantWhatsApp(orgId, { toPhone, text, pdfBuffer = null, fileName = null, attachmentPath = null }) {
+  if (!orgId) throw new Error('orgId is required to send tenant WhatsApp message');
+  const org = db.findById('organizations', orgId);
+
+  // 1. Check for Meta WhatsApp Cloud API credentials
+  const wabaPhoneId = org?.waba_phone_id;
+  const wabaToken = org?.waba_token;
+
+  if (wabaPhoneId && wabaToken) {
+    const cleanTo = String(toPhone).replace(/[^0-9]/g, '');
+    try {
+      let payload;
+      if (attachmentPath && fs.existsSync(attachmentPath)) {
+        // Upload/send document via Meta Graph API
+        payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanTo,
+          type: 'document',
+          document: {
+            link: `https://martflow.ai/api/catalog/download/${encodeURIComponent(path.basename(attachmentPath))}`,
+            caption: text,
+            filename: fileName || path.basename(attachmentPath)
+          }
+        };
+      } else {
+        payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanTo,
+          type: 'text',
+          text: { body: text }
+        };
+      }
+
+      const resp = await fetch(`https://graph.facebook.com/v21.0/${wabaPhoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${wabaToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+      const data = await resp.json();
+      return { ok: resp.ok, provider: 'whatsapp_cloud', providerMessageId: data?.messages?.[0]?.id };
+    } catch (e) {
+      console.warn('Meta Cloud API send failed, falling back to Baileys:', e.message);
+    }
+  }
+
+  // 2. Default to isolated Baileys socket for this tenant
+  return baileysManager.sendMessage(orgId, toPhone, text, attachmentPath, text);
+}

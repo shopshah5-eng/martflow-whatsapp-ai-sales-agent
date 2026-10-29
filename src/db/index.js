@@ -27,10 +27,17 @@ class MultiTenantDB {
       call_requests: new Map(),
       ai_settings: new Map(),
       audit_logs: new Map(),
-      subscriptions: new Map()
+      subscriptions: new Map(),
+      payments: new Map()
     };
     this.dbFile = path.join(__dirname, '..', '..', 'martflow_data.json');
     this.load();
+  }
+
+  // Lookup organization by unique per-tenant webhook key
+  findByWebhookKey(webhookKey) {
+    if (!webhookKey) return null;
+    return this.findOne('organizations', org => org.webhook_key === webhookKey);
   }
 
   load() {
