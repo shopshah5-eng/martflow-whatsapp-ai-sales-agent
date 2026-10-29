@@ -21,6 +21,8 @@ import {
   Browsers
 } from '@whiskeysockets/baileys';
 
+import apiRouter from './src/routes/api.js';
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +33,9 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use('/catalogs', express.static(path.join(__dirname, 'catalogs')));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Mount MartFlow AI Multi-Tenant SaaS API
+app.use('/api', apiRouter);
 
 const CONFIG_FILE = path.join(__dirname, 'config.json');
 const LEADS_FILE = path.join(__dirname, 'leads_db.json');

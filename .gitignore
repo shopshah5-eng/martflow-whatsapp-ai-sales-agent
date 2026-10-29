@@ -16,6 +16,9 @@ catalogs/
 *.tmp
 *.log
 
-# Operating System Files
+# Runtime Database State & Cache
+martflow_data.json
+.netlify/
 .DS_Store
 Thumbs.db
+

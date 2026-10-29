@@ -1,11 +1,12 @@
 {
-  "name": "indiamart-whatsapp-ai-demo",
+  "name": "martflow-ai",
   "version": "1.0.0",
-  "description": "10-Second IndiaMART Lead -> WhatsApp PDF Brochure + Hinglish AI Sales Qualifier",
+  "description": "MartFlow AI — Production IndiaMART WhatsApp AI Sales SaaS",
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js"
   },
   "engines": {
     "node": ">=20.0.0"

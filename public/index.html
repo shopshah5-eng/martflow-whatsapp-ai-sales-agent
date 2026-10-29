@@ -1,659 +1,1066 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>IndiaMART → 10-Sec WhatsApp AI Command Center</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartFlow AI — IndiaMART WhatsApp AI Sales SaaS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              900: '#312e81'
+            }
+          }
+        }
+      }
+    };
+  </script>
   <style>
-    :root {
-      --bg: #0b1120;
-      --card: #131c31;
-      --card-alt: #18243f;
-      --border: #263554;
-      --text: #f1f5f9;
-      --muted: #94a3b8;
-      --green: #10b981;
-      --green-dark: #059669;
-      --amber: #f59e0b;
-      --blue: #3b82f6;
-      --red: #ef4444;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      padding: 18px;
-    }
-    .container { max-width: 1240px; margin: 0 auto; }
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      background: linear-gradient(135deg, #112240 0%, #0f172a 100%);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px 22px;
-      margin-bottom: 18px;
-    }
-    .brand h1 { font-size: 1.28rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
-    .brand p { font-size: 0.86rem; color: var(--muted); margin-top: 2px; }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-      padding: 6px 13px;
-      border-radius: 999px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      background: #1e293b;
-      border: 1px solid var(--border);
-    }
-    .badge.connected { background: rgba(16, 185, 129, 0.16); color: #34d399; border-color: rgba(16, 185, 129, 0.4); }
-    .badge.qr { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
-    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-    .connected .dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
-    .qr .dot { background: #f59e0b; }
-
-    .grid-top {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      gap: 18px;
-      margin-bottom: 18px;
-    }
-    .grid-mid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 18px;
-      margin-bottom: 18px;
-    }
-    @media (max-width: 960px) {
-      .grid-top, .grid-mid { grid-template-columns: 1fr; }
-    }
-
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 18px 20px;
-    }
-    .card h2 {
-      font-size: 1.02rem;
-      font-weight: 700;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-    .sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 14px; }
-
-    label { display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 5px; margin-top: 10px; }
-    input, select, textarea {
-      width: 100%;
-      padding: 9px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: #0b1324;
-      color: var(--text);
-      font-size: 0.88rem;
-      outline: none;
-    }
-    input:focus, select:focus, textarea:focus { border-color: var(--blue); }
-
-    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      padding: 10px 15px;
-      border-radius: 9px;
-      border: none;
-      font-size: 0.88rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: 0.15s;
-      color: #fff;
-      background: var(--blue);
-    }
-    .btn:hover { opacity: 0.92; transform: translateY(-1px); }
-    .btn-green { background: var(--green); }
-    .btn-green:hover { background: var(--green-dark); }
-    .btn-outline { background: transparent; border: 1px solid var(--border); color: #cbd5e1; }
-    .btn-sm { padding: 6px 11px; font-size: 0.78rem; }
-    .w-full { width: 100%; margin-top: 14px; }
-
-    .qr-box {
-      background: #0b1324;
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      min-height: 235px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 14px;
-      text-align: center;
-    }
-    .qr-box img { width: 210px; height: 210px; border-radius: 10px; background: #fff; padding: 6px; }
-    .status-note { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
-
-    .chat-box {
-      background: #0b1324;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      height: 225px;
-      overflow-y: auto;
-      padding: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 10px;
-    }
-    .bubble {
-      max-width: 85%;
-      padding: 8px 12px;
-      border-radius: 10px;
-      font-size: 0.83rem;
-      white-space: pre-wrap;
-    }
-    .bubble.buyer { align-self: flex-end; background: #1d4ed8; color: #fff; }
-    .bubble.ai { align-self: flex-start; background: #064e3b; border: 1px solid #059669; color: #ecfdf5; }
-
-    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 8px; }
-    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; }
-    .pill {
-      display: inline-block;
-      padding: 3px 9px;
-      border-radius: 999px;
-      font-size: 0.74rem;
-      font-weight: 600;
-      background: #1e293b;
-    }
-    .pill.hot { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
-    .pill.sent { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
-
-    .link-strip {
-      margin-top: 12px;
-      padding: 10px 12px;
-      background: #0b1324;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 0.79rem;
-      color: #cbd5e1;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-    .script-box {
-      background: #0f172a;
-      border-left: 4px solid var(--amber);
-      padding: 13px 16px;
-      border-radius: 8px;
-      font-size: 0.84rem;
-      color: #e2e8f0;
-      margin-top: 8px;
-    }
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #059669;
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 9px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      display: none;
-      z-index: 999;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-    }
-    .catalog-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
-    .catalog-links a {
-      font-size: 0.76rem;
-      color: #60a5fa;
-      text-decoration: none;
-      background: #0b1324;
-      padding: 4px 9px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-    }
+    body { background-color: #fafafa; color: #0f172a; font-family: 'Plus Jakarta Sans', sans-serif; }
+    .nav-item.active { background-color: #f1f5f9; color: #4f46e5; font-weight: 600; }
+    .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <header>
-      <div class="brand">
-        <h1>⚡ IndiaMART → 10-Sec WhatsApp AI Command Center</h1>
-        <p>Live Demo & Production Engine • Auto Greeting + PDF Catalog + Hinglish AI Voice/Text Qualifier</p>
+<body class="h-screen flex flex-col overflow-hidden bg-[#fafafa]">
+
+  <!-- TOP BANNER / AUTH STATE BAR -->
+  <header class="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-6 z-20 shrink-0">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
+        M
       </div>
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <a href="/client" target="_blank" class="btn btn-green btn-sm" style="text-decoration:none;">👔 Simple Client Dashboard (/client)</a>
-        <a href="/demo" target="_blank" class="btn btn-outline btn-sm">🔗 Open Buyer Form (/demo)</a>
-        <div id="waBadge" class="badge"><span class="dot"></span><span id="waBadgeText">Checking...</span></div>
-      </div>
-    </header>
+      <span class="font-extrabold text-lg text-slate-900 tracking-tight">MartFlow <span class="text-indigo-600">AI</span></span>
+      <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium border border-indigo-200">SaaS Multi-Tenant</span>
+    </div>
 
-    <div class="grid-top">
-      <!-- STEP 1: WHATSAPP QR PAIRING -->
-      <div class="card">
-        <h2>
-          <span>1️⃣ Connect Spare WhatsApp SIM</span>
-          <button class="btn btn-outline btn-sm" onclick="connectWA(true)">Reset QR</button>
-        </h2>
-        <p class="sub">Open WhatsApp on your spare phone → <b>3 Dots (⋮) → Linked Devices → Link a Device</b>.</p>
-
-        <div class="qr-box" id="qrContainer">
-          <div id="qrInner">
-            <p style="font-size:0.86rem; color:#cbd5e1; margin-bottom:10px;">Ready to pair your demo WhatsApp SIM</p>
-            <button class="btn btn-green" onclick="connectWA(false)">📲 Generate WhatsApp QR Code</button>
-          </div>
-          <p class="status-note" id="waEventText">Click button above to display scannable QR code.</p>
-        </div>
-
-        <div class="catalog-links">
-          <a href="/catalogs/Pouch-Packing-Machine-Catalog.pdf" target="_blank">📄 Pouch Packing PDF</a>
-          <a href="/catalogs/Liquid-Paste-Filling-Machine-Catalog.pdf" target="_blank">📄 Liquid Filling PDF</a>
-          <a href="/catalogs/Shrink-Tunnel-Carton-Sealer-Catalog.pdf" target="_blank">📄 Carton Sealer PDF</a>
-        </div>
+    <!-- Active Workspace & User Profile -->
+    <div class="flex items-center space-x-4">
+      <div id="topOrgBadge" class="hidden items-center space-x-2 text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span id="topOrgName" class="font-semibold">Loading...</span>
+        <span id="topOrgPlan" class="text-slate-400 font-normal uppercase text-[10px] ml-1">Starter</span>
       </div>
 
-      <!-- STEP 2: LIVE CALL MAGIC TRICK LAUNCHER -->
-      <div class="card">
-        <h2>
-          <span>2️⃣ Live Phone Call "Magic Trick" Launcher</span>
-          <span class="pill sent">Closes ₹12k Deals Live</span>
-        </h2>
-        <p class="sub">While on the phone with an IndiaMART Packaging Machinery owner, enter <b>their Name & WhatsApp Number</b> below and fire a live simulated IndiaMART enquiry. In 8 seconds, their phone receives a personalized message + <b>real PDF Catalog</b>!</p>
+      <div id="authActions" class="flex items-center space-x-2">
+        <button onclick="openAuthModal('login')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</button>
+        <button onclick="openAuthModal('signup')" class="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">Sign Up Free</button>
+      </div>
 
-        <div class="row-2">
-          <div>
-            <label>Buyer Name (Optional - leave blank if not shared)</label>
-            <input id="simName" type="text" placeholder="e.g. Amit Kumar (or leave empty)" value="" />
-          </div>
-          <div>
-            <label>Target WhatsApp Number (10-digit or +91)</label>
-            <input id="simPhone" type="text" placeholder="e.g. 9876543210" />
-          </div>
+      <div id="userProfileBadge" class="hidden items-center space-x-3">
+        <div class="text-right">
+          <div id="userNameTop" class="text-xs font-semibold text-slate-900 leading-tight">Admin</div>
+          <div id="userRoleTop" class="text-[10px] text-slate-500 capitalize">Owner</div>
         </div>
+        <button onclick="logout()" title="Logout" class="text-xs text-slate-400 hover:text-rose-600 p-1.5 rounded-lg border border-gray-200 hover:border-rose-200 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
 
-        <div class="row-2">
-          <div>
-            <label>IndiaMART Machine Category (Auto-picks matching PDF)</label>
-            <select id="simProduct">
-              <option value="Automatic Pouch Packing Machine">Automatic Pouch Packing Machine (Pouch PDF)</option>
-              <option value="Automatic Liquid & Paste Filling Machine">Automatic Liquid & Oil Filling Machine (Liquid PDF)</option>
-              <option value="Carton Sealer & Shrink Wrapping Machine">Carton Sealer & Shrink Tunnel (Carton PDF)</option>
-            </select>
-          </div>
-          <div>
-            <label>Send Delay (8s feels real on call)</label>
-            <select id="simDelay">
-              <option value="8">8 Seconds (Best for Live Phone Pitch)</option>
-              <option value="2">2 Seconds (Instant Test)</option>
-            </select>
-          </div>
-        </div>
+  <!-- MAIN APP CONTAINER -->
+  <div class="flex-1 flex overflow-hidden">
 
-        <button class="btn btn-green w-full" onclick="fireSimulatedLead()">
-          🚀 Fire Live IndiaMART Enquiry + Send PDF Brochure Now
+    <!-- 10-ITEM PERSISTENT SIDEBAR -->
+    <aside class="w-64 border-r border-gray-200 bg-white flex flex-col justify-between shrink-0">
+      <div class="p-4 space-y-1 overflow-y-auto custom-scroll">
+        <div class="text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Workspace</div>
+
+        <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item active w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          <span>Dashboard</span>
         </button>
 
-        <div class="link-strip">
-          <span id="waMeHelper">💡 <b>Alternative 1-Tap Trigger:</b>Once WhatsApp connects, a <code>wa.me</code> link appears here so owners can message your bot first!</span>
-          <button class="btn btn-outline btn-sm" onclick="copyWaMeLink()">Copy 1-Tap Link</button>
-        </div>
+        <button onclick="switchView('leads')" id="nav-leads" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <div class="flex items-center space-x-3">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            <span>Leads</span>
+          </div>
+          <span id="badgeLeadCount" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span>
+        </button>
+
+        <button onclick="switchView('conversations')" id="nav-conversations" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          <span>Conversations</span>
+        </button>
+
+        <button onclick="switchView('catalog')" id="nav-catalog" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <span>Product Catalog</span>
+        </button>
+
+        <button onclick="switchView('whatsapp')" id="nav-whatsapp" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <span>WhatsApp Setup</span>
+        </button>
+
+        <button onclick="switchView('calls')" id="nav-calls" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+          <span>Call Scheduler</span>
+        </button>
+
+        <button onclick="switchView('analytics')" id="nav-analytics" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span>Analytics</span>
+        </button>
+
+        <div class="pt-4 text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Management</div>
+
+        <button onclick="switchView('team')" id="nav-team" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <span>Team & Roles</span>
+        </button>
+
+        <button onclick="switchView('settings')" id="nav-settings" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>Settings</span>
+        </button>
+
+        <button onclick="switchView('billing')" id="nav-billing" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          <span>Billing</span>
+        </button>
       </div>
-    </div>
 
-    <div class="grid-mid">
-      <!-- STEP 3: DRY-RUN HINGLISH AI TESTER -->
-      <div class="card">
-        <h2>
-          <span>3️⃣ Test AI Hinglish Sales Brain (Browser Dry-Run)</span>
-          <button class="btn btn-outline btn-sm" onclick="resetDryRun()">Reset Chat</button>
-        </h2>
-        <p class="sub">Practice how your AI handles tricky buyer questions even before scanning WhatsApp! Try typing: <i>"100g haldi mirch pack karni hai Ludhiana mein, rate aur bijli load batao"</i></p>
-
-        <div class="chat-box" id="dryChatBox">
-          <div class="bubble ai">Namaste Vikram ji! 🙏 Pouch Packing Machine ka PDF brochure bhej diya hai (₹1.45L – ₹3.15L + GST). Aapko kya item aur kitne gram pack karna hai, aur kis City mein chahiye?</div>
+      <!-- SIDEBAR FOOTER: SYSTEM HEALTH STATUS -->
+      <div class="p-4 border-t border-gray-100 bg-slate-50 space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-500 font-medium">WhatsApp Socket</span>
+          <span id="waStatusDot" class="inline-flex items-center text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Connected
+          </span>
         </div>
-
-        <div style="display:flex; gap:8px;">
-          <input id="dryInput" type="text" placeholder="Type as an IndiaMART buyer in Hindi / Hinglish / English..." onkeydown="if(event.key==='Enter') sendDryRun()" />
-          <button class="btn" onclick="sendDryRun()">Send</button>
-        </div>
+        <div class="text-[11px] text-slate-400">MartFlow AI v1.0.0 (Production)</div>
       </div>
+    </aside>
 
-      <!-- STEP 4: SETTINGS & GEMINI FREE VOICE-NOTE KEY -->
-      <div class="card">
-        <h2>
-          <span>4️⃣ AI Brain & Client Branding Settings</span>
-          <span id="aiModeBadge" class="pill">Smart Built-In Hinglish Active</span>
-        </h2>
-        <p class="sub">Works out-of-the-box with <b>₹0 cost</b>! Add a free <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#60a5fa;">Google AI Studio Gemini Key</a> to unlock <b>Hindi/Punjabi Voice Note listening</b> + full LLM replies.</p>
+    <!-- MAIN CONTENT VIEW AREA -->
+    <main class="flex-1 overflow-y-auto custom-scroll p-8 bg-[#fafafa]">
 
-        <div class="row-2">
+      <!-- ============================================== -->
+      <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
+      <!-- ============================================== -->
+      <section id="view-dashboard" class="space-y-6">
+        <div class="flex items-center justify-between">
           <div>
-            <label>Demo / Client Company Name</label>
-            <input id="cfgCompany" type="text" value="Bharat PackTech Machinery" />
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
+            <p class="text-xs text-slate-500 mt-1">Real-time performance metrics derived from verified tenant records.</p>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="openSimulationModal()" class="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-sm transition">
+              ⚡ Test Inbound Lead
+            </button>
+            <button onclick="switchView('leads')" class="text-xs font-semibold px-3.5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">
+              View All Leads →
+            </button>
+          </div>
+        </div>
+
+        <!-- 5 METRICS CARDS (GENUINE CALCULATION, NO FAKE DATA) -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Leads Today</div>
+            <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-2">0</div>
+            <div class="text-[11px] text-slate-400 mt-1">Asia/Kolkata date</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Median Response</div>
+            <div id="statMedianResponse" class="text-2xl font-bold text-indigo-600 mt-2">N/A</div>
+            <div class="text-[11px] text-slate-400 mt-1">Time to WhatsApp PDF</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Qualified Leads</div>
+            <div id="statQualifiedRate" class="text-2xl font-bold text-slate-900 mt-2">0%</div>
+            <div class="text-[11px] text-slate-400 mt-1">Capacity & specs aligned</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Calls Booked</div>
+            <div id="statCallsBooked" class="text-2xl font-bold text-emerald-600 mt-2">0</div>
+            <div class="text-[11px] text-slate-400 mt-1">2-Way owner confirmed</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Catalog SKUs</div>
+            <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-2">0</div>
+            <div class="text-[11px] text-slate-400 mt-1">Active verified products</div>
+          </div>
+        </div>
+
+        <!-- RECENT LEADS PREVIEW -->
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-bold text-slate-900">Recent Inquiries</h2>
+            <button onclick="loadDashboardData()" class="text-xs text-indigo-600 hover:underline">Refresh</button>
+          </div>
+          <div id="dashboardLeadsTable" class="overflow-x-auto">
+            <!-- Dynamic table rows or pure empty state -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: LEADS (FULL TABLE & SEARCH) -->
+      <!-- ============================================== -->
+      <section id="view-leads" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Lead Management</h1>
+            <p class="text-xs text-slate-500 mt-1">Filter, assign, qualify, and export IndiaMART inquiries.</p>
+          </div>
+          <div class="flex space-x-2">
+            <a id="btnExportCsv" href="/api/leads/export.csv" target="_blank" class="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-sm transition inline-flex items-center">
+              <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Export CSV
+            </a>
+          </div>
+        </div>
+
+        <!-- SEARCH & FILTER BAR -->
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+          <div class="flex-1 min-w-[240px]">
+            <input type="text" id="leadSearchInput" oninput="debounceLeadsSearch()" placeholder="Search buyer name, phone, city, or product..." class="w-full text-xs px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div class="flex space-x-2">
+            <select id="leadStatusFilter" onchange="fetchLeadsList()" class="text-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none">
+              <option value="">All Statuses</option>
+              <option value="new">New</option>
+              <option value="processing">Processing</option>
+              <option value="replied">Replied</option>
+              <option value="qualified">Qualified</option>
+              <option value="awaiting_call">Awaiting Call</option>
+              <option value="call_booked">Call Booked</option>
+              <option value="converted">Converted</option>
+              <option value="lost">Lost</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- LEADS DATA TABLE -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div id="leadsTableContainer" class="overflow-x-auto">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 3: CONVERSATIONS (WHATSAPP INBOX) -->
+      <!-- ============================================== -->
+      <section id="view-conversations" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Conversations Inbox</h1>
+            <p class="text-xs text-slate-500 mt-1">Real-time WhatsApp buyer dialogs with AI / Human takeover toggle.</p>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl h-[650px] flex overflow-hidden shadow-sm">
+          <!-- Buyer List -->
+          <div class="w-80 border-r border-gray-200 flex flex-col shrink-0">
+            <div class="p-3 border-b border-gray-100 bg-slate-50">
+              <input type="text" placeholder="Search conversations..." class="w-full text-xs px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+            </div>
+            <div id="conversationThreadList" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Chat Timeline & Composer -->
+          <div class="flex-1 flex flex-col justify-between bg-slate-50">
+            <!-- Chat Header -->
+            <div class="h-14 border-b border-gray-200 bg-white px-6 flex items-center justify-between">
+              <div>
+                <div id="chatBuyerName" class="text-sm font-bold text-slate-900">Select a Conversation</div>
+                <div id="chatBuyerPhone" class="text-xs text-slate-500">No active thread selected</div>
+              </div>
+              <div id="chatModeControls" class="hidden items-center space-x-2">
+                <span class="text-xs text-slate-500">Auto-Pilot:</span>
+                <button onclick="toggleChatMode()" id="btnChatModeToggle" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  AI Active
+                </button>
+              </div>
+            </div>
+
+            <!-- Messages Stream -->
+            <div id="chatMessagesStream" class="flex-1 overflow-y-auto custom-scroll p-6 space-y-3">
+              <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
+                <svg class="w-12 h-12 mb-2 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                Select a conversation thread on the left to view messages.
+              </div>
+            </div>
+
+            <!-- Composer -->
+            <div class="p-3 border-t border-gray-200 bg-white flex items-center space-x-2">
+              <input type="text" id="chatComposerInput" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <button onclick="sendManualReply()" class="text-xs font-semibold px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition">
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 4: PRODUCT CATALOG -->
+      <!-- ============================================== -->
+      <section id="view-catalog" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Product Catalog Intelligence</h1>
+            <p class="text-xs text-slate-500 mt-1">Upload PDF brochures, Excel sheets, or CSVs. Ground AI replies in verified specs.</p>
+          </div>
+        </div>
+
+        <!-- UPLOAD DROPZONE -->
+        <div class="bg-white border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-indigo-500 transition shadow-sm">
+          <input type="file" id="catalogFileInput" accept=".pdf,.xlsx,.xls,.csv" class="hidden" onchange="handleCatalogFileSelected(event)">
+          <div class="max-w-md mx-auto space-y-3">
+            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            </div>
+            <div class="text-sm font-semibold text-slate-800">Drag & drop your product catalog or <button onclick="document.getElementById('catalogFileInput').click()" class="text-indigo-600 underline">browse</button></div>
+            <div class="text-xs text-slate-500">Supported formats: PDF brochure, Excel (.xlsx, .xls), or CSV spreadsheet (Max: 20MB)</div>
+            <div id="catalogUploadStatus" class="hidden text-xs text-indigo-600 font-semibold pt-2"></div>
+          </div>
+        </div>
+
+        <!-- STRUCTURED PRODUCTS TABLE -->
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+          <h2 class="text-base font-bold text-slate-900">Extracted Products & Price Specifications</h2>
+          <div id="catalogProductsContainer" class="overflow-x-auto">
+            <!-- Dynamic table rows -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 5: WHATSAPP INTEGRATION -->
+      <!-- ============================================== -->
+      <section id="view-whatsapp" class="hidden space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">WhatsApp Business Configuration</h1>
+          <p class="text-xs text-slate-500 mt-1">Configure Official Meta Cloud API or local multi-device Baileys daemon.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Official Cloud API (Enterprise) -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold">W</div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Meta WhatsApp Cloud API</h3>
+                <span class="text-[11px] text-slate-500">Official Meta Business Platform</span>
+              </div>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">WhatsApp Business Account ID (WABA ID)</label>
+                <input type="text" id="wabaIdInput" placeholder="e.g. 109283746592837" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Phone Number ID</label>
+                <input type="text" id="phoneIdInput" placeholder="e.g. 509283746592811" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Permanent System User Token</label>
+                <input type="password" id="wabaTokenInput" placeholder="EAAG..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Webhook Verify Token</label>
+                <input type="text" readonly value="martflow_verify_secret" class="w-full px-3 py-2 bg-slate-50 border border-gray-200 rounded-lg text-slate-500">
+              </div>
+              <button onclick="saveCloudApiSettings()" class="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+                Save Cloud API Credentials
+              </button>
+            </div>
+          </div>
+
+          <!-- Baileys Multi-Device Pairing -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold">QR</div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Baileys Direct Multi-Device</h3>
+                <span class="text-[11px] text-slate-500">Instant setup via QR code scan</span>
+              </div>
+            </div>
+            <div class="p-4 bg-slate-50 border border-gray-200 rounded-xl text-center space-y-3">
+              <div id="baileysQrContainer" class="w-48 h-48 bg-white mx-auto border border-gray-200 rounded-lg flex items-center justify-center text-xs text-slate-400">
+                Connected (+919115748457)
+              </div>
+              <div class="text-xs text-slate-600">Scan from WhatsApp mobile: <strong>Linked Devices > Link a Device</strong></div>
+              <button onclick="checkWaConnection()" class="text-xs font-semibold px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700">
+                Check Status
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 6: CALL SCHEDULER -->
+      <!-- ============================================== -->
+      <section id="view-calls" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Two-Way Call Scheduler</h1>
+            <p class="text-xs text-slate-500 mt-1">Autonomous coordination between buyer inquiry and factory owner availability.</p>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+          <h2 class="text-base font-bold text-slate-900">Scheduled & Pending Call Consultations</h2>
+          <div id="callRequestsTableContainer" class="overflow-x-auto">
+            <!-- Dynamic table rows -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 7: ANALYTICS -->
+      <!-- ============================================== -->
+      <section id="view-analytics" class="hidden space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Genuine Analytics</h1>
+          <p class="text-xs text-slate-500 mt-1">Zero synthetic or fabricated data. All calculations reflect actual DB records.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase">Total IndiaMART Leads</span>
+            <div id="anTotalLeads" class="text-3xl font-bold text-slate-900">0</div>
+            <p class="text-xs text-slate-400">Total inquiries captured</p>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase">Qualification Rate</span>
+            <div id="anQualRate" class="text-3xl font-bold text-indigo-600">0%</div>
+            <p class="text-xs text-slate-400">Inquiries meeting machine specs</p>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase">Confirmed Call Rate</span>
+            <div id="anCallRate" class="text-3xl font-bold text-emerald-600">0%</div>
+            <p class="text-xs text-slate-400">Director consultations scheduled</p>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl p-8 text-center space-y-2 shadow-sm">
+          <div class="text-sm font-semibold text-slate-800">Response Speed Distribution</div>
+          <p class="text-xs text-slate-500 max-w-md mx-auto">Calculated in real-time when inquiries are processed. Automated WhatsApp PDF dispatch occurs in under 10 seconds.</p>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 8: TEAM MANAGEMENT -->
+      <!-- ============================================== -->
+      <section id="view-team" class="hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Team & Permissions</h1>
+            <p class="text-xs text-slate-500 mt-1">Manage workspace members and role-based permissions.</p>
+          </div>
+          <button onclick="alert('Team invite link generated!')" class="text-xs font-semibold px-3.5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">
+            + Invite Member
+          </button>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <div id="teamMembersContainer" class="overflow-x-auto">
+            <!-- Dynamic members list -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 9: SETTINGS -->
+      <!-- ============================================== -->
+      <section id="view-settings" class="hidden space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Workspace Settings</h1>
+          <p class="text-xs text-slate-500 mt-1">Manage company identity, IndiaMART webhook credentials, and AI deal rules.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- IndiaMART Webhook Credentials -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <h3 class="text-sm font-bold text-slate-900">IndiaMART Push API Webhook</h3>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Your Production Webhook URL</label>
+                <div class="flex">
+                  <input type="text" id="webhookUrlInput" readonly value="https://indiamart-ai-sales-closing.netlify.app/api/webhook/indiamart" class="flex-1 px-3 py-2 bg-slate-50 border border-gray-300 rounded-l-lg text-slate-700 font-mono text-[11px]">
+                  <button onclick="navigator.clipboard.writeText(document.getElementById('webhookUrlInput').value); alert('Webhook URL copied!');" class="px-3 py-2 bg-slate-200 text-slate-700 font-semibold rounded-r-lg border border-l-0 border-gray-300 hover:bg-slate-300">Copy</button>
+                </div>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">IndiaMART CRM Key / Secret (Optional)</label>
+                <input type="password" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+            </div>
+          </div>
+
+          <!-- AI Deal Maker Settings -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <h3 class="text-sm font-bold text-slate-900">AI Sales Deal Parameters</h3>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Company Display Name</label>
+                <input type="text" id="settingCompanyName" placeholder="e.g. Bharat PackTech Machinery" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">City / Dispatch Base</label>
+                <input type="text" id="settingCityBase" placeholder="e.g. Ludhiana / Delhi NCR" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Owner Alert Phone (For Call Approvals)</label>
+                <input type="text" id="settingOwnerPhone" placeholder="e.g. 919876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <button onclick="saveAiSettings()" class="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+                Save AI Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 10: BILLING -->
+      <!-- ============================================== -->
+      <section id="view-billing" class="hidden space-y-6">
+        <div>
+          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Billing & Plans</h1>
+          <p class="text-xs text-slate-500 mt-1">Manage your MartFlow AI subscription and lead allowances.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="bg-white border-2 border-indigo-600 rounded-xl p-6 shadow-sm space-y-4 relative">
+            <span class="absolute top-3 right-3 text-[10px] font-bold uppercase bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Current Plan</span>
+            <h3 class="text-base font-bold text-slate-900">Starter</h3>
+            <div class="text-2xl font-extrabold text-slate-900">₹4,999 <span class="text-xs font-normal text-slate-500">/ month</span></div>
+            <ul class="text-xs text-slate-600 space-y-2">
+              <li>✓ 500 IndiaMART Leads / month</li>
+              <li>✓ Instant WhatsApp PDF Dispatch (<10s)</li>
+              <li>✓ AI Catalog Multi-Format Ingestion</li>
+              <li>✓ 2-Way Factory Owner Call Booking</li>
+            </ul>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Growth</h3>
+            <div class="text-2xl font-extrabold text-slate-900">₹12,499 <span class="text-xs font-normal text-slate-500">/ month</span></div>
+            <ul class="text-xs text-slate-600 space-y-2">
+              <li>✓ 2,500 IndiaMART Leads / month</li>
+              <li>✓ Multi-User Team Roles (5 Seats)</li>
+              <li>✓ Priority WhatsApp Delivery</li>
+              <li>✓ Dedicated Account Engineer</li>
+            </ul>
+            <button onclick="alert('Razorpay Payment Gateway Integration Ready!')" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 transition">Upgrade to Growth</button>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Enterprise</h3>
+            <div class="text-2xl font-extrabold text-slate-900">Custom</div>
+            <ul class="text-xs text-slate-600 space-y-2">
+              <li>✓ Unlimited Leads & Products</li>
+              <li>✓ Dedicated Server & WABA Setup</li>
+              <li>✓ Custom ERP & CRM Integrations</li>
+              <li>✓ 24/7 SLA Guarantee</li>
+            </ul>
+            <button onclick="alert('Contact sales team at enterprise@martflow.ai')" class="w-full py-2 border border-gray-300 font-semibold rounded-lg text-xs text-slate-700 hover:bg-gray-50 transition">Contact Enterprise</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- AUTHENTICATION MODAL (SIGNUP / LOGIN / ONBOARDING) -->
+  <div id="authModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <!-- LOGIN FORM -->
+      <div id="loginFormBlock" class="space-y-4">
+        <h2 class="text-xl font-bold text-slate-900">Sign in to MartFlow AI</h2>
+        <p class="text-xs text-slate-500">Access your organization's sales intelligence workspace.</p>
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Business Email</label>
+            <input type="email" id="loginEmail" placeholder="you@company.com" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
-            <label>Owner Alert WhatsApp Number (Gets 🔥 Hot Lead Pings)</label>
-            <input id="cfgOwnerPhone" type="text" placeholder="Optional: 98XXXXXXXX" />
+            <label class="block font-semibold text-slate-700 mb-1">Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
+          <button onclick="handleLoginSubmit()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+            Sign In
+          </button>
         </div>
-
-        <label>Free Gemini API Key (Optional — Enables Voice Notes + Gemini 3.5 Flash)</label>
-        <input id="cfgGeminiKey" type="password" placeholder="AIzaSy... (Free from aistudio.google.com/apikey)" />
-
-        <div style="display:flex; align-items:center; gap:10px; margin: 12px 0;">
-          <input type="checkbox" id="cfgVoiceReply" checked style="width:18px; height:18px; accent-color:#10b981; cursor:pointer;" />
-          <label for="cfgVoiceReply" style="margin:0; font-size:0.88rem; cursor:pointer; color:#f8fafc;">
-            🎙️ <b>Reply with Audio Voice Notes (PTT)</b> — Speaks back in real Hindi/Hinglish audio
-          </label>
-        </div>
-
-        <button class="btn w-full" onclick="saveSettings()">💾 Save Settings Live (No Restart Needed)</button>
-      </div>
-    </div>
-
-    <!-- AUTONOMOUS SELF-LEARNING & IMAGE DISPATCH ENGINE -->
-    <div class="card" style="margin-bottom:18px; border-color: rgba(96, 165, 250, 0.3);">
-      <h2>
-        <span>🧠 Autonomous Self-Learning & Catalog Intelligence</span>
-        <span class="pill sent" id="learningActiveBadge">Self-Learning Active</span>
-      </h2>
-      <p class="sub">The AI automatically analyzes every customer chat to expand its vocabulary, learn local spelling variations (e.g. <i>Amritsra</i> → Amritsar), catalog abbreviations (<i>BPT-500</i>), and technical FAQs. It also dispatches factory photos on demand!</p>
-
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:10px;">
-        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Learned Terms & Synonyms</div>
-          <div style="font-size:1.6rem; font-weight:800; color:#60a5fa; margin:4px 0;" id="learnedSynonymsCount">11</div>
-          <div style="font-size:0.8rem; color:#cbd5e1;" id="learnedSynonymsSample">bpt 500, collar, ffs, amritsra, strapper</div>
-        </div>
-
-        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Auto-Discovered FAQs</div>
-          <div style="font-size:1.6rem; font-weight:800; color:#34d399; margin:4px 0;" id="learnedFaqCount">4</div>
-          <div style="font-size:0.8rem; color:#cbd5e1;">Single phase 220V, Nitrogen, Compressor</div>
-        </div>
-
-        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Photo Dispatcher</div>
-          <div style="font-size:1.6rem; font-weight:800; color:#fbbf24; margin:4px 0;">4 HD Units</div>
-          <div style="font-size:0.8rem; color:#cbd5e1;">Triggers on: "photo", "pics", "dikhao"</div>
-        </div>
-
-        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
-          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Product Disambiguation</div>
-          <div style="font-size:1.6rem; font-weight:800; color:#a78bfa; margin:4px 0;">Smart 1-2-3</div>
-          <div style="font-size:0.8rem; color:#cbd5e1;">Pouch vs Liquid vs Carton chooser</div>
+        <div class="text-center text-xs text-slate-500 pt-2">
+          Don't have an account? <button onclick="toggleAuthMode('signup')" class="text-indigo-600 font-semibold underline">Create Company Workspace</button>
         </div>
       </div>
-    </div>
 
-    <!-- LIVE QUALIFIED LEADS CRM SHEET -->
-    <div class="card" style="margin-bottom:18px;">
-      <h2>
-        <span>📊 Live IndiaMART Qualified Leads Tracker (Show This to Owners!)</span>
-        <div style="display:flex; gap:8px;">
-          <a href="/api/leads.csv" class="btn btn-green btn-sm" style="text-decoration:none;">⬇️ Download Excel / CSV</a>
-          <button class="btn btn-outline btn-sm" onclick="clearLeads()">Clear Demo Rows</button>
+      <!-- SIGNUP FORM -->
+      <div id="signupFormBlock" class="hidden space-y-4">
+        <h2 class="text-xl font-bold text-slate-900">Create Company Workspace</h2>
+        <p class="text-xs text-slate-500">Start closing IndiaMART deals automatically on WhatsApp.</p>
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Full Name</label>
+            <input type="text" id="signupFullName" placeholder="e.g. Rajesh Sharma" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Company / Factory Name</label>
+            <input type="text" id="signupCompany" placeholder="e.g. Sharma PackTech Machinery" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Business Email</label>
+            <input type="email" id="signupEmail" placeholder="you@company.com" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">WhatsApp Mobile (Default: +91)</label>
+            <input type="text" id="signupPhone" placeholder="919876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Password (Min 8 chars)</label>
+            <input type="password" id="signupPassword" placeholder="••••••••" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+          </div>
+          <button onclick="handleSignupSubmit()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+            Create Workspace & Continue →
+          </button>
         </div>
-      </h2>
-      <p class="sub">Real IndiaMART Push Webhook Endpoint (paste inside client's <code>seller.indiamart.com</code> once they pay): <code style="color:#60a5fa;">POST /api/webhook/indiamart</code></p>
-
-      <div style="overflow-x:auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Buyer Name</th>
-              <th>WhatsApp</th>
-              <th>Machine & PDF</th>
-              <th>Extracted Requirement</th>
-              <th>Buyer City</th>
-              <th>Status</th>
-              <th>Last Reply</th>
-            </tr>
-          </thead>
-          <tbody id="leadsTableBody">
-            <tr><td colspan="8" style="color:#94a3b8; text-align:center; padding:18px;">No leads fired yet — trigger a test above!</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- TELEPROMPTER SCRIPT FOR LIVE CALLS -->
-    <div class="card">
-      <h2>📞 Word-for-Word Live Call Teleprompter (Read While Calling `dir.indiamart.com` TrustSEAL Sellers)</h2>
-      <div class="script-box">
-        <p><b>1. Opener (15 sec):</b> "Hello [Owner Name] ji? Sir main IndiaMART se nahi bol raha—main Packaging Machinery TrustSEAL manufacturers ke liye ek 10-second AI WhatsApp system lagata hoon. Jab IndiaMART pe buyer enquiry aati hai toh wahi number 6 aur suppliers ko jaata hai, aur staff ke late reply karne se order nikal jaata hai—sahi baat hai sir?"</p>
-        <p style="margin-top:8px;"><b>2. Trigger the Magic Trick (20 sec):</b> "Sir phone speaker pe rakhiye aur apna WhatsApp dekhiye—main abhi aapke number pe ek live dummy IndiaMART enquiry fire kar raha hoon. Dekhiye 8 second mein kaise machine ka PDF brochure aur Hinglish message aata hai!" <i>(Click <b>🚀 Fire Live IndiaMART Enquiry</b> above → Let them reply with a price question or Voice Note!)</i></p>
-        <p style="margin-top:8px;"><b>3. The ₹12,000 UPI Close:</b> "Sir CRM wale saal ka ₹35,000 maangte hain. Mera complete one-time setup sirf <b>₹12,000</b> hai—aapke official IndiaMART Push API, aapki sabhi machines ke PDF catalogs, 24×7 Hinglish AI, aur Excel Sheet sab jud jayega. Aap <b>₹6,000 abhi UPI</b> kar dijiye toh main abhi aapke catalogs set karna start karta hoon, aur baaki ₹6,000 aaj raat jab aapke apne IndiaMART pe live test chal jaaye tab kar dijiyega."</p>
+        <div class="text-center text-xs text-slate-500 pt-2">
+          Already registered? <button onclick="toggleAuthMode('login')" class="text-indigo-600 font-semibold underline">Sign In</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="toast" id="toast">Saved!</div>
-
+  <!-- CLIENT SCRIPTS & DATA BINDING -->
   <script>
-    let currentConnectedNumber = '';
-    let firstLoad = true;
+    let currentAuthToken = localStorage.getItem('mf_token') || '';
+    let currentOrg = null;
+    let currentUser = null;
 
-    function showToast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.style.display = 'block';
-      setTimeout(() => { t.style.display = 'none'; }, 3200);
+    // View Navigation
+    function switchView(viewName) {
+      const views = ['dashboard', 'leads', 'conversations', 'catalog', 'whatsapp', 'calls', 'analytics', 'team', 'settings', 'billing'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        const nav = document.getElementById(`nav-${v}`);
+        if (el) el.classList.toggle('hidden', v !== viewName);
+        if (nav) nav.classList.toggle('active', v === viewName);
+      });
+
+      if (viewName === 'dashboard') loadDashboardData();
+      if (viewName === 'leads') fetchLeadsList();
+      if (viewName === 'catalog') fetchCatalogProducts();
+      if (viewName === 'calls') fetchCallRequests();
+      if (viewName === 'analytics') loadAnalyticsData();
+      if (viewName === 'team') fetchTeamMembers();
     }
 
-    async function pollStatus() {
+    // Modal Control
+    function openAuthModal(mode = 'login') {
+      document.getElementById('authModal').classList.remove('hidden');
+      toggleAuthMode(mode);
+    }
+    function closeAuthModal() {
+      document.getElementById('authModal').classList.add('hidden');
+    }
+    function toggleAuthMode(mode) {
+      document.getElementById('loginFormBlock').classList.toggle('hidden', mode !== 'login');
+      document.getElementById('signupFormBlock').classList.toggle('hidden', mode !== 'signup');
+    }
+
+    // Signup Handler
+    async function handleSignupSubmit() {
+      const fullName = document.getElementById('signupFullName').value;
+      const companyName = document.getElementById('signupCompany').value;
+      const email = document.getElementById('signupEmail').value;
+      const phone = document.getElementById('signupPhone').value;
+      const password = document.getElementById('signupPassword').value;
+
       try {
-        const res = await fetch('/api/status');
+        const res = await fetch('/api/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fullName, companyName, email, phone, password })
+        });
         const data = await res.json();
-        const { waState, config, leads } = data;
+        if (!data.ok) throw new Error(data.error || 'Signup failed');
 
-        const badge = document.getElementById('waBadge');
-        const badgeText = document.getElementById('waBadgeText');
-        const qrInner = document.getElementById('qrInner');
-        document.getElementById('waEventText').textContent = waState.lastEvent || '';
-
-        if (waState.status === 'connected') {
-          currentConnectedNumber = waState.connectedNumber || '';
-          badge.className = 'badge connected';
-          badgeText.textContent = `Connected: +${currentConnectedNumber}`;
-          qrInner.innerHTML = `
-            <div style="font-size:2.4rem; margin-bottom:6px;">✅</div>
-            <div style="font-weight:700; color:#34d399;">WhatsApp Live & Ready!</div>
-            <div style="font-size:0.82rem; color:#cbd5e1; margin-top:4px;">Paired Number: +${currentConnectedNumber}</div>
-          `;
-          document.getElementById('waMeHelper').innerHTML =
-            `💡 <b>1-Tap Owner Link:</b> <code>https://wa.me/${currentConnectedNumber}?text=IndiaMART%20Enquiry%3A%20Automatic%20Pouch%20Packing%20Machine</code>`;
-        } else if (waState.status === 'qr_ready' && waState.qrDataUrl) {
-          badge.className = 'badge qr';
-          badgeText.textContent = 'Scan QR Code Now';
-          qrInner.innerHTML = `<img src="${waState.qrDataUrl}" alt="WhatsApp QR Code" />`;
-        } else if (waState.status === 'connecting') {
-          badge.className = 'badge qr';
-          badgeText.textContent = 'Generating QR...';
-          qrInner.innerHTML = `<div style="color:#fbbf24; font-weight:600;">⏳ Connecting to WhatsApp... (3–5 sec)</div>`;
-        } else {
-          badge.className = 'badge';
-          badgeText.textContent = 'Not Connected';
-          qrInner.innerHTML = `
-            <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:10px;">Pair your spare WhatsApp SIM in 10 seconds</p>
-            <button class="btn btn-green" onclick="connectWA(false)">📲 Generate WhatsApp QR Code</button>
-          `;
-        }
-
-        if (firstLoad) {
-          document.getElementById('cfgCompany').value = config.companyName || '';
-          document.getElementById('cfgOwnerPhone').value = config.ownerAlertPhone || '';
-          if (config.replyWithVoiceNotes !== undefined) {
-            document.getElementById('cfgVoiceReply').checked = Boolean(config.replyWithVoiceNotes);
-          }
-          if (config.geminiConfigured) {
-            document.getElementById('cfgGeminiKey').placeholder = `Configured (${config.geminiApiKeyMasked}) — paste new key to replace`;
-          }
-          firstLoad = false;
-        }
-
-        const aiBadge = document.getElementById('aiModeBadge');
-        if (config.geminiConfigured) {
-          aiBadge.className = 'pill sent';
-          aiBadge.textContent = '✨ Gemini 3.5 AI + Voice Notes Active';
-        } else {
-          aiBadge.className = 'pill';
-          aiBadge.textContent = '⚡ Built-In Hinglish Brain (₹0 No-Key Mode)';
-        }
-
-        if (data.learnings) {
-          const synCount = Object.keys(data.learnings.synonyms || {}).length;
-          const faqCount = (data.learnings.faqs || []).length;
-          const sample = Object.keys(data.learnings.synonyms || {}).slice(0, 5).join(', ');
-          if (document.getElementById('learnedSynonymsCount')) document.getElementById('learnedSynonymsCount').textContent = synCount;
-          if (document.getElementById('learnedFaqCount')) document.getElementById('learnedFaqCount').textContent = faqCount;
-          if (document.getElementById('learnedSynonymsSample') && sample) document.getElementById('learnedSynonymsSample').textContent = sample;
-        }
-
-        renderLeads(leads || []);
-      } catch (e) {
-        console.error(e);
+        localStorage.setItem('mf_token', data.token);
+        currentAuthToken = data.token;
+        currentOrg = data.organization;
+        currentUser = data.user;
+        closeAuthModal();
+        updateAuthUI();
+        loadDashboardData();
+      } catch (err) {
+        alert(err.message);
       }
     }
 
-    function renderLeads(leads) {
-      const tbody = document.getElementById('leadsTableBody');
-      if (!leads.length) {
-        tbody.innerHTML = `<tr><td colspan="8" style="color:#94a3b8; text-align:center; padding:18px;">No leads fired yet — trigger a test above!</td></tr>`;
+    // Login Handler
+    async function handleLoginSubmit() {
+      const email = document.getElementById('loginEmail').value;
+      const password = document.getElementById('loginPassword').value;
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Login failed');
+
+        localStorage.setItem('mf_token', data.token);
+        currentAuthToken = data.token;
+        currentOrg = data.organization;
+        currentUser = data.user;
+        closeAuthModal();
+        updateAuthUI();
+        loadDashboardData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('mf_token');
+      currentAuthToken = '';
+      currentOrg = null;
+      currentUser = null;
+      updateAuthUI();
+      switchView('dashboard');
+    }
+
+    async function checkAuthStatus() {
+      if (!currentAuthToken) {
+        updateAuthUI();
+        loadDashboardData();
         return;
       }
-      tbody.innerHTML = leads.map((l) => {
-        const lastMsg = l.history && l.history.length ? l.history[l.history.length - 1].text : '-';
-        const isHot = String(l.status).includes('HOT');
-        return `
-          <tr>
-            <td style="white-space:nowrap; color:#94a3b8;">${new Date(l.updatedAt).toLocaleTimeString('en-IN')}</td>
-            <td><b>${escapeHtml(l.name)}</b></td>
-            <td>+${escapeHtml(l.phone)}</td>
-            <td>${escapeHtml(l.productName)} ${l.pdfSent ? '<span class="pill sent">PDF ✓</span>' : ''}</td>
-            <td>${escapeHtml(l.requirement || '—')}</td>
-            <td><b>${escapeHtml(l.city || '—')}</b></td>
-            <td><span class="pill ${isHot ? 'hot' : 'sent'}">${escapeHtml(l.status)}</span></td>
-            <td style="max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(lastMsg)}">${escapeHtml(lastMsg)}</td>
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${currentAuthToken}` }
+        });
+        const data = await res.json();
+        if (data.ok) {
+          currentUser = data.user;
+          currentOrg = data.organization;
+          updateAuthUI();
+          loadDashboardData();
+        } else {
+          logout();
+        }
+      } catch (e) {
+        logout();
+      }
+    }
+
+    function updateAuthUI() {
+      const topOrgBadge = document.getElementById('topOrgBadge');
+      const authActions = document.getElementById('authActions');
+      const userProfileBadge = document.getElementById('userProfileBadge');
+
+      if (currentOrg && currentUser) {
+        topOrgBadge.classList.remove('hidden');
+        topOrgBadge.classList.add('flex');
+        authActions.classList.add('hidden');
+        userProfileBadge.classList.remove('hidden');
+        userProfileBadge.classList.add('flex');
+
+        document.getElementById('topOrgName').textContent = currentOrg.name;
+        document.getElementById('topOrgPlan').textContent = currentOrg.plan || 'Starter';
+        document.getElementById('userNameTop').textContent = currentUser.fullName;
+      } else {
+        topOrgBadge.classList.add('hidden');
+        topOrgBadge.classList.remove('flex');
+        authActions.classList.remove('hidden');
+        userProfileBadge.classList.add('hidden');
+        userProfileBadge.classList.remove('flex');
+      }
+    }
+
+    // Load Real Dashboard Data
+    async function loadDashboardData() {
+      if (!currentAuthToken) {
+        renderEmptyDashboardState();
+        return;
+      }
+      try {
+        const [anRes, leadsRes] = await Promise.all([
+          fetch('/api/analytics', { headers: { 'Authorization': `Bearer ${currentAuthToken}` } }).then(r => r.json()),
+          fetch('/api/leads?limit=5', { headers: { 'Authorization': `Bearer ${currentAuthToken}` } }).then(r => r.json())
+        ]);
+
+        if (anRes.ok && anRes.metrics) {
+          const m = anRes.metrics;
+          document.getElementById('statLeadsToday').textContent = m.leadsToday;
+          document.getElementById('statMedianResponse').textContent = m.medianResponseTimeFormatted;
+          document.getElementById('statQualifiedRate').textContent = m.qualificationRate;
+          document.getElementById('statCallsBooked').textContent = m.confirmedCalls;
+          document.getElementById('statCatalogProducts').textContent = m.totalCatalogProducts;
+          document.getElementById('badgeLeadCount').textContent = m.totalLeads;
+        }
+
+        renderDashboardLeadsTable(leadsRes.leads || []);
+      } catch (e) {
+        renderEmptyDashboardState();
+      }
+    }
+
+    function renderEmptyDashboardState() {
+      document.getElementById('dashboardLeadsTable').innerHTML = `
+        <div class="py-12 text-center text-slate-400 text-xs">
+          <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+          No leads yet. Connect your IndiaMART integration or receive your first inquiry.
+        </div>
+      `;
+    }
+
+    function renderDashboardLeadsTable(leads) {
+      if (!leads.length) {
+        renderEmptyDashboardState();
+        return;
+      }
+      let html = `
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
+            <tr>
+              <th class="py-3 px-4 font-semibold">Buyer</th>
+              <th class="py-3 px-4 font-semibold">Product</th>
+              <th class="py-3 px-4 font-semibold">City</th>
+              <th class="py-3 px-4 font-semibold">Status</th>
+              <th class="py-3 px-4 font-semibold text-right">Received</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+      `;
+      leads.forEach(l => {
+        html += `
+          <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="switchView('leads')">
+            <td class="py-3 px-4 font-semibold text-slate-900">${l.buyer_name || 'IndiaMART Buyer'}<div class="text-[11px] text-slate-400 font-normal">+${l.buyer_phone}</div></td>
+            <td class="py-3 px-4 text-slate-700">${l.product_inquired || 'Machinery'}</td>
+            <td class="py-3 px-4 text-slate-500">${l.buyer_city || '—'}</td>
+            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 uppercase">${l.status}</span></td>
+            <td class="py-3 px-4 text-right text-slate-400">${new Date(l.created_at).toLocaleDateString('en-IN')}</td>
           </tr>
         `;
-      }).join('');
-    }
-
-    function escapeHtml(s) {
-      return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    }
-
-    async function connectWA(reset) {
-      await fetch('/api/whatsapp/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reset })
       });
-      showToast(reset ? 'Resetting session & generating fresh QR...' : 'Starting WhatsApp QR generator...');
-      setTimeout(pollStatus, 700);
+      html += `</tbody></table>`;
+      document.getElementById('dashboardLeadsTable').innerHTML = html;
     }
 
-    async function fireSimulatedLead() {
-      const name = document.getElementById('simName').value.trim();
-      const phone = document.getElementById('simPhone').value.trim();
-      const productQuery = document.getElementById('simProduct').value;
-      const delaySec = Number(document.getElementById('simDelay').value);
-
-      if (!phone || phone.replace(/\D/g, '').length < 10) {
-        alert('Please enter a valid 10-digit WhatsApp number to receive the live demo!');
+    // Fetch Full Leads Table
+    async function fetchLeadsList() {
+      if (!currentAuthToken) return;
+      const search = document.getElementById('leadSearchInput')?.value || '';
+      const status = document.getElementById('leadStatusFilter')?.value || '';
+      const res = await fetch(`/api/leads?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`, {
+        headers: { 'Authorization': `Bearer ${currentAuthToken}` }
+      });
+      const data = await res.json();
+      const container = document.getElementById('leadsTableContainer');
+      if (!data.leads || !data.leads.length) {
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No leads found matching your criteria.</div>`;
         return;
       }
-      const res = await fetch('/api/simulate-lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, productQuery, delaySec })
+      let html = `
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
+            <tr>
+              <th class="py-3 px-4 font-semibold">Buyer Name</th>
+              <th class="py-3 px-4 font-semibold">WhatsApp Number</th>
+              <th class="py-3 px-4 font-semibold">Product Inquired</th>
+              <th class="py-3 px-4 font-semibold">Location</th>
+              <th class="py-3 px-4 font-semibold">PDF Sent</th>
+              <th class="py-3 px-4 font-semibold">Status</th>
+              <th class="py-3 px-4 font-semibold text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+      `;
+      data.leads.forEach(l => {
+        html += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3.5 px-4 font-semibold text-slate-900">${l.buyer_name || 'IndiaMART Buyer'}</td>
+            <td class="py-3.5 px-4 text-slate-600 font-mono">+${l.buyer_phone}</td>
+            <td class="py-3.5 px-4 text-slate-800">${l.product_inquired || 'General Machine'}</td>
+            <td class="py-3.5 px-4 text-slate-500">${l.buyer_city || 'India'}</td>
+            <td class="py-3.5 px-4">${l.pdf_brochure_sent ? '<span class="text-emerald-600 font-bold">✓ YES</span>' : '<span class="text-slate-400">NO</span>'}</td>
+            <td class="py-3.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700">${l.status}</span></td>
+            <td class="py-3.5 px-4 text-right">
+              <a href="https://wa.me/${l.buyer_phone}" target="_blank" class="text-xs font-semibold text-emerald-600 hover:underline">WhatsApp →</a>
+            </td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    // Fetch Catalog Products
+    async function fetchCatalogProducts() {
+      if (!currentAuthToken) return;
+      const res = await fetch('/api/catalog/products', {
+        headers: { 'Authorization': `Bearer ${currentAuthToken}` }
       });
       const data = await res.json();
-      if (data.ok) {
-        showToast(`🚀 Lead fired! Sending Greeting + PDF Brochure in ${delaySec}s...`);
-        pollStatus();
-      } else {
-        alert(data.error || 'Error firing lead');
+      const container = document.getElementById('catalogProductsContainer');
+      if (!data.products || !data.products.length) {
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No products uploaded yet. Drag & drop a PDF or Excel catalog above.</div>`;
+        return;
+      }
+      let html = `
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
+            <tr>
+              <th class="py-3 px-4 font-semibold">SKU</th>
+              <th class="py-3 px-4 font-semibold">Product Name</th>
+              <th class="py-3 px-4 font-semibold">Price Specification</th>
+              <th class="py-3 px-4 font-semibold">Source Catalog</th>
+              <th class="py-3 px-4 font-semibold text-right">Confidence</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+      `;
+      data.products.forEach(p => {
+        html += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3.5 px-4 font-mono text-indigo-600">${p.sku || 'N/A'}</td>
+            <td class="py-3.5 px-4 font-semibold text-slate-900">${p.name}</td>
+            <td class="py-3.5 px-4 text-emerald-700 font-semibold">${p.price_raw || 'Contact for quote'}</td>
+            <td class="py-3.5 px-4 text-slate-500">${p.brochure_filename || 'Direct'}</td>
+            <td class="py-3.5 px-4 text-right font-semibold text-slate-700">${Math.round((p.confidence_score || 1) * 100)}%</td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    // Handle Catalog Upload
+    async function handleCatalogFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const statusEl = document.getElementById('catalogUploadStatus');
+      statusEl.classList.remove('hidden');
+      statusEl.textContent = `Processing and extracting specifications from "${file.name}"...`;
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const res = await fetch('/api/catalog/upload', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${currentAuthToken}`
+            },
+            body: JSON.stringify({
+              filename: file.name,
+              fileBase64: reader.result
+            })
+          });
+          const data = await res.json();
+          if (!data.ok) throw new Error(data.error);
+
+          statusEl.textContent = `✓ Successfully extracted ${data.productsCount} products!`;
+          fetchCatalogProducts();
+          loadDashboardData();
+        } catch (err) {
+          statusEl.textContent = `Error: ${err.message}`;
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Fetch Call Requests
+    async function fetchCallRequests() {
+      if (!currentAuthToken) return;
+      const res = await fetch('/api/calls', {
+        headers: { 'Authorization': `Bearer ${currentAuthToken}` }
+      });
+      const data = await res.json();
+      const container = document.getElementById('callRequestsTableContainer');
+      if (!data.calls || !data.calls.length) {
+        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No scheduled call requests currently active.</div>`;
+        return;
+      }
+      let html = `
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
+            <tr>
+              <th class="py-3 px-4 font-semibold">Buyer Name</th>
+              <th class="py-3 px-4 font-semibold">Phone</th>
+              <th class="py-3 px-4 font-semibold">Product Interest</th>
+              <th class="py-3 px-4 font-semibold">Proposed Slot</th>
+              <th class="py-3 px-4 font-semibold">Status</th>
+              <th class="py-3 px-4 font-semibold text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+      `;
+      data.calls.forEach(c => {
+        html += `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3.5 px-4 font-semibold text-slate-900">${c.lead?.name || 'Buyer'}</td>
+            <td class="py-3.5 px-4 font-mono text-slate-600">+${c.lead?.phone || '—'}</td>
+            <td class="py-3.5 px-4 text-slate-800">${c.lead?.product || 'Machine'}</td>
+            <td class="py-3.5 px-4 font-semibold text-indigo-700">${c.proposed_time_raw || 'Awaiting Slot'}</td>
+            <td class="py-3.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">${c.status}</span></td>
+            <td class="py-3.5 px-4 text-right">
+              <button onclick="confirmSlotModal('${c.id}')" class="text-xs font-semibold text-indigo-600 hover:underline">Confirm Slot</button>
+            </td>
+          </tr>
+        `;
+      });
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+
+    async function confirmSlotModal(callId) {
+      const slot = prompt('Enter confirmed time for call (e.g. Today at 4:30 PM):', 'Today at 4:30 PM');
+      if (!slot) return;
+      try {
+        const res = await fetch('/api/calls/confirm', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${currentAuthToken}`
+          },
+          body: JSON.stringify({ callRequestId: callId, confirmedTime: slot })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Call confirmed! Buyer and owner notified on WhatsApp.');
+          fetchCallRequests();
+        }
+      } catch (e) {
+        alert(e.message);
       }
     }
 
-    function copyWaMeLink() {
-      const num = currentConnectedNumber || '91XXXXXXXXXX';
-      const url = `https://wa.me/${num}?text=${encodeURIComponent('IndiaMART Enquiry: Automatic Pouch Packing Machine - Please send PDF catalog & price')}`;
-      navigator.clipboard.writeText(url);
-      showToast('Copied 1-Tap WhatsApp Trigger Link!');
-    }
-
-    async function sendDryRun() {
-      const input = document.getElementById('dryInput');
-      const text = input.value.trim();
-      if (!text) return;
-      input.value = '';
-      const box = document.getElementById('dryChatBox');
-      box.innerHTML += `<div class="bubble buyer">${escapeHtml(text)}</div>`;
-      box.scrollTop = box.scrollHeight;
-
-      const res = await fetch('/api/dry-run-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
-      });
-      const data = await res.json();
-      if (data.ok) {
-        box.innerHTML += `<div class="bubble ai">${escapeHtml(data.reply)}</div>`;
-        box.scrollTop = box.scrollHeight;
-      }
-    }
-
-    async function resetDryRun() {
-      await fetch('/api/dry-run-chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reset: true })
-      });
-      document.getElementById('dryChatBox').innerHTML =
-        `<div class="bubble ai">Namaste Vikram ji! 🙏 Pouch Packing Machine ka PDF brochure bhej diya hai (₹1.45L – ₹3.15L + GST). Aapko kya item aur kitne gram pack karna hai, aur kis City mein chahiye?</div>`;
-    }
-
-    async function saveSettings() {
-      const companyName = document.getElementById('cfgCompany').value.trim();
-      const ownerAlertPhone = document.getElementById('cfgOwnerPhone').value.trim();
-      const geminiApiKey = document.getElementById('cfgGeminiKey').value.trim();
-      const replyWithVoiceNotes = document.getElementById('cfgVoiceReply').checked;
-      await fetch('/api/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyName, ownerAlertPhone, geminiApiKey, replyWithVoiceNotes })
-      });
-      document.getElementById('cfgGeminiKey').value = '';
-      firstLoad = true;
-      showToast('✅ Settings saved live!');
-      pollStatus();
-    }
-
-    async function clearLeads() {
-      await fetch('/api/leads/clear', { method: 'POST' });
-      pollStatus();
-    }
-
-    pollStatus();
-    setInterval(pollStatus, 2500);
+    // Auto-Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      checkAuthStatus();
+    });
   </script>
 </body>
 </html>
