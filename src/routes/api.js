@@ -360,7 +360,7 @@ router.post('/calls/request', authenticate, (req, res) => {
 router.post('/calls/confirm', authenticate, (req, res) => {
   try {
     const result = CallSchedulerService.confirmCallSlot(req.organizationId, {
-      callRequestId: req.body.callRequestId,
+      callRequestId: req.body.callRequestId || req.body.callId,
       confirmedTime: req.body.confirmedTime,
       confirmedBy: req.body.confirmedBy || req.role
     });

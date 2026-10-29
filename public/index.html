@@ -62,6 +62,12 @@
         <span id="topOrgPlan" class="text-slate-400 font-normal uppercase text-[10px] ml-1">Starter</span>
       </div>
 
+      <!-- Language Toggle (EN | Hinglish) -->
+      <button onclick="toggleLanguage()" id="langToggleBtn" class="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 transition flex items-center space-x-1">
+        <span>🌐</span>
+        <span id="langToggleText">EN | हिंग्लिश</span>
+      </button>
+
       <div id="authActions" class="flex items-center space-x-2">
         <button onclick="handleDemoLoginSubmit()" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition">
           ⚡ 1-Click Demo
@@ -160,56 +166,84 @@
     <!-- MAIN CONTENT VIEW AREA -->
     <main class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-8 bg-[#fafafa]">
 
+      <!-- TOP TRIAL STATUS BAR (48-HOUR LIVE TRIAL BANNER) -->
+      <div id="trialStatusBar" class="mb-5 bg-gradient-to-r from-emerald-900 via-indigo-950 to-slate-900 border border-emerald-500/30 rounded-xl p-3.5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center space-x-3 text-xs w-full sm:w-auto">
+          <span class="flex h-2.5 w-2.5 relative shrink-0">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <div>
+            <div class="font-bold text-emerald-300 flex items-center gap-1.5 flex-wrap">
+              <span>🎁 48-Hour Live Trial Available</span>
+              <span class="text-slate-300 font-normal text-[11px]">(25 Free IndiaMART Leads Included)</span>
+            </div>
+            <div id="trialCountdownText" class="text-[11px] text-emerald-200/90 font-mono mt-0.5 font-medium">
+              47h 59m left • 23/25 trial leads remaining
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
+          <button onclick="startSelfTrial()" class="text-xs font-semibold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm whitespace-nowrap">
+            Start Free 48h Trial
+          </button>
+          <button onclick="openActivationModal('VIP Pilot Done-For-You', '₹999', '100% Adjusted in Final Plan')" class="text-xs font-semibold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition shadow-sm whitespace-nowrap">
+            ⚡ ₹999 Engineer Setup
+          </button>
+        </div>
+      </div>
+
       <!-- ============================================== -->
       <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
       <!-- ============================================== -->
       <section id="view-dashboard" class="space-y-6">
-        <!-- 3-STEP VISUAL ONBOARDING BANNER FOR INDIAN FACTORY OWNERS -->
-        <div class="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm">
+        <!-- 3-STEP GUIDED ONBOARDING CARD ("GO LIVE IN 3 SIMPLE STEPS — ZERO TECH NEEDED") -->
+        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">Fast Setup</span>
-              <h2 class="text-lg lg:text-xl font-bold mt-1">Start Closing IndiaMART Deals in 3 Simple Steps</h2>
-              <p class="text-xs text-slate-300 mt-0.5">Automated brochure dispatch, Hinglish qualification, and factory call booking in under 10 seconds.</p>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Zero Tech Needed</span>
+              <h2 id="dashBannerTitle" class="text-lg lg:text-xl font-bold mt-1">Go Live in 3 Simple Steps (Under 5 Minutes)</h2>
+              <p id="dashBannerSub" class="text-xs text-slate-300 mt-0.5">Automated machine PDF catalog dispatch, Hinglish deal closing, and factory owner call booking.</p>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="openSimulationModal()" class="text-xs font-semibold px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-400 transition shadow-sm whitespace-nowrap">
-                ⚡ Test Inbound Lead
+              <button onclick="openSimulationModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+                <span>⚡</span>
+                <span id="btnSimLeadText">Test Inbound Lead</span>
               </button>
             </div>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 pt-4 border-t border-slate-700/60">
-            <div onclick="switchView('catalog')" class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-pointer transition">
-              <div class="flex items-center space-x-2 text-xs font-semibold text-indigo-300">
-                <span class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px]">1</span>
-                <span>Upload PDF Brochure</span>
-              </div>
-              <p class="text-[11px] text-slate-400 mt-1">Upload machine catalog in PDF, Excel, or CSV.</p>
-            </div>
-
-            <div onclick="switchView('whatsapp')" class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-pointer transition">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 pt-4 border-t border-slate-800">
+            <div onclick="switchView('whatsapp')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
               <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-300">
-                <span class="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white text-[10px]">2</span>
-                <span>Scan WhatsApp QR Code</span>
+                <span class="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white text-[10px] font-bold">1</span>
+                <span id="step1Title">1. Scan Sales WhatsApp QR (10 Sec)</span>
               </div>
-              <p class="text-[11px] text-slate-400 mt-1">Link your factory WhatsApp number in 5 seconds.</p>
+              <p id="step1Desc" class="text-[11px] text-slate-400 mt-1">Scan from your official sales phone or secondary SIM.</p>
             </div>
 
-            <div onclick="switchView('settings')" class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-pointer transition">
-              <div class="flex items-center space-x-2 text-xs font-semibold text-amber-300">
-                <span class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white text-[10px]">3</span>
-                <span>Copy IndiaMART Webhook</span>
+            <div onclick="switchView('catalog')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-indigo-300">
+                <span class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">2</span>
+                <span id="step2Title">2. Drop Machine PDF Brochures</span>
               </div>
-              <p class="text-[11px] text-slate-400 mt-1">Paste into IndiaMART Seller CRM to activate.</p>
+              <p id="step2Desc" class="text-[11px] text-slate-400 mt-1">Upload PDF, Excel, or CSV catalogs. AI extracts specs & pricing.</p>
+            </div>
+
+            <div onclick="openAnyDeskHelpModal()" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-amber-300">
+                <span class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white text-[10px] font-bold">3</span>
+                <span id="step3Title">3. Connect IndiaMART (Or Free Help)</span>
+              </div>
+              <p id="step3Desc" class="text-[11px] text-slate-400 mt-1">Copy webhook URL or have our engineer connect via AnyDesk in 10 mins.</p>
             </div>
           </div>
         </div>
 
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Real-time performance metrics derived from verified tenant records.</p>
+            <h1 id="dashOverviewTitle" class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Factory Sales Dashboard</h1>
+            <p id="dashOverviewSub" class="text-xs text-slate-500 mt-0.5">Real-time buyer qualification & instant WhatsApp dispatch.</p>
           </div>
           <button onclick="loadDashboardData()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700 shadow-sm transition">
             🔄 Refresh
@@ -219,29 +253,29 @@
         <!-- 5 METRICS CARDS (GENUINE CALCULATION, NO FAKE DATA) -->
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Leads Today</div>
+            <div id="lblStatLeadsToday" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Today's Enquiries</div>
             <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Asia/Kolkata date</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Median Response</div>
+            <div id="lblStatMedianResponse" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">PDF Reply Speed (<10s)</div>
             <div id="statMedianResponse" class="text-2xl font-bold text-indigo-600 mt-1">N/A</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Time to WhatsApp PDF</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Qualified Leads</div>
+            <div id="lblStatQualifiedRate" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">🔥 Hot Serious Buyers</div>
             <div id="statQualifiedRate" class="text-2xl font-bold text-slate-900 mt-1">0%</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Capacity & specs aligned</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Calls Booked</div>
+            <div id="lblStatCallsBooked" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Owner Calls Fixed</div>
             <div id="statCallsBooked" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">2-Way owner confirmed</div>
           </div>
           <div class="col-span-2 lg:col-span-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Catalog SKUs</div>
+            <div id="lblStatCatalogProducts" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active Machine PDFs</div>
             <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Active verified products</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Verified catalog brochures</div>
           </div>
         </div>
 
@@ -445,35 +479,49 @@
             </div>
           </div>
 
-          <!-- Advanced Meta Cloud API (Optional Collapsed Accordion) -->
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <details class="group">
-              <summary class="flex items-center justify-between cursor-pointer list-none">
-                <div class="flex items-center space-x-3">
-                  <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-sm">W</div>
-                  <div>
-                    <h3 class="text-sm font-bold text-slate-900">Meta Cloud API (Optional Enterprise)</h3>
-                    <span class="text-[11px] text-slate-500">Official Meta Developer WABA Setup</span>
-                  </div>
+          <!-- Managed Official Meta API Card (Zero Developer Complexity) -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4 flex flex-col justify-between">
+            <div class="space-y-3">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">✓</div>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900">Managed Official Meta API</h3>
+                  <span class="text-[11px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">⭐ Zero Ban Risk • All-Inclusive</span>
                 </div>
-                <span class="text-xs text-indigo-600 group-open:rotate-180 transition-transform">▼</span>
-              </summary>
+              </div>
+              <p class="text-xs text-slate-600">We set up and verify your official WhatsApp Cloud API for you. Meta messaging charges for up to 500 IndiaMART leads/mo are 100% included.</p>
+              
+              <div class="p-3 bg-emerald-50/50 border border-emerald-100 rounded-lg text-xs space-y-1.5 text-slate-700">
+                <div class="flex items-center text-emerald-800 font-medium">✓ Zero Facebook Credit Card needed</div>
+                <div class="flex items-center text-emerald-800 font-medium">✓ Green-Tick verification ready</div>
+                <div class="flex items-center text-emerald-800 font-medium">✓ Interactive CTA buttons & PDF dispatch</div>
+              </div>
 
-              <div class="pt-4 space-y-3 text-xs border-t border-gray-100 mt-4">
+              <button onclick="openActivationModal('Official Meta API All-Inclusive', '₹3,499 / mo', 'Managed Zero-Ban Setup')" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-xs shadow-sm transition">
+                Activate Managed Meta API (₹3,499/mo) →
+              </button>
+            </div>
+
+            <!-- Optional Collapsed Developer Section -->
+            <details class="text-[11px] text-slate-500 pt-3 border-t border-gray-100">
+              <summary class="font-semibold text-slate-700 cursor-pointer hover:text-indigo-600">
+                🔧 Advanced Developer / Self-Managed API Keys (Optional)
+              </summary>
+              <div class="pt-3 space-y-2.5">
                 <div>
-                  <label class="block font-semibold text-slate-700 mb-1">WhatsApp Business Account ID (WABA ID)</label>
-                  <input type="text" id="wabaIdInput" placeholder="e.g. 109283746592837" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <label class="block font-semibold text-slate-700 mb-0.5">WhatsApp Business Account ID (WABA ID)</label>
+                  <input type="text" id="wabaIdInput" placeholder="e.g. 109283746592837" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs">
                 </div>
                 <div>
-                  <label class="block font-semibold text-slate-700 mb-1">Phone Number ID</label>
-                  <input type="text" id="phoneIdInput" placeholder="e.g. 509283746592811" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <label class="block font-semibold text-slate-700 mb-0.5">Phone Number ID</label>
+                  <input type="text" id="phoneIdInput" placeholder="e.g. 509283746592811" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs">
                 </div>
                 <div>
-                  <label class="block font-semibold text-slate-700 mb-1">Permanent System User Token</label>
-                  <input type="password" id="wabaTokenInput" placeholder="EAAG..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <label class="block font-semibold text-slate-700 mb-0.5">Permanent System User Token</label>
+                  <input type="password" id="wabaTokenInput" placeholder="EAAG..." class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs">
                 </div>
-                <button onclick="saveCloudApiSettings()" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition">
-                  Save Cloud API Credentials
+                <button onclick="saveCloudApiSettings()" class="w-full py-1.5 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition text-xs">
+                  Save Self-Managed Keys
                 </button>
               </div>
             </details>
@@ -568,10 +616,38 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- IndiaMART Webhook Credentials -->
+          <!-- Factory Profile & Alert Settings (Primary for Owner) -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <h3 class="text-sm font-bold text-slate-900">IndiaMART Push API Webhook</h3>
-            <p class="text-xs text-slate-500">Paste this unique webhook URL into your IndiaMART Seller Portal to automatically capture leads.</p>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Factory Profile & Owner Alerts</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Basic information used by AI when replying to IndiaMART buyers.</p>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Company / Factory Display Name</label>
+                <input type="text" id="settingCompanyName" placeholder="e.g. Bharat PackTech Machinery" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">City / Dispatch Base</label>
+                <input type="text" id="settingCityBase" placeholder="e.g. Ludhiana / Delhi NCR" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Owner WhatsApp Alert Phone (For Call Approvals)</label>
+                <input type="text" id="settingOwnerPhone" placeholder="e.g. 919876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <p class="text-[10px] text-slate-400 mt-0.5">High-intent buyer dossiers and call confirmation alerts are sent here.</p>
+              </div>
+              <button onclick="saveAiSettings()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+                Save Factory Profile
+              </button>
+            </div>
+          </div>
+
+          <!-- Engineer Setup & Webhook Settings (Technical) -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">🔧 Engineer Setup & Webhook Settings</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Paste into IndiaMART Seller Portal or connect persistent cloud server.</p>
+            </div>
             <div class="space-y-3 text-xs">
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">Your Organization's Webhook URL</label>
@@ -584,37 +660,15 @@
                 <label class="block font-semibold text-slate-700 mb-1">IndiaMART CRM Key / Secret (Optional)</label>
                 <input type="password" id="indiamartCrmKeyInput" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
-              <div class="pt-2 border-t border-gray-100">
+              <div>
                 <label class="block font-semibold text-slate-700 mb-1">Backend Server API URL (For Railway / Render / VPS)</label>
-                <input type="text" id="settingApiBase" placeholder="https://your-backend.railway.app (or leave empty for same origin)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-slate-700 text-xs">
-                <p class="text-[10px] text-slate-400 mt-1">When hosting on Netlify, paste your Railway/VPS URL here or append <code class="bg-slate-100 px-1 py-0.5 rounded">?api=https://...</code> to page URL.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- AI Deal Maker Settings -->
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <h3 class="text-sm font-bold text-slate-900">AI Sales Deal Parameters</h3>
-            <div class="space-y-3 text-xs">
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Company Display Name</label>
-                <input type="text" id="settingCompanyName" placeholder="e.g. Bharat PackTech Machinery" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-              </div>
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">City / Dispatch Base</label>
-                <input type="text" id="settingCityBase" placeholder="e.g. Ludhiana / Delhi NCR" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-              </div>
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Owner Alert Phone (For Call Approvals)</label>
-                <input type="text" id="settingOwnerPhone" placeholder="e.g. 919876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <input type="text" id="settingApiBase" placeholder="https://your-backend.railway.app (or leave empty for preview)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-slate-700 text-xs">
+                <p class="text-[10px] text-slate-400 mt-1">Connecting a URL here exits static preview mode immediately.</p>
               </div>
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">Google Gemini API Key (Optional)</label>
                 <input type="password" id="settingGeminiKey" placeholder="AIzaSy... (Leave empty to use smart zero-key engine)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
-              <button onclick="saveAiSettings()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
-                Save Settings
-              </button>
             </div>
           </div>
         </div>
@@ -629,39 +683,90 @@
           <p class="text-xs text-slate-500 mt-0.5">Manage your MartFlow AI subscription and lead allowances.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="bg-white border-2 border-indigo-600 rounded-xl p-6 shadow-sm space-y-4 relative">
-            <span class="absolute top-3 right-3 text-[10px] font-bold uppercase bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Active Plan</span>
-            <h3 class="text-base font-bold text-slate-900">Starter</h3>
-            <div class="text-2xl font-extrabold text-slate-900">₹4,999 <span class="text-xs font-normal text-slate-500">/ month</span></div>
-            <ul class="text-xs text-slate-600 space-y-2">
-              <li>✓ 500 IndiaMART Leads / month</li>
-              <li>✓ Instant WhatsApp PDF Dispatch (<10s)</li>
-              <li>✓ AI Catalog Multi-Format Ingestion</li>
-              <li>✓ 2-Way Factory Owner Call Booking</li>
-            </ul>
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+          <!-- PLAN 1: 48-HOUR LIVE TRIAL -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative hover:border-emerald-300 transition">
+            <span class="absolute -top-2.5 left-4 text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">Test Drive</span>
+            <div class="space-y-3">
+              <h3 class="text-base font-bold text-slate-900 mt-1">48-Hour Live Trial</h3>
+              <div class="text-2xl font-extrabold text-slate-900">₹0 <span class="text-xs font-normal text-slate-500">/ 2 Days</span></div>
+              <p class="text-xs text-slate-500">Test on real IndiaMART buyers with zero risk before committing.</p>
+              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
+                <li class="flex items-center">✓ 25 Free IndiaMART Enquiries</li>
+                <li class="flex items-center">✓ 2 Machine PDF Brochures</li>
+                <li class="flex items-center">✓ Instant WhatsApp Dispatch (<10s)</li>
+                <li class="flex items-center">✓ Hinglish Deal Qualification AI</li>
+                <li class="flex items-center text-indigo-600 font-semibold">✓ ₹999 VIP Pilot (100% Adjusted)</li>
+              </ul>
+            </div>
+            <div class="space-y-2 pt-3">
+              <button onclick="startSelfTrial()" class="w-full py-2 bg-emerald-600 text-white font-semibold rounded-lg text-xs hover:bg-emerald-700 transition shadow-sm">
+                Start Free 48h Self-Trial
+              </button>
+              <button onclick="openActivationModal('VIP Pilot Done-For-You', '₹999', '100% Adjusted in Final Plan')" class="w-full py-1.5 border border-indigo-200 text-indigo-700 bg-indigo-50 font-semibold rounded-lg text-xs hover:bg-indigo-100 transition">
+                ⚡ Book ₹999 Engineer Setup
+              </button>
+            </div>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <h3 class="text-base font-bold text-slate-900">Growth</h3>
-            <div class="text-2xl font-extrabold text-slate-900">₹12,499 <span class="text-xs font-normal text-slate-500">/ month</span></div>
-            <ul class="text-xs text-slate-600 space-y-2">
-              <li>✓ 2,500 IndiaMART Leads / month</li>
-              <li>✓ Multi-User Team Roles (5 Seats)</li>
-              <li>✓ Priority WhatsApp Delivery</li>
-              <li>✓ Dedicated Account Engineer</li>
-            </ul>
-            <button onclick="openUpgradeModal('Growth')" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 transition">Upgrade to Growth</button>
+
+          <!-- PLAN 2: QUICK-LAUNCH QR PRO -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative hover:border-slate-400 transition">
+            <span class="absolute -top-2.5 left-4 text-[10px] font-bold uppercase bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full border border-slate-300">₹0 Message Cost</span>
+            <div class="space-y-3">
+              <h3 class="text-base font-bold text-slate-900 mt-1">Quick-Launch QR Pro</h3>
+              <div class="text-2xl font-extrabold text-slate-900">₹9,999 <span class="text-xs font-normal text-slate-500">one-time</span></div>
+              <p class="text-xs text-slate-500">+ ₹999/mo cloud hosting from Month 2. Uses dedicated sales phone QR.</p>
+              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
+                <li class="flex items-center font-bold text-emerald-700">✓ ₹0 Per-Message Fees (Zero Meta Cost)</li>
+                <li class="flex items-center">✓ Unlimited IndiaMART Enquiries 24×7</li>
+                <li class="flex items-center">✓ Up to 15 Machine PDF Brochures</li>
+                <li class="flex items-center">✓ Hinglish Voice/Text Deal AI</li>
+                <li class="flex items-center">✓ Instant Owner Alert & Excel Export</li>
+              </ul>
+            </div>
+            <button onclick="openActivationModal('Quick-Launch QR Pro', '₹9,999', 'One-time setup with ₹0 message fee')" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 transition shadow-sm">
+              Get Quick-Launch QR Pro →
+            </button>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <h3 class="text-base font-bold text-slate-900">Enterprise</h3>
-            <div class="text-2xl font-extrabold text-slate-900">Custom</div>
-            <ul class="text-xs text-slate-600 space-y-2">
-              <li>✓ Unlimited Leads & Products</li>
-              <li>✓ Dedicated Server & WABA Setup</li>
-              <li>✓ Custom ERP & CRM Integrations</li>
-              <li>✓ 24/7 SLA Guarantee</li>
-            </ul>
-            <button onclick="openUpgradeModal('Enterprise')" class="w-full py-2 border border-gray-300 font-semibold rounded-lg text-xs text-slate-700 hover:bg-gray-50 transition">Contact Enterprise</button>
+
+          <!-- PLAN 3: OFFICIAL META API ALL-INCLUSIVE (MOST POPULAR) -->
+          <div class="bg-white border-2 border-indigo-600 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative transform -translate-y-1 shadow-md">
+            <span class="absolute -top-3 left-4 text-[10px] font-bold uppercase bg-indigo-600 text-white px-2.5 py-0.5 rounded-full shadow-sm">⭐ Most Popular • Zero Ban Risk</span>
+            <div class="space-y-3">
+              <h3 class="text-base font-bold text-slate-900 mt-1">Official Meta API All-Inclusive</h3>
+              <div class="text-2xl font-extrabold text-slate-900">₹3,499 <span class="text-xs font-normal text-slate-500">/ month</span></div>
+              <p class="text-xs text-slate-500">+ ₹4,999 one-time engineer onboarding. Zero Facebook credit card required.</p>
+              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
+                <li class="flex items-center font-bold text-indigo-700">✓ Official Meta WhatsApp Charges Included</li>
+                <li class="flex items-center">✓ Up to 500 IndiaMART Leads / month</li>
+                <li class="flex items-center">✓ 0% Ban Risk (Green-Tick Ready)</li>
+                <li class="flex items-center">✓ Interactive WhatsApp Buttons & Videos</li>
+                <li class="flex items-center">✓ Full Autonomous Deal Closing & Booking</li>
+              </ul>
+            </div>
+            <button onclick="openActivationModal('Official Meta API All-Inclusive', '₹3,499 / mo', 'Official Meta API Charges Included')" class="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg text-xs hover:bg-indigo-700 transition shadow-md">
+              Activate Meta API All-Inclusive →
+            </button>
+          </div>
+
+          <!-- PLAN 4: FACTORY ANNUAL VIP -->
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative hover:border-amber-300 transition">
+            <span class="absolute -top-2.5 left-4 text-[10px] font-bold uppercase bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-300">Save ₹17,000 / Year</span>
+            <div class="space-y-3">
+              <h3 class="text-base font-bold text-slate-900 mt-1">Factory Annual VIP</h3>
+              <div class="text-2xl font-extrabold text-slate-900">₹24,999 <span class="text-xs font-normal text-slate-500">/ year</span></div>
+              <p class="text-xs text-slate-500">Complete enterprise turnkey solution with dedicated account manager.</p>
+              <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-gray-100">
+                <li class="flex items-center font-bold text-amber-700">✓ Official Meta API Included (6,000 Leads/yr)</li>
+                <li class="flex items-center">✓ Unlimited Machine PDF Brochures</li>
+                <li class="flex items-center">✓ Multi-Salesman Lead Routing</li>
+                <li class="flex items-center">✓ Free Catalog Updates All Year</li>
+                <li class="flex items-center">✓ 24/7 Priority AnyDesk & WhatsApp SLA</li>
+              </ul>
+            </div>
+            <button onclick="openActivationModal('Factory Annual VIP', '₹24,999 / yr', 'Dedicated VIP Engineer Setup')" class="w-full py-2 border border-gray-300 font-semibold rounded-lg text-xs text-slate-800 hover:bg-slate-50 transition shadow-sm">
+              Upgrade to Annual VIP →
+            </button>
           </div>
         </div>
       </section>
@@ -743,7 +848,105 @@
     </div>
   </div>
 
-  <!-- UPGRADE MODAL -->
+  <!-- HIGH-TRUST PAYMENT & PLAN ACTIVATION MODAL -->
+  <div id="activationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+      <button onclick="closeActivationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="text-center space-y-1">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Instant VIP Activation</span>
+        <h2 id="actPlanTitle" class="text-lg font-bold text-slate-900 mt-2">Official Meta API All-Inclusive</h2>
+        <div id="actPlanPrice" class="text-2xl font-extrabold text-indigo-600">₹3,499 / month</div>
+        <p id="actPlanNote" class="text-xs text-slate-500">Official Meta WhatsApp API fees for 500 leads/mo 100% included.</p>
+      </div>
+
+      <!-- 3 Trust Guarantees -->
+      <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs space-y-1.5 text-slate-700">
+        <div class="flex items-center text-slate-800 font-medium">✓ <strong>15-Minute Engineer Setup</strong> via AnyDesk / Google Meet</div>
+        <div class="flex items-center text-slate-800 font-medium">✓ <strong>Zero API Complexity:</strong> We configure Meta WABA, tokens & templates</div>
+        <div class="flex items-center text-slate-800 font-medium">✓ <strong>100% Fee Adjustment:</strong> ₹999 trial fee is fully adjusted in final plan</div>
+      </div>
+
+      <!-- Dynamic UPI QR Code & ID -->
+      <div class="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-3">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-indigo-900">Instant UPI Payment (Any App)</div>
+        <div class="bg-white p-2 rounded-xl inline-block border border-indigo-100 shadow-sm">
+          <img id="actUpiQr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dpayments%40martflow.ai%26pn%3DMartFlow%2520AI%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
+        </div>
+        <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
+          <span class="text-slate-600 font-semibold truncate">UPI ID: payments@martflow.ai</span>
+          <button onclick="copyUpiId()" class="text-indigo-600 hover:text-indigo-800 font-bold ml-2 shrink-0">Copy</button>
+        </div>
+      </div>
+
+      <!-- 1-Click WhatsApp Direct Activation -->
+      <div class="space-y-2 pt-1">
+        <a id="actWaBtn" href="https://wa.me/919825012345?text=Namaste%20MartFlow%20Team!%20I%20want%20to%20activate%20my%20factory%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+          ⚡ Confirm & Connect on WhatsApp (Under 10 Mins) →
+        </a>
+        <p class="text-[11px] text-center text-slate-400">Our senior onboarding engineer will reach out on WhatsApp instantly.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRM CALL MODAL (ZERO WINDOW.PROMPT) -->
+  <div id="confirmCallModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative space-y-4">
+      <button onclick="closeConfirmCallModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">
+        📞
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Confirm Call Consultation</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Select or enter the confirmed time slot for buyer & factory engineer call.</p>
+      </div>
+
+      <input type="hidden" id="confirmCallIdInput">
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Confirmed Time Slot (IST)</label>
+        <input type="text" id="confirmCallSlotInput" value="Today at 4:30 PM IST" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold">
+      </div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="closeConfirmCallModal()" class="flex-1 py-2 text-xs font-semibold border border-gray-300 rounded-lg text-slate-600 hover:bg-gray-50 transition">Cancel</button>
+        <button onclick="submitCallConfirmation()" class="flex-1 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-sm">Confirm Slot</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANYDESK ENGINEER ASSISTANCE MODAL -->
+  <div id="anyDeskModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative space-y-4">
+      <button onclick="closeAnyDeskHelpModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-lg font-bold">
+        💻
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Done-For-You AnyDesk Connection</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Let our integration engineers connect your IndiaMART CRM and catalog brochures on AnyDesk or Google Meet.</p>
+      </div>
+
+      <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs space-y-1.5 text-slate-700">
+        <div>✓ 100% Done in 10-15 Minutes</div>
+        <div>✓ Zero technical steps required from you</div>
+        <div>✓ Live test inquiry verified together</div>
+      </div>
+
+      <a id="anyDeskWaBtn" href="https://wa.me/919825012345?text=Namaste%20MartFlow%20Team!%20Please%20connect%20via%20AnyDesk%20to%20set%20up%20my%20IndiaMART%20integration" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+        Chat with Engineer on WhatsApp →
+      </a>
+    </div>
+  </div>
+
+  <!-- UPGRADE MODAL (BACKWARDS COMPATIBILITY) -->
   <div id="upgradeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-center space-y-4">
       <button onclick="closeUpgradeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -753,7 +956,7 @@
       <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-xl">
         ⭐
       </div>
-      <h2 id="upgradePlanTitle" class="text-lg font-bold text-slate-900">Upgrade to Growth Plan</h2>
+      <h2 id="upgradePlanTitle" class="text-lg font-bold text-slate-900">Upgrade Plan</h2>
       <p class="text-xs text-slate-600">To upgrade your monthly IndiaMART lead quota or activate multi-user team seats, contact our onboarding director via WhatsApp:</p>
 
       <div class="p-3 bg-slate-50 border border-gray-200 rounded-lg text-xs space-y-1 text-left font-mono">
@@ -887,28 +1090,40 @@
           products: [
             {
               id: 'prod_demo_1',
+              sku: 'BPT-100',
               name: 'Automatic Collar Type Pouch Packing Machine',
               category: 'Packaging Machinery',
+              price_raw: '₹2,45,000 + GST',
               price_range: '₹2,45,000 + GST',
+              brochure_filename: 'Pouch-Packing-Machine-Catalog.pdf',
               moq: '1 Unit',
+              confidence_score: 0.98,
               specs: { 'Speed': '45-60 pouches/min', 'Film Width': '100-420 mm', 'PLC': 'Delta Touchscreen' },
               is_active: 1
             },
             {
               id: 'prod_demo_2',
+              sku: 'BLF-4H',
               name: '4-Head Servo Liquid & Paste Filling Machine',
               category: 'Filling Machinery',
+              price_raw: '₹1,85,000 + GST',
               price_range: '₹1,85,000 + GST',
+              brochure_filename: 'Liquid-Paste-Filling-Machine-Catalog.pdf',
               moq: '1 Unit',
+              confidence_score: 0.95,
               specs: { 'Volume': '50ml - 1000ml', 'Accuracy': '±0.5%', 'Nozzles': 'Drip-Free Diving' },
               is_active: 1
             },
             {
               id: 'prod_demo_3',
+              sku: 'BCS-50',
               name: 'Heavy Duty Carton Sealer & Box Strapping Machine',
               category: 'Secondary Packaging',
+              price_raw: '₹48,500 + GST',
               price_range: '₹48,500 + GST',
+              brochure_filename: 'Shrink-Tunnel-Carton-Sealer-Catalog.pdf',
               moq: '1 Unit',
+              confidence_score: 0.92,
               specs: { 'Carton Width': '150-500mm', 'Conveyor Speed': '20m/min', 'Power': '220V Single Phase' },
               is_active: 1
             }
@@ -918,11 +1133,12 @@
               id: 'lead_demo_1',
               source: 'indiamart',
               buyer_name: 'Amit Bansal',
-              buyer_phone: '+91 98112 23344',
+              buyer_phone: '919811223344',
               buyer_city: 'Faridabad, Haryana',
               product_inquired: 'Automatic Collar Type Pouch Packing Machine',
               query_message: 'Need quotation with warranty and delivery time to Faridabad factory for spices packing.',
               status: 'qualified',
+              pdf_brochure_sent: true,
               brochure_sent: 1,
               qualification_score: 94,
               created_at: new Date(Date.now() - 3600000).toISOString()
@@ -931,11 +1147,12 @@
               id: 'lead_demo_2',
               source: 'indiamart',
               buyer_name: 'Vikramjit Singh',
-              buyer_phone: '+91 98765 43210',
+              buyer_phone: '919876543210',
               buyer_city: 'Ludhiana, Punjab',
               product_inquired: '4-Head Servo Liquid & Paste Filling Machine',
               query_message: 'Looking for high speed edible oil filling line. Please share technical catalog.',
               status: 'call_requested',
+              pdf_brochure_sent: true,
               brochure_sent: 1,
               qualification_score: 88,
               created_at: new Date(Date.now() - 7200000).toISOString()
@@ -948,7 +1165,7 @@
               mode: 'ai',
               isUnread: 0,
               buyerName: 'Amit Bansal',
-              buyerPhone: '+91 98112 23344',
+              buyerPhone: '919811223344',
               buyerCity: 'Faridabad, Haryana',
               productInquired: 'Automatic Collar Type Pouch Packing Machine',
               status: 'qualified',
@@ -988,9 +1205,10 @@
             {
               id: 'call_demo_1',
               buyerName: 'Vikramjit Singh',
-              buyerPhone: '+91 98765 43210',
+              buyerPhone: '919876543210',
               productInterest: '4-Head Servo Liquid Filling Machine',
               confirmedSlot: 'Tomorrow 3:00 PM IST',
+              proposed_time_raw: 'Tomorrow 3:00 PM IST',
               status: 'confirmed',
               summary: 'High intent Ludhiana buyer. Needs 4-head servo filling line for mustard oil bottling.'
             }
@@ -1039,6 +1257,7 @@
             medianResponseTimeFormatted: '14s',
             qualificationRate: '88%',
             confirmedCalls: store.calls.length,
+            callBookingRate: '50%',
             totalCatalogProducts: store.products.length,
             totalLeads: store.leads.length + 10
           }
@@ -1053,7 +1272,7 @@
         if (search) {
           list = list.filter(l => 
             (l.buyer_name || '').toLowerCase().includes(search) ||
-            (l.buyer_phone || '').includes(search) ||
+            String(l.buyer_phone || '').includes(search) ||
             (l.product_inquired || '').toLowerCase().includes(search) ||
             (l.buyer_city || '').toLowerCase().includes(search)
           );
@@ -1067,15 +1286,17 @@
       if (pathOnly === '/api/leads/simulate' && method === 'POST') {
         let body = {};
         try { body = typeof options.body === 'string' ? JSON.parse(options.body) : (options.body || {}); } catch(e) {}
+        const cleanDigits = String(body.buyerPhone || '919825012345').replace(/\D/g, '');
         const newLead = {
           id: 'lead_sim_' + Date.now(),
           source: 'indiamart_simulation',
           buyer_name: body.buyerName || 'Simulated Buyer',
-          buyer_phone: body.buyerPhone || '+91 98250 12345',
+          buyer_phone: cleanDigits,
           buyer_city: body.city || 'Delhi NCR',
           product_inquired: body.productQuery || 'Automatic Packaging Machine',
           query_message: body.message || 'Please send machine specifications and quote.',
           status: 'new',
+          pdf_brochure_sent: true,
           brochure_sent: 1,
           qualification_score: 90,
           created_at: new Date().toISOString()
@@ -1169,12 +1390,18 @@
       if (pathOnly === '/api/catalog/quick-add' && method === 'POST') {
         let body = {};
         try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const newSku = 'BPT-' + (store.products.length + 101);
+        const priceVal = body.priceRaw || '₹1,50,000 + GST';
         const newProd = {
           id: 'prod_' + Date.now(),
+          sku: newSku,
           name: body.name || 'New Machinery SKU',
           category: body.model || 'Packaging Machinery',
-          price_range: body.priceRaw || '₹1,50,000 + GST',
+          price_raw: priceVal,
+          price_range: priceVal,
+          brochure_filename: 'Direct-Entry.pdf',
           moq: '1 Unit',
+          confidence_score: 0.96,
           specs: { 'Status': 'Ready in Catalog' },
           is_active: 1
         };
@@ -1183,8 +1410,46 @@
         return { ok: true, product: newProd };
       }
 
+      if (pathOnly === '/api/catalog/upload' && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const filename = body.filename || 'Uploaded-Catalog.pdf';
+        const cleanName = filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
+        const uploadedSku = 'BPT-' + (store.products.length + 101);
+        const newProd = {
+          id: 'prod_upload_' + Date.now(),
+          sku: uploadedSku,
+          name: cleanName,
+          category: 'Extracted Machinery',
+          price_raw: '₹1,95,000 + GST',
+          price_range: '₹1,95,000 + GST',
+          brochure_filename: filename,
+          moq: '1 Unit',
+          confidence_score: 0.98,
+          specs: { 'Source': 'OCR Ingestion', 'Warranty': '1 Year' },
+          is_active: 1
+        };
+        store.products.unshift(newProd);
+        saveDemoStore(store);
+        return { ok: true, productsCount: 1, product: newProd };
+      }
+
       if (pathOnly === '/api/calls') {
         return { ok: true, calls: store.calls };
+      }
+
+      if (pathOnly === '/api/calls/confirm' && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const callId = body.callRequestId || body.callId;
+        const targetCall = store.calls.find(c => c.id === callId);
+        if (targetCall) {
+          targetCall.status = 'confirmed';
+          targetCall.confirmedSlot = body.confirmedTime || 'Confirmed on WhatsApp';
+          targetCall.proposed_time_raw = body.confirmedTime || 'Confirmed on WhatsApp';
+        }
+        saveDemoStore(store);
+        return { ok: true, status: 'confirmed', call: targetCall };
       }
 
       if (pathOnly === '/api/whatsapp/status') {
@@ -1554,9 +1819,10 @@
           <tbody class="divide-y divide-gray-100">
       `;
       leads.forEach(l => {
+        const cleanPhone = String(l.buyer_phone || '').replace(/\D/g, '');
         html += `
           <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="switchView('leads')">
-            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'IndiaMART Buyer')}<div class="text-[11px] text-slate-400 font-normal font-mono">+${escapeHtml(l.buyer_phone)}</div></td>
+            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'IndiaMART Buyer')}<div class="text-[11px] text-slate-400 font-normal font-mono">+${escapeHtml(cleanPhone)}</div></td>
             <td class="py-3 px-4 text-slate-700">${escapeHtml(l.product_inquired || 'General Machine')}</td>
             <td class="py-3 px-4 text-slate-500">${escapeHtml(l.buyer_city || '—')}</td>
             <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 uppercase">${escapeHtml(l.status)}</span></td>
@@ -1603,16 +1869,18 @@
             <tbody class="divide-y divide-gray-100">
         `;
         data.leads.forEach(l => {
+          const cleanPhone = String(l.buyer_phone || '').replace(/\D/g, '');
+          const isPdfSent = Boolean(l.pdf_brochure_sent || l.brochure_sent);
           html += `
             <tr class="hover:bg-slate-50 transition">
               <td class="py-3.5 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'IndiaMART Buyer')}</td>
-              <td class="py-3.5 px-4 text-slate-600 font-mono">+${escapeHtml(l.buyer_phone)}</td>
+              <td class="py-3.5 px-4 text-slate-600 font-mono">+${escapeHtml(cleanPhone)}</td>
               <td class="py-3.5 px-4 text-slate-800">${escapeHtml(l.product_inquired || 'Machine')}</td>
               <td class="py-3.5 px-4 text-slate-500">${escapeHtml(l.buyer_city || 'India')}</td>
-              <td class="py-3.5 px-4">${l.pdf_brochure_sent ? '<span class="text-emerald-600 font-bold">✓ YES</span>' : '<span class="text-slate-400">NO</span>'}</td>
+              <td class="py-3.5 px-4">${isPdfSent ? '<span class="text-emerald-600 font-bold">✓ Sent</span>' : '<span class="text-slate-400">NO</span>'}</td>
               <td class="py-3.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700">${escapeHtml(l.status)}</span></td>
               <td class="py-3.5 px-4 text-right space-x-2">
-                <a href="https://wa.me/${escapeHtml(l.buyer_phone)}" target="_blank" class="text-xs font-semibold text-emerald-600 hover:underline">WhatsApp →</a>
+                <a href="https://wa.me/${escapeHtml(cleanPhone)}" target="_blank" class="text-xs font-semibold text-emerald-600 hover:underline">WhatsApp →</a>
               </td>
             </tr>
           `;
@@ -1624,15 +1892,13 @@
       }
     }
 
-    // Authenticated CSV Export
+    // Authenticated CSV Export (Supports Blob on both Preview & Live Backend)
     async function exportLeadsCsv() {
       try {
         showToast('Preparing verified leads CSV export...', 'info');
-        const res = await fetch('/api/leads/export.csv', {
-          headers: { 'Authorization': `Bearer ${currentAuthToken}` }
-        });
-        if (!res.ok) throw new Error('Failed to download CSV');
-        const blob = await res.blob();
+        const csvText = await apiFetch('/api/leads/export.csv');
+        if (!csvText || typeof csvText !== 'string') throw new Error('Failed to download CSV');
+        const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1640,6 +1906,7 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
+        setTimeout(() => window.URL.revokeObjectURL(url), 1000);
         showToast('Leads CSV exported successfully!', 'success');
       } catch (e) {
         showToast(e.message, 'error');
@@ -1936,11 +2203,11 @@
         data.products.forEach(p => {
           html += `
             <tr class="hover:bg-slate-50 transition">
-              <td class="py-3 px-4 font-mono text-indigo-600">${escapeHtml(p.sku || 'N/A')}</td>
+              <td class="py-3 px-4 font-mono text-indigo-600 font-semibold">${escapeHtml(p.sku || p.id || 'BPT-100')}</td>
               <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
-              <td class="py-3 px-4 text-emerald-700 font-semibold">${escapeHtml(p.price_raw || 'Contact for quote')}</td>
+              <td class="py-3 px-4 text-emerald-700 font-semibold">${escapeHtml(p.price_raw || p.price_range || 'Ask for Quote')}</td>
               <td class="py-3 px-4 text-slate-500">${escapeHtml(p.brochure_filename || 'Direct Entry')}</td>
-              <td class="py-3 px-4 text-right font-semibold text-slate-700">${Math.round((p.confidence_score || 1) * 100)}%</td>
+              <td class="py-3 px-4 text-right font-semibold text-slate-700">${Math.round((p.confidence_score || 0.95) * 100)}%</td>
             </tr>
           `;
         });
@@ -1967,8 +2234,9 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ filename: file.name, fileBase64: reader.result })
           });
-          statusEl.textContent = `✓ Extracted ${data.productsCount} verified products!`;
-          showToast(`Successfully extracted ${data.productsCount} products from catalog!`, 'success');
+          const count = data.productsCount || 1;
+          statusEl.textContent = `✓ Extracted ${count} verified products!`;
+          showToast(`Successfully extracted ${count} products from catalog!`, 'success');
           fetchCatalogProducts();
           loadDashboardData();
         } catch (err) {
@@ -2004,15 +2272,20 @@
             <tbody class="divide-y divide-gray-100">
         `;
         data.calls.forEach(c => {
+          const buyerName = c.lead?.name || c.buyerName || c.buyer_name || 'Buyer';
+          const rawPhone = c.lead?.phone || c.buyerPhone || c.buyer_phone || '';
+          const cleanPhone = String(rawPhone).replace(/\D/g, '');
+          const product = c.lead?.product || c.productInterest || c.product_inquired || 'Machine';
+          const slot = c.proposed_time_raw || c.confirmedSlot || c.confirmed_time || 'Awaiting Slot';
           html += `
             <tr class="hover:bg-slate-50 transition">
-              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(c.lead?.name || 'Buyer')}</td>
-              <td class="py-3 px-4 font-mono text-slate-600">+${escapeHtml(c.lead?.phone || '—')}</td>
-              <td class="py-3 px-4 text-slate-800">${escapeHtml(c.lead?.product || 'Machine')}</td>
-              <td class="py-3 px-4 font-semibold text-indigo-700">${escapeHtml(c.proposed_time_raw || 'Awaiting Slot')}</td>
+              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(buyerName)}</td>
+              <td class="py-3 px-4 font-mono text-slate-600">+${escapeHtml(cleanPhone)}</td>
+              <td class="py-3 px-4 text-slate-800">${escapeHtml(product)}</td>
+              <td class="py-3 px-4 font-semibold text-indigo-700">${escapeHtml(slot)}</td>
               <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">${escapeHtml(c.status)}</span></td>
               <td class="py-3 px-4 text-right">
-                <button onclick="confirmSlotPrompt('${c.id}')" class="text-xs font-semibold text-indigo-600 hover:underline">Confirm Slot</button>
+                <button onclick="openConfirmCallModal('${c.id}', '${escapeHtml(slot)}')" class="text-xs font-semibold text-indigo-600 hover:underline">Confirm Slot</button>
               </td>
             </tr>
           `;
@@ -2024,15 +2297,34 @@
       }
     }
 
-    async function confirmSlotPrompt(callId) {
-      const slot = prompt('Enter confirmed time for call (e.g. Today at 4:30 PM):', 'Today at 4:30 PM');
-      if (!slot) return;
+    function confirmSlotPrompt(callId) {
+      openConfirmCallModal(callId);
+    }
+
+    function openConfirmCallModal(callId, currentSlot = 'Today at 4:30 PM IST') {
+      document.getElementById('confirmCallIdInput').value = callId;
+      document.getElementById('confirmCallSlotInput').value = currentSlot === 'Awaiting Slot' ? 'Today at 4:30 PM IST' : currentSlot;
+      document.getElementById('confirmCallModal').classList.remove('hidden');
+    }
+
+    function closeConfirmCallModal() {
+      document.getElementById('confirmCallModal').classList.add('hidden');
+    }
+
+    async function submitCallConfirmation() {
+      const callId = document.getElementById('confirmCallIdInput').value;
+      const slot = document.getElementById('confirmCallSlotInput').value.trim();
+      if (!slot) {
+        showToast('Please enter a confirmed time slot.', 'error');
+        return;
+      }
       try {
         await apiFetch('/api/calls/confirm', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callRequestId: callId, confirmedTime: slot })
         });
+        closeConfirmCallModal();
         showToast('Call confirmed! Buyer and owner notified on WhatsApp.', 'success');
         fetchCallRequests();
         loadDashboardData();
@@ -2085,6 +2377,8 @@
       if (apiBaseInput) {
         localStorage.setItem('mf_api_base', apiBaseInput);
         API_BASE = apiBaseInput;
+        isStaticDemoMode = false;
+        localStorage.removeItem('mf_demo_mode');
       } else {
         localStorage.removeItem('mf_api_base');
         API_BASE = '';
@@ -2125,33 +2419,170 @@
       showToast('IndiaMART Webhook URL copied to clipboard!', 'success');
     }
 
-    // 16. Upgrade Plan Modal
-    function openUpgradeModal(planName) {
-      document.getElementById('upgradePlanTitle').textContent = `Upgrade to ${planName} Plan`;
+    // 16. Upgrade & Activation Modals
+    function openUpgradeModal(planName = 'Official Meta API All-Inclusive') {
+      openActivationModal(planName, '₹3,499 / mo', 'Managed Zero-Ban Setup');
+    }
 
-      // Dynamically resolve owner/escalation phone number
-      const phoneInput = document.getElementById('settingOwnerPhone')?.value || '';
-      const fallbackPhone = '919825012345';
-      const cleanDigits = phoneInput.replace(/\D/g, '') || fallbackPhone;
+    function closeUpgradeModal() {
+      const el = document.getElementById('upgradeModal');
+      if (el) el.classList.add('hidden');
+      closeActivationModal();
+    }
 
-      const deskEl = document.getElementById('upgradeDeskPhone');
-      if (deskEl) deskEl.textContent = `+${cleanDigits}`;
+    function openActivationModal(planName = 'Official Meta API All-Inclusive', price = '₹3,499 / mo', note = 'Official Meta WhatsApp API fees for 500 leads/mo 100% included.') {
+      const titleEl = document.getElementById('actPlanTitle');
+      const priceEl = document.getElementById('actPlanPrice');
+      const noteEl = document.getElementById('actPlanNote');
+      if (titleEl) titleEl.textContent = planName;
+      if (priceEl) priceEl.textContent = price;
+      if (noteEl) noteEl.textContent = note;
 
-      const linkEl = document.getElementById('upgradeWaLink');
-      if (linkEl) {
-        const msg = encodeURIComponent(`Hi MartFlow Team, I want to upgrade to the ${planName} Plan for my manufacturing workspace.`);
-        linkEl.href = `https://wa.me/${cleanDigits}?text=${msg}`;
+      // Extract raw amount for UPI URL
+      const cleanPriceDigits = price.replace(/\D/g, '') || '999';
+      const upiUrl = `upi://pay?pa=payments@martflow.ai&pn=MartFlow%20AI&am=${cleanPriceDigits}&cu=INR`;
+      const qrEl = document.getElementById('actUpiQr');
+      if (qrEl) {
+        qrEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiUrl)}`;
       }
 
-      document.getElementById('upgradeModal').classList.remove('hidden');
+      // Dynamically resolve owner/escalation phone number
+      const ownerInput = document.getElementById('settingOwnerPhone')?.value || '';
+      const fallbackPhone = '919825012345';
+      const cleanOwnerDigits = ownerInput.replace(/\D/g, '') || fallbackPhone;
+
+      const actWaBtn = document.getElementById('actWaBtn');
+      if (actWaBtn) {
+        const msg = encodeURIComponent(`Namaste MartFlow Team! I want to activate the ${planName} (${price}) for my factory workspace.`);
+        actWaBtn.href = `https://wa.me/${cleanOwnerDigits}?text=${msg}`;
+      }
+
+      const modal = document.getElementById('activationModal');
+      if (modal) modal.classList.remove('hidden');
     }
-    function closeUpgradeModal() {
-      document.getElementById('upgradeModal').classList.add('hidden');
+
+    function closeActivationModal() {
+      const modal = document.getElementById('activationModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function copyUpiId() {
+      navigator.clipboard.writeText('payments@martflow.ai');
+      showToast('UPI ID payments@martflow.ai copied to clipboard!', 'success');
+    }
+
+    function openAnyDeskHelpModal() {
+      const ownerInput = document.getElementById('settingOwnerPhone')?.value || '';
+      const fallbackPhone = '919825012345';
+      const cleanOwnerDigits = ownerInput.replace(/\D/g, '') || fallbackPhone;
+
+      const anyDeskWaBtn = document.getElementById('anyDeskWaBtn');
+      if (anyDeskWaBtn) {
+        const msg = encodeURIComponent('Namaste MartFlow Team! Please connect via AnyDesk to set up my IndiaMART & WhatsApp catalog.');
+        anyDeskWaBtn.href = `https://wa.me/${cleanOwnerDigits}?text=${msg}`;
+      }
+      const modal = document.getElementById('anyDeskModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeAnyDeskHelpModal() {
+      const modal = document.getElementById('anyDeskModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    // 17. Language Toggle: English & Roman Hinglish
+    let currentLang = localStorage.getItem('mf_lang') || 'en';
+    const langDict = {
+      en: {
+        dashBannerTitle: 'Go Live in 3 Simple Steps (Under 5 Minutes)',
+        dashBannerSub: 'Automated machine PDF catalog dispatch, Hinglish deal closing, and factory owner call booking.',
+        step1Title: '1. Scan Sales WhatsApp QR (10 Sec)',
+        step1Desc: 'Scan from your official sales phone or secondary SIM.',
+        step2Title: '2. Drop Machine PDF Brochures',
+        step2Desc: 'Upload PDF, Excel, or CSV catalogs. AI extracts specs & pricing.',
+        step3Title: '3. Connect IndiaMART (Or Free Help)',
+        step3Desc: 'Copy webhook URL or have our engineer connect via AnyDesk in 10 mins.',
+        dashOverviewTitle: 'Factory Sales Dashboard',
+        dashOverviewSub: 'Real-time buyer qualification & instant WhatsApp dispatch.',
+        lblStatLeadsToday: "Today's Enquiries",
+        lblStatMedianResponse: 'PDF Reply Speed (<10s)',
+        lblStatQualifiedRate: '🔥 Hot Serious Buyers',
+        lblStatCallsBooked: 'Owner Calls Fixed',
+        lblStatCatalogProducts: 'Active Machine PDFs'
+      },
+      hi: {
+        dashBannerTitle: '3 Simple Steps Mein Live Ho Jayein (5 Minute Se Kam)',
+        dashBannerSub: 'Machine PDF brochure bhejna, Hinglish mein buyer qualify karna aur factory owner ki call book karna.',
+        step1Title: '1. WhatsApp QR Scan Karein (10 Sec)',
+        step1Desc: 'Apne factory sales mobile ya secondary SIM se scan karein.',
+        step2Title: '2. Machine PDF Brochure Upload Karein',
+        step2Desc: 'PDF, Excel ya CSV dalein. AI machine specs & rate turant extract karega.',
+        step3Title: '3. IndiaMART Connect Karein (Free Help)',
+        step3Desc: 'Webhook copy karein ya humare engineer se AnyDesk par 10 min mein connect karwayein.',
+        dashOverviewTitle: 'Factory Sales Dashboard',
+        dashOverviewSub: 'Live buyer qualification aur WhatsApp par turant machine brochure dispatch.',
+        lblStatLeadsToday: 'Aaj Ki Total Enquiries',
+        lblStatMedianResponse: 'PDF Bhejne Ki Speed (<10s)',
+        lblStatQualifiedRate: '🔥 Serious Factory Buyers',
+        lblStatCallsBooked: 'Owner Ki Calls Booked',
+        lblStatCatalogProducts: 'Active Machine Catalog'
+      }
+    };
+
+    function applyLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('mf_lang', lang);
+      const toggleText = document.getElementById('langToggleText');
+      if (toggleText) {
+        toggleText.textContent = lang === 'hi' ? 'हिंग्लिश | EN' : 'EN | हिंग्लिश';
+      }
+      const texts = langDict[lang] || langDict.en;
+      Object.keys(texts).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = texts[id];
+      });
+    }
+
+    function toggleLanguage() {
+      applyLanguage(currentLang === 'en' ? 'hi' : 'en');
+      showToast(currentLang === 'hi' ? 'Language changed to Hinglish' : 'Language changed to English', 'info');
+    }
+
+    // 18. 48-Hour Live Trial Management
+    function initTrialCountdown() {
+      if (!localStorage.getItem('mf_trial_start')) {
+        localStorage.setItem('mf_trial_start', String(Date.now()));
+      }
+      updateTrialDisplay();
+      setInterval(updateTrialDisplay, 60000);
+    }
+
+    function updateTrialDisplay() {
+      const countdownEl = document.getElementById('trialCountdownText');
+      if (!countdownEl) return;
+      const startTime = parseInt(localStorage.getItem('mf_trial_start') || String(Date.now()), 10);
+      const totalDurationMs = 48 * 60 * 60 * 1000;
+      const elapsed = Date.now() - startTime;
+      const remainingMs = Math.max(0, totalDurationMs - elapsed);
+      const hours = Math.floor(remainingMs / (1000 * 60 * 60));
+      const minutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      const leadsLeft = localStorage.getItem('mf_trial_leads_left') || '23';
+      countdownEl.textContent = `${hours}h ${minutes}m left • ${leadsLeft}/25 trial leads remaining`;
+    }
+
+    function startSelfTrial() {
+      localStorage.setItem('mf_trial_start', String(Date.now()));
+      localStorage.setItem('mf_trial_leads_left', '25');
+      updateTrialDisplay();
+      showToast('48-Hour Live Trial active! 25 Free IndiaMART leads ready.', 'success');
     }
 
     // Initialize on page load
     window.addEventListener('DOMContentLoaded', () => {
       checkAuthStatus();
+      initTrialCountdown();
+      applyLanguage(currentLang);
       // Poll WhatsApp connection status every 10 seconds
       setInterval(() => {
         checkWaConnection();
