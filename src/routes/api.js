@@ -480,26 +480,27 @@ router.get('/settings/team', authenticate, (req, res) => {
 });
 
 // ==========================================
-// 9. REAL WEBHOOK INGESTION ENDPOINTS
+// 9. REAL WEBHOOK INGESTION ENDPOINTS (B2B Marketplace & Backward-Compatible Aliases)
 // ==========================================
-router.post(['/webhook/b2b/:webhookKey'], async (req, res) => {
+router.post(['/webhook/b2b/:webhookKey', '/webhook/indiamart/:webhookKey', '/webhook/indiamart/:key'], async (req, res) => {
   try {
-    const token = req.headers['x-b2b-token'] || req.query.token;
-    const result = await B2BWebhook.handleWebhookByKey(req.params.webhookKey, req.body, token);
+    const key = req.params.webhookKey || req.params.key;
+    const token = req.headers['x-b2b-token'] || req.headers['x-indiamart-token'] || req.query.token;
+    const result = await B2BWebhook.handleWebhookByKey(key, req.body, token);
     res.json(result);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
 
-router.post(['/webhook/b2b'], async (req, res) => {
+router.post(['/webhook/b2b', '/webhook/indiamart'], async (req, res) => {
   try {
     let orgId = req.query.orgId || req.headers['x-tenant-id'];
     if (!orgId) {
       const defaultOrg = db.findOne('organizations', () => true);
       orgId = defaultOrg ? defaultOrg.id : null;
     }
-    const token = req.headers['x-b2b-token'] || req.query.token;
+    const token = req.headers['x-b2b-token'] || req.headers['x-indiamart-token'] || req.query.token;
     const result = await B2BWebhook.handleIncomingWebhook(orgId, req.body, token);
     res.json(result);
   } catch (err) {
@@ -568,24 +569,59 @@ router.get('/billing', authenticate, (req, res) => {
   });
 });
 
+router.get('/public-config', (req, res) => {
+  res.json({
+    ok: true,
+    merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+    merchantName: process.env.MERCHANT_NAME || 'MartFlow AI Sales',
+    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || '919825012345'
+  });
+});
+
 router.post('/membership/unlock-code', authenticate, (req, res) => {
   try {
     const code = String(req.body.code || '').trim().toUpperCase();
     if (!code) return res.status(400).json({ ok: false, error: 'Activation code is required.' });
 
-    let quoteAmount = 9999;
-    if (code === 'VIP999' || code === 'PILOT999') quoteAmount = 999;
-    else if (code.startsWith('OFFER') || code.startsWith('FACTORY')) quoteAmount = 14999;
-    else if (code.startsWith('ANNUAL') || code.startsWith('VIP')) quoteAmount = 24999;
+    const COUPONS = {
+      'PILOT999': { amount: 999, description: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
+      'VIP999': { amount: 999, description: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
+      'SETUP5K': { amount: 5000, description: 'One-Time Factory Setup & Catalog AI Training' },
+      'START75': { amount: 7499, description: '₹5,000 Setup + ₹2,499 First Month — 400 Leads/mo' },
+      'PRO12K': { amount: 12499, description: '₹7,500 Setup + ₹4,999 First Month — 1,500 Leads/mo' },
+      'ANNUAL18K': { amount: 18000, description: 'Full 1-Year Factory License — ₹5,000 Setup Waived FREE!' }
+    };
+
+    let coupon = COUPONS[code];
+    if (!coupon) {
+      if (code.startsWith('PILOT') || code.startsWith('VIP')) {
+        coupon = { amount: 999, description: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' };
+      } else if (code.startsWith('SETUP')) {
+        coupon = { amount: 5000, description: 'One-Time Factory Setup & Catalog AI Training' };
+      } else if (code.startsWith('START')) {
+        coupon = { amount: 7499, description: '₹5,000 Setup + ₹2,499 First Month — 400 Leads/mo' };
+      } else if (code.startsWith('PRO')) {
+        coupon = { amount: 12499, description: '₹7,500 Setup + ₹4,999 First Month — 1,500 Leads/mo' };
+      } else if (code.startsWith('ANNUAL')) {
+        coupon = { amount: 18000, description: 'Full 1-Year Factory License — ₹5,000 Setup Waived FREE!' };
+      } else {
+        return res.status(400).json({
+          ok: false,
+          error: 'Invalid activation code. Valid codes: PILOT999, VIP999, SETUP5K, START75, PRO12K, ANNUAL18K'
+        });
+      }
+    }
 
     db.update('organizations', req.organizationId, {
-      custom_quote_inr: quoteAmount
+      custom_quote_inr: coupon.amount
     });
 
     res.json({
       ok: true,
-      message: `Custom activation quote of ₹${quoteAmount.toLocaleString('en-IN')} unlocked!`,
-      customQuoteInr: quoteAmount
+      code,
+      customQuoteInr: coupon.amount,
+      planDescription: coupon.description,
+      message: `Unlocked: ${coupon.description} for ₹${coupon.amount.toLocaleString('en-IN')}`
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

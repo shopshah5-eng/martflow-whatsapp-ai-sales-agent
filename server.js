@@ -1575,14 +1575,24 @@ app.post('/api/simulate-lead', async (req, res) => {
   }
 });
 
-// 2. Official B2B Push API Webhook Endpoint (Ready for real paying clients!)
-app.post('/api/webhook/b2b', async (req, res) => {
+// Public Config Endpoint (exposes merchant UPI & support WhatsApp for live checkout)
+app.get('/api/public-config', (req, res) => {
+  res.json({
+    ok: true,
+    merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+    merchantName: process.env.MERCHANT_NAME || 'MartFlow AI Sales',
+    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || '919825012345'
+  });
+});
+
+// 2. Official B2B Push API Webhook Endpoint (With backward-compatible aliases)
+app.post(['/api/webhook/b2b', '/api/webhook/b2b/:key', '/api/webhook/indiamart', '/api/webhook/indiamart/:key'], async (req, res) => {
   try {
     let raw = req.body?.RESPONSE || req.body || {};
     const body = Array.isArray(raw) ? (raw[0] || {}) : raw;
     const name = body.SENDER_NAME || body.sender_name || body.name || 'B2B Buyer';
     const phone = body.SENDER_MOBILE || body.sender_mobile || body.MOBILE || body.phone || '';
-    const productQuery = body.QUERY_PRODUCT_NAME || body.PRODUCT_NAME || body.subject || 'Packaging Machine';
+    const productQuery = body.QUERY_PRODUCT_NAME || body.PRODUCT_NAME || body.QUERY_MODID || body.SUBJECT || body.subject || 'Packaging Machine';
     const city = body.SENDER_CITY || body.city || '';
     const message = body.QUERY_MESSAGE || body.message || '';
 
