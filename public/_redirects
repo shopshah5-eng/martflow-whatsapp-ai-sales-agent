@@ -1,0 +1,18 @@
+# ==============================================================================
+# MartFlow AI — Netlify Reverse Proxy & Redirect Configuration
+# ==============================================================================
+# To proxy all /api/* requests to your persistent Node.js Express backend
+# (hosted on Railway, Render, Fly.io, or VPS), uncomment the proxy rule below:
+#
+# /api/*  https://your-railway-app.up.railway.app/api/:splat  200!
+# /catalogs/*  https://your-railway-app.up.railway.app/catalogs/:splat  200!
+#
+# NOTE: If no backend proxy is configured, MartFlow AI runs in high-fidelity
+# Interactive Client Preview mode using in-browser localStorage persistence.
+# ==============================================================================
+
+# Client Portal Routing
+/client  /client.html  200
+
+# Single Page Application (SPA) Fallback
+/*  /index.html  200

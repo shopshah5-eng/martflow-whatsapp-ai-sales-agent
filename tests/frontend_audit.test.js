@@ -16,7 +16,7 @@ test('FRONTEND AUDIT: Inspects public/index.html for undefined handlers, alerts,
   assert.equal(alertMatches.length, 0, `Expected 0 alert() calls in public/index.html, found ${alertMatches.length}`);
 
   // 2. Verify no hardcoded phone number (+919115748457) is baked into UI
-  assert.ok(!html.includes('+919115748457'), 'Hardcoded phone number +919115748457 should not exist in public/index.html');
+  assert.ok(!html.includes('9115748457'), 'Hardcoded phone number 9115748457 should not exist in public/index.html');
 
   // 3. Extract all inline event handlers (onclick, onchange, oninput, onsubmit)
   const handlerRegex = /\bon(click|change|input|submit)\s*=\s*"([^"]+)"/gi;
@@ -84,4 +84,19 @@ test('FRONTEND AUDIT: Inspects public/index.html for undefined handlers, alerts,
       new RegExp(`${reqFn}\\s*=\\s*`).test(scriptContent);
     assert.ok(exists, `Required function ${reqFn} is missing in public/index.html script`);
   }
+
+  // 6. Verify Configurable Backend URL (API_BASE) and Static Demo Engine exist
+  assert.ok(scriptContent.includes('API_BASE'), 'API_BASE variable must be present');
+  assert.ok(scriptContent.includes('handleStaticDemoRequest'), 'handleStaticDemoRequest preview fallback must be present');
+
+  // 7. Verify Netlify _redirects file exists with proxy template
+  const redirectsPath = path.join(__dirname, '..', 'public', '_redirects');
+  assert.ok(fs.existsSync(redirectsPath), 'public/_redirects must exist');
+  const redirectsContent = fs.readFileSync(redirectsPath, 'utf8');
+  assert.ok(redirectsContent.includes('/api/*'), 'public/_redirects must contain /api/* proxy pattern');
+  assert.ok(redirectsContent.includes('/*  /index.html  200'), 'public/_redirects must contain SPA fallback');
+
+  // 8. Verify dynamic upgrade WhatsApp link
+  assert.ok(html.includes('id="upgradeWaLink"'), 'Upgrade modal must have dynamic id="upgradeWaLink"');
+  assert.ok(html.includes('id="upgradeDeskPhone"'), 'Upgrade modal must have dynamic id="upgradeDeskPhone"');
 });

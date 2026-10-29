@@ -584,6 +584,11 @@
                 <label class="block font-semibold text-slate-700 mb-1">IndiaMART CRM Key / Secret (Optional)</label>
                 <input type="password" id="indiamartCrmKeyInput" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
+              <div class="pt-2 border-t border-gray-100">
+                <label class="block font-semibold text-slate-700 mb-1">Backend Server API URL (For Railway / Render / VPS)</label>
+                <input type="text" id="settingApiBase" placeholder="https://your-backend.railway.app (or leave empty for same origin)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-slate-700 text-xs">
+                <p class="text-[10px] text-slate-400 mt-1">When hosting on Netlify, paste your Railway/VPS URL here or append <code class="bg-slate-100 px-1 py-0.5 rounded">?api=https://...</code> to page URL.</p>
+              </div>
             </div>
           </div>
 
@@ -753,11 +758,11 @@
 
       <div class="p-3 bg-slate-50 border border-gray-200 rounded-lg text-xs space-y-1 text-left font-mono">
         <div><strong>UPI ID:</strong> payments@martflow.ai</div>
-        <div><strong>Direct Desk:</strong> +91 91157 48457</div>
+        <div><strong>Direct Desk:</strong> <span id="upgradeDeskPhone">+91 98250 12345</span></div>
         <div><strong>Instant Activation:</strong> Under 15 Minutes</div>
       </div>
 
-      <a href="https://wa.me/919115748457?text=Hi%20MartFlow%20Team,%20I%20want%20to%20upgrade%20my%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
+      <a id="upgradeWaLink" href="https://wa.me/919825012345?text=Hi%20MartFlow%20Team,%20I%20want%20to%20upgrade%20my%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
         Chat on WhatsApp to Upgrade →
       </a>
     </div>
@@ -833,11 +838,389 @@
 
   <!-- SCRIPT ENGINE: SECURE, TESTED & ZERO-ALERT -->
   <script>
+    // 0. API Base URL & Static Demo Fallback Configuration
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('api')) {
+      const qApi = urlParams.get('api').trim().replace(/\/+$/, '');
+      if (qApi) localStorage.setItem('mf_api_base', qApi);
+      else localStorage.removeItem('mf_api_base');
+    }
+    let API_BASE = localStorage.getItem('mf_api_base') || '';
+    let isStaticDemoMode = Boolean(localStorage.getItem('mf_demo_mode') === 'true');
+
     let currentAuthToken = localStorage.getItem('mf_token') || '';
     let currentOrg = null;
     let currentUser = null;
     let activeConversationId = null;
     let leadsSearchDebounceTimer = null;
+
+    // In-Browser Interactive Demo State (For Netlify static previews without external backend)
+    const DEMO_STORAGE_KEY = 'mf_interactive_demo_db_v1';
+    function getDemoStore() {
+      let store = null;
+      try {
+        const raw = localStorage.getItem(DEMO_STORAGE_KEY);
+        if (raw) store = JSON.parse(raw);
+      } catch (e) {}
+
+      if (!store) {
+        store = {
+          org: {
+            id: 'org_demo_preview',
+            name: 'Bharat PackTech Machinery (Interactive Demo)',
+            slug: 'bharat-packtech',
+            plan: 'growth',
+            webhook_key: 'whk_preview_india_mart_9825'
+          },
+          user: {
+            id: 'usr_demo_preview',
+            email: 'sales@packtechmachinery.in',
+            fullName: 'Rajesh Sharma (Sales Director)',
+            phone: '+91 98250 12345'
+          },
+          settings: {
+            company_name: 'Bharat PackTech Machinery',
+            city_base: 'Delhi NCR / Ludhiana Hub',
+            escalation_phone: '919825012345',
+            gemini_api_key: ''
+          },
+          products: [
+            {
+              id: 'prod_demo_1',
+              name: 'Automatic Collar Type Pouch Packing Machine',
+              category: 'Packaging Machinery',
+              price_range: '₹2,45,000 + GST',
+              moq: '1 Unit',
+              specs: { 'Speed': '45-60 pouches/min', 'Film Width': '100-420 mm', 'PLC': 'Delta Touchscreen' },
+              is_active: 1
+            },
+            {
+              id: 'prod_demo_2',
+              name: '4-Head Servo Liquid & Paste Filling Machine',
+              category: 'Filling Machinery',
+              price_range: '₹1,85,000 + GST',
+              moq: '1 Unit',
+              specs: { 'Volume': '50ml - 1000ml', 'Accuracy': '±0.5%', 'Nozzles': 'Drip-Free Diving' },
+              is_active: 1
+            },
+            {
+              id: 'prod_demo_3',
+              name: 'Heavy Duty Carton Sealer & Box Strapping Machine',
+              category: 'Secondary Packaging',
+              price_range: '₹48,500 + GST',
+              moq: '1 Unit',
+              specs: { 'Carton Width': '150-500mm', 'Conveyor Speed': '20m/min', 'Power': '220V Single Phase' },
+              is_active: 1
+            }
+          ],
+          leads: [
+            {
+              id: 'lead_demo_1',
+              source: 'indiamart',
+              buyer_name: 'Amit Bansal',
+              buyer_phone: '+91 98112 23344',
+              buyer_city: 'Faridabad, Haryana',
+              product_inquired: 'Automatic Collar Type Pouch Packing Machine',
+              query_message: 'Need quotation with warranty and delivery time to Faridabad factory for spices packing.',
+              status: 'qualified',
+              brochure_sent: 1,
+              qualification_score: 94,
+              created_at: new Date(Date.now() - 3600000).toISOString()
+            },
+            {
+              id: 'lead_demo_2',
+              source: 'indiamart',
+              buyer_name: 'Vikramjit Singh',
+              buyer_phone: '+91 98765 43210',
+              buyer_city: 'Ludhiana, Punjab',
+              product_inquired: '4-Head Servo Liquid & Paste Filling Machine',
+              query_message: 'Looking for high speed edible oil filling line. Please share technical catalog.',
+              status: 'call_requested',
+              brochure_sent: 1,
+              qualification_score: 88,
+              created_at: new Date(Date.now() - 7200000).toISOString()
+            }
+          ],
+          conversations: [
+            {
+              id: 'conv_demo_1',
+              leadId: 'lead_demo_1',
+              mode: 'ai',
+              isUnread: 0,
+              buyerName: 'Amit Bansal',
+              buyerPhone: '+91 98112 23344',
+              buyerCity: 'Faridabad, Haryana',
+              productInquired: 'Automatic Collar Type Pouch Packing Machine',
+              status: 'qualified',
+              lastMessage: 'Ji bilkul! Model Delta PLC SS-304 ex-factory ₹2,45,000 + GST hai. 10-minute technical video call fix karein?',
+              lastMessageAt: new Date(Date.now() - 1800000).toISOString()
+            }
+          ],
+          messages: {
+            'conv_demo_1': [
+              {
+                id: 'msg_1',
+                sender_type: 'buyer',
+                content: 'Namaste, I need price and specifications for automatic pouch packing machine.',
+                created_at: new Date(Date.now() - 3600000).toISOString()
+              },
+              {
+                id: 'msg_2',
+                sender_type: 'ai',
+                content: 'Namaste Amit ji! 🙏 Welcome to Bharat PackTech. We received your IndiaMART inquiry.\n\nAttached is our official technical brochure. Ex-factory price for the 50-60 pouches/min model is ₹2,45,000 + GST with 1-Year Comprehensive Warranty.\n\nWhat product and pouch sizes are you planning to pack?',
+                created_at: new Date(Date.now() - 3540000).toISOString()
+              },
+              {
+                id: 'msg_3',
+                sender_type: 'buyer',
+                content: 'We need to pack 50g and 100g turmeric and chili powder pouches. Is delivery available in Faridabad?',
+                created_at: new Date(Date.now() - 2400000).toISOString()
+              },
+              {
+                id: 'msg_4',
+                sender_type: 'ai',
+                content: 'Ji bilkul! Our machine handles 50g-100g spices with high accuracy auger filler. We dispatch directly from our Ludhiana/Delhi NCR hub to Faridabad within 3-5 days.\n\nWould you like a 10-minute technical video call with our chief engineer tomorrow at 3:00 PM?',
+                created_at: new Date(Date.now() - 1800000).toISOString()
+              }
+            ]
+          },
+          calls: [
+            {
+              id: 'call_demo_1',
+              buyerName: 'Vikramjit Singh',
+              buyerPhone: '+91 98765 43210',
+              productInterest: '4-Head Servo Liquid Filling Machine',
+              confirmedSlot: 'Tomorrow 3:00 PM IST',
+              status: 'confirmed',
+              summary: 'High intent Ludhiana buyer. Needs 4-head servo filling line for mustard oil bottling.'
+            }
+          ]
+        };
+        saveDemoStore(store);
+      }
+      return store;
+    }
+
+    function saveDemoStore(store) {
+      try {
+        localStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(store));
+      } catch (e) {}
+    }
+
+    function handleStaticDemoRequest(url, options = {}) {
+      const store = getDemoStore();
+      const method = (options.method || 'GET').toUpperCase();
+      const pathOnly = url.split('?')[0];
+
+      if (pathOnly === '/api/auth/demo-login' || pathOnly === '/api/auth/login') {
+        currentAuthToken = 'mock_demo_preview_token';
+        localStorage.setItem('mf_token', currentAuthToken);
+        return {
+          ok: true,
+          token: currentAuthToken,
+          user: store.user,
+          organization: store.org
+        };
+      }
+
+      if (pathOnly === '/api/auth/me') {
+        return {
+          ok: true,
+          user: store.user,
+          organization: store.org
+        };
+      }
+
+      if (pathOnly === '/api/analytics') {
+        return {
+          ok: true,
+          metrics: {
+            leadsToday: store.leads.length,
+            medianResponseTimeFormatted: '14s',
+            qualificationRate: '88%',
+            confirmedCalls: store.calls.length,
+            totalCatalogProducts: store.products.length,
+            totalLeads: store.leads.length + 10
+          }
+        };
+      }
+
+      if (pathOnly === '/api/leads') {
+        const u = new URL(url, 'http://localhost');
+        const search = (u.searchParams.get('search') || '').toLowerCase();
+        const status = u.searchParams.get('status') || '';
+        let list = store.leads.slice();
+        if (search) {
+          list = list.filter(l => 
+            (l.buyer_name || '').toLowerCase().includes(search) ||
+            (l.buyer_phone || '').includes(search) ||
+            (l.product_inquired || '').toLowerCase().includes(search) ||
+            (l.buyer_city || '').toLowerCase().includes(search)
+          );
+        }
+        if (status) {
+          list = list.filter(l => l.status === status);
+        }
+        return { ok: true, leads: list, total: list.length };
+      }
+
+      if (pathOnly === '/api/leads/simulate' && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : (options.body || {}); } catch(e) {}
+        const newLead = {
+          id: 'lead_sim_' + Date.now(),
+          source: 'indiamart_simulation',
+          buyer_name: body.buyerName || 'Simulated Buyer',
+          buyer_phone: body.buyerPhone || '+91 98250 12345',
+          buyer_city: body.city || 'Delhi NCR',
+          product_inquired: body.productQuery || 'Automatic Packaging Machine',
+          query_message: body.message || 'Please send machine specifications and quote.',
+          status: 'new',
+          brochure_sent: 1,
+          qualification_score: 90,
+          created_at: new Date().toISOString()
+        };
+        store.leads.unshift(newLead);
+        
+        const newConv = {
+          id: 'conv_' + newLead.id,
+          leadId: newLead.id,
+          mode: 'ai',
+          isUnread: 1,
+          buyerName: newLead.buyer_name,
+          buyerPhone: newLead.buyer_phone,
+          buyerCity: newLead.buyer_city,
+          productInquired: newLead.product_inquired,
+          status: 'new',
+          lastMessage: `[Auto-Brochure Sent] Namaste ${newLead.buyer_name}! Attached is our technical catalog.`,
+          lastMessageAt: new Date().toISOString()
+        };
+        store.conversations.unshift(newConv);
+        store.messages[newConv.id] = [
+          {
+            id: 'msg_b_' + Date.now(),
+            sender_type: 'buyer',
+            content: newLead.query_message,
+            created_at: new Date().toISOString()
+          },
+          {
+            id: 'msg_a_' + Date.now(),
+            sender_type: 'ai',
+            content: `Namaste ${newLead.buyer_name} ji! 🙏 Welcome to Bharat PackTech Machinery.\n\nWe have automatically dispatched our PDF brochure for ${newLead.product_inquired}. Ex-factory starting price is ₹2,45,000 + GST with 1-Year comprehensive warranty.\n\nWould you like a 10-minute technical video call tomorrow?`,
+            created_at: new Date(Date.now() + 1000).toISOString()
+          }
+        ];
+        saveDemoStore(store);
+        return { ok: true, status: 'accepted', leadId: newLead.id, lead: newLead };
+      }
+
+      if (pathOnly === '/api/conversations') {
+        return { ok: true, threads: store.conversations, conversations: store.conversations };
+      }
+
+      if (pathOnly.startsWith('/api/conversations/') && pathOnly.endsWith('/messages')) {
+        const parts = pathOnly.split('/');
+        const convId = parts[3];
+        const msgs = store.messages[convId] || [];
+        const conv = store.conversations.find(c => c.id === convId) || { id: convId, mode: 'ai' };
+        const lead = store.leads.find(l => l.id === conv.leadId) || null;
+        return { ok: true, conversation: conv, messages: msgs, lead };
+      }
+
+      if (pathOnly.startsWith('/api/conversations/') && pathOnly.endsWith('/reply') && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const parts = pathOnly.split('/');
+        const convId = parts[3];
+        const newMsg = {
+          id: 'msg_' + Date.now(),
+          sender_type: 'agent',
+          content: body.message || '',
+          delivery_status: 'sent',
+          created_at: new Date().toISOString()
+        };
+        if (!store.messages[convId]) store.messages[convId] = [];
+        store.messages[convId].push(newMsg);
+        
+        const conv = store.conversations.find(c => c.id === convId);
+        if (conv) {
+          conv.lastMessage = newMsg.content;
+          conv.lastMessageAt = newMsg.created_at;
+        }
+        saveDemoStore(store);
+        return { ok: true, message: newMsg };
+      }
+
+      if (pathOnly.startsWith('/api/conversations/') && pathOnly.endsWith('/mode') && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const parts = pathOnly.split('/');
+        const convId = parts[3];
+        const conv = store.conversations.find(c => c.id === convId);
+        if (conv) conv.mode = body.mode || 'ai';
+        saveDemoStore(store);
+        return { ok: true, conversation: conv };
+      }
+
+      if (pathOnly === '/api/catalog/products') {
+        return { ok: true, products: store.products };
+      }
+
+      if (pathOnly === '/api/catalog/quick-add' && method === 'POST') {
+        let body = {};
+        try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+        const newProd = {
+          id: 'prod_' + Date.now(),
+          name: body.name || 'New Machinery SKU',
+          category: body.model || 'Packaging Machinery',
+          price_range: body.priceRaw || '₹1,50,000 + GST',
+          moq: '1 Unit',
+          specs: { 'Status': 'Ready in Catalog' },
+          is_active: 1
+        };
+        store.products.push(newProd);
+        saveDemoStore(store);
+        return { ok: true, product: newProd };
+      }
+
+      if (pathOnly === '/api/calls') {
+        return { ok: true, calls: store.calls };
+      }
+
+      if (pathOnly === '/api/whatsapp/status') {
+        return {
+          ok: true,
+          status: 'connected',
+          phoneNumber: '919825012345',
+          waState: {
+            status: 'connected',
+            connectedNumber: '919825012345 (Preview Mode)',
+            lastEvent: 'Interactive Preview Active'
+          }
+        };
+      }
+
+      if (pathOnly === '/api/settings') {
+        if (method === 'POST') {
+          let body = {};
+          try { body = typeof options.body === 'string' ? JSON.parse(options.body) : {}; } catch(e) {}
+          store.settings = { ...store.settings, ...body };
+          saveDemoStore(store);
+          return { ok: true, settings: store.settings };
+        }
+        return { ok: true, settings: store.settings };
+      }
+
+      if (pathOnly === '/api/leads/export.csv') {
+        let csv = 'Lead ID,Created At (IST),Buyer Name,Phone Number,City,Product Inquired,Status,PDF Brochure Sent,First Response Time (ms),Source\n';
+        store.leads.forEach(l => {
+          csv += `"${l.id}","${l.created_at}","${l.buyer_name}","${l.buyer_phone}","${l.buyer_city}","${l.product_inquired}","${l.status}","Yes","12000","${l.source}"\n`;
+        });
+        return csv;
+      }
+
+      return { ok: true, message: 'Simulated preview response' };
+    }
 
     // 1. Toast Notification System (Zero alerts)
     function showToast(message, type = 'info') {
@@ -876,29 +1259,59 @@
 
     // 3. Central Safe API Fetch Wrapper
     async function apiFetch(url, options = {}) {
+      if (isStaticDemoMode && url.startsWith('/api')) {
+        return handleStaticDemoRequest(url, options);
+      }
+
       const headers = { ...options.headers };
       if (currentAuthToken) {
         headers['Authorization'] = `Bearer ${currentAuthToken}`;
       }
+
+      const fullUrl = (url.startsWith('/api') && API_BASE) ? `${API_BASE}${url}` : url;
+
       try {
-        const res = await fetch(url, { ...options, headers });
+        const res = await fetch(fullUrl, { ...options, headers });
         const contentType = res.headers.get('content-type') || '';
         let data = null;
+
         if (contentType.includes('application/json')) {
           data = await res.json();
         } else {
           const text = await res.text();
-          if (!res.ok) throw new Error(text || `HTTP error ${res.status}`);
+          if (!res.ok) {
+            // Netlify or external 404/HTML error detected
+            if (text.includes('<!DOCTYPE') || text.includes('<html') || res.status === 404) {
+              console.warn(`[MartFlow] Backend unreachable at ${fullUrl} (${res.status}). Switching to in-browser interactive preview.`);
+              isStaticDemoMode = true;
+              return handleStaticDemoRequest(url, options);
+            }
+            throw new Error(text.trim().slice(0, 150) || `HTTP error ${res.status}`);
+          }
           return text;
         }
 
         if (!res.ok) {
-          throw new Error(data?.error || data?.message || `Request failed (${res.status})`);
+          const errMsg = data?.error || data?.message || `Request failed (${res.status})`;
+          if (typeof errMsg === 'string' && (errMsg.includes('<!DOCTYPE') || errMsg.includes('<html'))) {
+            isStaticDemoMode = true;
+            return handleStaticDemoRequest(url, options);
+          }
+          throw new Error(errMsg);
         }
         return data;
       } catch (err) {
-        console.warn(`apiFetch error [${url}]:`, err.message);
-        throw err;
+        // Network connection error (e.g. backend not running or CORS blocked on static hosting)
+        if (url.startsWith('/api')) {
+          console.warn(`[MartFlow] Connection failed to ${fullUrl}. Activating interactive preview mode.`);
+          isStaticDemoMode = true;
+          return handleStaticDemoRequest(url, options);
+        }
+        let msg = err.message || '';
+        if (msg.includes('<!DOCTYPE') || msg.includes('<html')) {
+          msg = 'Backend server not connected — switch to Interactive Preview or connect API URL';
+        }
+        throw new Error(msg);
       }
     }
 
@@ -1655,6 +2068,8 @@
         document.getElementById('settingCompanyName').value = s.company_name || '';
         document.getElementById('settingCityBase').value = s.city_base || '';
         document.getElementById('settingOwnerPhone').value = s.escalation_phone || '';
+        const apiBaseEl = document.getElementById('settingApiBase');
+        if (apiBaseEl) apiBaseEl.value = localStorage.getItem('mf_api_base') || '';
       } catch (err) {
         showToast(err.message, 'error');
       }
@@ -1665,6 +2080,15 @@
       const cityBase = document.getElementById('settingCityBase').value;
       const ownerAlertPhone = document.getElementById('settingOwnerPhone').value;
       const geminiApiKey = document.getElementById('settingGeminiKey').value;
+
+      const apiBaseInput = document.getElementById('settingApiBase')?.value?.trim().replace(/\/+$/, '') || '';
+      if (apiBaseInput) {
+        localStorage.setItem('mf_api_base', apiBaseInput);
+        API_BASE = apiBaseInput;
+      } else {
+        localStorage.removeItem('mf_api_base');
+        API_BASE = '';
+      }
 
       try {
         await apiFetch('/api/settings', {
@@ -1704,6 +2128,21 @@
     // 16. Upgrade Plan Modal
     function openUpgradeModal(planName) {
       document.getElementById('upgradePlanTitle').textContent = `Upgrade to ${planName} Plan`;
+
+      // Dynamically resolve owner/escalation phone number
+      const phoneInput = document.getElementById('settingOwnerPhone')?.value || '';
+      const fallbackPhone = '919825012345';
+      const cleanDigits = phoneInput.replace(/\D/g, '') || fallbackPhone;
+
+      const deskEl = document.getElementById('upgradeDeskPhone');
+      if (deskEl) deskEl.textContent = `+${cleanDigits}`;
+
+      const linkEl = document.getElementById('upgradeWaLink');
+      if (linkEl) {
+        const msg = encodeURIComponent(`Hi MartFlow Team, I want to upgrade to the ${planName} Plan for my manufacturing workspace.`);
+        linkEl.href = `https://wa.me/${cleanDigits}?text=${msg}`;
+      }
+
       document.getElementById('upgradeModal').classList.remove('hidden');
     }
     function closeUpgradeModal() {
