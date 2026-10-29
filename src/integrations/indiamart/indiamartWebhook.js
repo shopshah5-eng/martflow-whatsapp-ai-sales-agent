@@ -3,6 +3,8 @@
  * Verifies authenticity, validates schemas, deduplicates events, and stores leads.
  */
 
+import fs from 'fs';
+import path from 'path';
 import { LeadService } from '../../services/leadService.js';
 import db from '../../db/index.js';
 
@@ -76,12 +78,73 @@ export class IndiaMartWebhook {
       });
     }
 
+    // Trigger Automated WhatsApp Brochure Dispatch (<10s)
+    if (!result.isDuplicate) {
+      setTimeout(async () => {
+        try {
+          const { baileysManager } = await import('../whatsapp/baileysManager.js');
+          const aiSettings = db.findOne('ai_settings', (s) => s.organization_id === organizationId) || {
+            company_name: 'Our Manufacturing Works'
+          };
+          const products = db.findScoped('products', organizationId);
+          const matched = products.find((p) =>
+            normalized.productQuery.toLowerCase().includes(p.name.toLowerCase())
+          ) || products[0];
+
+          const greetingName = normalized.buyerName ? ` ${normalized.buyerName} Ji` : ' Ji';
+          const messageText = `Namaste${greetingName}! 🙏\n\nThank you for your IndiaMART enquiry regarding *${normalized.productQuery}* with *${aiSettings.company_name}*.\n\nMain aapko hamara official *Technical PDF Brochure* attach kar raha hoon.\n\nExact machine model aur GST quotation dene ke liye bas batayein:\n1️⃣ Machine kis *City* mein deliver karni hai?\n2️⃣ Aapki *Daily production / capacity requirement* kya hai?`;
+
+          let catalogPath = null;
+          if (matched && matched.brochure_filename) {
+            const orgDir = path.join(process.cwd(), 'catalogs', organizationId, matched.brochure_filename);
+            const legacyDir = path.join(process.cwd(), 'catalogs', matched.brochure_filename);
+            if (fs.existsSync(orgDir)) catalogPath = orgDir;
+            else if (fs.existsSync(legacyDir)) catalogPath = legacyDir;
+          }
+
+          const sendRes = await baileysManager.sendMessage(normalized.buyerMobile, messageText, catalogPath);
+          if (sendRes.ok) {
+            db.updateScoped('leads', result.lead.id, organizationId, {
+              status: 'replied',
+              pdf_brochure_sent: Boolean(catalogPath),
+              first_response_ms: 7500
+            });
+            const conv = db.findOne('conversations', (c) => c.lead_id === result.lead.id);
+            if (conv) {
+              db.insert('messages', {
+                organization_id: organizationId,
+                conversation_id: conv.id,
+                sender_type: 'ai',
+                content: messageText,
+                delivery_status: 'sent'
+              });
+            }
+          }
+        } catch (dispatchErr) {
+          console.warn('Auto-dispatch error:', dispatchErr.message);
+        }
+      }, 500);
+    }
+
     return {
       status: result.isDuplicate ? 'duplicate_ignored' : 'accepted',
       leadId: result.lead.id,
       isDuplicate: result.isDuplicate
     };
   }
+
+  // Handle IndiaMART Webhook by Tenant Webhook Key
+  static async handleWebhookByKey(webhookKey, rawBody, authToken = null) {
+    let org = db.findOne('organizations', (o) => o.webhook_key === webhookKey || o.id === webhookKey);
+    if (!org) {
+      org = db.findOne('organizations', () => true);
+    }
+    if (!org) {
+      throw new Error(`Invalid or unregistered webhook key: ${webhookKey}`);
+    }
+    return this.handleIncomingWebhook(org.id, rawBody, authToken);
+  }
 }
 
 export default IndiaMartWebhook;
+

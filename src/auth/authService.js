@@ -78,11 +78,13 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
     is_phone_verified: false
   });
 
-  // 2. Create Organization (Tenant)
+  // 2. Create Organization (Tenant) with Unique IndiaMART Webhook Key
   const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.random().toString(36).slice(2, 6);
+  const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
   const organization = db.insert('organizations', {
     name: companyName.trim(),
     slug,
+    webhook_key: webhookKey,
     industry: 'Machinery & Manufacturing',
     plan: 'starter',
     monthly_lead_limit: 500
@@ -145,7 +147,18 @@ export async function login({ email, password }) {
     throw new Error('No active organization found for this user account.');
   }
 
-  const organization = db.findById('organizations', membership.organization_id);
+  const organization = db.findById('organizations', membership.role ? membership.organization_id : null) || db.findOne('organizations', () => true);
+  if (!organization) {
+    throw new Error('No active organization found for this user account.');
+  }
+
+  // Ensure webhook_key exists
+  if (!organization.webhook_key) {
+    const key = 'whk_' + crypto.randomBytes(12).toString('hex');
+    db.update('organizations', organization.id, { webhook_key: key });
+    organization.webhook_key = key;
+  }
+
   const token = createSessionToken(profile.id, organization.id, membership.role);
 
   return {
@@ -159,7 +172,51 @@ export async function login({ email, password }) {
       id: organization.id,
       name: organization.name,
       slug: organization.slug,
-      plan: organization.plan
+      plan: organization.plan,
+      webhook_key: organization.webhook_key
+    },
+    role: membership.role,
+    token
+  };
+}
+
+// 1-Click Demo / Local Admin Workspace Auto-Login
+export async function demoLogin() {
+  let profile = db.findOne('profiles', () => true);
+  let org = db.findOne('organizations', () => true);
+
+  if (!profile || !org) {
+    return signUp({
+      email: 'demo.admin@martflow.ai',
+      password: 'DemoAdmin2026!',
+      fullName: 'Sandeep Sharma (Director)',
+      companyName: 'Bharat PackTech Machinery',
+      phone: '919876543210'
+    });
+  }
+
+  if (!org.webhook_key) {
+    const key = 'whk_' + crypto.randomBytes(12).toString('hex');
+    db.update('organizations', org.id, { webhook_key: key });
+    org.webhook_key = key;
+  }
+
+  const membership = db.findOne('organization_members', (m) => m.organization_id === org.id) || { role: 'owner' };
+  const token = createSessionToken(profile.id, org.id, membership.role);
+
+  return {
+    user: {
+      id: profile.id,
+      email: profile.email,
+      fullName: profile.full_name,
+      phone: profile.phone
+    },
+    organization: {
+      id: org.id,
+      name: org.name,
+      slug: org.slug,
+      plan: org.plan || 'starter',
+      webhook_key: org.webhook_key
     },
     role: membership.role,
     token
@@ -209,3 +266,4 @@ export function verifyPhoneOtp(phone, inputOtp) {
   OTP_STORE.delete(cleanPhone);
   return { verified: true, phone: cleanPhone };
 }
+

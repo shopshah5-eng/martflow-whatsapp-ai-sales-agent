@@ -1,10 +1,10 @@
 /**
  * MartFlow AI — Modular SaaS API Router
- * Fully authenticated, tenant-isolated REST endpoints.
+ * Fully authenticated, tenant-isolated REST endpoints with live WhatsApp & IndiaMART integration.
  */
 
 import express from 'express';
-import { signUp, login, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
+import { signUp, login, demoLogin, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
 import { authenticate, requireRole } from '../middleware/authMiddleware.js';
 import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
@@ -13,6 +13,7 @@ import { AnalyticsService } from '../services/analyticsService.js';
 import { AIService } from '../services/aiService.js';
 import { WhatsAppAdapter } from '../integrations/whatsapp/whatsappAdapter.js';
 import { IndiaMartWebhook } from '../integrations/indiamart/indiamartWebhook.js';
+import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
 import db from '../db/index.js';
 
 const router = express.Router();
@@ -35,6 +36,16 @@ router.post('/auth/login', async (req, res) => {
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(401).json({ ok: false, error: err.message });
+  }
+});
+
+// 1-Click Demo / Local Admin Workspace Auto-Login
+router.post('/auth/demo-login', async (req, res) => {
+  try {
+    const result = await demoLogin();
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -73,6 +84,36 @@ router.get('/leads', authenticate, (req, res) => {
   const { page, limit, search, status, city, sortBy, sortOrder } = req.query;
   const result = LeadService.listLeads(req.organizationId, { page, limit, search, status, city, sortBy, sortOrder });
   res.json({ ok: true, ...result });
+});
+
+// Simulate Inbound Lead Modal
+router.post('/leads/simulate', authenticate, async (req, res) => {
+  try {
+    const buyerPhone = req.body.buyerPhone || req.body.senderMobile;
+    const buyerName = req.body.buyerName || req.body.senderName || 'Simulated Buyer';
+    const productQuery = req.body.productQuery || req.body.productName || 'Packaging Machine';
+    const city = req.body.city || req.body.senderCity || 'Delhi NCR';
+    const message = req.body.message || req.body.queryMessage || 'Please send machine specifications, price quotation, and video.';
+
+    if (!buyerPhone) {
+      return res.status(400).json({ ok: false, error: 'Buyer WhatsApp mobile number is required.' });
+    }
+
+    const payload = {
+      UNIQUE_QUERY_ID: `sim_${Date.now()}`,
+      SENDER_NAME: buyerName,
+      SENDER_MOBILE: buyerPhone,
+      QUERY_PRODUCT_NAME: productQuery,
+      SENDER_CITY: city,
+      QUERY_MESSAGE: message
+    };
+
+    const webhookRes = await IndiaMartWebhook.handleIncomingWebhook(req.organizationId, payload);
+    const lead = webhookRes.leadId ? db.findById('leads', webhookRes.leadId) : null;
+    res.json({ ok: true, lead, leadId: webhookRes.leadId, ...webhookRes });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 router.get('/leads/export.csv', authenticate, (req, res) => {
@@ -116,7 +157,125 @@ router.post('/leads/:id/notes', authenticate, (req, res) => {
 });
 
 // ==========================================
-// 3. PRODUCT CATALOG ENDPOINTS (TENANT SCOPED)
+// 3. CONVERSATIONS INBOX ENDPOINTS
+// ==========================================
+router.get('/conversations', authenticate, (req, res) => {
+  const conversations = db.findScoped('conversations', req.organizationId);
+  const threads = conversations.map((conv) => {
+    const lead = db.findById('leads', conv.lead_id);
+    const messages = db.findScoped('messages', req.organizationId, (m) => m.conversation_id === conv.id)
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const lastMsg = messages[messages.length - 1];
+
+    return {
+      id: conv.id,
+      leadId: conv.lead_id,
+      mode: conv.mode || 'ai',
+      isUnread: conv.is_unread,
+      buyerName: lead?.buyer_name || 'IndiaMART Buyer',
+      buyerPhone: lead?.buyer_phone || '',
+      buyerCity: lead?.buyer_city || '',
+      productInquired: lead?.product_inquired || '',
+      status: lead?.status || 'new',
+      lastMessage: lastMsg ? lastMsg.content : 'No messages yet',
+      lastMessageAt: lastMsg ? lastMsg.created_at : conv.created_at
+    };
+  }).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+
+  res.json({ ok: true, threads, conversations: threads });
+});
+
+router.get('/conversations/:id/messages', authenticate, (req, res) => {
+  const conv = db.findById('conversations', req.params.id);
+  if (!conv || conv.organization_id !== req.organizationId) {
+    return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+  }
+
+  const messages = db.findScoped('messages', req.organizationId, (m) => m.conversation_id === conv.id)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+
+  const lead = db.findById('leads', conv.lead_id);
+  res.json({ ok: true, conversation: conv, lead, messages });
+});
+
+router.post('/conversations/:id/mode', authenticate, (req, res) => {
+  const { mode } = req.body;
+  if (!['ai', 'human'].includes(mode)) {
+    return res.status(400).json({ ok: false, error: 'Mode must be "ai" or "human".' });
+  }
+  const updated = db.updateScoped('conversations', req.params.id, req.organizationId, { mode });
+  if (!updated) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+  res.json({ ok: true, conversation: updated });
+});
+
+router.post('/conversations/:id/reply', authenticate, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ ok: false, error: 'Message text is required.' });
+    }
+
+    const conv = db.findById('conversations', req.params.id);
+    if (!conv || conv.organization_id !== req.organizationId) {
+      return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+    }
+
+    const lead = db.findById('leads', conv.lead_id);
+    if (!lead || !lead.buyer_phone) {
+      return res.status(400).json({ ok: false, error: 'No phone number linked to this lead.' });
+    }
+
+    // Send via live Baileys socket
+    const sendResult = await baileysManager.sendMessage(lead.buyer_phone, message.trim());
+    if (!sendResult.ok) {
+      return res.status(500).json({ ok: false, error: sendResult.error || 'Failed to dispatch via WhatsApp.' });
+    }
+
+    // Save message record
+    const msgRecord = db.insert('messages', {
+      organization_id: req.organizationId,
+      conversation_id: conv.id,
+      sender_type: 'agent',
+      sender_id: req.userId,
+      content: message.trim(),
+      delivery_status: 'sent',
+      provider_message_id: sendResult.messageId
+    });
+
+    res.json({ ok: true, message: msgRecord });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 4. WHATSAPP CONNECTION & QR MANAGEMENT
+// ==========================================
+router.get('/whatsapp/status', (req, res) => {
+  const state = baileysManager.getState();
+  res.json({ ok: true, status: state.status, phoneNumber: state.phoneNumber, waState: state });
+});
+
+router.post('/whatsapp/connect', async (req, res) => {
+  try {
+    await baileysManager.init();
+    res.json({ ok: true, waState: baileysManager.getState() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/whatsapp/disconnect', async (req, res) => {
+  try {
+    await baileysManager.disconnect();
+    res.json({ ok: true, waState: baileysManager.getState() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ==========================================
+// 5. PRODUCT CATALOG ENDPOINTS (TENANT SCOPED)
 // ==========================================
 router.get('/catalog/products', authenticate, (req, res) => {
   const products = CatalogService.listProducts(req.organizationId, req.query);
@@ -142,6 +301,33 @@ router.post('/catalog/upload', authenticate, async (req, res) => {
   }
 });
 
+// Quick-Add SKU (10-second manual product addition)
+router.post('/catalog/quick-add', authenticate, (req, res) => {
+  try {
+    const { name, priceRaw, model, specifications } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ ok: false, error: 'Product name is required.' });
+    }
+
+    const kw = name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
+    const product = db.insert('products', {
+      organization_id: req.organizationId,
+      name: name.trim(),
+      sku: `SKU-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      category: 'Machinery Equipment',
+      model: model || 'Standard Industrial',
+      price_raw: priceRaw || 'Contact factory for GST quote',
+      keywords: kw,
+      specifications: specifications || { note: 'Direct factory entry' },
+      confidence_score: 1.0
+    });
+
+    res.json({ ok: true, product });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admin']), (req, res) => {
   try {
     CatalogService.deleteProduct(req.organizationId, req.params.id);
@@ -152,7 +338,7 @@ router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admi
 });
 
 // ==========================================
-// 4. TWO-WAY CALL SCHEDULER ENDPOINTS
+// 6. TWO-WAY CALL SCHEDULER ENDPOINTS
 // ==========================================
 router.get('/calls', authenticate, (req, res) => {
   const calls = CallSchedulerService.listCalls(req.organizationId, req.query);
@@ -185,7 +371,7 @@ router.post('/calls/confirm', authenticate, (req, res) => {
 });
 
 // ==========================================
-// 5. GENUINE ANALYTICS ENDPOINT (REAL DB RECORDS)
+// 7. GENUINE ANALYTICS ENDPOINT (REAL DB RECORDS)
 // ==========================================
 router.get('/analytics', authenticate, (req, res) => {
   const metrics = AnalyticsService.getDashboardMetrics(req.organizationId);
@@ -193,21 +379,67 @@ router.get('/analytics', authenticate, (req, res) => {
 });
 
 // ==========================================
-// 6. SETTINGS & TEAM MANAGEMENT ENDPOINTS
+// 8. SETTINGS & TEAM MANAGEMENT ENDPOINTS
 // ==========================================
-router.get('/settings/ai', authenticate, (req, res) => {
+router.get('/settings', authenticate, (req, res) => {
   const settings = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
-  res.json({ ok: true, settings });
+  res.json({
+    ok: true,
+    organization: req.organization,
+    settings
+  });
 });
 
-router.post('/settings/ai', authenticate, requireRole(['owner', 'admin']), (req, res) => {
-  const existing = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId);
-  if (existing) {
-    const updated = db.updateScoped('ai_settings', existing.id, req.organizationId, req.body);
-    return res.json({ ok: true, settings: updated });
+router.post('/settings', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+  const { companyName, cityBase, ownerAlertPhone, geminiApiKey } = req.body;
+
+  if (companyName && companyName.trim()) {
+    db.update('organizations', req.organizationId, { name: companyName.trim() });
   }
-  const created = db.insert('ai_settings', { organization_id: req.organizationId, ...req.body });
-  res.json({ ok: true, settings: created });
+
+  const existing = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId);
+  const updates = {
+    company_name: companyName ? companyName.trim() : (existing?.company_name || 'Bharat Machinery'),
+    city_base: cityBase ? cityBase.trim() : (existing?.city_base || 'Delhi NCR'),
+    escalation_phone: ownerAlertPhone ? ownerAlertPhone.trim() : (existing?.escalation_phone || '')
+  };
+
+  if (geminiApiKey && typeof geminiApiKey === 'string' && !geminiApiKey.includes('...')) {
+    process.env.GEMINI_API_KEY = geminiApiKey.trim();
+  }
+
+  let saved;
+  if (existing) {
+    saved = db.updateScoped('ai_settings', existing.id, req.organizationId, updates);
+  } else {
+    saved = db.insert('ai_settings', { organization_id: req.organizationId, ...updates });
+  }
+
+  res.json({ ok: true, settings: saved });
+});
+
+router.post('/settings/whatsapp', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+  const { wabaId, phoneId, token } = req.body;
+  const existing = db.findOne('integration_connections', (c) =>
+    c.organization_id === req.organizationId && c.provider === 'whatsapp_cloud'
+  );
+
+  const creds = { wabaId, phoneNumberId: phoneId, token };
+  if (existing) {
+    db.updateScoped('integration_connections', existing.id, req.organizationId, {
+      credentials_encrypted: creds,
+      status: token ? 'connected' : 'disconnected'
+    });
+  } else {
+    db.insert('integration_connections', {
+      organization_id: req.organizationId,
+      provider: 'whatsapp_cloud',
+      credentials_encrypted: creds,
+      status: token ? 'connected' : 'disconnected'
+    });
+  }
+
+  res.json({ ok: true, message: 'WhatsApp Cloud API settings saved successfully.' });
 });
 
 router.get('/settings/team', authenticate, (req, res) => {
@@ -227,11 +459,20 @@ router.get('/settings/team', authenticate, (req, res) => {
 });
 
 // ==========================================
-// 7. REAL WEBHOOK INGESTION ENDPOINTS
+// 9. REAL WEBHOOK INGESTION ENDPOINTS
 // ==========================================
+router.post('/webhook/indiamart/:webhookKey', async (req, res) => {
+  try {
+    const token = req.headers['x-indiamart-token'] || req.query.token;
+    const result = await IndiaMartWebhook.handleWebhookByKey(req.params.webhookKey, req.body, token);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 router.post('/webhook/indiamart', async (req, res) => {
   try {
-    // Tenant identification via query param (e.g. ?orgId=xxx) or header
     let orgId = req.query.orgId || req.headers['x-tenant-id'];
     if (!orgId) {
       const defaultOrg = db.findOne('organizations', () => true);
@@ -263,7 +504,7 @@ router.post('/webhook/whatsapp', async (req, res) => {
 });
 
 // ==========================================
-// 8. BILLING & SUBSCRIPTIONS
+// 10. BILLING & SUBSCRIPTIONS
 // ==========================================
 router.get('/billing', authenticate, (req, res) => {
   const org = req.organization;

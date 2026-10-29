@@ -22,6 +22,8 @@ import {
 } from '@whiskeysockets/baileys';
 
 import apiRouter from './src/routes/api.js';
+import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
+import db from './src/db/index.js';
 
 dotenv.config();
 
@@ -502,6 +504,9 @@ async function startWhatsApp() {
       syncFullHistory: false,
       markOnlineOnConnect: false
     });
+
+    baileysManager.sock = sock;
+    baileysManager.state = waState;
 
     sock.ev.on('creds.update', saveCreds);
 
@@ -1216,6 +1221,40 @@ async function handleIncomingWhatsAppMessage(msg) {
     await handleClientAdminMessage({ msg, rawRemote, incomingText, phoneDigits, pushName });
     return;
   }
+
+  // Sync to MartFlow AI SaaS Database for real-time inbox
+  try {
+    const org = db.findOne('organizations', () => true);
+    if (org) {
+      let dbLead = db.findOne('leads', (l) => l.buyer_phone && l.buyer_phone.endsWith(phoneDigits.slice(-10)));
+      if (!dbLead) {
+        dbLead = db.insert('leads', {
+          organization_id: org.id,
+          source: 'WhatsApp Direct Inbound',
+          buyer_name: initialSafeName,
+          buyer_phone: phoneDigits,
+          status: 'new'
+        });
+      }
+      let conv = db.findOne('conversations', (c) => c.lead_id === dbLead.id);
+      if (!conv) {
+        conv = db.insert('conversations', {
+          organization_id: org.id,
+          lead_id: dbLead.id,
+          channel: 'whatsapp',
+          mode: 'ai',
+          is_unread: true
+        });
+      }
+      db.insert('messages', {
+        organization_id: org.id,
+        conversation_id: conv.id,
+        sender_type: 'buyer',
+        content: isAudio ? '[Voice Note Audio]' : incomingText,
+        delivery_status: 'delivered'
+      });
+    }
+  } catch (syncErr) {}
 
   // Check if buyer clicked our 1-Tap "IndiaMART Demo Trigger" link!
   const isFirstTrigger = incomingText.toLowerCase().includes('indiamart enquiry') || incomingText.toLowerCase().includes('send catalog');

@@ -47,3 +47,4 @@ test('CALL SCHEDULER: 2-way call request, slot confirmation, status transition, 
   const updatedLead2 = LeadService.getLeadDetail(org.organization.id, lead.id).lead;
   assert.equal(updatedLead2.status, 'call_booked');
 });
+

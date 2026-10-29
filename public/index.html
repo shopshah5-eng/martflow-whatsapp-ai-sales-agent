@@ -36,31 +36,42 @@
 </head>
 <body class="h-screen flex flex-col overflow-hidden bg-[#fafafa]">
 
-  <!-- TOP BANNER / AUTH STATE BAR -->
-  <header class="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-6 z-20 shrink-0">
+  <!-- FLOATING TOAST CONTAINER -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- TOP APP BAR -->
+  <header class="h-14 border-b border-gray-200 bg-white flex items-center justify-between px-4 lg:px-6 z-20 shrink-0">
     <div class="flex items-center space-x-3">
+      <!-- Mobile Sidebar Toggle -->
+      <button onclick="toggleMobileSidebar()" class="lg:hidden p-1.5 rounded-lg border border-gray-200 text-slate-600 hover:bg-gray-100">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+
       <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
         M
       </div>
-      <span class="font-extrabold text-lg text-slate-900 tracking-tight">MartFlow <span class="text-indigo-600">AI</span></span>
-      <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium border border-indigo-200">SaaS Multi-Tenant</span>
+      <span class="font-extrabold text-base lg:text-lg text-slate-900 tracking-tight">MartFlow <span class="text-indigo-600">AI</span></span>
+      <span class="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">SaaS Multi-Tenant</span>
     </div>
 
     <!-- Active Workspace & User Profile -->
-    <div class="flex items-center space-x-4">
+    <div class="flex items-center space-x-3">
       <div id="topOrgBadge" class="hidden items-center space-x-2 text-xs bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg border border-slate-200">
         <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-        <span id="topOrgName" class="font-semibold">Loading...</span>
+        <span id="topOrgName" class="font-semibold truncate max-w-[120px] sm:max-w-none">Loading...</span>
         <span id="topOrgPlan" class="text-slate-400 font-normal uppercase text-[10px] ml-1">Starter</span>
       </div>
 
       <div id="authActions" class="flex items-center space-x-2">
-        <button onclick="openAuthModal('login')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</button>
-        <button onclick="openAuthModal('signup')" class="text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">Sign Up Free</button>
+        <button onclick="handleDemoLoginSubmit()" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition">
+          ⚡ 1-Click Demo
+        </button>
+        <button onclick="openAuthModal('login')" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</button>
+        <button onclick="openAuthModal('signup')" class="hidden sm:inline text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">Sign Up Free</button>
       </div>
 
       <div id="userProfileBadge" class="hidden items-center space-x-3">
-        <div class="text-right">
+        <div class="text-right hidden sm:block">
           <div id="userNameTop" class="text-xs font-semibold text-slate-900 leading-tight">Admin</div>
           <div id="userRoleTop" class="text-[10px] text-slate-500 capitalize">Owner</div>
         </div>
@@ -72,10 +83,13 @@
   </header>
 
   <!-- MAIN APP CONTAINER -->
-  <div class="flex-1 flex overflow-hidden">
+  <div class="flex-1 flex overflow-hidden relative">
 
-    <!-- 10-ITEM PERSISTENT SIDEBAR -->
-    <aside class="w-64 border-r border-gray-200 bg-white flex flex-col justify-between shrink-0">
+    <!-- MOBILE BACKDROP OVERLAY -->
+    <div id="mobileBackdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-900/50 z-30 hidden lg:hidden"></div>
+
+    <!-- 10-ITEM PERSISTENT SIDEBAR / MOBILE DRAWER -->
+    <aside id="appSidebar" class="fixed inset-y-0 left-0 z-40 w-64 border-r border-gray-200 bg-white flex flex-col justify-between shrink-0 transform -translate-x-full lg:translate-x-0 lg:static transition-transform duration-200 ease-in-out">
       <div class="p-4 space-y-1 overflow-y-auto custom-scroll">
         <div class="text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Workspace</div>
 
@@ -117,30 +131,26 @@
           <span>Analytics</span>
         </button>
 
-        <div class="pt-4 text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Management</div>
-
-        <button onclick="switchView('team')" id="nav-team" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
-          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-          <span>Team & Roles</span>
-        </button>
+        <div class="pt-4 text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Settings & Plan</div>
 
         <button onclick="switchView('settings')" id="nav-settings" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-          <span>Settings</span>
+          <span>Company Settings</span>
         </button>
 
         <button onclick="switchView('billing')" id="nav-billing" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-          <span>Billing</span>
+          <span>Billing & Plan</span>
         </button>
       </div>
 
-      <!-- SIDEBAR FOOTER: SYSTEM HEALTH STATUS -->
+      <!-- SIDEBAR FOOTER: LIVE DYNAMIC SOCKET STATUS -->
       <div class="p-4 border-t border-gray-100 bg-slate-50 space-y-2">
         <div class="flex items-center justify-between text-xs">
           <span class="text-slate-500 font-medium">WhatsApp Socket</span>
-          <span id="waStatusDot" class="inline-flex items-center text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> Connected
+          <span id="waStatusBadge" class="inline-flex items-center text-[11px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
+            <span id="waStatusDot" class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span>
+            <span id="waStatusText">Checking...</span>
           </span>
         </div>
         <div class="text-[11px] text-slate-400">MartFlow AI v1.0.0 (Production)</div>
@@ -148,61 +158,98 @@
     </aside>
 
     <!-- MAIN CONTENT VIEW AREA -->
-    <main class="flex-1 overflow-y-auto custom-scroll p-8 bg-[#fafafa]">
+    <main class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-8 bg-[#fafafa]">
 
       <!-- ============================================== -->
       <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
       <!-- ============================================== -->
       <section id="view-dashboard" class="space-y-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
-            <p class="text-xs text-slate-500 mt-1">Real-time performance metrics derived from verified tenant records.</p>
+        <!-- 3-STEP VISUAL ONBOARDING BANNER FOR INDIAN FACTORY OWNERS -->
+        <div class="bg-gradient-to-r from-indigo-900 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">Fast Setup</span>
+              <h2 class="text-lg lg:text-xl font-bold mt-1">Start Closing IndiaMART Deals in 3 Simple Steps</h2>
+              <p class="text-xs text-slate-300 mt-0.5">Automated brochure dispatch, Hinglish qualification, and factory call booking in under 10 seconds.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openSimulationModal()" class="text-xs font-semibold px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-400 transition shadow-sm whitespace-nowrap">
+                ⚡ Test Inbound Lead
+              </button>
+            </div>
           </div>
-          <div class="flex space-x-2">
-            <button onclick="openSimulationModal()" class="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-sm transition">
-              ⚡ Test Inbound Lead
-            </button>
-            <button onclick="switchView('leads')" class="text-xs font-semibold px-3.5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">
-              View All Leads →
-            </button>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 pt-4 border-t border-slate-700/60">
+            <div onclick="switchView('catalog')" class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-indigo-300">
+                <span class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px]">1</span>
+                <span>Upload PDF Brochure</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">Upload machine catalog in PDF, Excel, or CSV.</p>
+            </div>
+
+            <div onclick="switchView('whatsapp')" class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-300">
+                <span class="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white text-[10px]">2</span>
+                <span>Scan WhatsApp QR Code</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">Link your factory WhatsApp number in 5 seconds.</p>
+            </div>
+
+            <div onclick="switchView('settings')" class="bg-slate-800/60 hover:bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-amber-300">
+                <span class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white text-[10px]">3</span>
+                <span>Copy IndiaMART Webhook</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">Paste into IndiaMART Seller CRM to activate.</p>
+            </div>
           </div>
         </div>
 
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Executive Dashboard</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Real-time performance metrics derived from verified tenant records.</p>
+          </div>
+          <button onclick="loadDashboardData()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700 shadow-sm transition">
+            🔄 Refresh
+          </button>
+        </div>
+
         <!-- 5 METRICS CARDS (GENUINE CALCULATION, NO FAKE DATA) -->
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Leads Today</div>
-            <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-2">0</div>
-            <div class="text-[11px] text-slate-400 mt-1">Asia/Kolkata date</div>
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Leads Today</div>
+            <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Asia/Kolkata date</div>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Median Response</div>
-            <div id="statMedianResponse" class="text-2xl font-bold text-indigo-600 mt-2">N/A</div>
-            <div class="text-[11px] text-slate-400 mt-1">Time to WhatsApp PDF</div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Median Response</div>
+            <div id="statMedianResponse" class="text-2xl font-bold text-indigo-600 mt-1">N/A</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Time to WhatsApp PDF</div>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Qualified Leads</div>
-            <div id="statQualifiedRate" class="text-2xl font-bold text-slate-900 mt-2">0%</div>
-            <div class="text-[11px] text-slate-400 mt-1">Capacity & specs aligned</div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Qualified Leads</div>
+            <div id="statQualifiedRate" class="text-2xl font-bold text-slate-900 mt-1">0%</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Capacity & specs aligned</div>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Calls Booked</div>
-            <div id="statCallsBooked" class="text-2xl font-bold text-emerald-600 mt-2">0</div>
-            <div class="text-[11px] text-slate-400 mt-1">2-Way owner confirmed</div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Calls Booked</div>
+            <div id="statCallsBooked" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">2-Way owner confirmed</div>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-            <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Catalog SKUs</div>
-            <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-2">0</div>
-            <div class="text-[11px] text-slate-400 mt-1">Active verified products</div>
+          <div class="col-span-2 lg:col-span-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Catalog SKUs</div>
+            <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Active verified products</div>
           </div>
         </div>
 
         <!-- RECENT LEADS PREVIEW -->
-        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
-            <h2 class="text-base font-bold text-slate-900">Recent Inquiries</h2>
-            <button onclick="loadDashboardData()" class="text-xs text-indigo-600 hover:underline">Refresh</button>
+            <h2 class="text-sm lg:text-base font-bold text-slate-900">Recent Inquiries</h2>
+            <button onclick="switchView('leads')" class="text-xs text-indigo-600 font-semibold hover:underline">View All Leads →</button>
           </div>
           <div id="dashboardLeadsTable" class="overflow-x-auto">
             <!-- Dynamic table rows or pure empty state -->
@@ -214,16 +261,16 @@
       <!-- VIEW 2: LEADS (FULL TABLE & SEARCH) -->
       <!-- ============================================== -->
       <section id="view-leads" class="hidden space-y-6">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Lead Management</h1>
-            <p class="text-xs text-slate-500 mt-1">Filter, assign, qualify, and export IndiaMART inquiries.</p>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Lead Management</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Filter, assign, qualify, and export IndiaMART inquiries.</p>
           </div>
           <div class="flex space-x-2">
-            <a id="btnExportCsv" href="/api/leads/export.csv" target="_blank" class="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-sm transition inline-flex items-center">
+            <button onclick="exportLeadsCsv()" class="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-sm transition inline-flex items-center">
               <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               Export CSV
-            </a>
+            </button>
           </div>
         </div>
 
@@ -259,18 +306,17 @@
       <!-- VIEW 3: CONVERSATIONS (WHATSAPP INBOX) -->
       <!-- ============================================== -->
       <section id="view-conversations" class="hidden space-y-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Conversations Inbox</h1>
-            <p class="text-xs text-slate-500 mt-1">Real-time WhatsApp buyer dialogs with AI / Human takeover toggle.</p>
-          </div>
+        <div>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Conversations Inbox</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Real-time WhatsApp buyer dialogs with AI Auto-Pilot vs Human Takeover toggle.</p>
         </div>
 
-        <div class="bg-white border border-gray-200 rounded-xl h-[650px] flex overflow-hidden shadow-sm">
-          <!-- Buyer List -->
-          <div class="w-80 border-r border-gray-200 flex flex-col shrink-0">
-            <div class="p-3 border-b border-gray-100 bg-slate-50">
-              <input type="text" placeholder="Search conversations..." class="w-full text-xs px-3 py-1.5 border border-gray-200 rounded-lg focus:outline-none bg-white">
+        <div class="bg-white border border-gray-200 rounded-xl h-[620px] flex flex-col md:flex-row overflow-hidden shadow-sm">
+          <!-- Buyer Threads List -->
+          <div id="convThreadPanel" class="w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0">
+            <div class="p-3 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700">All Inquiries</span>
+              <button onclick="fetchConversationsList()" class="text-[11px] text-indigo-600 hover:underline">Refresh</button>
             </div>
             <div id="conversationThreadList" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
               <!-- Dynamically populated -->
@@ -278,32 +324,37 @@
           </div>
 
           <!-- Chat Timeline & Composer -->
-          <div class="flex-1 flex flex-col justify-between bg-slate-50">
+          <div id="convChatPanel" class="flex-1 flex flex-col justify-between bg-slate-50">
             <!-- Chat Header -->
-            <div class="h-14 border-b border-gray-200 bg-white px-6 flex items-center justify-between">
-              <div>
-                <div id="chatBuyerName" class="text-sm font-bold text-slate-900">Select a Conversation</div>
-                <div id="chatBuyerPhone" class="text-xs text-slate-500">No active thread selected</div>
+            <div class="h-14 border-b border-gray-200 bg-white px-4 lg:px-6 flex items-center justify-between shrink-0">
+              <div class="flex items-center space-x-2">
+                <button onclick="mobileBackToThreads()" class="md:hidden p-1 text-slate-500 hover:text-slate-800">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <div>
+                  <div id="chatBuyerName" class="text-xs lg:text-sm font-bold text-slate-900">Select a Conversation</div>
+                  <div id="chatBuyerPhone" class="text-[10px] text-slate-500">No active thread selected</div>
+                </div>
               </div>
               <div id="chatModeControls" class="hidden items-center space-x-2">
-                <span class="text-xs text-slate-500">Auto-Pilot:</span>
+                <span class="text-xs text-slate-500 hidden sm:inline">Mode:</span>
                 <button onclick="toggleChatMode()" id="btnChatModeToggle" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  AI Active
+                  🤖 AI Active
                 </button>
               </div>
             </div>
 
             <!-- Messages Stream -->
-            <div id="chatMessagesStream" class="flex-1 overflow-y-auto custom-scroll p-6 space-y-3">
+            <div id="chatMessagesStream" class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
               <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
                 <svg class="w-12 h-12 mb-2 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-                Select a conversation thread on the left to view messages.
+                Select a conversation thread to view live messages.
               </div>
             </div>
 
             <!-- Composer -->
-            <div class="p-3 border-t border-gray-200 bg-white flex items-center space-x-2">
-              <input type="text" id="chatComposerInput" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="p-3 border-t border-gray-200 bg-white flex items-center space-x-2 shrink-0">
+              <input type="text" id="chatComposerInput" onkeydown="if(event.key==='Enter') sendManualReply()" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <button onclick="sendManualReply()" class="text-xs font-semibold px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition">
                 Send
               </button>
@@ -316,29 +367,35 @@
       <!-- VIEW 4: PRODUCT CATALOG -->
       <!-- ============================================== -->
       <section id="view-catalog" class="hidden space-y-6">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Product Catalog Intelligence</h1>
-            <p class="text-xs text-slate-500 mt-1">Upload PDF brochures, Excel sheets, or CSVs. Ground AI replies in verified specs.</p>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Product Catalog Intelligence</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Upload PDF brochures, Excel sheets, or CSVs. Ground AI replies in verified specs.</p>
           </div>
+          <button onclick="openQuickAddModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition">
+            + Quick Add SKU
+          </button>
         </div>
 
         <!-- UPLOAD DROPZONE -->
-        <div class="bg-white border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-indigo-500 transition shadow-sm">
+        <div class="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 lg:p-8 text-center hover:border-indigo-500 transition shadow-sm">
           <input type="file" id="catalogFileInput" accept=".pdf,.xlsx,.xls,.csv" class="hidden" onchange="handleCatalogFileSelected(event)">
-          <div class="max-w-md mx-auto space-y-3">
-            <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          <div class="max-w-md mx-auto space-y-2">
+            <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
             </div>
-            <div class="text-sm font-semibold text-slate-800">Drag & drop your product catalog or <button onclick="document.getElementById('catalogFileInput').click()" class="text-indigo-600 underline">browse</button></div>
-            <div class="text-xs text-slate-500">Supported formats: PDF brochure, Excel (.xlsx, .xls), or CSV spreadsheet (Max: 20MB)</div>
-            <div id="catalogUploadStatus" class="hidden text-xs text-indigo-600 font-semibold pt-2"></div>
+            <div class="text-xs lg:text-sm font-semibold text-slate-800">Drag & drop your product catalog or <button onclick="document.getElementById('catalogFileInput').click()" class="text-indigo-600 underline">browse</button></div>
+            <div class="text-[11px] text-slate-500">Formats: PDF brochure, Excel (.xlsx, .xls), or CSV (Max 20MB)</div>
+            <div id="catalogUploadStatus" class="hidden text-xs text-indigo-600 font-semibold pt-1"></div>
           </div>
         </div>
 
         <!-- STRUCTURED PRODUCTS TABLE -->
-        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-          <h2 class="text-base font-bold text-slate-900">Extracted Products & Price Specifications</h2>
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm lg:text-base font-bold text-slate-900">Extracted Products & Price Specifications</h2>
+            <button onclick="fetchCatalogProducts()" class="text-xs text-indigo-600 hover:underline">Refresh</button>
+          </div>
           <div id="catalogProductsContainer" class="overflow-x-auto">
             <!-- Dynamic table rows -->
           </div>
@@ -350,61 +407,76 @@
       <!-- ============================================== -->
       <section id="view-whatsapp" class="hidden space-y-6">
         <div>
-          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">WhatsApp Business Configuration</h1>
-          <p class="text-xs text-slate-500 mt-1">Configure Official Meta Cloud API or local multi-device Baileys daemon.</p>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">WhatsApp Business Setup</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Pair your official factory WhatsApp number to send automatic brochures and AI replies.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <!-- Official Cloud API (Enterprise) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Direct Multi-Device QR Code (Instant Setup) -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold">W</div>
+              <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm">QR</div>
               <div>
-                <h3 class="text-sm font-bold text-slate-900">Meta WhatsApp Cloud API</h3>
-                <span class="text-[11px] text-slate-500">Official Meta Business Platform</span>
+                <h3 class="text-sm font-bold text-slate-900">Direct Multi-Device Pairing</h3>
+                <span class="text-[11px] text-slate-500">Scan QR Code from WhatsApp Mobile (Zero Developer Setup)</span>
               </div>
             </div>
-            <div class="space-y-3 text-xs">
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">WhatsApp Business Account ID (WABA ID)</label>
-                <input type="text" id="wabaIdInput" placeholder="e.g. 109283746592837" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+
+            <div class="p-6 bg-slate-50 border border-gray-200 rounded-xl text-center space-y-4">
+              <div id="baileysQrContainer" class="w-52 h-52 bg-white mx-auto border border-gray-200 rounded-lg flex items-center justify-center text-xs text-slate-400 p-2 shadow-inner">
+                <div class="animate-pulse">Loading WhatsApp Status...</div>
               </div>
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Phone Number ID</label>
-                <input type="text" id="phoneIdInput" placeholder="e.g. 509283746592811" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              <div id="baileysStatusMessage" class="text-xs text-slate-600 font-medium">Click "Scan QR Code" to link your device.</div>
+
+              <div class="flex justify-center space-x-2">
+                <button onclick="checkWaConnection(true)" class="text-xs font-semibold px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm transition">
+                  Scan QR Code
+                </button>
+                <button onclick="disconnectWaSession()" class="text-xs font-semibold px-3 py-2 border border-gray-300 bg-white hover:bg-gray-50 text-slate-700 rounded-lg transition">
+                  Reset Session
+                </button>
               </div>
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Permanent System User Token</label>
-                <input type="password" id="wabaTokenInput" placeholder="EAAG..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-              </div>
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Webhook Verify Token</label>
-                <input type="text" readonly value="martflow_verify_secret" class="w-full px-3 py-2 bg-slate-50 border border-gray-200 rounded-lg text-slate-500">
-              </div>
-              <button onclick="saveCloudApiSettings()" class="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
-                Save Cloud API Credentials
-              </button>
+            </div>
+
+            <div class="text-[11px] text-slate-500 space-y-1">
+              <div>1. Open WhatsApp on your phone.</div>
+              <div>2. Tap <strong>Settings > Linked Devices > Link a Device</strong>.</div>
+              <div>3. Point camera at the QR code above.</div>
             </div>
           </div>
 
-          <!-- Baileys Multi-Device Pairing -->
+          <!-- Advanced Meta Cloud API (Optional Collapsed Accordion) -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <div class="flex items-center space-x-3">
-              <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold">QR</div>
-              <div>
-                <h3 class="text-sm font-bold text-slate-900">Baileys Direct Multi-Device</h3>
-                <span class="text-[11px] text-slate-500">Instant setup via QR code scan</span>
+            <details class="group">
+              <summary class="flex items-center justify-between cursor-pointer list-none">
+                <div class="flex items-center space-x-3">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center font-bold text-sm">W</div>
+                  <div>
+                    <h3 class="text-sm font-bold text-slate-900">Meta Cloud API (Optional Enterprise)</h3>
+                    <span class="text-[11px] text-slate-500">Official Meta Developer WABA Setup</span>
+                  </div>
+                </div>
+                <span class="text-xs text-indigo-600 group-open:rotate-180 transition-transform">▼</span>
+              </summary>
+
+              <div class="pt-4 space-y-3 text-xs border-t border-gray-100 mt-4">
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">WhatsApp Business Account ID (WABA ID)</label>
+                  <input type="text" id="wabaIdInput" placeholder="e.g. 109283746592837" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Phone Number ID</label>
+                  <input type="text" id="phoneIdInput" placeholder="e.g. 509283746592811" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Permanent System User Token</label>
+                  <input type="password" id="wabaTokenInput" placeholder="EAAG..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <button onclick="saveCloudApiSettings()" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 transition">
+                  Save Cloud API Credentials
+                </button>
               </div>
-            </div>
-            <div class="p-4 bg-slate-50 border border-gray-200 rounded-xl text-center space-y-3">
-              <div id="baileysQrContainer" class="w-48 h-48 bg-white mx-auto border border-gray-200 rounded-lg flex items-center justify-center text-xs text-slate-400">
-                Connected (+919115748457)
-              </div>
-              <div class="text-xs text-slate-600">Scan from WhatsApp mobile: <strong>Linked Devices > Link a Device</strong></div>
-              <button onclick="checkWaConnection()" class="text-xs font-semibold px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700">
-                Check Status
-              </button>
-            </div>
+            </details>
           </div>
         </div>
       </section>
@@ -415,13 +487,14 @@
       <section id="view-calls" class="hidden space-y-6">
         <div class="flex items-center justify-between">
           <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Two-Way Call Scheduler</h1>
-            <p class="text-xs text-slate-500 mt-1">Autonomous coordination between buyer inquiry and factory owner availability.</p>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Two-Way Call Scheduler</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Autonomous coordination between buyer inquiry and factory owner availability.</p>
           </div>
+          <button onclick="fetchCallRequests()" class="text-xs text-indigo-600 font-semibold hover:underline">Refresh</button>
         </div>
 
-        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-          <h2 class="text-base font-bold text-slate-900">Scheduled & Pending Call Consultations</h2>
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <h2 class="text-sm lg:text-base font-bold text-slate-900">Scheduled & Pending Call Consultations</h2>
           <div id="callRequestsTableContainer" class="overflow-x-auto">
             <!-- Dynamic table rows -->
           </div>
@@ -432,80 +505,84 @@
       <!-- VIEW 7: ANALYTICS -->
       <!-- ============================================== -->
       <section id="view-analytics" class="hidden space-y-6">
-        <div>
-          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Genuine Analytics</h1>
-          <p class="text-xs text-slate-500 mt-1">Zero synthetic or fabricated data. All calculations reflect actual DB records.</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Genuine Analytics</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Zero synthetic or fabricated data. All calculations reflect actual DB records.</p>
+          </div>
+          <button onclick="loadAnalyticsData()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700 shadow-sm">
+            Refresh
+          </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-2">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-2">
             <span class="text-xs font-semibold text-slate-500 uppercase">Total IndiaMART Leads</span>
             <div id="anTotalLeads" class="text-3xl font-bold text-slate-900">0</div>
             <p class="text-xs text-slate-400">Total inquiries captured</p>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-2">
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-2">
             <span class="text-xs font-semibold text-slate-500 uppercase">Qualification Rate</span>
             <div id="anQualRate" class="text-3xl font-bold text-indigo-600">0%</div>
             <p class="text-xs text-slate-400">Inquiries meeting machine specs</p>
           </div>
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-2">
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-2">
             <span class="text-xs font-semibold text-slate-500 uppercase">Confirmed Call Rate</span>
             <div id="anCallRate" class="text-3xl font-bold text-emerald-600">0%</div>
             <p class="text-xs text-slate-400">Director consultations scheduled</p>
           </div>
         </div>
 
-        <div class="bg-white border border-gray-200 rounded-xl p-8 text-center space-y-2 shadow-sm">
-          <div class="text-sm font-semibold text-slate-800">Response Speed Distribution</div>
-          <p class="text-xs text-slate-500 max-w-md mx-auto">Calculated in real-time when inquiries are processed. Automated WhatsApp PDF dispatch occurs in under 10 seconds.</p>
-        </div>
-      </section>
-
-      <!-- ============================================== -->
-      <!-- VIEW 8: TEAM MANAGEMENT -->
-      <!-- ============================================== -->
-      <section id="view-team" class="hidden space-y-6">
-        <div class="flex items-center justify-between">
-          <div>
-            <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Team & Permissions</h1>
-            <p class="text-xs text-slate-500 mt-1">Manage workspace members and role-based permissions.</p>
-          </div>
-          <button onclick="alert('Team invite link generated!')" class="text-xs font-semibold px-3.5 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">
-            + Invite Member
-          </button>
-        </div>
-
-        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-          <div id="teamMembersContainer" class="overflow-x-auto">
-            <!-- Dynamic members list -->
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+          <h3 class="text-sm font-bold text-slate-900">Response Speed & Conversion Velocity</h3>
+          <div class="space-y-3 text-xs">
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <span>Sub-10s Brochure Dispatch Rate</span>
+                <span id="anSpeedPct">100%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-500 w-full"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <span>Direct WhatsApp Inbound Engagement</span>
+                <span id="anEngagePct">0%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div id="anEngageBar" class="h-full bg-indigo-600 w-0 transition-all duration-500"></div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       <!-- ============================================== -->
-      <!-- VIEW 9: SETTINGS -->
+      <!-- VIEW 8: SETTINGS -->
       <!-- ============================================== -->
       <section id="view-settings" class="hidden space-y-6">
         <div>
-          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Workspace Settings</h1>
-          <p class="text-xs text-slate-500 mt-1">Manage company identity, IndiaMART webhook credentials, and AI deal rules.</p>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Settings</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Manage company identity, IndiaMART webhook credentials, and AI deal rules.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- IndiaMART Webhook Credentials -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <h3 class="text-sm font-bold text-slate-900">IndiaMART Push API Webhook</h3>
+            <p class="text-xs text-slate-500">Paste this unique webhook URL into your IndiaMART Seller Portal to automatically capture leads.</p>
             <div class="space-y-3 text-xs">
               <div>
-                <label class="block font-semibold text-slate-700 mb-1">Your Production Webhook URL</label>
+                <label class="block font-semibold text-slate-700 mb-1">Your Organization's Webhook URL</label>
                 <div class="flex">
-                  <input type="text" id="webhookUrlInput" readonly value="https://indiamart-ai-sales-closing.netlify.app/api/webhook/indiamart" class="flex-1 px-3 py-2 bg-slate-50 border border-gray-300 rounded-l-lg text-slate-700 font-mono text-[11px]">
-                  <button onclick="navigator.clipboard.writeText(document.getElementById('webhookUrlInput').value); alert('Webhook URL copied!');" class="px-3 py-2 bg-slate-200 text-slate-700 font-semibold rounded-r-lg border border-l-0 border-gray-300 hover:bg-slate-300">Copy</button>
+                  <input type="text" id="webhookUrlInput" readonly value="Loading webhook URL..." class="flex-1 px-3 py-2 bg-slate-50 border border-gray-300 rounded-l-lg text-slate-700 font-mono text-[11px] truncate">
+                  <button onclick="copyWebhookUrl()" class="px-3.5 py-2 bg-indigo-600 text-white font-semibold rounded-r-lg hover:bg-indigo-700 transition">Copy</button>
                 </div>
               </div>
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">IndiaMART CRM Key / Secret (Optional)</label>
-                <input type="password" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <input type="password" id="indiamartCrmKeyInput" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
             </div>
           </div>
@@ -526,8 +603,12 @@
                 <label class="block font-semibold text-slate-700 mb-1">Owner Alert Phone (For Call Approvals)</label>
                 <input type="text" id="settingOwnerPhone" placeholder="e.g. 919876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
-              <button onclick="saveAiSettings()" class="w-full py-2 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
-                Save AI Settings
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Google Gemini API Key (Optional)</label>
+                <input type="password" id="settingGeminiKey" placeholder="AIzaSy... (Leave empty to use smart zero-key engine)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <button onclick="saveAiSettings()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+                Save Settings
               </button>
             </div>
           </div>
@@ -535,17 +616,17 @@
       </section>
 
       <!-- ============================================== -->
-      <!-- VIEW 10: BILLING -->
+      <!-- VIEW 9: BILLING -->
       <!-- ============================================== -->
       <section id="view-billing" class="hidden space-y-6">
         <div>
-          <h1 class="text-2xl font-bold text-slate-900 tracking-tight">Billing & Plans</h1>
-          <p class="text-xs text-slate-500 mt-1">Manage your MartFlow AI subscription and lead allowances.</p>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Billing & Plans</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Manage your MartFlow AI subscription and lead allowances.</p>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div class="bg-white border-2 border-indigo-600 rounded-xl p-6 shadow-sm space-y-4 relative">
-            <span class="absolute top-3 right-3 text-[10px] font-bold uppercase bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Current Plan</span>
+            <span class="absolute top-3 right-3 text-[10px] font-bold uppercase bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">Active Plan</span>
             <h3 class="text-base font-bold text-slate-900">Starter</h3>
             <div class="text-2xl font-extrabold text-slate-900">₹4,999 <span class="text-xs font-normal text-slate-500">/ month</span></div>
             <ul class="text-xs text-slate-600 space-y-2">
@@ -564,7 +645,7 @@
               <li>✓ Priority WhatsApp Delivery</li>
               <li>✓ Dedicated Account Engineer</li>
             </ul>
-            <button onclick="alert('Razorpay Payment Gateway Integration Ready!')" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 transition">Upgrade to Growth</button>
+            <button onclick="openUpgradeModal('Growth')" class="w-full py-2 bg-slate-900 text-white font-semibold rounded-lg text-xs hover:bg-slate-800 transition">Upgrade to Growth</button>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <h3 class="text-base font-bold text-slate-900">Enterprise</h3>
@@ -575,7 +656,7 @@
               <li>✓ Custom ERP & CRM Integrations</li>
               <li>✓ 24/7 SLA Guarantee</li>
             </ul>
-            <button onclick="alert('Contact sales team at enterprise@martflow.ai')" class="w-full py-2 border border-gray-300 font-semibold rounded-lg text-xs text-slate-700 hover:bg-gray-50 transition">Contact Enterprise</button>
+            <button onclick="openUpgradeModal('Enterprise')" class="w-full py-2 border border-gray-300 font-semibold rounded-lg text-xs text-slate-700 hover:bg-gray-50 transition">Contact Enterprise</button>
           </div>
         </div>
       </section>
@@ -583,7 +664,106 @@
     </main>
   </div>
 
-  <!-- AUTHENTICATION MODAL (SIGNUP / LOGIN / ONBOARDING) -->
+  <!-- SIMULATION MODAL (TEST INBOUND LEAD) -->
+  <div id="simulationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeSimulationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="space-y-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-lg">⚡</span>
+          <h2 class="text-lg font-bold text-slate-900">Test Inbound IndiaMART Lead</h2>
+        </div>
+        <p class="text-xs text-slate-500">Simulate a buyer submitting an inquiry on IndiaMART. Tests instant lead ingestion and auto-WhatsApp dispatch.</p>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Buyer Name</label>
+            <input type="text" id="simBuyerName" value="Sandeep Kumar" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Buyer WhatsApp Number (10 digits)</label>
+            <input type="text" id="simBuyerPhone" placeholder="9876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Inquired</label>
+            <input type="text" id="simProductQuery" value="Automatic Pouch Packing Machine" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Buyer City</label>
+            <input type="text" id="simCity" value="Ludhiana" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Requirement Note</label>
+            <input type="text" id="simMessage" value="Need machine for 50g-100g powder packing. Send price quotation and PDF brochure." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <button onclick="submitSimulation()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+            Dispatch Test Inquiry
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK-ADD SKU MODAL -->
+  <div id="quickAddModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeQuickAddModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="space-y-4">
+        <h2 class="text-lg font-bold text-slate-900">+ Quick Add Machine SKU</h2>
+        <p class="text-xs text-slate-500">Add a product directly to your verified catalog knowledge base in 10 seconds.</p>
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Name</label>
+            <input type="text" id="qaProductName" placeholder="e.g. Industrial Ribbon Blender RB-500" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Price Specification</label>
+            <input type="text" id="qaPriceRaw" placeholder="e.g. ₹3,85,000 + GST" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Model / Capacity Details</label>
+            <input type="text" id="qaModel" placeholder="e.g. 500 Kg Batch Capacity, SS-304" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <button onclick="submitQuickAddProduct()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
+            Save to Catalog
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- UPGRADE MODAL -->
+  <div id="upgradeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-center space-y-4">
+      <button onclick="closeUpgradeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-xl">
+        ⭐
+      </div>
+      <h2 id="upgradePlanTitle" class="text-lg font-bold text-slate-900">Upgrade to Growth Plan</h2>
+      <p class="text-xs text-slate-600">To upgrade your monthly IndiaMART lead quota or activate multi-user team seats, contact our onboarding director via WhatsApp:</p>
+
+      <div class="p-3 bg-slate-50 border border-gray-200 rounded-lg text-xs space-y-1 text-left font-mono">
+        <div><strong>UPI ID:</strong> payments@martflow.ai</div>
+        <div><strong>Direct Desk:</strong> +91 91157 48457</div>
+        <div><strong>Instant Activation:</strong> Under 15 Minutes</div>
+      </div>
+
+      <a href="https://wa.me/919115748457?text=Hi%20MartFlow%20Team,%20I%20want%20to%20upgrade%20my%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
+        Chat on WhatsApp to Upgrade →
+      </a>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATION MODAL (SIGNUP / LOGIN) -->
   <div id="authModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
       <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
@@ -592,7 +772,7 @@
 
       <!-- LOGIN FORM -->
       <div id="loginFormBlock" class="space-y-4">
-        <h2 class="text-xl font-bold text-slate-900">Sign in to MartFlow AI</h2>
+        <h2 class="text-lg lg:text-xl font-bold text-slate-900">Sign in to MartFlow AI</h2>
         <p class="text-xs text-slate-500">Access your organization's sales intelligence workspace.</p>
         <div class="space-y-3 text-xs">
           <div>
@@ -606,6 +786,9 @@
           <button onclick="handleLoginSubmit()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
             Sign In
           </button>
+          <button onclick="handleDemoLoginSubmit()" class="w-full py-2 bg-slate-100 text-slate-700 font-semibold rounded-lg hover:bg-slate-200 transition border border-gray-300">
+            ⚡ Instant 1-Click Demo Login
+          </button>
         </div>
         <div class="text-center text-xs text-slate-500 pt-2">
           Don't have an account? <button onclick="toggleAuthMode('signup')" class="text-indigo-600 font-semibold underline">Create Company Workspace</button>
@@ -614,7 +797,7 @@
 
       <!-- SIGNUP FORM -->
       <div id="signupFormBlock" class="hidden space-y-4">
-        <h2 class="text-xl font-bold text-slate-900">Create Company Workspace</h2>
+        <h2 class="text-lg lg:text-xl font-bold text-slate-900">Create Company Workspace</h2>
         <p class="text-xs text-slate-500">Start closing IndiaMART deals automatically on WhatsApp.</p>
         <div class="space-y-3 text-xs">
           <div>
@@ -648,15 +831,80 @@
     </div>
   </div>
 
-  <!-- CLIENT SCRIPTS & DATA BINDING -->
+  <!-- SCRIPT ENGINE: SECURE, TESTED & ZERO-ALERT -->
   <script>
     let currentAuthToken = localStorage.getItem('mf_token') || '';
     let currentOrg = null;
     let currentUser = null;
+    let activeConversationId = null;
+    let leadsSearchDebounceTimer = null;
 
-    // View Navigation
+    // 1. Toast Notification System (Zero alerts)
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = `p-3.5 rounded-xl shadow-lg border text-xs font-semibold flex items-center space-x-2.5 transition-all duration-300 pointer-events-auto transform translate-y-2 opacity-0 ${
+        type === 'success' ? 'bg-emerald-900 text-emerald-100 border-emerald-700' :
+        type === 'error' ? 'bg-rose-900 text-rose-100 border-rose-700' :
+        type === 'warning' ? 'bg-amber-900 text-amber-100 border-amber-700' :
+        'bg-slate-900 text-white border-slate-700'
+      }`;
+      const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ';
+      toast.innerHTML = `<span class="text-sm font-bold">${icon}</span><span class="flex-1">${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // 2. XSS HTML Sanitizer
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // 3. Central Safe API Fetch Wrapper
+    async function apiFetch(url, options = {}) {
+      const headers = { ...options.headers };
+      if (currentAuthToken) {
+        headers['Authorization'] = `Bearer ${currentAuthToken}`;
+      }
+      try {
+        const res = await fetch(url, { ...options, headers });
+        const contentType = res.headers.get('content-type') || '';
+        let data = null;
+        if (contentType.includes('application/json')) {
+          data = await res.json();
+        } else {
+          const text = await res.text();
+          if (!res.ok) throw new Error(text || `HTTP error ${res.status}`);
+          return text;
+        }
+
+        if (!res.ok) {
+          throw new Error(data?.error || data?.message || `Request failed (${res.status})`);
+        }
+        return data;
+      } catch (err) {
+        console.warn(`apiFetch error [${url}]:`, err.message);
+        throw err;
+      }
+    }
+
+    // 4. View Switching & Drawer Navigation
     function switchView(viewName) {
-      const views = ['dashboard', 'leads', 'conversations', 'catalog', 'whatsapp', 'calls', 'analytics', 'team', 'settings', 'billing'];
+      const views = ['dashboard', 'leads', 'conversations', 'catalog', 'whatsapp', 'calls', 'analytics', 'settings', 'billing'];
       views.forEach(v => {
         const el = document.getElementById(`view-${v}`);
         const nav = document.getElementById(`nav-${v}`);
@@ -664,15 +912,34 @@
         if (nav) nav.classList.toggle('active', v === viewName);
       });
 
+      // Close mobile drawer on navigation
+      document.getElementById('appSidebar').classList.add('-translate-x-full');
+      document.getElementById('mobileBackdrop').classList.add('hidden');
+
       if (viewName === 'dashboard') loadDashboardData();
       if (viewName === 'leads') fetchLeadsList();
+      if (viewName === 'conversations') fetchConversationsList();
       if (viewName === 'catalog') fetchCatalogProducts();
       if (viewName === 'calls') fetchCallRequests();
       if (viewName === 'analytics') loadAnalyticsData();
-      if (viewName === 'team') fetchTeamMembers();
+      if (viewName === 'whatsapp') checkWaConnection();
+      if (viewName === 'settings') loadSettingsData();
     }
 
-    // Modal Control
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('appSidebar');
+      const backdrop = document.getElementById('mobileBackdrop');
+      const isOpen = !sidebar.classList.contains('-translate-x-full');
+      if (isOpen) {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      } else {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      }
+    }
+
+    // 5. Auth Modal & Flow
     function openAuthModal(mode = 'login') {
       document.getElementById('authModal').classList.remove('hidden');
       toggleAuthMode(mode);
@@ -685,7 +952,6 @@
       document.getElementById('signupFormBlock').classList.toggle('hidden', mode !== 'signup');
     }
 
-    // Signup Handler
     async function handleSignupSubmit() {
       const fullName = document.getElementById('signupFullName').value;
       const companyName = document.getElementById('signupCompany').value;
@@ -694,49 +960,61 @@
       const password = document.getElementById('signupPassword').value;
 
       try {
-        const res = await fetch('/api/auth/signup', {
+        const data = await apiFetch('/api/auth/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fullName, companyName, email, phone, password })
         });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'Signup failed');
-
         localStorage.setItem('mf_token', data.token);
         currentAuthToken = data.token;
         currentOrg = data.organization;
         currentUser = data.user;
         closeAuthModal();
         updateAuthUI();
+        showToast(`Workspace "${currentOrg.name}" created successfully!`, 'success');
         loadDashboardData();
       } catch (err) {
-        alert(err.message);
+        showToast(err.message, 'error');
       }
     }
 
-    // Login Handler
     async function handleLoginSubmit() {
       const email = document.getElementById('loginEmail').value;
       const password = document.getElementById('loginPassword').value;
 
       try {
-        const res = await fetch('/api/auth/login', {
+        const data = await apiFetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'Login failed');
-
         localStorage.setItem('mf_token', data.token);
         currentAuthToken = data.token;
         currentOrg = data.organization;
         currentUser = data.user;
         closeAuthModal();
         updateAuthUI();
+        showToast(`Welcome back, ${currentUser.fullName}!`, 'success');
         loadDashboardData();
       } catch (err) {
-        alert(err.message);
+        showToast(err.message, 'error');
+      }
+    }
+
+    // 1-Click Instant Demo Login
+    async function handleDemoLoginSubmit() {
+      try {
+        const data = await apiFetch('/api/auth/demo-login', { method: 'POST' });
+        localStorage.setItem('mf_token', data.token);
+        currentAuthToken = data.token;
+        currentOrg = data.organization;
+        currentUser = data.user;
+        closeAuthModal();
+        updateAuthUI();
+        showToast(`Demo Workspace active: ${currentOrg.name}`, 'success');
+        loadDashboardData();
+      } catch (err) {
+        showToast(err.message, 'error');
       }
     }
 
@@ -746,20 +1024,23 @@
       currentOrg = null;
       currentUser = null;
       updateAuthUI();
+      showToast('Logged out of workspace.', 'info');
       switchView('dashboard');
     }
 
     async function checkAuthStatus() {
       if (!currentAuthToken) {
+        // Attempt auto-login to demo workspace for zero-friction demo experience
+        try {
+          await handleDemoLoginSubmit();
+          return;
+        } catch (e) {}
         updateAuthUI();
         loadDashboardData();
         return;
       }
       try {
-        const res = await fetch('/api/auth/me', {
-          headers: { 'Authorization': `Bearer ${currentAuthToken}` }
-        });
-        const data = await res.json();
+        const data = await apiFetch('/api/auth/me');
         if (data.ok) {
           currentUser = data.user;
           currentOrg = data.organization;
@@ -788,6 +1069,12 @@
         document.getElementById('topOrgName').textContent = currentOrg.name;
         document.getElementById('topOrgPlan').textContent = currentOrg.plan || 'Starter';
         document.getElementById('userNameTop').textContent = currentUser.fullName;
+
+        // Update settings inputs if present
+        if (currentOrg.webhook_key) {
+          const origin = window.location.origin;
+          document.getElementById('webhookUrlInput').value = `${origin}/api/webhook/indiamart/${currentOrg.webhook_key}`;
+        }
       } else {
         topOrgBadge.classList.add('hidden');
         topOrgBadge.classList.remove('flex');
@@ -797,29 +1084,30 @@
       }
     }
 
-    // Load Real Dashboard Data
+    // 6. Dashboard Data Loader
     async function loadDashboardData() {
+      checkWaConnection();
       if (!currentAuthToken) {
         renderEmptyDashboardState();
         return;
       }
       try {
-        const [anRes, leadsRes] = await Promise.all([
-          fetch('/api/analytics', { headers: { 'Authorization': `Bearer ${currentAuthToken}` } }).then(r => r.json()),
-          fetch('/api/leads?limit=5', { headers: { 'Authorization': `Bearer ${currentAuthToken}` } }).then(r => r.json())
+        const [anData, leadsData] = await Promise.all([
+          apiFetch('/api/analytics').catch(() => ({ metrics: {} })),
+          apiFetch('/api/leads?limit=5').catch(() => ({ leads: [] }))
         ]);
 
-        if (anRes.ok && anRes.metrics) {
-          const m = anRes.metrics;
-          document.getElementById('statLeadsToday').textContent = m.leadsToday;
-          document.getElementById('statMedianResponse').textContent = m.medianResponseTimeFormatted;
-          document.getElementById('statQualifiedRate').textContent = m.qualificationRate;
-          document.getElementById('statCallsBooked').textContent = m.confirmedCalls;
-          document.getElementById('statCatalogProducts').textContent = m.totalCatalogProducts;
-          document.getElementById('badgeLeadCount').textContent = m.totalLeads;
+        if (anData.metrics) {
+          const m = anData.metrics;
+          document.getElementById('statLeadsToday').textContent = m.leadsToday ?? 0;
+          document.getElementById('statMedianResponse').textContent = m.medianResponseTimeFormatted || 'N/A';
+          document.getElementById('statQualifiedRate').textContent = m.qualificationRate || '0%';
+          document.getElementById('statCallsBooked').textContent = m.confirmedCalls ?? 0;
+          document.getElementById('statCatalogProducts').textContent = m.totalCatalogProducts ?? 0;
+          document.getElementById('badgeLeadCount').textContent = m.totalLeads ?? 0;
         }
 
-        renderDashboardLeadsTable(leadsRes.leads || []);
+        renderDashboardLeadsTable(leadsData.leads || []);
       } catch (e) {
         renderEmptyDashboardState();
       }
@@ -827,9 +1115,9 @@
 
     function renderEmptyDashboardState() {
       document.getElementById('dashboardLeadsTable').innerHTML = `
-        <div class="py-12 text-center text-slate-400 text-xs">
+        <div class="py-10 text-center text-slate-400 text-xs">
           <svg class="w-10 h-10 mx-auto mb-2 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
-          No leads yet. Connect your IndiaMART integration or receive your first inquiry.
+          No leads yet. Connect your IndiaMART integration or click "⚡ Test Inbound Lead" above.
         </div>
       `;
     }
@@ -843,8 +1131,8 @@
         <table class="w-full text-left text-xs">
           <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
             <tr>
-              <th class="py-3 px-4 font-semibold">Buyer</th>
-              <th class="py-3 px-4 font-semibold">Product</th>
+              <th class="py-3 px-4 font-semibold">Buyer Name</th>
+              <th class="py-3 px-4 font-semibold">Product Inquired</th>
               <th class="py-3 px-4 font-semibold">City</th>
               <th class="py-3 px-4 font-semibold">Status</th>
               <th class="py-3 px-4 font-semibold text-right">Received</th>
@@ -855,10 +1143,10 @@
       leads.forEach(l => {
         html += `
           <tr class="hover:bg-slate-50 transition cursor-pointer" onclick="switchView('leads')">
-            <td class="py-3 px-4 font-semibold text-slate-900">${l.buyer_name || 'IndiaMART Buyer'}<div class="text-[11px] text-slate-400 font-normal">+${l.buyer_phone}</div></td>
-            <td class="py-3 px-4 text-slate-700">${l.product_inquired || 'Machinery'}</td>
-            <td class="py-3 px-4 text-slate-500">${l.buyer_city || '—'}</td>
-            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 uppercase">${l.status}</span></td>
+            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'IndiaMART Buyer')}<div class="text-[11px] text-slate-400 font-normal font-mono">+${escapeHtml(l.buyer_phone)}</div></td>
+            <td class="py-3 px-4 text-slate-700">${escapeHtml(l.product_inquired || 'General Machine')}</td>
+            <td class="py-3 px-4 text-slate-500">${escapeHtml(l.buyer_city || '—')}</td>
+            <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 uppercase">${escapeHtml(l.status)}</span></td>
             <td class="py-3 px-4 text-right text-slate-400">${new Date(l.created_at).toLocaleDateString('en-IN')}</td>
           </tr>
         `;
@@ -867,199 +1155,568 @@
       document.getElementById('dashboardLeadsTable').innerHTML = html;
     }
 
-    // Fetch Full Leads Table
+    // 7. Leads List & Debounced Search
+    function debounceLeadsSearch() {
+      clearTimeout(leadsSearchDebounceTimer);
+      leadsSearchDebounceTimer = setTimeout(() => {
+        fetchLeadsList();
+      }, 300);
+    }
+
     async function fetchLeadsList() {
       if (!currentAuthToken) return;
       const search = document.getElementById('leadSearchInput')?.value || '';
       const status = document.getElementById('leadStatusFilter')?.value || '';
-      const res = await fetch(`/api/leads?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`, {
-        headers: { 'Authorization': `Bearer ${currentAuthToken}` }
-      });
-      const data = await res.json();
-      const container = document.getElementById('leadsTableContainer');
-      if (!data.leads || !data.leads.length) {
-        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No leads found matching your criteria.</div>`;
-        return;
-      }
-      let html = `
-        <table class="w-full text-left text-xs">
-          <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
-            <tr>
-              <th class="py-3 px-4 font-semibold">Buyer Name</th>
-              <th class="py-3 px-4 font-semibold">WhatsApp Number</th>
-              <th class="py-3 px-4 font-semibold">Product Inquired</th>
-              <th class="py-3 px-4 font-semibold">Location</th>
-              <th class="py-3 px-4 font-semibold">PDF Sent</th>
-              <th class="py-3 px-4 font-semibold">Status</th>
-              <th class="py-3 px-4 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-      `;
-      data.leads.forEach(l => {
-        html += `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3.5 px-4 font-semibold text-slate-900">${l.buyer_name || 'IndiaMART Buyer'}</td>
-            <td class="py-3.5 px-4 text-slate-600 font-mono">+${l.buyer_phone}</td>
-            <td class="py-3.5 px-4 text-slate-800">${l.product_inquired || 'General Machine'}</td>
-            <td class="py-3.5 px-4 text-slate-500">${l.buyer_city || 'India'}</td>
-            <td class="py-3.5 px-4">${l.pdf_brochure_sent ? '<span class="text-emerald-600 font-bold">✓ YES</span>' : '<span class="text-slate-400">NO</span>'}</td>
-            <td class="py-3.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700">${l.status}</span></td>
-            <td class="py-3.5 px-4 text-right">
-              <a href="https://wa.me/${l.buyer_phone}" target="_blank" class="text-xs font-semibold text-emerald-600 hover:underline">WhatsApp →</a>
-            </td>
-          </tr>
+      try {
+        const data = await apiFetch(`/api/leads?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}`);
+        const container = document.getElementById('leadsTableContainer');
+        if (!data.leads || !data.leads.length) {
+          container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No leads found matching your criteria.</div>`;
+          return;
+        }
+        let html = `
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
+              <tr>
+                <th class="py-3.5 px-4 font-semibold">Buyer Name</th>
+                <th class="py-3.5 px-4 font-semibold">WhatsApp Number</th>
+                <th class="py-3.5 px-4 font-semibold">Product Inquired</th>
+                <th class="py-3.5 px-4 font-semibold">Location</th>
+                <th class="py-3.5 px-4 font-semibold">PDF Sent</th>
+                <th class="py-3.5 px-4 font-semibold">Status</th>
+                <th class="py-3.5 px-4 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
         `;
-      });
-      html += `</tbody></table>`;
-      container.innerHTML = html;
+        data.leads.forEach(l => {
+          html += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3.5 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'IndiaMART Buyer')}</td>
+              <td class="py-3.5 px-4 text-slate-600 font-mono">+${escapeHtml(l.buyer_phone)}</td>
+              <td class="py-3.5 px-4 text-slate-800">${escapeHtml(l.product_inquired || 'Machine')}</td>
+              <td class="py-3.5 px-4 text-slate-500">${escapeHtml(l.buyer_city || 'India')}</td>
+              <td class="py-3.5 px-4">${l.pdf_brochure_sent ? '<span class="text-emerald-600 font-bold">✓ YES</span>' : '<span class="text-slate-400">NO</span>'}</td>
+              <td class="py-3.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700">${escapeHtml(l.status)}</span></td>
+              <td class="py-3.5 px-4 text-right space-x-2">
+                <a href="https://wa.me/${escapeHtml(l.buyer_phone)}" target="_blank" class="text-xs font-semibold text-emerald-600 hover:underline">WhatsApp →</a>
+              </td>
+            </tr>
+          `;
+        });
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
-    // Fetch Catalog Products
+    // Authenticated CSV Export
+    async function exportLeadsCsv() {
+      try {
+        showToast('Preparing verified leads CSV export...', 'info');
+        const res = await fetch('/api/leads/export.csv', {
+          headers: { 'Authorization': `Bearer ${currentAuthToken}` }
+        });
+        if (!res.ok) throw new Error('Failed to download CSV');
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `MartFlow_Leads_${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        showToast('Leads CSV exported successfully!', 'success');
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    // 8. Conversations Inbox Implementation
+    async function fetchConversationsList() {
+      if (!currentAuthToken) return;
+      try {
+        const data = await apiFetch('/api/conversations');
+        const container = document.getElementById('conversationThreadList');
+        if (!data.threads || !data.threads.length) {
+          container.innerHTML = `<div class="p-6 text-center text-xs text-slate-400">No active conversations. Leads will appear here automatically.</div>`;
+          return;
+        }
+        let html = '';
+        data.threads.forEach(t => {
+          const isSelected = t.id === activeConversationId;
+          html += `
+            <div onclick="selectConversation('${t.id}')" class="p-3 rounded-lg cursor-pointer transition border ${isSelected ? 'bg-indigo-50/70 border-indigo-200' : 'bg-white border-gray-100 hover:bg-slate-50'}">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-xs text-slate-900">${escapeHtml(t.buyerName)}</span>
+                <span class="text-[10px] text-slate-400 font-mono">${new Date(t.lastMessageAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <div class="text-[11px] text-slate-500 truncate mt-0.5">${escapeHtml(t.lastMessage)}</div>
+              <div class="flex items-center justify-between mt-2 text-[10px]">
+                <span class="font-mono text-slate-400">+${escapeHtml(t.buyerPhone)}</span>
+                <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold ${t.mode === 'ai' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}">${t.mode === 'ai' ? '🤖 AI Active' : '👤 Human Takeover'}</span>
+              </div>
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+        if (!activeConversationId && data.threads.length > 0) {
+          selectConversation(data.threads[0].id);
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function selectConversation(convId) {
+      activeConversationId = convId;
+      document.getElementById('convThreadPanel').classList.add('hidden', 'md:flex');
+      document.getElementById('convChatPanel').classList.remove('hidden');
+
+      try {
+        const data = await apiFetch(`/api/conversations/${convId}/messages`);
+        const lead = data.lead;
+        const conv = data.conversation;
+
+        document.getElementById('chatBuyerName').textContent = lead?.buyer_name || 'IndiaMART Buyer';
+        document.getElementById('chatBuyerPhone').textContent = `+${lead?.buyer_phone || ''} | ${lead?.product_inquired || 'General Machine'}`;
+        document.getElementById('chatModeControls').classList.remove('hidden');
+        document.getElementById('chatModeControls').classList.add('flex');
+
+        updateModeButtonUI(conv.mode);
+
+        const stream = document.getElementById('chatMessagesStream');
+        if (!data.messages || !data.messages.length) {
+          stream.innerHTML = `<div class="h-full flex items-center justify-center text-xs text-slate-400">No message history yet.</div>`;
+          return;
+        }
+
+        let html = '';
+        data.messages.forEach(m => {
+          const isMe = m.sender_type === 'ai' || m.sender_type === 'agent';
+          html += `
+            <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+              <div class="max-w-[80%] rounded-2xl px-4 py-2.5 text-xs shadow-sm ${isMe ? 'bg-indigo-600 text-white rounded-br-none' : 'bg-white text-slate-800 border border-gray-200 rounded-bl-none'}">
+                <div class="whitespace-pre-wrap">${escapeHtml(m.content)}</div>
+              </div>
+              <div class="text-[10px] text-slate-400 mt-1 px-1 font-mono">
+                ${m.sender_type.toUpperCase()} • ${new Date(m.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+          `;
+        });
+        stream.innerHTML = html;
+        stream.scrollTop = stream.scrollHeight;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function mobileBackToThreads() {
+      document.getElementById('convThreadPanel').classList.remove('hidden');
+      document.getElementById('convChatPanel').classList.add('hidden');
+    }
+
+    function updateModeButtonUI(mode) {
+      const btn = document.getElementById('btnChatModeToggle');
+      if (mode === 'ai') {
+        btn.textContent = '🤖 AI Active';
+        btn.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+      } else {
+        btn.textContent = '👤 Human Takeover';
+        btn.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+      }
+    }
+
+    async function toggleChatMode() {
+      if (!activeConversationId) return;
+      const currentText = document.getElementById('btnChatModeToggle').textContent;
+      const nextMode = currentText.includes('AI') ? 'human' : 'ai';
+      try {
+        const data = await apiFetch(`/api/conversations/${activeConversationId}/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode: nextMode })
+        });
+        updateModeButtonUI(data.conversation.mode);
+        showToast(`Conversation switched to ${nextMode === 'ai' ? 'AI Auto-Pilot' : 'Human Takeover'}.`, 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function sendManualReply() {
+      const input = document.getElementById('chatComposerInput');
+      const text = input.value.trim();
+      if (!text || !activeConversationId) return;
+
+      try {
+        input.value = '';
+        await apiFetch(`/api/conversations/${activeConversationId}/reply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        showToast('Message dispatched to WhatsApp!', 'success');
+        selectConversation(activeConversationId);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // 9. Real WhatsApp Connection & Live QR Code
+    async function checkWaConnection(triggerConnect = false) {
+      try {
+        if (triggerConnect) {
+          showToast('Initializing fresh WhatsApp pairing session...', 'info');
+          await apiFetch('/api/whatsapp/connect', { method: 'POST' });
+        }
+        const data = await apiFetch('/api/whatsapp/status');
+        const st = data.waState || {};
+
+        const badge = document.getElementById('waStatusBadge');
+        const dot = document.getElementById('waStatusDot');
+        const text = document.getElementById('waStatusText');
+        const qrContainer = document.getElementById('baileysQrContainer');
+        const msgEl = document.getElementById('baileysStatusMessage');
+
+        if (st.status === 'connected') {
+          badge.className = 'inline-flex items-center text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full';
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5';
+          text.textContent = `Connected (+${st.connectedNumber || 'Live'})`;
+
+          qrContainer.innerHTML = `
+            <div class="text-center p-4">
+              <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-2 text-xl font-bold">✓</div>
+              <div class="font-bold text-slate-800 text-sm">WhatsApp Paired</div>
+              <div class="font-mono text-emerald-600 font-semibold mt-1 text-xs">+${escapeHtml(st.connectedNumber)}</div>
+            </div>
+          `;
+          msgEl.textContent = 'Socket is active and listening for IndiaMART buyer inquiries.';
+        } else if (st.status === 'qr_ready' && st.qrDataUrl) {
+          badge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full';
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 animate-pulse';
+          text.textContent = 'Scan QR Code';
+
+          qrContainer.innerHTML = `<img src="${st.qrDataUrl}" alt="WhatsApp QR Code" class="w-full h-full object-contain">`;
+          msgEl.textContent = 'Point your WhatsApp camera (Linked Devices) at this QR code.';
+        } else if (st.status === 'connecting') {
+          badge.className = 'inline-flex items-center text-[11px] font-semibold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded-full';
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5 animate-pulse';
+          text.textContent = 'Connecting...';
+          msgEl.textContent = st.lastEvent || 'Negotiating WhatsApp session handshake...';
+        } else {
+          badge.className = 'inline-flex items-center text-[11px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full';
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5';
+          text.textContent = 'Disconnected';
+          qrContainer.innerHTML = `<div class="text-slate-400 text-xs">Socket Offline</div>`;
+          msgEl.textContent = 'Click "Scan QR Code" to generate pairing QR.';
+        }
+      } catch (err) {
+        // Socket query error
+      }
+    }
+
+    async function disconnectWaSession() {
+      try {
+        await apiFetch('/api/whatsapp/disconnect', { method: 'POST' });
+        showToast('WhatsApp session reset successfully.', 'info');
+        checkWaConnection();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // 10. Simulation Modal (Test Inbound Lead)
+    function openSimulationModal() {
+      document.getElementById('simulationModal').classList.remove('hidden');
+    }
+    function closeSimulationModal() {
+      document.getElementById('simulationModal').classList.add('hidden');
+    }
+
+    async function submitSimulation() {
+      const buyerName = document.getElementById('simBuyerName').value;
+      const buyerPhone = document.getElementById('simBuyerPhone').value;
+      const productQuery = document.getElementById('simProductQuery').value;
+      const city = document.getElementById('simCity').value;
+      const message = document.getElementById('simMessage').value;
+
+      if (!buyerPhone) {
+        showToast('Buyer WhatsApp phone number is required.', 'error');
+        return;
+      }
+
+      try {
+        showToast('Dispatched test IndiaMART inquiry...', 'info');
+        await apiFetch('/api/leads/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ buyerName, buyerPhone, productQuery, city, message })
+        });
+        closeSimulationModal();
+        showToast('Lead captured! Auto-brochure dispatch initiated.', 'success');
+        loadDashboardData();
+        fetchLeadsList();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // 11. Quick-Add SKU Form
+    function openQuickAddModal() {
+      document.getElementById('quickAddModal').classList.remove('hidden');
+    }
+    function closeQuickAddModal() {
+      document.getElementById('quickAddModal').classList.add('hidden');
+    }
+
+    async function submitQuickAddProduct() {
+      const name = document.getElementById('qaProductName').value;
+      const priceRaw = document.getElementById('qaPriceRaw').value;
+      const model = document.getElementById('qaModel').value;
+
+      if (!name) {
+        showToast('Product name is required.', 'error');
+        return;
+      }
+
+      try {
+        await apiFetch('/api/catalog/quick-add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, priceRaw, model })
+        });
+        closeQuickAddModal();
+        showToast(`SKU "${name}" added to catalog knowledge!`, 'success');
+        fetchCatalogProducts();
+        loadDashboardData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // 12. Catalog Product Listing & Upload
     async function fetchCatalogProducts() {
       if (!currentAuthToken) return;
-      const res = await fetch('/api/catalog/products', {
-        headers: { 'Authorization': `Bearer ${currentAuthToken}` }
-      });
-      const data = await res.json();
-      const container = document.getElementById('catalogProductsContainer');
-      if (!data.products || !data.products.length) {
-        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No products uploaded yet. Drag & drop a PDF or Excel catalog above.</div>`;
-        return;
-      }
-      let html = `
-        <table class="w-full text-left text-xs">
-          <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
-            <tr>
-              <th class="py-3 px-4 font-semibold">SKU</th>
-              <th class="py-3 px-4 font-semibold">Product Name</th>
-              <th class="py-3 px-4 font-semibold">Price Specification</th>
-              <th class="py-3 px-4 font-semibold">Source Catalog</th>
-              <th class="py-3 px-4 font-semibold text-right">Confidence</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-      `;
-      data.products.forEach(p => {
-        html += `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3.5 px-4 font-mono text-indigo-600">${p.sku || 'N/A'}</td>
-            <td class="py-3.5 px-4 font-semibold text-slate-900">${p.name}</td>
-            <td class="py-3.5 px-4 text-emerald-700 font-semibold">${p.price_raw || 'Contact for quote'}</td>
-            <td class="py-3.5 px-4 text-slate-500">${p.brochure_filename || 'Direct'}</td>
-            <td class="py-3.5 px-4 text-right font-semibold text-slate-700">${Math.round((p.confidence_score || 1) * 100)}%</td>
-          </tr>
+      try {
+        const data = await apiFetch('/api/catalog/products');
+        const container = document.getElementById('catalogProductsContainer');
+        if (!data.products || !data.products.length) {
+          container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No products uploaded yet. Upload a PDF/Excel catalog above or click "+ Quick Add SKU".</div>`;
+          return;
+        }
+        let html = `
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
+              <tr>
+                <th class="py-3 px-4 font-semibold">SKU</th>
+                <th class="py-3 px-4 font-semibold">Product Name</th>
+                <th class="py-3 px-4 font-semibold">Price Specification</th>
+                <th class="py-3 px-4 font-semibold">Source Catalog</th>
+                <th class="py-3 px-4 font-semibold text-right">Confidence</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
         `;
-      });
-      html += `</tbody></table>`;
-      container.innerHTML = html;
+        data.products.forEach(p => {
+          html += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-4 font-mono text-indigo-600">${escapeHtml(p.sku || 'N/A')}</td>
+              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
+              <td class="py-3 px-4 text-emerald-700 font-semibold">${escapeHtml(p.price_raw || 'Contact for quote')}</td>
+              <td class="py-3 px-4 text-slate-500">${escapeHtml(p.brochure_filename || 'Direct Entry')}</td>
+              <td class="py-3 px-4 text-right font-semibold text-slate-700">${Math.round((p.confidence_score || 1) * 100)}%</td>
+            </tr>
+          `;
+        });
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
-    // Handle Catalog Upload
     async function handleCatalogFileSelected(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const statusEl = document.getElementById('catalogUploadStatus');
       statusEl.classList.remove('hidden');
-      statusEl.textContent = `Processing and extracting specifications from "${file.name}"...`;
+      statusEl.textContent = `Analyzing "${file.name}" with OCR & spec extractor...`;
 
       const reader = new FileReader();
       reader.onload = async () => {
         try {
-          const res = await fetch('/api/catalog/upload', {
+          const data = await apiFetch('/api/catalog/upload', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${currentAuthToken}`
-            },
-            body: JSON.stringify({
-              filename: file.name,
-              fileBase64: reader.result
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, fileBase64: reader.result })
           });
-          const data = await res.json();
-          if (!data.ok) throw new Error(data.error);
-
-          statusEl.textContent = `✓ Successfully extracted ${data.productsCount} products!`;
+          statusEl.textContent = `✓ Extracted ${data.productsCount} verified products!`;
+          showToast(`Successfully extracted ${data.productsCount} products from catalog!`, 'success');
           fetchCatalogProducts();
           loadDashboardData();
         } catch (err) {
           statusEl.textContent = `Error: ${err.message}`;
+          showToast(err.message, 'error');
         }
       };
       reader.readAsDataURL(file);
     }
 
-    // Fetch Call Requests
+    // 13. Call Requests
     async function fetchCallRequests() {
       if (!currentAuthToken) return;
-      const res = await fetch('/api/calls', {
-        headers: { 'Authorization': `Bearer ${currentAuthToken}` }
-      });
-      const data = await res.json();
-      const container = document.getElementById('callRequestsTableContainer');
-      if (!data.calls || !data.calls.length) {
-        container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No scheduled call requests currently active.</div>`;
-        return;
-      }
-      let html = `
-        <table class="w-full text-left text-xs">
-          <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
-            <tr>
-              <th class="py-3 px-4 font-semibold">Buyer Name</th>
-              <th class="py-3 px-4 font-semibold">Phone</th>
-              <th class="py-3 px-4 font-semibold">Product Interest</th>
-              <th class="py-3 px-4 font-semibold">Proposed Slot</th>
-              <th class="py-3 px-4 font-semibold">Status</th>
-              <th class="py-3 px-4 font-semibold text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100">
-      `;
-      data.calls.forEach(c => {
-        html += `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="py-3.5 px-4 font-semibold text-slate-900">${c.lead?.name || 'Buyer'}</td>
-            <td class="py-3.5 px-4 font-mono text-slate-600">+${c.lead?.phone || '—'}</td>
-            <td class="py-3.5 px-4 text-slate-800">${c.lead?.product || 'Machine'}</td>
-            <td class="py-3.5 px-4 font-semibold text-indigo-700">${c.proposed_time_raw || 'Awaiting Slot'}</td>
-            <td class="py-3.5 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">${c.status}</span></td>
-            <td class="py-3.5 px-4 text-right">
-              <button onclick="confirmSlotModal('${c.id}')" class="text-xs font-semibold text-indigo-600 hover:underline">Confirm Slot</button>
-            </td>
-          </tr>
+      try {
+        const data = await apiFetch('/api/calls');
+        const container = document.getElementById('callRequestsTableContainer');
+        if (!data.calls || !data.calls.length) {
+          container.innerHTML = `<div class="p-8 text-center text-xs text-slate-400">No scheduled call requests currently active.</div>`;
+          return;
+        }
+        let html = `
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-500 border-b border-gray-200">
+              <tr>
+                <th class="py-3 px-4 font-semibold">Buyer Name</th>
+                <th class="py-3 px-4 font-semibold">Phone</th>
+                <th class="py-3 px-4 font-semibold">Product Interest</th>
+                <th class="py-3 px-4 font-semibold">Confirmed Slot</th>
+                <th class="py-3 px-4 font-semibold">Status</th>
+                <th class="py-3 px-4 font-semibold text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
         `;
-      });
-      html += `</tbody></table>`;
-      container.innerHTML = html;
+        data.calls.forEach(c => {
+          html += `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(c.lead?.name || 'Buyer')}</td>
+              <td class="py-3 px-4 font-mono text-slate-600">+${escapeHtml(c.lead?.phone || '—')}</td>
+              <td class="py-3 px-4 text-slate-800">${escapeHtml(c.lead?.product || 'Machine')}</td>
+              <td class="py-3 px-4 font-semibold text-indigo-700">${escapeHtml(c.proposed_time_raw || 'Awaiting Slot')}</td>
+              <td class="py-3 px-4"><span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">${escapeHtml(c.status)}</span></td>
+              <td class="py-3 px-4 text-right">
+                <button onclick="confirmSlotPrompt('${c.id}')" class="text-xs font-semibold text-indigo-600 hover:underline">Confirm Slot</button>
+              </td>
+            </tr>
+          `;
+        });
+        html += `</tbody></table>`;
+        container.innerHTML = html;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
-    async function confirmSlotModal(callId) {
+    async function confirmSlotPrompt(callId) {
       const slot = prompt('Enter confirmed time for call (e.g. Today at 4:30 PM):', 'Today at 4:30 PM');
       if (!slot) return;
       try {
-        const res = await fetch('/api/calls/confirm', {
+        await apiFetch('/api/calls/confirm', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentAuthToken}`
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ callRequestId: callId, confirmedTime: slot })
         });
-        const data = await res.json();
-        if (data.ok) {
-          alert('Call confirmed! Buyer and owner notified on WhatsApp.');
-          fetchCallRequests();
-        }
-      } catch (e) {
-        alert(e.message);
+        showToast('Call confirmed! Buyer and owner notified on WhatsApp.', 'success');
+        fetchCallRequests();
+        loadDashboardData();
+      } catch (err) {
+        showToast(err.message, 'error');
       }
     }
 
-    // Auto-Initialize on page load
+    // 14. Analytics View Data
+    async function loadAnalyticsData() {
+      if (!currentAuthToken) return;
+      try {
+        const data = await apiFetch('/api/analytics');
+        const m = data.metrics || {};
+        document.getElementById('anTotalLeads').textContent = m.totalLeads ?? 0;
+        document.getElementById('anQualRate').textContent = m.qualificationRate || '0%';
+        document.getElementById('anCallRate').textContent = m.callBookingRate || '0%';
+
+        const qualNum = parseInt(m.qualificationRate || '0', 10);
+        document.getElementById('anEngagePct').textContent = `${qualNum}%`;
+        document.getElementById('anEngageBar').style.width = `${qualNum}%`;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // 15. Settings View Data & Saving
+    async function loadSettingsData() {
+      if (!currentAuthToken) return;
+      try {
+        const data = await apiFetch('/api/settings');
+        const s = data.settings || {};
+        document.getElementById('settingCompanyName').value = s.company_name || '';
+        document.getElementById('settingCityBase').value = s.city_base || '';
+        document.getElementById('settingOwnerPhone').value = s.escalation_phone || '';
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function saveAiSettings() {
+      const companyName = document.getElementById('settingCompanyName').value;
+      const cityBase = document.getElementById('settingCityBase').value;
+      const ownerAlertPhone = document.getElementById('settingOwnerPhone').value;
+      const geminiApiKey = document.getElementById('settingGeminiKey').value;
+
+      try {
+        await apiFetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ companyName, cityBase, ownerAlertPhone, geminiApiKey })
+        });
+        showToast('Company & AI settings saved successfully!', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function saveCloudApiSettings() {
+      const wabaId = document.getElementById('wabaIdInput').value;
+      const phoneId = document.getElementById('phoneIdInput').value;
+      const token = document.getElementById('wabaTokenInput').value;
+
+      try {
+        await apiFetch('/api/settings/whatsapp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wabaId, phoneId, token })
+        });
+        showToast('Meta Cloud API credentials saved!', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function copyWebhookUrl() {
+      const el = document.getElementById('webhookUrlInput');
+      navigator.clipboard.writeText(el.value);
+      showToast('IndiaMART Webhook URL copied to clipboard!', 'success');
+    }
+
+    // 16. Upgrade Plan Modal
+    function openUpgradeModal(planName) {
+      document.getElementById('upgradePlanTitle').textContent = `Upgrade to ${planName} Plan`;
+      document.getElementById('upgradeModal').classList.remove('hidden');
+    }
+    function closeUpgradeModal() {
+      document.getElementById('upgradeModal').classList.add('hidden');
+    }
+
+    // Initialize on page load
     window.addEventListener('DOMContentLoaded', () => {
       checkAuthStatus();
+      // Poll WhatsApp connection status every 10 seconds
+      setInterval(() => {
+        checkWaConnection();
+      }, 10000);
     });
   </script>
 </body>
