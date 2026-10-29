@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables & secrets
+.env
+*.env
+global_api_keys.env
+
+# WhatsApp Multi-Device Session State (CRITICAL: Never commit session keys)
+auth_info/
+*auth_info*
+
+# Uploaded client catalogs & temporary storage
+catalogs/
+*.tmp
+*.log
+
+# Operating System Files
+.DS_Store
+Thumbs.db

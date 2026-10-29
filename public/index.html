@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IndiaMART → 10-Sec WhatsApp AI Command Center</title>
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card: #131c31;
+      --card-alt: #18243f;
+      --border: #263554;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --green: #10b981;
+      --green-dark: #059669;
+      --amber: #f59e0b;
+      --blue: #3b82f6;
+      --red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 18px;
+    }
+    .container { max-width: 1240px; margin: 0 auto; }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: linear-gradient(135deg, #112240 0%, #0f172a 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 22px;
+      margin-bottom: 18px;
+    }
+    .brand h1 { font-size: 1.28rem; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+    .brand p { font-size: 0.86rem; color: var(--muted); margin-top: 2px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 13px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      background: #1e293b;
+      border: 1px solid var(--border);
+    }
+    .badge.connected { background: rgba(16, 185, 129, 0.16); color: #34d399; border-color: rgba(16, 185, 129, 0.4); }
+    .badge.qr { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+    .connected .dot { background: #10b981; box-shadow: 0 0 8px #10b981; }
+    .qr .dot { background: #f59e0b; }
+
+    .grid-top {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .grid-mid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 960px) {
+      .grid-top, .grid-mid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px 20px;
+    }
+    .card h2 {
+      font-size: 1.02rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .sub { font-size: 0.82rem; color: var(--muted); margin-bottom: 14px; }
+
+    label { display: block; font-size: 0.78rem; font-weight: 600; color: #cbd5e1; margin-bottom: 5px; margin-top: 10px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #0b1324;
+      color: var(--text);
+      font-size: 0.88rem;
+      outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--blue); }
+
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 10px 15px;
+      border-radius: 9px;
+      border: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s;
+      color: #fff;
+      background: var(--blue);
+    }
+    .btn:hover { opacity: 0.92; transform: translateY(-1px); }
+    .btn-green { background: var(--green); }
+    .btn-green:hover { background: var(--green-dark); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: #cbd5e1; }
+    .btn-sm { padding: 6px 11px; font-size: 0.78rem; }
+    .w-full { width: 100%; margin-top: 14px; }
+
+    .qr-box {
+      background: #0b1324;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      min-height: 235px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      text-align: center;
+    }
+    .qr-box img { width: 210px; height: 210px; border-radius: 10px; background: #fff; padding: 6px; }
+    .status-note { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
+
+    .chat-box {
+      background: #0b1324;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      height: 225px;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .bubble {
+      max-width: 85%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.83rem;
+      white-space: pre-wrap;
+    }
+    .bubble.buyer { align-self: flex-end; background: #1d4ed8; color: #fff; }
+    .bubble.ai { align-self: flex-start; background: #064e3b; border: 1px solid #059669; color: #ecfdf5; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.83rem; margin-top: 8px; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; font-size: 0.76rem; text-transform: uppercase; }
+    .pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      background: #1e293b;
+    }
+    .pill.hot { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.45); }
+    .pill.sent { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+
+    .link-strip {
+      margin-top: 12px;
+      padding: 10px 12px;
+      background: #0b1324;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.79rem;
+      color: #cbd5e1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .script-box {
+      background: #0f172a;
+      border-left: 4px solid var(--amber);
+      padding: 13px 16px;
+      border-radius: 8px;
+      font-size: 0.84rem;
+      color: #e2e8f0;
+      margin-top: 8px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #059669;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 9px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: none;
+      z-index: 999;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    }
+    .catalog-links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .catalog-links a {
+      font-size: 0.76rem;
+      color: #60a5fa;
+      text-decoration: none;
+      background: #0b1324;
+      padding: 4px 9px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>⚡ IndiaMART → 10-Sec WhatsApp AI Command Center</h1>
+        <p>Live Demo & Production Engine • Auto Greeting + PDF Catalog + Hinglish AI Voice/Text Qualifier</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <a href="/client" target="_blank" class="btn btn-green btn-sm" style="text-decoration:none;">👔 Simple Client Dashboard (/client)</a>
+        <a href="/demo" target="_blank" class="btn btn-outline btn-sm">🔗 Open Buyer Form (/demo)</a>
+        <div id="waBadge" class="badge"><span class="dot"></span><span id="waBadgeText">Checking...</span></div>
+      </div>
+    </header>
+
+    <div class="grid-top">
+      <!-- STEP 1: WHATSAPP QR PAIRING -->
+      <div class="card">
+        <h2>
+          <span>1️⃣ Connect Spare WhatsApp SIM</span>
+          <button class="btn btn-outline btn-sm" onclick="connectWA(true)">Reset QR</button>
+        </h2>
+        <p class="sub">Open WhatsApp on your spare phone → <b>3 Dots (⋮) → Linked Devices → Link a Device</b>.</p>
+
+        <div class="qr-box" id="qrContainer">
+          <div id="qrInner">
+            <p style="font-size:0.86rem; color:#cbd5e1; margin-bottom:10px;">Ready to pair your demo WhatsApp SIM</p>
+            <button class="btn btn-green" onclick="connectWA(false)">📲 Generate WhatsApp QR Code</button>
+          </div>
+          <p class="status-note" id="waEventText">Click button above to display scannable QR code.</p>
+        </div>
+
+        <div class="catalog-links">
+          <a href="/catalogs/Pouch-Packing-Machine-Catalog.pdf" target="_blank">📄 Pouch Packing PDF</a>
+          <a href="/catalogs/Liquid-Paste-Filling-Machine-Catalog.pdf" target="_blank">📄 Liquid Filling PDF</a>
+          <a href="/catalogs/Shrink-Tunnel-Carton-Sealer-Catalog.pdf" target="_blank">📄 Carton Sealer PDF</a>
+        </div>
+      </div>
+
+      <!-- STEP 2: LIVE CALL MAGIC TRICK LAUNCHER -->
+      <div class="card">
+        <h2>
+          <span>2️⃣ Live Phone Call "Magic Trick" Launcher</span>
+          <span class="pill sent">Closes ₹12k Deals Live</span>
+        </h2>
+        <p class="sub">While on the phone with an IndiaMART Packaging Machinery owner, enter <b>their Name & WhatsApp Number</b> below and fire a live simulated IndiaMART enquiry. In 8 seconds, their phone receives a personalized message + <b>real PDF Catalog</b>!</p>
+
+        <div class="row-2">
+          <div>
+            <label>Buyer Name (Optional - leave blank if not shared)</label>
+            <input id="simName" type="text" placeholder="e.g. Amit Kumar (or leave empty)" value="" />
+          </div>
+          <div>
+            <label>Target WhatsApp Number (10-digit or +91)</label>
+            <input id="simPhone" type="text" placeholder="e.g. 9876543210" />
+          </div>
+        </div>
+
+        <div class="row-2">
+          <div>
+            <label>IndiaMART Machine Category (Auto-picks matching PDF)</label>
+            <select id="simProduct">
+              <option value="Automatic Pouch Packing Machine">Automatic Pouch Packing Machine (Pouch PDF)</option>
+              <option value="Automatic Liquid & Paste Filling Machine">Automatic Liquid & Oil Filling Machine (Liquid PDF)</option>
+              <option value="Carton Sealer & Shrink Wrapping Machine">Carton Sealer & Shrink Tunnel (Carton PDF)</option>
+            </select>
+          </div>
+          <div>
+            <label>Send Delay (8s feels real on call)</label>
+            <select id="simDelay">
+              <option value="8">8 Seconds (Best for Live Phone Pitch)</option>
+              <option value="2">2 Seconds (Instant Test)</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-green w-full" onclick="fireSimulatedLead()">
+          🚀 Fire Live IndiaMART Enquiry + Send PDF Brochure Now
+        </button>
+
+        <div class="link-strip">
+          <span id="waMeHelper">💡 <b>Alternative 1-Tap Trigger:</b>Once WhatsApp connects, a <code>wa.me</code> link appears here so owners can message your bot first!</span>
+          <button class="btn btn-outline btn-sm" onclick="copyWaMeLink()">Copy 1-Tap Link</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-mid">
+      <!-- STEP 3: DRY-RUN HINGLISH AI TESTER -->
+      <div class="card">
+        <h2>
+          <span>3️⃣ Test AI Hinglish Sales Brain (Browser Dry-Run)</span>
+          <button class="btn btn-outline btn-sm" onclick="resetDryRun()">Reset Chat</button>
+        </h2>
+        <p class="sub">Practice how your AI handles tricky buyer questions even before scanning WhatsApp! Try typing: <i>"100g haldi mirch pack karni hai Ludhiana mein, rate aur bijli load batao"</i></p>
+
+        <div class="chat-box" id="dryChatBox">
+          <div class="bubble ai">Namaste Vikram ji! 🙏 Pouch Packing Machine ka PDF brochure bhej diya hai (₹1.45L – ₹3.15L + GST). Aapko kya item aur kitne gram pack karna hai, aur kis City mein chahiye?</div>
+        </div>
+
+        <div style="display:flex; gap:8px;">
+          <input id="dryInput" type="text" placeholder="Type as an IndiaMART buyer in Hindi / Hinglish / English..." onkeydown="if(event.key==='Enter') sendDryRun()" />
+          <button class="btn" onclick="sendDryRun()">Send</button>
+        </div>
+      </div>
+
+      <!-- STEP 4: SETTINGS & GEMINI FREE VOICE-NOTE KEY -->
+      <div class="card">
+        <h2>
+          <span>4️⃣ AI Brain & Client Branding Settings</span>
+          <span id="aiModeBadge" class="pill">Smart Built-In Hinglish Active</span>
+        </h2>
+        <p class="sub">Works out-of-the-box with <b>₹0 cost</b>! Add a free <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#60a5fa;">Google AI Studio Gemini Key</a> to unlock <b>Hindi/Punjabi Voice Note listening</b> + full LLM replies.</p>
+
+        <div class="row-2">
+          <div>
+            <label>Demo / Client Company Name</label>
+            <input id="cfgCompany" type="text" value="Bharat PackTech Machinery" />
+          </div>
+          <div>
+            <label>Owner Alert WhatsApp Number (Gets 🔥 Hot Lead Pings)</label>
+            <input id="cfgOwnerPhone" type="text" placeholder="Optional: 98XXXXXXXX" />
+          </div>
+        </div>
+
+        <label>Free Gemini API Key (Optional — Enables Voice Notes + Gemini 3.5 Flash)</label>
+        <input id="cfgGeminiKey" type="password" placeholder="AIzaSy... (Free from aistudio.google.com/apikey)" />
+
+        <div style="display:flex; align-items:center; gap:10px; margin: 12px 0;">
+          <input type="checkbox" id="cfgVoiceReply" checked style="width:18px; height:18px; accent-color:#10b981; cursor:pointer;" />
+          <label for="cfgVoiceReply" style="margin:0; font-size:0.88rem; cursor:pointer; color:#f8fafc;">
+            🎙️ <b>Reply with Audio Voice Notes (PTT)</b> — Speaks back in real Hindi/Hinglish audio
+          </label>
+        </div>
+
+        <button class="btn w-full" onclick="saveSettings()">💾 Save Settings Live (No Restart Needed)</button>
+      </div>
+    </div>
+
+    <!-- AUTONOMOUS SELF-LEARNING & IMAGE DISPATCH ENGINE -->
+    <div class="card" style="margin-bottom:18px; border-color: rgba(96, 165, 250, 0.3);">
+      <h2>
+        <span>🧠 Autonomous Self-Learning & Catalog Intelligence</span>
+        <span class="pill sent" id="learningActiveBadge">Self-Learning Active</span>
+      </h2>
+      <p class="sub">The AI automatically analyzes every customer chat to expand its vocabulary, learn local spelling variations (e.g. <i>Amritsra</i> → Amritsar), catalog abbreviations (<i>BPT-500</i>), and technical FAQs. It also dispatches factory photos on demand!</p>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-top:10px;">
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Learned Terms & Synonyms</div>
+          <div style="font-size:1.6rem; font-weight:800; color:#60a5fa; margin:4px 0;" id="learnedSynonymsCount">11</div>
+          <div style="font-size:0.8rem; color:#cbd5e1;" id="learnedSynonymsSample">bpt 500, collar, ffs, amritsra, strapper</div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Auto-Discovered FAQs</div>
+          <div style="font-size:1.6rem; font-weight:800; color:#34d399; margin:4px 0;" id="learnedFaqCount">4</div>
+          <div style="font-size:0.8rem; color:#cbd5e1;">Single phase 220V, Nitrogen, Compressor</div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Photo Dispatcher</div>
+          <div style="font-size:1.6rem; font-weight:800; color:#fbbf24; margin:4px 0;">4 HD Units</div>
+          <div style="font-size:0.8rem; color:#cbd5e1;">Triggers on: "photo", "pics", "dikhao"</div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:8px; padding:12px;">
+          <div style="font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em;">Product Disambiguation</div>
+          <div style="font-size:1.6rem; font-weight:800; color:#a78bfa; margin:4px 0;">Smart 1-2-3</div>
+          <div style="font-size:0.8rem; color:#cbd5e1;">Pouch vs Liquid vs Carton chooser</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIVE QUALIFIED LEADS CRM SHEET -->
+    <div class="card" style="margin-bottom:18px;">
+      <h2>
+        <span>📊 Live IndiaMART Qualified Leads Tracker (Show This to Owners!)</span>
+        <div style="display:flex; gap:8px;">
+          <a href="/api/leads.csv" class="btn btn-green btn-sm" style="text-decoration:none;">⬇️ Download Excel / CSV</a>
+          <button class="btn btn-outline btn-sm" onclick="clearLeads()">Clear Demo Rows</button>
+        </div>
+      </h2>
+      <p class="sub">Real IndiaMART Push Webhook Endpoint (paste inside client's <code>seller.indiamart.com</code> once they pay): <code style="color:#60a5fa;">POST /api/webhook/indiamart</code></p>
+
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Buyer Name</th>
+              <th>WhatsApp</th>
+              <th>Machine & PDF</th>
+              <th>Extracted Requirement</th>
+              <th>Buyer City</th>
+              <th>Status</th>
+              <th>Last Reply</th>
+            </tr>
+          </thead>
+          <tbody id="leadsTableBody">
+            <tr><td colspan="8" style="color:#94a3b8; text-align:center; padding:18px;">No leads fired yet — trigger a test above!</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TELEPROMPTER SCRIPT FOR LIVE CALLS -->
+    <div class="card">
+      <h2>📞 Word-for-Word Live Call Teleprompter (Read While Calling `dir.indiamart.com` TrustSEAL Sellers)</h2>
+      <div class="script-box">
+        <p><b>1. Opener (15 sec):</b> "Hello [Owner Name] ji? Sir main IndiaMART se nahi bol raha—main Packaging Machinery TrustSEAL manufacturers ke liye ek 10-second AI WhatsApp system lagata hoon. Jab IndiaMART pe buyer enquiry aati hai toh wahi number 6 aur suppliers ko jaata hai, aur staff ke late reply karne se order nikal jaata hai—sahi baat hai sir?"</p>
+        <p style="margin-top:8px;"><b>2. Trigger the Magic Trick (20 sec):</b> "Sir phone speaker pe rakhiye aur apna WhatsApp dekhiye—main abhi aapke number pe ek live dummy IndiaMART enquiry fire kar raha hoon. Dekhiye 8 second mein kaise machine ka PDF brochure aur Hinglish message aata hai!" <i>(Click <b>🚀 Fire Live IndiaMART Enquiry</b> above → Let them reply with a price question or Voice Note!)</i></p>
+        <p style="margin-top:8px;"><b>3. The ₹12,000 UPI Close:</b> "Sir CRM wale saal ka ₹35,000 maangte hain. Mera complete one-time setup sirf <b>₹12,000</b> hai—aapke official IndiaMART Push API, aapki sabhi machines ke PDF catalogs, 24×7 Hinglish AI, aur Excel Sheet sab jud jayega. Aap <b>₹6,000 abhi UPI</b> kar dijiye toh main abhi aapke catalogs set karna start karta hoon, aur baaki ₹6,000 aaj raat jab aapke apne IndiaMART pe live test chal jaaye tab kar dijiyega."</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Saved!</div>
+
+  <script>
+    let currentConnectedNumber = '';
+    let firstLoad = true;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3200);
+    }
+
+    async function pollStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const { waState, config, leads } = data;
+
+        const badge = document.getElementById('waBadge');
+        const badgeText = document.getElementById('waBadgeText');
+        const qrInner = document.getElementById('qrInner');
+        document.getElementById('waEventText').textContent = waState.lastEvent || '';
+
+        if (waState.status === 'connected') {
+          currentConnectedNumber = waState.connectedNumber || '';
+          badge.className = 'badge connected';
+          badgeText.textContent = `Connected: +${currentConnectedNumber}`;
+          qrInner.innerHTML = `
+            <div style="font-size:2.4rem; margin-bottom:6px;">✅</div>
+            <div style="font-weight:700; color:#34d399;">WhatsApp Live & Ready!</div>
+            <div style="font-size:0.82rem; color:#cbd5e1; margin-top:4px;">Paired Number: +${currentConnectedNumber}</div>
+          `;
+          document.getElementById('waMeHelper').innerHTML =
+            `💡 <b>1-Tap Owner Link:</b> <code>https://wa.me/${currentConnectedNumber}?text=IndiaMART%20Enquiry%3A%20Automatic%20Pouch%20Packing%20Machine</code>`;
+        } else if (waState.status === 'qr_ready' && waState.qrDataUrl) {
+          badge.className = 'badge qr';
+          badgeText.textContent = 'Scan QR Code Now';
+          qrInner.innerHTML = `<img src="${waState.qrDataUrl}" alt="WhatsApp QR Code" />`;
+        } else if (waState.status === 'connecting') {
+          badge.className = 'badge qr';
+          badgeText.textContent = 'Generating QR...';
+          qrInner.innerHTML = `<div style="color:#fbbf24; font-weight:600;">⏳ Connecting to WhatsApp... (3–5 sec)</div>`;
+        } else {
+          badge.className = 'badge';
+          badgeText.textContent = 'Not Connected';
+          qrInner.innerHTML = `
+            <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:10px;">Pair your spare WhatsApp SIM in 10 seconds</p>
+            <button class="btn btn-green" onclick="connectWA(false)">📲 Generate WhatsApp QR Code</button>
+          `;
+        }
+
+        if (firstLoad) {
+          document.getElementById('cfgCompany').value = config.companyName || '';
+          document.getElementById('cfgOwnerPhone').value = config.ownerAlertPhone || '';
+          if (config.replyWithVoiceNotes !== undefined) {
+            document.getElementById('cfgVoiceReply').checked = Boolean(config.replyWithVoiceNotes);
+          }
+          if (config.geminiConfigured) {
+            document.getElementById('cfgGeminiKey').placeholder = `Configured (${config.geminiApiKeyMasked}) — paste new key to replace`;
+          }
+          firstLoad = false;
+        }
+
+        const aiBadge = document.getElementById('aiModeBadge');
+        if (config.geminiConfigured) {
+          aiBadge.className = 'pill sent';
+          aiBadge.textContent = '✨ Gemini 3.5 AI + Voice Notes Active';
+        } else {
+          aiBadge.className = 'pill';
+          aiBadge.textContent = '⚡ Built-In Hinglish Brain (₹0 No-Key Mode)';
+        }
+
+        if (data.learnings) {
+          const synCount = Object.keys(data.learnings.synonyms || {}).length;
+          const faqCount = (data.learnings.faqs || []).length;
+          const sample = Object.keys(data.learnings.synonyms || {}).slice(0, 5).join(', ');
+          if (document.getElementById('learnedSynonymsCount')) document.getElementById('learnedSynonymsCount').textContent = synCount;
+          if (document.getElementById('learnedFaqCount')) document.getElementById('learnedFaqCount').textContent = faqCount;
+          if (document.getElementById('learnedSynonymsSample') && sample) document.getElementById('learnedSynonymsSample').textContent = sample;
+        }
+
+        renderLeads(leads || []);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderLeads(leads) {
+      const tbody = document.getElementById('leadsTableBody');
+      if (!leads.length) {
+        tbody.innerHTML = `<tr><td colspan="8" style="color:#94a3b8; text-align:center; padding:18px;">No leads fired yet — trigger a test above!</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = leads.map((l) => {
+        const lastMsg = l.history && l.history.length ? l.history[l.history.length - 1].text : '-';
+        const isHot = String(l.status).includes('HOT');
+        return `
+          <tr>
+            <td style="white-space:nowrap; color:#94a3b8;">${new Date(l.updatedAt).toLocaleTimeString('en-IN')}</td>
+            <td><b>${escapeHtml(l.name)}</b></td>
+            <td>+${escapeHtml(l.phone)}</td>
+            <td>${escapeHtml(l.productName)} ${l.pdfSent ? '<span class="pill sent">PDF ✓</span>' : ''}</td>
+            <td>${escapeHtml(l.requirement || '—')}</td>
+            <td><b>${escapeHtml(l.city || '—')}</b></td>
+            <td><span class="pill ${isHot ? 'hot' : 'sent'}">${escapeHtml(l.status)}</span></td>
+            <td style="max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(lastMsg)}">${escapeHtml(lastMsg)}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function connectWA(reset) {
+      await fetch('/api/whatsapp/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset })
+      });
+      showToast(reset ? 'Resetting session & generating fresh QR...' : 'Starting WhatsApp QR generator...');
+      setTimeout(pollStatus, 700);
+    }
+
+    async function fireSimulatedLead() {
+      const name = document.getElementById('simName').value.trim();
+      const phone = document.getElementById('simPhone').value.trim();
+      const productQuery = document.getElementById('simProduct').value;
+      const delaySec = Number(document.getElementById('simDelay').value);
+
+      if (!phone || phone.replace(/\D/g, '').length < 10) {
+        alert('Please enter a valid 10-digit WhatsApp number to receive the live demo!');
+        return;
+      }
+      const res = await fetch('/api/simulate-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, productQuery, delaySec })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(`🚀 Lead fired! Sending Greeting + PDF Brochure in ${delaySec}s...`);
+        pollStatus();
+      } else {
+        alert(data.error || 'Error firing lead');
+      }
+    }
+
+    function copyWaMeLink() {
+      const num = currentConnectedNumber || '91XXXXXXXXXX';
+      const url = `https://wa.me/${num}?text=${encodeURIComponent('IndiaMART Enquiry: Automatic Pouch Packing Machine - Please send PDF catalog & price')}`;
+      navigator.clipboard.writeText(url);
+      showToast('Copied 1-Tap WhatsApp Trigger Link!');
+    }
+
+    async function sendDryRun() {
+      const input = document.getElementById('dryInput');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      const box = document.getElementById('dryChatBox');
+      box.innerHTML += `<div class="bubble buyer">${escapeHtml(text)}</div>`;
+      box.scrollTop = box.scrollHeight;
+
+      const res = await fetch('/api/dry-run-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        box.innerHTML += `<div class="bubble ai">${escapeHtml(data.reply)}</div>`;
+        box.scrollTop = box.scrollHeight;
+      }
+    }
+
+    async function resetDryRun() {
+      await fetch('/api/dry-run-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset: true })
+      });
+      document.getElementById('dryChatBox').innerHTML =
+        `<div class="bubble ai">Namaste Vikram ji! 🙏 Pouch Packing Machine ka PDF brochure bhej diya hai (₹1.45L – ₹3.15L + GST). Aapko kya item aur kitne gram pack karna hai, aur kis City mein chahiye?</div>`;
+    }
+
+    async function saveSettings() {
+      const companyName = document.getElementById('cfgCompany').value.trim();
+      const ownerAlertPhone = document.getElementById('cfgOwnerPhone').value.trim();
+      const geminiApiKey = document.getElementById('cfgGeminiKey').value.trim();
+      const replyWithVoiceNotes = document.getElementById('cfgVoiceReply').checked;
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyName, ownerAlertPhone, geminiApiKey, replyWithVoiceNotes })
+      });
+      document.getElementById('cfgGeminiKey').value = '';
+      firstLoad = true;
+      showToast('✅ Settings saved live!');
+      pollStatus();
+    }
+
+    async function clearLeads() {
+      await fetch('/api/leads/clear', { method: 'POST' });
+      pollStatus();
+    }
+
+    pollStatus();
+    setInterval(pollStatus, 2500);
+  </script>
+</body>
+</html>

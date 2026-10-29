@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live Demo — Instant Packaging Machinery Catalog on WhatsApp</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: #ffffff;
+      max-width: 460px;
+      width: 100%;
+      border-radius: 16px;
+      box-shadow: 0 12px 35px rgba(15, 23, 42, 0.1);
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+    .top-bar {
+      background: linear-gradient(135deg, #007a5a 0%, #065f46 100%);
+      color: #fff;
+      padding: 20px 24px;
+    }
+    .tag {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 99px;
+      margin-bottom: 6px;
+      letter-spacing: 0.4px;
+    }
+    .top-bar h1 { margin: 0; font-size: 1.2rem; }
+    .top-bar p { margin: 5px 0 0; font-size: 0.84rem; opacity: 0.92; }
+    .body { padding: 22px 24px; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 5px; margin-top: 13px; color: #334155; }
+    input, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 11px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      font-size: 0.92rem;
+    }
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 13px;
+      border: none;
+      border-radius: 10px;
+      background: #059669;
+      color: #fff;
+      font-size: 0.96rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    button:hover { background: #047857; }
+    .success {
+      display: none;
+      margin-top: 16px;
+      padding: 13px;
+      border-radius: 10px;
+      background: #ecfdf5;
+      border: 1px solid #6ee7b7;
+      color: #065f46;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="top-bar">
+      <span class="tag">LIVE B2B SPEED-TO-LEAD DEMO</span>
+      <h1>Simulate an IndiaMART Buyer Enquiry</h1>
+      <p>Enter your WhatsApp number & pick a machine — check your WhatsApp in 8 seconds for the live PDF brochure + AI Sales Engineer!</p>
+    </div>
+    <div class="body">
+      <label>Your Name (Optional)</label>
+      <input id="bName" type="text" placeholder="e.g. Amit Kumar (or leave blank)" />
+
+      <label>Your WhatsApp Mobile Number</label>
+      <input id="bPhone" type="tel" placeholder="10-digit WhatsApp Number" />
+
+      <label>Select Machinery Interested In</label>
+      <select id="bProduct">
+        <option value="Automatic Pouch Packing Machine">Automatic Pouch Packing Machine (Namkeen / Spices)</option>
+        <option value="Automatic Liquid & Paste Filling Machine">Automatic Liquid / Oil / Paste Filling Machine</option>
+        <option value="Carton Sealer & Shrink Wrapping Machine">Carton Taping, Strapping & Shrink Tunnel</option>
+      </select>
+
+      <label>Your City (Optional)</label>
+      <input id="bCity" type="text" placeholder="e.g. Ludhiana / Delhi / Rajkot" />
+
+      <button onclick="submitEnquiry()" id="subBtn">⚡ Get Instant Quote & PDF on WhatsApp</button>
+      <div class="success" id="okBox">
+        ✅ Enquiry Received! Open your WhatsApp now — your PDF Catalog & AI Sales Assistant are arriving in ~8 seconds!
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function submitEnquiry() {
+      const name = document.getElementById('bName').value.trim();
+      const phone = document.getElementById('bPhone').value.trim();
+      const productQuery = document.getElementById('bProduct').value;
+      const city = document.getElementById('bCity').value.trim();
+      if (phone.replace(/\D/g, '').length < 10) {
+        alert('Please enter your 10-digit WhatsApp mobile number.');
+        return;
+      }
+      const btn = document.getElementById('subBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending to WhatsApp...';
+      const res = await fetch('/api/simulate-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, phone, productQuery, city, delaySec: 6 })
+      });
+      const data = await res.json();
+      btn.disabled = false;
+      btn.textContent = '⚡ Get Instant Quote & PDF on WhatsApp';
+      if (data.ok) {
+        document.getElementById('okBox').style.display = 'block';
+      } else {
+        alert(data.error || 'Something went wrong');
+      }
+    }
+  </script>
+</body>
+</html>

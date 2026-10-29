@@ -1,0 +1,191 @@
+{
+  "companyName": "Bharat PackTech Machinery",
+  "cityBase": "Delhi NCR / Ludhiana Dispatch Hub",
+  "geminiApiKey": "",
+  "ownerAlertPhone": "",
+  "replyDelaySec": 8,
+  "autoReplyEnabled": true,
+  "replyWithVoiceNotes": true,
+  "products": [
+    {
+      "id": "item_d9w62",
+      "name": "High Speed Bottle Labeler",
+      "keywords": [
+        "high",
+        "speed",
+        "bottle",
+        "labeler"
+      ],
+      "catalogFile": "Chemical-Pharma-Equipment.csv",
+      "priceRange": "â¹1",
+      "subModels": [
+        {
+          "name": "High Speed Bottle Labeler",
+          "price": "â¹1",
+          "speed": "Standard",
+          "suitableFor": "120 bottles/min"
+        }
+      ]
+    },
+    {
+      "id": "item_g4xw0",
+      "name": "Industrial Ribbon Blender",
+      "keywords": [
+        "industrial",
+        "ribbon",
+        "blender"
+      ],
+      "catalogFile": "Chemical-Pharma-Equipment.csv",
+      "priceRange": "â¹3",
+      "subModels": [
+        {
+          "name": "Industrial Ribbon Blender",
+          "price": "â¹3",
+          "speed": "Standard",
+          "suitableFor": "500 Kg Batch"
+        }
+      ]
+    },
+    {
+      "id": "pouch",
+      "name": "Automatic Pouch Packing Machine",
+      "keywords": [
+        "pouch",
+        "packing",
+        "namkeen",
+        "masala",
+        "spice",
+        "haldi",
+        "granule",
+        "collar",
+        "chips",
+        "kurkure",
+        "tea",
+        "pulse",
+        "bpt",
+        "bpt 500",
+        "ffs",
+        "auger",
+        "powder",
+        "vffs",
+        "snack",
+        "dry fruit"
+      ],
+      "catalogFile": "Pouch-Packing-Machine-Catalog.pdf",
+      "priceRange": "₹1,45,000 – ₹3,15,000 + GST (40–65 Pouches/Min, SS-304 Food Grade, Delta PLC)",
+      "imageFile": "pouch-packing-machine.jpg",
+      "subModels": [
+        {
+          "name": "BPT-500 Collar Type PLC Pouch Machine",
+          "speed": "40–65 pouches/min",
+          "packSize": "10g–500g",
+          "price": "₹2,35,000",
+          "suitableFor": "Namkeen, Kurkure, Chips, Granules, Tea",
+          "imageFile": "bpt-500-collar-plc.jpg"
+        },
+        {
+          "name": "BPT-Auger High-Precision Powder Filler",
+          "speed": "30–50 pouches/min",
+          "packSize": "20g–1000g",
+          "price": "₹2,85,000",
+          "suitableFor": "Haldi, Mirch, Spices, Atta, Fine Chemical Powder",
+          "imageFile": "pouch-packing-machine.jpg"
+        },
+        {
+          "name": "BPT-100 Pneumatic Small Batch Sealer",
+          "speed": "20–35 pouches/min",
+          "packSize": "10g–200g",
+          "price": "₹1,45,000",
+          "suitableFor": "Small startups, Single-Phase 220V load",
+          "imageFile": "pouch-packing-machine.jpg"
+        }
+      ]
+    },
+    {
+      "id": "liquid",
+      "name": "Automatic Liquid & Paste Filling Machine",
+      "keywords": [
+        "liquid",
+        "filling",
+        "oil",
+        "paste",
+        "bottle",
+        "juice",
+        "honey",
+        "sauce",
+        "ketchup",
+        "shampoo",
+        "ghee",
+        "handwash",
+        "syrup",
+        "lotion",
+        "piston filler"
+      ],
+      "catalogFile": "Liquid-Paste-Filling-Machine-Catalog.pdf",
+      "priceRange": "₹68,000 (Semi-Auto) to ₹2,10,000 – ₹3,45,000 + GST (4/6-Head Servo Anti-Drip)",
+      "imageFile": "liquid-filling-machine.jpg",
+      "subModels": [
+        {
+          "name": "Semi-Automatic Tabletop Piston Filler (Single Head)",
+          "speed": "15–25 bottles/min",
+          "packSize": "50ml–1000ml",
+          "price": "₹68,000",
+          "suitableFor": "Edible oil, sauces, syrup, honey, Single-Phase 220V",
+          "imageFile": "liquid-filling-machine.jpg"
+        },
+        {
+          "name": "Automatic 4-Head Servo Bottle Filling Line",
+          "speed": "35–55 bottles/min",
+          "packSize": "100ml–5000ml",
+          "price": "₹2,65,000",
+          "suitableFor": "Conveyor based high-speed oil, juice, chemicals, ghee",
+          "imageFile": "liquid-filling-machine.jpg"
+        }
+      ]
+    },
+    {
+      "id": "carton",
+      "name": "Carton Sealer, Box Strapping & Shrink Tunnel",
+      "keywords": [
+        "carton",
+        "taping",
+        "sealer",
+        "strapping",
+        "shrink",
+        "box",
+        "wrapping",
+        "tunnel",
+        "corrugated",
+        "strapper",
+        "taper",
+        "bundle"
+      ],
+      "catalogFile": "Shrink-Tunnel-Carton-Sealer-Catalog.pdf",
+      "priceRange": "₹34,000 (Strapper) | ₹48,500 (Carton Taper) | ₹62,000 (Shrink Tunnel) + GST",
+      "imageFile": "carton-sealing-machine.jpg",
+      "subModels": [
+        {
+          "name": "Automatic Top & Bottom Carton Taping Machine",
+          "speed": "20–25 cartons/min",
+          "price": "₹48,500",
+          "suitableFor": "Corrugated packaging boxes",
+          "imageFile": "carton-sealing-machine.jpg"
+        },
+        {
+          "name": "Semi-Automatic Box Strapping Machine",
+          "speed": "1.5 sec/strap",
+          "price": "₹34,000",
+          "suitableFor": "Heavy bundle carton packaging",
+          "imageFile": "carton-sealing-machine.jpg"
+        },
+        {
+          "name": "Thermal Heat Shrink Tunnel Oven",
+          "speed": "Adjustable conveyor",
+          "price": "₹62,000",
+          "suitableFor": "Multi-pack bottle & box bundling",
+          "imageFile": "carton-sealing-machine.jpg"
+        }
+      ]
+    }
+  ]
+}

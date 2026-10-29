@@ -1,0 +1,23 @@
+{
+  "name": "indiamart-whatsapp-ai-demo",
+  "version": "1.0.0",
+  "description": "10-Second IndiaMART Lead -> WhatsApp PDF Brochure + Hinglish AI Sales Qualifier",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pdf-parse": "^2.4.5",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4",
+    "xlsx": "^0.18.5"
+  }
+}

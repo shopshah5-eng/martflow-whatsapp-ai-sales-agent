@@ -1,0 +1,47 @@
+{
+  "lastUpdated": "2026-10-29T14:03:00.000Z",
+  "totalLearningsCount": 8,
+  "synonyms": {
+    "bpt 500": "Automatic Pouch Packing Machine (BPT-500 Collar Type PLC)",
+    "bpt": "Automatic Pouch Packing Machine",
+    "colar": "Collar Type Pouch Packing Machine",
+    "collar": "Collar Type Pouch Packing Machine",
+    "ffs": "Form Fill Seal Pouch Machine",
+    "amritsra": "Amritsar",
+    "ludiana": "Ludhiana",
+    "single phase": "220V Single Phase Compatible",
+    "liquid filler": "Automatic Liquid & Paste Filling Machine",
+    "strapper": "Carton Sealer, Box Strapping & Shrink Tunnel",
+    "taper": "Carton Sealer, Box Strapping & Shrink Tunnel"
+  },
+  "faqs": [
+    {
+      "trigger": "single phase or 220v electricity",
+      "learnedAnswer": "Chote pneumatic pouch packing aur tabletop liquid fillers 220V Single Phase (ghar/shop load ~2.2kW) par aaram se chalte hain. Heavy high-speed collar machines 3-phase 415V par aati hain."
+    },
+    {
+      "trigger": "nitrogen flushing for chips kurkure namkeen",
+      "learnedAnswer": "Haan ji, Namkeen, Chips, aur Kurkure ki freshness aur 6-month shelf life ke liye Nitrogen Flushing attachment provide kiya jata hai."
+    },
+    {
+      "trigger": "amritsar or punjab delivery time",
+      "learnedAnswer": "Hamare Ludhiana dispatch hub se Amritsar, Jalandhar, aur Chandigarh ke liye 24-48 hours mein direct factory transport aur engineer visit available hai."
+    },
+    {
+      "trigger": "compressor requirement",
+      "learnedAnswer": "Pneumatic sealing aur piston dosing ke liye 2HP to 3HP standard air compressor chahiye hota hai."
+    }
+  ],
+  "customerPreferences": {
+    "popularModels": [
+      "BPT-500 Collar PLC",
+      "Tabletop Liquid Filler",
+      "Automatic Carton Taper"
+    ],
+    "commonPackSizes": [
+      "10g - 500g pouch",
+      "100ml - 1000ml bottle"
+    ]
+  }
+}
+

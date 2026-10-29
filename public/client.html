@@ -1,0 +1,978 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client Portal — IndiaMART WhatsApp AI Sales Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: rgba(18, 24, 38, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --blue: #38bdf8;
+      --amber: #fbbf24;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background: radial-gradient(circle at 50% 0%, #111a2e 0%, var(--bg) 65%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 0 auto;
+    }
+
+    /* HEADER */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--card-border);
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #10b981 0%, #38bdf8 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
+    }
+
+    h1 {
+      font-size: clamp(1.2rem, 3vw, 1.5rem);
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-link {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      transition: all 0.2s;
+    }
+    .btn-link:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+    }
+
+    /* BENTO GRID */
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(16px);
+      border-radius: 16px;
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-full {
+      grid-column: 1 / -1;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--blue);
+      background: rgba(56, 189, 248, 0.1);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-desc {
+      font-size: 0.86rem;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    /* WHATSAPP QR STATUS */
+    .qr-container {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .qr-container img {
+      width: 180px;
+      height: 180px;
+      border-radius: 8px;
+      background: #fff;
+      padding: 6px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    .connected-banner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .connected-icon {
+      font-size: 3rem;
+      color: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .status-pill.online {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .status-pill.offline {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* INPUTS & BUTTONS */
+    .form-group {
+      margin-bottom: 14px;
+    }
+    label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+    }
+    input[type="text"], input[type="tel"] {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      color: #fff;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .btn-green {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #fff;
+      box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+    }
+    .btn-green:hover {
+      opacity: 0.92;
+      transform: translateY(-1px);
+    }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: #cbd5e1;
+      margin-top: 8px;
+    }
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+    }
+
+    /* DROPZONE */
+    .dropzone {
+      border: 2px dashed rgba(56, 189, 248, 0.35);
+      background: rgba(56, 189, 248, 0.03);
+      border-radius: 12px;
+      padding: 24px 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 14px;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--blue);
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .drop-icon { font-size: 2rem; margin-bottom: 6px; }
+    .drop-text { font-size: 0.88rem; font-weight: 600; color: #cbd5e1; }
+    .drop-sub { font-size: 0.76rem; color: var(--muted); margin-top: 4px; }
+
+    /* CATALOG PILLS */
+    .active-catalogs {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .catalog-tag {
+      font-size: 0.78rem;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--card-border);
+      padding: 6px 12px;
+      border-radius: 20px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #e2e8f0;
+      text-decoration: none;
+    }
+    .catalog-tag:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--blue);
+    }
+
+    /* WHATSAPP ALERT PREVIEW CARD */
+    .phone-preview {
+      background: #0b141a;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 0.82rem;
+      color: #e9edef;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+    .whatsapp-bubble {
+      background: #005c4b;
+      padding: 10px 14px;
+      border-radius: 10px 10px 0 10px;
+      line-height: 1.5;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .bubble-cta {
+      display: inline-block;
+      margin-top: 8px;
+      background: #25d366;
+      color: #0b141a;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.78rem;
+    }
+
+    /* UNAVAILABLE / FALLBACK STRATEGY STEPS */
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .strategy-box {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .strat-num {
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--blue);
+      margin-bottom: 4px;
+    }
+    .strat-title {
+      font-weight: 700;
+      font-size: 0.86rem;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    .strat-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* LEADS CRM TABLE */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.84rem;
+      margin-top: 10px;
+    }
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--card-border);
+      font-weight: 600;
+    }
+    td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .pill {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .pill.hot { background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .pill.sent { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .pill.callback { background: rgba(251, 191, 36, 0.18); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+    .pill.scheduled { background: rgba(56, 189, 248, 0.18); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
+
+    .slot-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #f1f5f9;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .slot-btn:hover {
+      background: rgba(251, 191, 36, 0.15);
+      border-color: #fbbf24;
+      color: #fbbf24;
+      transform: translateY(-1px);
+    }
+
+    /* TOAST */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      border: 1px solid var(--accent);
+      display: none;
+      z-index: 1000;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.05); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- HEADER -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <div>
+          <h1 id="headerCompanyTitle">Bharat PackTech Machinery</h1>
+          <div class="subtitle">IndiaMART 10-Second AI Sales Command Center</div>
+        </div>
+      </div>
+      <div class="nav-links">
+        <div id="waStatusPill" class="status-pill offline">Checking WhatsApp...</div>
+        <a href="/" class="btn-link">⚙️ Full Operator Dashboard</a>
+      </div>
+    </header>
+
+    <!-- BENTO GRID -->
+    <div class="bento-grid">
+
+      <!-- STEP 1: LINK WHATSAPP -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📱 1. Connect WhatsApp SIM</div>
+          <span class="step-badge">Step 1</span>
+        </div>
+        <p class="card-desc">Scan with your spare WhatsApp Business or regular WhatsApp to start sending instant brochure PDFs & AI audio replies.</p>
+        
+        <div class="qr-container" id="qrContainer">
+          <p style="color:#94a3b8; font-size:0.85rem;">Loading QR status...</p>
+        </div>
+
+        <button class="btn btn-outline" onclick="connectWA(true)">🔄 Generate New QR / Switch Phone</button>
+      </div>
+
+      <!-- STEP 2: UPLOAD PRODUCT PDF / EXCEL CATALOG -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📄 2. Upload Product Catalog or Excel Sheet</div>
+          <span class="step-badge">Step 2</span>
+        </div>
+        <p class="card-desc">Upload your product catalog in <b>PDF, Excel (.xlsx/.xls), or CSV</b> format. The AI reads all products, models, and specifications so it can answer buyers accurately!</p>
+
+        <div class="dropzone" id="dropzone" onclick="document.getElementById('pdfFileInput').click()">
+          <div class="drop-icon">📤</div>
+          <div class="drop-text">Click or Drop Catalog (PDF, Excel .xlsx / .csv)</div>
+          <div class="drop-sub">Max 10MB • AI extracts all models, prices & specs automatically</div>
+        </div>
+        <input type="file" id="pdfFileInput" accept=".pdf,.xlsx,.xls,.csv" style="display:none;" onchange="handleFileSelect(event)" />
+
+        <div class="form-group">
+          <label>Machine Model / Category Name</label>
+          <input type="text" id="uploadProdName" placeholder="e.g. Multi-Track Sachet Packing Machine" />
+        </div>
+
+        <div class="form-group">
+          <label>Price Range / Starting Rate</label>
+          <input type="text" id="uploadProdPrice" placeholder="e.g. ₹2,20,000 to ₹4,50,000 + GST" />
+        </div>
+
+        <button class="btn btn-green" id="uploadBtn" onclick="uploadCatalogFile()">🚀 Upload & Activate Catalog</button>
+
+        <div class="active-catalogs" id="activeCatalogsList">
+          <!-- Active catalog tags loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- STEP 3: WHERE YOU GET TEXT ON MAIN ACCOUNT -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔔 3. Get Alerts on Your Main Mobile</div>
+          <span class="step-badge">Step 3</span>
+        </div>
+        <p class="card-desc">Enter <b>your personal WhatsApp number</b>. As soon as a buyer shares their requirement or asks for rates, you get a 🔥 Hot Lead alert with a 1-tap call button!</p>
+
+        <div class="form-group">
+          <label>Your Personal Mobile Number (10 Digits)</label>
+          <input type="tel" id="ownerMobileInput" placeholder="e.g. 9812345678" />
+        </div>
+
+        <div class="form-group">
+          <label>Your Factory / Company Name</label>
+          <input type="text" id="clientCompanyInput" placeholder="e.g. Apex Packaging Machinery" />
+        </div>
+
+        <button class="btn btn-green" onclick="saveClientProfile()">💾 Save My Alert Number</button>
+
+        <div style="margin-top:16px;">
+          <label style="font-size:0.75rem; text-transform:uppercase; color:#94a3b8;">Sample Alert You Receive on Your Phone:</label>
+          <div class="phone-preview">
+            <div class="whatsapp-bubble">
+              🔥 <b>HOT INDIAMART LEAD QUALIFIED!</b><br>
+              👤 <b>Buyer:</b> Vikram Sharma<br>
+              📞 <b>Mobile:</b> +91 97810 18975<br>
+              ⚙️ <b>Machine:</b> BPT-500 Collar PLC (Pouch)<br>
+              📦 <b>Requirement:</b> 250g Spices Packing<br>
+              📍 <b>City:</b> Amritsar (Overnight Dispatch)<br>
+              <a href="#" class="bubble-cta" onclick="return false;">👉 Tap to Call or Chat Buyer</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: HOW AI HANDLES CUSTOMERS WHEN YOU ARE UNAVAILABLE -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🛡️ 4. When You Are Unavailable</div>
+          <span class="step-badge">24/7 Coverage</span>
+        </div>
+        <p class="card-desc">What happens if you are in a meeting, inspecting machinery on the factory floor, or asleep? The AI runs an automated 4-step 2-way resolution loop so you never lose a deal:</p>
+
+        <div class="strategy-grid">
+          <div class="strategy-box">
+            <div class="strat-num">1️⃣</div>
+            <div class="strat-title">Reassures Customer</div>
+            <div class="strat-desc">Tells buyer the Director is in the plant and will confirm his exact free time to connect.</div>
+          </div>
+          <div class="strategy-box">
+            <div class="strat-num">2️⃣</div>
+            <div class="strat-title">Asks YOU on WhatsApp</div>
+            <div class="strat-desc">Pings you on WhatsApp: <i>"Buyer wants to speak. When are you free for a call?"</i></div>
+          </div>
+          <div class="strategy-box">
+            <div class="strat-num">3️⃣</div>
+            <div class="strat-title">Notifies Customer</div>
+            <div class="strat-desc">Once you confirm your time, AI messages customer: <i>"Director is free at [Time]. Team will call then!"</i></div>
+          </div>
+          <div class="strategy-box">
+            <div class="strat-num">4️⃣</div>
+            <div class="strat-title">Shares Buyer Dossier</div>
+            <div class="strat-desc">Sends you the customer's full phone number, machine specs, notes & one-tap direct call link!</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 5: 2-WAY INTERACTIVE CALL SCHEDULER & NOTIFICATION (FULL WIDTH) -->
+      <div class="card card-full" style="border-color: rgba(251, 191, 36, 0.35); background: linear-gradient(180deg, rgba(251, 191, 36, 0.06) 0%, rgba(18, 24, 38, 0.8) 100%);">
+        <div class="card-header">
+          <div class="card-title">📞 2-Way Live Call Scheduler & Buyer Time Lock</div>
+          <span class="step-badge" style="color:#fbbf24; background:rgba(251,191,36,0.12); border-color:rgba(251,191,36,0.3);">Real-Time 2-Way Sync</span>
+        </div>
+        <p class="card-desc">When a customer needs to speak with you, the AI asks you on WhatsApp when you have time. When you confirm (by replying on WhatsApp or selecting a slot below), the AI automatically messages the customer and sends you their full dossier!</p>
+
+        <div id="pendingCallContainer" style="margin-top:16px;">
+          <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+            <div>
+              <div style="font-weight:700; color:#34d399; font-size:0.95rem;">✅ All Customer Calls Scheduled & Up to Date</div>
+              <div style="font-size:0.8rem; color:#94a3b8; margin-top:3px;">No buyers currently waiting for a callback. Whenever an IndiaMART buyer requests a call, an interactive prompt is sent to your WhatsApp!</div>
+            </div>
+            <button class="btn btn-outline" style="width:auto; margin-top:0; border-color:rgba(251,191,36,0.5); color:#fbbf24; font-weight:700;" onclick="triggerDemoCallRequest()">
+              🧪 Test Live Call Request Demo
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 5: LIVE QUALIFIED LEADS CRM (FULL WIDTH) -->
+      <div class="card card-full">
+        <div class="card-header">
+          <div class="card-title">📊 Live Enquiries & Qualified Leads</div>
+          <span class="status-pill online" id="leadsCountBadge">0 Leads</span>
+        </div>
+        <p class="card-desc">Real-time status of IndiaMART buyers interacting with your automated WhatsApp sales agent.</p>
+
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Buyer Name</th>
+                <th>Mobile Number</th>
+                <th>Machine Enquired</th>
+                <th>City</th>
+                <th>Requirement</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="clientLeadsTable">
+              <tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:20px;">No leads recorded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="toast">✅ Notification</div>
+
+  <script>
+    let selectedPdfBase64 = null;
+    let selectedPdfFileName = '';
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3200);
+    }
+
+    // POLL STATUS
+    async function pollStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const { waState, config, leads } = data;
+
+        // Header Title
+        if (config?.companyName) {
+          document.getElementById('headerCompanyTitle').textContent = config.companyName;
+          document.getElementById('clientCompanyInput').value = config.companyName;
+        }
+        if (config?.ownerAlertPhone) {
+          document.getElementById('ownerMobileInput').value = config.ownerAlertPhone;
+        }
+
+        // WhatsApp Pill & QR
+        const pill = document.getElementById('waStatusPill');
+        const qrContainer = document.getElementById('qrContainer');
+
+        if (waState?.status === 'connected') {
+          pill.className = 'status-pill online';
+          pill.innerHTML = `🟢 Live as +${waState.connectedNumber || ''}`;
+
+          qrContainer.innerHTML = `
+            <div class="connected-banner">
+              <div class="connected-icon">✅</div>
+              <div style="font-weight:700; color:#34d399; font-size:1.1rem;">WhatsApp Agent Connected!</div>
+              <div style="font-size:0.85rem; color:#cbd5e1;">Paired Mobile: <b>+${waState.connectedNumber || ''}</b></div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:6px;">Ready to receive and qualify IndiaMART leads 24/7.</div>
+            </div>
+          `;
+        } else if (waState?.status === 'qr_ready' && waState.qrDataUrl) {
+          pill.className = 'status-pill offline';
+          pill.innerHTML = `🟡 Scan QR Code`;
+
+          qrContainer.innerHTML = `
+            <img src="${waState.qrDataUrl}" alt="WhatsApp QR Code" />
+            <div style="font-size:0.78rem; color:#cbd5e1; margin-top:8px;">Open WhatsApp on phone → <b>Linked Devices → Link a Device</b></div>
+          `;
+        } else {
+          pill.className = 'status-pill offline';
+          pill.innerHTML = `🔴 Disconnected`;
+
+          qrContainer.innerHTML = `
+            <p style="font-size:0.85rem; color:#cbd5e1; margin-bottom:12px;">Pair your spare WhatsApp SIM in 10 seconds</p>
+            <button class="btn btn-green" style="width:auto; padding:8px 16px;" onclick="connectWA(false)">📲 Generate QR Code</button>
+          `;
+        }
+
+        // Render Active Catalogs
+        const catBox = document.getElementById('activeCatalogsList');
+        if (config?.products && config.products.length) {
+          catBox.innerHTML = config.products.map(p => `
+            <a href="/catalogs/${p.catalogFile}" target="_blank" class="catalog-tag">
+              📄 ${p.name}
+            </a>
+          `).join('');
+        }
+
+        // Render Leads
+        renderLeads(leads || []);
+
+        // Render Pending Callbacks Awaiting Time Confirmation
+        renderPendingCallbacks(data.pendingCallbacks || []);
+      } catch (err) {
+        console.error('Poll error:', err);
+      }
+    }
+
+    function renderPendingCallbacks(pendingList) {
+      const container = document.getElementById('pendingCallContainer');
+      if (!container) return;
+
+      if (!pendingList || !pendingList.length) {
+        container.innerHTML = `
+          <div style="background: rgba(16, 185, 129, 0.06); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px;">
+            <div>
+              <div style="font-weight:700; color:#34d399; font-size:0.95rem;">✅ All Customer Calls Scheduled & Up to Date</div>
+              <div style="font-size:0.8rem; color:#94a3b8; margin-top:3px;">No buyers currently waiting for a callback. Whenever an IndiaMART buyer requests a call, an interactive prompt is sent to your WhatsApp!</div>
+            </div>
+            <button class="btn btn-outline" style="width:auto; margin-top:0; border-color:rgba(251,191,36,0.5); color:#fbbf24; font-weight:700;" onclick="triggerDemoCallRequest()">
+              🧪 Test Live Call Request Demo
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = pendingList.map(lead => `
+        <div style="background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 12px; padding: 18px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div style="font-weight:700; color:#fbbf24; font-size:1rem; display:flex; align-items:center; gap:8px;">
+              <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#fbbf24; animation:pulse 1.2s infinite;"></span>
+              Customer Waiting for Call: <u>${escapeHtml(lead.name)}</u> (+${escapeHtml(lead.phone)})
+            </div>
+            <span class="pill callback">⏳ Awaiting Your Call Time</span>
+          </div>
+
+          <div style="font-size:0.86rem; color:#cbd5e1; line-height:1.5; margin-bottom:14px; background:rgba(0,0,0,0.35); padding:12px; border-radius:8px;">
+            ⚙️ <b>Machine:</b> ${escapeHtml(lead.productName)} &nbsp;|&nbsp; 📍 <b>City:</b> ${escapeHtml(lead.city || 'Amritsar')} &nbsp;|&nbsp; 📝 <b>Notes:</b> ${escapeHtml(lead.requirement || 'Full machine inquiry')}
+          </div>
+
+          <div style="font-size:0.82rem; color:#94a3b8; margin-bottom:8px;">
+            💡 <b>How to confirm:</b> Reply directly to the AI on your WhatsApp (e.g. <i>"Today 4 PM"</i> or <i>"Kal 11 AM"</i>), OR click a quick slot below:
+          </div>
+
+          <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+            <button class="slot-btn" onclick="confirmSlot('${lead.id}', 'Right Now (Immediately)')">⚡ Call Right Now (Abhi)</button>
+            <button class="slot-btn" onclick="confirmSlot('${lead.id}', 'Today at 4:00 PM')">🕒 Today 4:00 PM</button>
+            <button class="slot-btn" onclick="confirmSlot('${lead.id}', 'Today at 6:00 PM')">🕕 Today 6:00 PM</button>
+            <button class="slot-btn" onclick="confirmSlot('${lead.id}', 'Tomorrow at 11:00 AM')">🕚 Tomorrow 11:00 AM</button>
+            <button class="slot-btn" onclick="confirmSlot('${lead.id}', 'Tomorrow at 3:00 PM')">🕒 Tomorrow 3:00 PM</button>
+          </div>
+
+          <div style="display:flex; gap:10px; align-items:center;">
+            <input type="text" id="customSlotInput_${lead.id}" placeholder="Or type custom time (e.g. Today 5:30 PM / Kal 11 baje)" style="flex:1;" />
+            <button class="btn btn-green" style="width:auto; white-space:nowrap; padding:12px 18px;" onclick="confirmCustomSlot('${lead.id}')">Confirm & Notify Customer</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function confirmSlot(leadId, timeSlot) {
+      try {
+        const res = await fetch('/api/callbacks/confirm-time', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ leadId, confirmedTime: timeSlot })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showToast(`✅ Call scheduled for ${timeSlot}! Customer notified & dossier sent to your phone.`);
+          pollStatus();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        alert('Failed to confirm call slot: ' + e.message);
+      }
+    }
+
+    async function confirmCustomSlot(leadId) {
+      const input = document.getElementById(`customSlotInput_${leadId}`);
+      const val = input ? input.value.trim() : '';
+      if (!val) {
+        alert('Please enter your available time slot.');
+        return;
+      }
+      confirmSlot(leadId, val);
+    }
+
+    async function triggerDemoCallRequest() {
+      try {
+        const res = await fetch('/api/callbacks/request-demo', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          showToast('🔔 Demo Call Request triggered! Check your WhatsApp.');
+          pollStatus();
+        } else {
+          alert('Error: ' + data.error);
+        }
+      } catch (e) {
+        alert('Failed to trigger demo: ' + e.message);
+      }
+    }
+
+    function renderLeads(leads) {
+      const countBadge = document.getElementById('leadsCountBadge');
+      const tbody = document.getElementById('clientLeadsTable');
+      countBadge.textContent = `${leads.length} Leads`;
+
+      if (!leads.length) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:20px;">No leads recorded yet. Fire a test lead from the operator center!</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = leads.map(l => {
+        let pillClass = 'sent';
+        if (String(l.status).includes('HOT')) pillClass = 'hot';
+        else if (String(l.status).includes('Scheduled')) pillClass = 'scheduled';
+        else if (String(l.status).includes('Callback') || String(l.status).includes('Awaiting')) pillClass = 'callback';
+
+        return `
+          <tr>
+            <td style="color:#94a3b8; white-space:nowrap;">${new Date(l.updatedAt).toLocaleTimeString('en-IN')}</td>
+            <td><b>${escapeHtml(l.name)}</b></td>
+            <td>+${escapeHtml(l.phone)}</td>
+            <td>${escapeHtml(l.productName)}</td>
+            <td><b>${escapeHtml(l.city || '—')}</b></td>
+            <td style="max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(l.requirement || '—')}</td>
+            <td><span class="pill ${pillClass}">${escapeHtml(l.status)}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    async function connectWA(reset) {
+      await fetch('/api/whatsapp/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset })
+      });
+      showToast(reset ? 'Resetting session & generating fresh QR...' : 'Starting WhatsApp QR engine...');
+      setTimeout(pollStatus, 800);
+    }
+
+    // MULTI-FORMAT FILE HANDLING (PDF, Excel, CSV)
+    function handleFileSelect(evt) {
+      const file = evt.target.files[0];
+      if (!file) return;
+      const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+      const validExts = ['.pdf', '.xlsx', '.xls', '.csv'];
+      if (!validExts.includes(ext)) {
+        alert('Please select a valid PDF catalog (.pdf), Excel Spreadsheet (.xlsx, .xls), or CSV file (.csv).');
+        return;
+      }
+      selectedPdfFileName = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        selectedPdfBase64 = e.target.result;
+        const icon = ext === '.pdf' ? '📄' : '📊';
+        document.getElementById('dropzone').innerHTML = `
+          <div class="drop-icon">${icon}</div>
+          <div class="drop-text" style="color:#34d399;">Selected: ${file.name}</div>
+          <div class="drop-sub">${(file.size / 1024).toFixed(0)} KB • Ready to extract & activate</div>
+        `;
+        if (!document.getElementById('uploadProdName').value) {
+          document.getElementById('uploadProdName').value = file.name.replace(/\.(pdf|xlsx|xls|csv)$/i, '').replace(/[-_]/g, ' ');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // DRAG AND DROP
+    const dropzone = document.getElementById('dropzone');
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files?.length) {
+        handleFileSelect({ target: { files: e.dataTransfer.files } });
+      }
+    });
+
+    async function uploadCatalogFile() {
+      if (!selectedPdfBase64) {
+        alert('Please select or drop a PDF, Excel, or CSV catalog file first.');
+        return;
+      }
+      const productName = document.getElementById('uploadProdName').value.trim();
+      const priceRange = document.getElementById('uploadProdPrice').value.trim();
+
+      const btn = document.getElementById('uploadBtn');
+      btn.textContent = '⏳ Uploading & Activating...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/upload-catalog', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: selectedPdfFileName,
+            fileBase64: selectedPdfBase64,
+            productName,
+            priceRange
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showToast('🎉 Catalog uploaded & live for WhatsApp leads!');
+          selectedPdfBase64 = null;
+          document.getElementById('uploadProdName').value = '';
+          document.getElementById('uploadProdPrice').value = '';
+          document.getElementById('dropzone').innerHTML = `
+            <div class="drop-icon">📤</div>
+            <div class="drop-text">Upload Another Product PDF Catalog</div>
+            <div class="drop-sub">Max 10MB • Automatically extracted & activated</div>
+          `;
+          pollStatus();
+        } else {
+          alert('Upload error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Failed uploading catalog: ' + err.message);
+      } finally {
+        btn.textContent = '🚀 Upload & Activate Catalog';
+        btn.disabled = false;
+      }
+    }
+
+    async function saveClientProfile() {
+      const ownerAlertPhone = document.getElementById('ownerMobileInput').value.trim();
+      const companyName = document.getElementById('clientCompanyInput').value.trim();
+
+      if (ownerAlertPhone && ownerAlertPhone.replace(/\D/g, '').length < 10) {
+        alert('Please enter a valid 10-digit mobile number for WhatsApp alerts.');
+        return;
+      }
+
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerAlertPhone, companyName })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast('✅ Saved! Hot lead alerts will be sent to your phone.');
+        pollStatus();
+      }
+    }
+
+    // INITIALIZE & POLL
+    pollStatus();
+    setInterval(pollStatus, 3500);
+  </script>
+</body>
+</html>
+

@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: indiamart-whatsapp-ai-sales-agent
+    env: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: GEMINI_API_KEY
+        sync: false
