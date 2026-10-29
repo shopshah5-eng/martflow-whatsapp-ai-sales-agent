@@ -3,6 +3,10 @@
 > **Turn Raw IndiaMART Machinery Leads into Closed Deals on WhatsApp in Under 10 Seconds.**  
 > Powered by Google Gemini AI, Baileys WhatsApp Multi-Device Protocol, Opus OGG Voice Synthesizer, and Dynamic Multi-Format Catalog Intelligence.
 
+[![Live Demo](https://img.shields.io/badge/Netlify-Live%20Dashboard-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://indiamart-ai-sales-closing.netlify.app)
+[![Client Portal](https://img.shields.io/badge/Client%20Portal-Live%20Preview-blue?style=for-the-badge)](https://indiamart-ai-sales-closing.netlify.app/client)
+[![GitHub](https://img.shields.io/badge/GitHub-Repo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/shopshah5-eng/indiamart-whatsapp-ai-sales-agent)
+
 ---
 
 ## 🌟 Executive Summary
