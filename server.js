@@ -20,6 +20,7 @@ import {
   downloadMediaMessage,
   Browsers
 } from '@whiskeysockets/baileys';
+import { createClient } from '@supabase/supabase-js';
 
 import apiRouter from './src/routes/api.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
@@ -1581,9 +1582,9 @@ app.get('/api/public-config', (req, res) => {
     ok: true,
     supabaseUrl: process.env.SUPABASE_URL || 'https://uriqhusalcdgdlgzgasp.supabase.co',
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE',
-    merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+    merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
     merchantName: process.env.MERCHANT_NAME || 'MartFlow AI Sales',
-    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || '919825012345'
+    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || 'YOUR_REAL_WHATSAPP_91XXXXXXXXXX'
   });
 });
 
@@ -1915,10 +1916,220 @@ app.post('/api/callbacks/request-demo', async (req, res) => {
   }
 });
 
+// ============================================================================
+// SUPABASE MULTI-TENANT WORKER & REALTIME COMMAND ENGINE
+// ============================================================================
+const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
+  : null;
+
+async function initSupabaseWorker() {
+  if (!supabaseAdmin) {
+    addLog('[Supabase Worker] Supabase credentials not found in .env, worker running in local-only mode.');
+    return;
+  }
+  addLog('[Supabase Worker] Initializing Multi-Tenant Realtime & Command Engine...');
+
+  // 1. Worker Heartbeat Loop (every 20s)
+  async function sendHeartbeat() {
+    try {
+      await supabaseAdmin
+        .from('organizations')
+        .update({ wa_worker_heartbeat: new Date().toISOString() })
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+    } catch (e) {
+      // silent heartbeat error
+    }
+  }
+
+  await sendHeartbeat();
+  setInterval(sendHeartbeat, 20000);
+
+  // 2. Poll & Process Organizations Commands (wa_command)
+  async function pollCommands() {
+    try {
+      const { data: orgs, error } = await supabaseAdmin
+        .from('organizations')
+        .select('*')
+        .not('wa_command', 'is', null);
+
+      if (error || !orgs || orgs.length === 0) return;
+
+      for (const org of orgs) {
+        const cmd = org.wa_command;
+        addLog(`[Supabase Worker] Executing command '${cmd}' for organization ${org.name || org.id}`);
+
+        // Acknowledge command first
+        await supabaseAdmin
+          .from('organizations')
+          .update({ wa_command: null })
+          .eq('id', org.id);
+
+        if (cmd === 'start_qr') {
+          await supabaseAdmin
+            .from('organizations')
+            .update({ wa_status: 'initializing' })
+            .eq('id', org.id);
+
+          const inst = baileysManager.getInstance(org.id);
+          await inst.init();
+        } else if (cmd === 'start_pair_code') {
+          await supabaseAdmin
+            .from('organizations')
+            .update({ wa_status: 'initializing' })
+            .eq('id', org.id);
+
+          const inst = baileysManager.getInstance(org.id);
+          try {
+            const rawPhone = org.bot_whatsapp_number || org.escalation_phone || '';
+            const code = await inst.requestPairing(rawPhone);
+            await supabaseAdmin
+              .from('organizations')
+              .update({ wa_status: 'code_ready', wa_pairing_code: code })
+              .eq('id', org.id);
+          } catch (err) {
+            addLog(`[Supabase Worker] Pairing code error: ${err.message}`);
+            await supabaseAdmin
+              .from('organizations')
+              .update({ wa_status: 'disconnected', wa_pairing_code: null })
+              .eq('id', org.id);
+          }
+        } else if (cmd === 'disconnect') {
+          const inst = baileysManager.getInstance(org.id);
+          await inst.disconnect();
+          await supabaseAdmin
+            .from('organizations')
+            .update({
+              wa_status: 'disconnected',
+              wa_connected_number: null,
+              wa_qr_data_url: null,
+              wa_pairing_code: null
+            })
+            .eq('id', org.id);
+        } else if (cmd === 'send_test') {
+          const payload = org.wa_command_payload || {};
+          const toPhone = payload.to_phone || org.owner_alert_number;
+          const msgText = payload.message_text || 'Test message from MartFlow AI';
+          const pdfPath = payload.pdf_path || null;
+          await baileysManager.sendMessage(org.id, toPhone, msgText, pdfPath);
+        }
+      }
+    } catch (e) {
+      addLog(`[Supabase Worker] Command poll error: ${e.message}`);
+    }
+  }
+
+  // 3. Poll & Process Outbound Queue (wa_outbound_queue)
+  async function pollOutboundQueue() {
+    try {
+      const { data: queueItems, error } = await supabaseAdmin
+        .from('wa_outbound_queue')
+        .select('*')
+        .eq('status', 'pending')
+        .limit(10);
+
+      if (error || !queueItems || queueItems.length === 0) return;
+
+      for (const item of queueItems) {
+        await supabaseAdmin
+          .from('wa_outbound_queue')
+          .update({ status: 'processing' })
+          .eq('id', item.id);
+
+        try {
+          const res = await baileysManager.sendMessage(
+            item.org_id,
+            item.to_phone,
+            item.message_text || '',
+            item.pdf_url || null,
+            item.message_text || ''
+          );
+
+          if (res.ok) {
+            await supabaseAdmin
+              .from('wa_outbound_queue')
+              .update({ status: 'sent', error_text: null })
+              .eq('id', item.id);
+            addLog(`[Supabase Worker] Outbound queue message delivered to +${item.to_phone}`);
+          } else {
+            // Also attempt fallback via primary socket if connected
+            if (sock && waState.status === 'connected') {
+              const jid = `${String(item.to_phone).replace(/\D/g, '')}@s.whatsapp.net`;
+              if (item.pdf_url) {
+                await sock.sendMessage(jid, {
+                  document: { url: item.pdf_url },
+                  mimetype: 'application/pdf',
+                  fileName: item.pdf_name || 'Brochure.pdf',
+                  caption: item.message_text || ''
+                });
+              } else {
+                await sock.sendMessage(jid, { text: item.message_text });
+              }
+              await supabaseAdmin
+                .from('wa_outbound_queue')
+                .update({ status: 'sent', error_text: null })
+                .eq('id', item.id);
+              addLog(`[Supabase Worker] Outbound queue message delivered via primary socket to +${item.to_phone}`);
+            } else {
+              await supabaseAdmin
+                .from('wa_outbound_queue')
+                .update({ status: 'failed', error_text: res.error || 'WhatsApp not connected' })
+                .eq('id', item.id);
+            }
+          }
+        } catch (sendErr) {
+          await supabaseAdmin
+            .from('wa_outbound_queue')
+            .update({ status: 'failed', error_text: sendErr.message })
+            .eq('id', item.id);
+        }
+      }
+    } catch (e) {
+      addLog(`[Supabase Worker] Queue poll error: ${e.message}`);
+    }
+  }
+
+  // Run command & queue poll every 3 seconds
+  setInterval(async () => {
+    await pollCommands();
+    await pollOutboundQueue();
+  }, 3000);
+
+  // Realtime subscription channel
+  try {
+    const channel = supabaseAdmin.channel('martflow-worker');
+    channel
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'organizations' },
+        (payload) => {
+          if (payload.new && payload.new.wa_command) {
+            pollCommands();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'wa_outbound_queue' },
+        () => {
+          pollOutboundQueue();
+        }
+      )
+      .subscribe((status) => {
+        addLog(`[Supabase Worker] Realtime channel status: ${status}`);
+      });
+  } catch (rtErr) {
+    addLog(`[Supabase Worker] Realtime subscription fallback to polling: ${rtErr.message}`);
+  }
+}
+
 const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, '0.0.0.0', () => {
   addLog(`MartFlow B2B WhatsApp AI Server running at http://localhost:${PORT}`);
   initCatalogKnowledge();
+  initSupabaseWorker();
   // Auto-resume existing WhatsApp session if auth_info/creds.json already exists!
   if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
     addLog('Saved WhatsApp session detected — auto-reconnecting...');

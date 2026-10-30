@@ -542,7 +542,7 @@ router.get('/membership/status', authenticate, (req, res) => {
       customQuoteInr: org.custom_quote_inr || null,
       companyName: org.name,
       currency: 'INR',
-      merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+      merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
       merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
       isRazorpayConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
       razorpayKeyId: process.env.RAZORPAY_KEY_ID || null
@@ -561,7 +561,7 @@ router.get('/billing', authenticate, (req, res) => {
       monthlyLeadLimit: org.monthly_lead_limit || 25,
       currentUsage: leadsUsed,
       customQuoteInr: org.custom_quote_inr || null,
-      merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+      merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
       merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
       isConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
       currency: 'INR'
@@ -574,9 +574,9 @@ router.get('/public-config', (req, res) => {
     ok: true,
     supabaseUrl: process.env.SUPABASE_URL || 'https://uriqhusalcdgdlgzgasp.supabase.co',
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE',
-    merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
+    merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
     merchantName: process.env.MERCHANT_NAME || 'MartFlow AI Sales',
-    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || '919825012345'
+    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || 'YOUR_REAL_WHATSAPP_91XXXXXXXXXX'
   });
 });
 

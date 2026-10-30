@@ -20,8 +20,22 @@ CREATE TABLE IF NOT EXISTS public.organizations (
     leads_used INT DEFAULT 0,
     custom_quote_inr INT DEFAULT NULL,
     company_city TEXT DEFAULT 'Ahmedabad, Gujarat',
-    escalation_phone TEXT DEFAULT '919825012345',
+    escalation_phone TEXT DEFAULT NULL,
+    bot_whatsapp_number TEXT DEFAULT NULL,
+    owner_alert_number TEXT DEFAULT NULL,
     wa_mode TEXT DEFAULT 'qr' CHECK (wa_mode IN ('qr', 'cloud_api')),
+    wa_pairing_method TEXT DEFAULT 'qr',
+    wa_command TEXT DEFAULT NULL,
+    wa_command_payload JSONB DEFAULT NULL,
+    wa_status TEXT DEFAULT 'disconnected',
+    wa_connected_number TEXT DEFAULT NULL,
+    wa_qr_data_url TEXT DEFAULT NULL,
+    wa_pairing_code TEXT DEFAULT NULL,
+    wa_worker_heartbeat TIMESTAMPTZ DEFAULT NULL,
+    wa_auto_reply BOOLEAN DEFAULT true,
+    wa_auto_pdf BOOLEAN DEFAULT true,
+    wa_owner_alerts BOOLEAN DEFAULT true,
+    wa_welcome_message TEXT DEFAULT NULL,
     waba_phone_id TEXT DEFAULT NULL,
     waba_token TEXT DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT now(),
@@ -106,22 +120,58 @@ CREATE TABLE IF NOT EXISTS public.payments (
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- 9. Indexes for Multi-Tenant Query Speed
+-- 9. Call Requests (2-Way Call Booking Engine)
+CREATE TABLE IF NOT EXISTS public.call_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
+    buyer_name TEXT,
+    buyer_phone TEXT,
+    product_interest TEXT,
+    requested_by TEXT DEFAULT 'buyer',
+    owner_phone TEXT,
+    status TEXT DEFAULT 'requested' CHECK (status IN ('requested', 'awaiting_owner', 'proposed', 'confirmed', 'completed', 'cancelled', 'reschedule_requested')),
+    proposed_time_raw TEXT,
+    confirmed_time TIMESTAMPTZ,
+    confirmed_by TEXT,
+    lead_dossier_sent BOOLEAN DEFAULT false,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 10. WhatsApp Outbound Queue (Realtime Message & Brochure Dispatch)
+CREATE TABLE IF NOT EXISTS public.wa_outbound_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    to_phone TEXT NOT NULL,
+    message_text TEXT,
+    pdf_url TEXT,
+    pdf_name TEXT,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'sent', 'failed')),
+    error_text TEXT,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 11. Indexes for Multi-Tenant Query Speed
 CREATE INDEX IF NOT EXISTS idx_profiles_org_id ON public.profiles(org_id);
 CREATE INDEX IF NOT EXISTS idx_products_org_id ON public.products(org_id);
 CREATE INDEX IF NOT EXISTS idx_leads_org_id ON public.leads(org_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_org_id ON public.conversations(org_id);
 CREATE INDEX IF NOT EXISTS idx_messages_org_id ON public.messages(org_id);
 CREATE INDEX IF NOT EXISTS idx_payments_org_id ON public.payments(org_id);
+CREATE INDEX IF NOT EXISTS idx_call_requests_org_id ON public.call_requests(org_id);
+CREATE INDEX IF NOT EXISTS idx_wa_outbound_org ON public.wa_outbound_queue(org_id);
+CREATE INDEX IF NOT EXISTS idx_wa_outbound_status ON public.wa_outbound_queue(status);
 CREATE INDEX IF NOT EXISTS idx_orgs_webhook_key ON public.organizations(webhook_key);
 
--- 10. Helper Function to Get Current User's Tenant Org ID
+-- 11. Helper Function to Get Current User's Tenant Org ID
 CREATE OR REPLACE FUNCTION public.current_user_org_id()
 RETURNS UUID AS $$
     SELECT org_id FROM public.profiles WHERE id = auth.uid() LIMIT 1;
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
--- 11. Enable Row-Level Security (RLS) on ALL Multi-Tenant Tables
+-- 12. Enable Row-Level Security (RLS) on ALL Multi-Tenant Tables
 ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
@@ -129,8 +179,9 @@ ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.call_requests ENABLE ROW LEVEL SECURITY;
 
--- 12. RLS Policies: STRICT ZERO-OVERLAP TENANT ISOLATION
+-- 13. RLS Policies: STRICT ZERO-OVERLAP TENANT ISOLATION
 
 -- Organizations Policy: Users can only select/update their own organization
 DROP POLICY IF EXISTS org_isolation_select ON public.organizations;
@@ -141,10 +192,18 @@ DROP POLICY IF EXISTS org_isolation_update ON public.organizations;
 CREATE POLICY org_isolation_update ON public.organizations
     FOR UPDATE USING (id = public.current_user_org_id());
 
+DROP POLICY IF EXISTS org_isolation_insert ON public.organizations;
+CREATE POLICY org_isolation_insert ON public.organizations
+    FOR INSERT WITH CHECK (true);
+
 -- Profiles Policy: Users see profiles in their own tenant
 DROP POLICY IF EXISTS profile_isolation ON public.profiles;
 CREATE POLICY profile_isolation ON public.profiles
     FOR ALL USING (org_id = public.current_user_org_id() OR id = auth.uid());
+
+DROP POLICY IF EXISTS profile_insert_own ON public.profiles;
+CREATE POLICY profile_insert_own ON public.profiles
+    FOR INSERT WITH CHECK (id = auth.uid());
 
 -- Products Policy: Tenant-scoped access only
 DROP POLICY IF EXISTS products_isolation ON public.products;
@@ -173,6 +232,19 @@ CREATE POLICY messages_isolation ON public.messages
 -- Payments Policy: Tenant-scoped access only
 DROP POLICY IF EXISTS payments_isolation ON public.payments;
 CREATE POLICY payments_isolation ON public.payments
+    FOR ALL USING (org_id = public.current_user_org_id())
+    WITH CHECK (org_id = public.current_user_org_id());
+
+-- Call Requests Policy: Tenant-scoped access only
+DROP POLICY IF EXISTS call_requests_isolation ON public.call_requests;
+CREATE POLICY call_requests_isolation ON public.call_requests
+    FOR ALL USING (org_id = public.current_user_org_id())
+    WITH CHECK (org_id = public.current_user_org_id());
+
+-- WhatsApp Outbound Queue Policy: Tenant-scoped access only
+ALTER TABLE public.wa_outbound_queue ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS wa_outbound_queue_isolation ON public.wa_outbound_queue;
+CREATE POLICY wa_outbound_queue_isolation ON public.wa_outbound_queue
     FOR ALL USING (org_id = public.current_user_org_id())
     WITH CHECK (org_id = public.current_user_org_id());
 
@@ -247,10 +319,17 @@ CREATE POLICY "Tenant Catalog Upload Isolation" ON storage.objects
         AND (storage.foldername(name))[1] = public.current_user_org_id()::text
     );
 
-DROP POLICY IF EXISTS "Tenant Catalog Read Isolation" ON storage.objects;
-CREATE POLICY "Tenant Catalog Read Isolation" ON storage.objects
-    FOR SELECT USING (
-        bucket_id = 'catalogs'
-        AND (storage.foldername(name))[1] = public.current_user_org_id()::text
-    );
+-- 15. Enable Supabase Realtime for Multi-Tenant Dashboard & WhatsApp Worker
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.leads;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.wa_outbound_queue;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.call_requests;
+EXCEPTION WHEN OTHERS THEN NULL;
+END
+$$;
+
 

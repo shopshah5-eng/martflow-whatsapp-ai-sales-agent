@@ -24,6 +24,7 @@ test('SUPABASE SCHEMA: Verifies idempotent DDL, RLS policies, and tables', () =>
   assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS public.conversations'), 'conversations table must exist');
   assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS public.messages'), 'messages table must exist');
   assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS public.payments'), 'payments table must exist');
+  assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS public.call_requests'), 'call_requests table must exist');
 
   // Verify RLS enabled on all tables
   assert.ok(sql.includes('ALTER TABLE public.organizations ENABLE ROW LEVEL SECURITY'), 'RLS on organizations');

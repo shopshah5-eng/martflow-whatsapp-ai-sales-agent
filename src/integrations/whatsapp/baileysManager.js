@@ -16,10 +16,17 @@ import {
   fetchLatestBaileysVersion,
   Browsers
 } from '@whiskeysockets/baileys';
+import { createClient } from '@supabase/supabase-js';
 import db from '../../db/index.js';
 import { AIService } from '../../services/aiService.js';
 
 const BASE_AUTH_DIR = path.join(process.cwd(), 'auth_info');
+
+const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    })
+  : null;
 
 export class TenantBaileysInstance {
   constructor(orgId) {
@@ -88,7 +95,7 @@ export class TenantBaileysInstance {
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: Browsers.windows('Chrome'),
+        browser: ['Ubuntu', 'Chrome', '120.0.0'],
         syncFullHistory: false,
         markOnlineOnConnect: false
       });
@@ -104,6 +111,12 @@ export class TenantBaileysInstance {
             this.state.status = 'qr_ready';
             this.state.lastEvent = 'Scan QR code with WhatsApp (Linked Devices > Link a Device)';
             this.addLog('Fresh WhatsApp QR code generated. Scan to link device.');
+            if (supabaseAdmin && this.orgId) {
+              await supabaseAdmin
+                .from('organizations')
+                .update({ wa_status: 'qr_ready', wa_qr_data_url: this.state.qrDataUrl, wa_command: null })
+                .eq('id', this.orgId);
+            }
           } catch (err) {
             this.addLog(`QR Generation error: ${err.message}`);
           }
@@ -114,10 +127,23 @@ export class TenantBaileysInstance {
           if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
           this.state.status = 'connected';
           this.state.qrDataUrl = null;
+          this.state.pairingCode = null;
           const rawMe = this.sock.user?.id || '';
           this.state.connectedNumber = rawMe.split(':')[0].split('@')[0];
           this.state.lastEvent = `Live & Connected as +${this.state.connectedNumber}`;
           this.addLog(`WhatsApp CONNECTED successfully (+${this.state.connectedNumber})`);
+          if (supabaseAdmin && this.orgId) {
+            await supabaseAdmin
+              .from('organizations')
+              .update({
+                wa_status: 'connected',
+                wa_connected_number: this.state.connectedNumber,
+                wa_qr_data_url: null,
+                wa_pairing_code: null,
+                wa_command: null
+              })
+              .eq('id', this.orgId);
+          }
         }
 
         if (connection === 'close') {
@@ -129,11 +155,24 @@ export class TenantBaileysInstance {
           if (isLoggedOut) {
             this.state.status = 'disconnected';
             this.state.connectedNumber = null;
+            this.state.pairingCode = null;
             this.state.lastEvent = 'Logged out from phone. Click Connect to scan again.';
             this.addLog('Session logged out. Cleared local auth state.');
             try {
               fs.rmSync(this.authDir, { recursive: true, force: true });
             } catch (e) {}
+            if (supabaseAdmin && this.orgId) {
+              await supabaseAdmin
+                .from('organizations')
+                .update({
+                  wa_status: 'disconnected',
+                  wa_connected_number: null,
+                  wa_qr_data_url: null,
+                  wa_pairing_code: null,
+                  wa_command: null
+                })
+                .eq('id', this.orgId);
+            }
           } else {
             const isRestart = statusCode === DisconnectReason.restartRequired;
             this.state.status = 'connecting';
@@ -299,6 +338,34 @@ export class TenantBaileysInstance {
     }
   }
 
+  async requestPairing(phoneDigits) {
+    const clean = String(phoneDigits || '').replace(/\D/g, '');
+    if (!clean || clean.length < 10) {
+      throw new Error('Valid phone number with country code is required (e.g. 9198XXXXXXXX)');
+    }
+    await this.init();
+    for (let i = 0; i < 25; i++) {
+      if (this.sock && typeof this.sock.requestPairingCode === 'function') break;
+      await new Promise(r => setTimeout(r, 200));
+    }
+    if (!this.sock || typeof this.sock.requestPairingCode !== 'function') {
+      throw new Error('WhatsApp engine is initializing, please retry in a few seconds.');
+    }
+    const rawCode = await this.sock.requestPairingCode(clean);
+    const formatted = rawCode ? `${rawCode.slice(0, 4)}-${rawCode.slice(4)}` : rawCode;
+    this.state.pairingCode = formatted;
+    this.state.status = 'code_ready';
+    this.state.lastEvent = `Enter code ${formatted} in WhatsApp > Linked Devices > Link with phone number`;
+    this.addLog(`8-digit pairing code generated: ${formatted}`);
+    if (supabaseAdmin && this.orgId) {
+      await supabaseAdmin
+        .from('organizations')
+        .update({ wa_status: 'code_ready', wa_pairing_code: formatted, wa_command: null })
+        .eq('id', this.orgId);
+    }
+    return formatted;
+  }
+
   async disconnect() {
     if (this.sock) {
       try {
@@ -309,11 +376,26 @@ export class TenantBaileysInstance {
     this.state.status = 'disconnected';
     this.state.connectedNumber = null;
     this.state.qrDataUrl = null;
+    this.state.pairingCode = null;
     this.state.lastEvent = 'WhatsApp disconnected. Pairing data cleared.';
     try {
       fs.rmSync(this.authDir, { recursive: true, force: true });
     } catch (e) {}
     this.addLog('Disconnected WhatsApp and cleared tenant session keys.');
+    if (supabaseAdmin && this.orgId) {
+      try {
+        await supabaseAdmin
+          .from('organizations')
+          .update({
+            wa_status: 'disconnected',
+            wa_connected_number: null,
+            wa_qr_data_url: null,
+            wa_pairing_code: null,
+            wa_command: null
+          })
+          .eq('id', this.orgId);
+      } catch (e) {}
+    }
     return { ok: true };
   }
 }
@@ -345,6 +427,10 @@ export class MultiTenantBaileysManager {
       return this.getInstance('default_org').sendMessage(orgId, toPhone, text, attachmentPath);
     }
     return this.getInstance(orgId).sendMessage(toPhone, text, attachmentPath, caption);
+  }
+
+  async requestPairing(orgId = 'default_org', phoneDigits) {
+    return this.getInstance(orgId).requestPairing(phoneDigits);
   }
 
   async disconnect(orgId = 'default_org') {
