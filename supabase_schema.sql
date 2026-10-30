@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS public.products (
     price_raw TEXT,
     brochure_url TEXT,
     brochure_filename TEXT,
+    image_url TEXT,
+    model_specs TEXT,
     specs JSONB DEFAULT '{}'::jsonb,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT now(),

@@ -437,7 +437,22 @@
             <button onclick="fetchCatalogProducts()" class="text-xs text-indigo-600 hover:underline">Refresh</button>
           </div>
           <div id="catalogProductsContainer" class="overflow-x-auto">
-            <!-- Dynamic table rows -->
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
+                  <th class="py-3 px-4">Photo</th>
+                  <th class="py-3 px-4">SKU</th>
+                  <th class="py-3 px-4">Machine Name</th>
+                  <th class="py-3 px-4">Model / Specs</th>
+                  <th class="py-3 px-4">Price Spec</th>
+                  <th class="py-3 px-4">Brochure PDF</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="catalogTableBody" class="divide-y divide-gray-100">
+                <!-- Dynamically populated via fetchCatalogProducts() -->
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -1061,20 +1076,34 @@
         <h2 class="text-lg font-bold text-slate-900">+ Quick Add Machine SKU</h2>
         <p class="text-xs text-slate-500">Add a product directly to your verified catalog knowledge base in 10 seconds.</p>
         <div class="space-y-3 text-xs">
-          <div>
-            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Name</label>
-            <input type="text" id="qaProductName" placeholder="e.g. Industrial Ribbon Blender RB-500" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">SKU / Code (Optional)</label>
+              <input type="text" id="qaSku" placeholder="e.g. SKU-RB500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Price Specification</label>
+              <input type="text" id="qaPriceRaw" placeholder="e.g. ₹3,85,000 + GST" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+            </div>
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Price Specification</label>
-            <input type="text" id="qaPriceRaw" placeholder="e.g. ₹3,85,000 + GST" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Name <span class="text-rose-500">*</span></label>
+            <input type="text" id="qaProductName" placeholder="e.g. Industrial Ribbon Blender RB-500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Model / Capacity Details</label>
-            <input type="text" id="qaModel" placeholder="e.g. 500 Kg Batch Capacity, SS-304" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            <input type="text" id="qaModel" placeholder="e.g. 500 Kg Batch Capacity, SS-304" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
           </div>
-          <button onclick="submitQuickAddProduct()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
-            Save to Catalog
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Product Photo / Image (Optional)</label>
+            <input type="file" id="qaImageFile" accept="image/*" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-slate-50 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Machine Brochure PDF (Auto-sent to WhatsApp)</label>
+            <input type="file" id="qaPdfFile" accept=".pdf" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-slate-50 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+          </div>
+          <button id="qaSubmitBtn" onclick="submitQuickAddProduct()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition flex items-center justify-center gap-2">
+            <span>💾 Save to Catalog</span>
           </button>
         </div>
       </div>
@@ -2186,7 +2215,7 @@
       if (!tbody) return;
 
       if (!currentOrg) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-slate-400">Please sign in to view catalog.</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view catalog.</td></tr>';
         return;
       }
 
@@ -2206,31 +2235,55 @@
         }
 
         if (prods.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add Product" or upload a PDF catalog above!</td></tr>`;
+          tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or upload a CSV / PDF catalog above!</td></tr>';
           return;
         }
 
         tbody.innerHTML = prods.map(p => {
           const price = p.price_raw || p.price_range || 'Contact for quote';
+          const imgHtml = p.image_url
+            ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="w-10 h-10 object-cover rounded-lg border border-gray-200 shadow-sm">`
+            : '<div class="w-10 h-10 rounded-lg bg-slate-100 border border-gray-200 flex items-center justify-center text-sm font-bold text-slate-500">⚙️</div>';
+          const pdfHtml = p.brochure_url
+            ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Catalog')}</span></a>`
+            : '<span class="text-slate-400 text-[11px]">No PDF</span>';
+
           return `
             <tr class="border-b border-gray-100 hover:bg-slate-50 transition text-xs">
-              <td class="py-3 px-4 font-mono font-bold text-slate-800">${escapeHtml(p.sku || 'SKU-100')}</td>
+              <td class="py-3 px-4">${imgHtml}</td>
+              <td class="py-3 px-4 font-mono font-bold text-slate-700">${escapeHtml(p.sku || '-')}</td>
               <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
-              <td class="py-3 px-4 text-slate-700 font-medium">${escapeHtml(price)}</td>
-              <td class="py-3 px-4">
-                ${p.brochure_url ? `<a href="${p.brochure_url}" target="_blank" class="text-indigo-600 hover:underline font-semibold flex items-center gap-1">📄 ${escapeHtml(p.brochure_filename || 'View PDF')}</a>` : '<span class="text-slate-400">No PDF</span>'}
-              </td>
-              <td class="py-3 px-4">
-                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Active</span>
-              </td>
+              <td class="py-3 px-4 text-slate-600 max-w-xs truncate" title="${escapeHtml(p.model_specs || '')}">${escapeHtml(p.model_specs || '-')}</td>
+              <td class="py-3 px-4 text-slate-800 font-medium">${escapeHtml(price)}</td>
+              <td class="py-3 px-4">${pdfHtml}</td>
               <td class="py-3 px-4 text-right">
-                <button onclick="showToast('Catalog updated', 'info')" class="text-slate-500 hover:text-slate-800 font-semibold">Edit</button>
+                <button onclick="deleteCatalogProduct('${p.id}')" class="text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded transition text-xs inline-flex items-center gap-1">
+                  <span>🗑️</span>
+                  <span>Delete</span>
+                </button>
               </td>
             </tr>
           `;
         }).join('');
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-rose-500">Error loading catalog: ${escapeHtml(err.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading catalog: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    async function deleteCatalogProduct(id) {
+      if (!confirm('Are you sure you want to remove this product from your catalog?')) return;
+      if (!currentOrg) return;
+      try {
+        if (sb) {
+          const { error } = await sb.from('products').delete().eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        } else {
+          await apiFetch(`/api/catalog/${id}`, { method: 'DELETE' });
+        }
+        showToast('Product removed from catalog', 'success');
+        fetchCatalogProducts();
+      } catch (err) {
+        showToast(err.message, 'error');
       }
     }
 
@@ -2245,44 +2298,202 @@
 
     async function submitQuickAddProduct() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
-      const sku = (document.getElementById('qaSku')?.value || '').trim() || 'SKU-' + Math.floor(100 + Math.random() * 900);
-      const name = (document.getElementById('qaName')?.value || '').trim();
-      const price_raw = (document.getElementById('qaPrice')?.value || '').trim() || 'Contact for quote';
-      const brochure_url = (document.getElementById('qaBrochureUrl')?.value || '').trim() || null;
+      const name = (document.getElementById('qaProductName')?.value || '').trim();
+      const price_raw = (document.getElementById('qaPriceRaw')?.value || '').trim() || 'Contact for quote';
+      const model_specs = (document.getElementById('qaModel')?.value || '').trim();
+      let sku = (document.getElementById('qaSku')?.value || '').trim();
+      if (!sku) {
+        sku = 'SKU-' + Math.floor(100 + Math.random() * 900);
+      }
 
-      if (!name) return showToast('Product name is required', 'error');
+      if (!name) return showToast('Machine / Product name is required', 'error');
+
+      const imgInput = document.getElementById('qaImageFile');
+      const imgFile = imgInput?.files?.[0];
+
+      const pdfInput = document.getElementById('qaPdfFile');
+      const pdfFile = pdfInput?.files?.[0];
+
+      const btn = document.getElementById('qaSubmitBtn');
+      const oldBtnHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Uploading & Saving...</span>';
+      }
 
       try {
+        let image_url = null;
+        let brochure_url = null;
+        let brochure_filename = null;
+
         if (sb) {
-          const { error } = await sb.from('products').insert({
+          // Upload Image to Supabase Storage if selected
+          if (imgFile) {
+            const ext = imgFile.name.split('.').pop() || 'png';
+            const imgPath = `${currentOrg.id}/images/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+            const { error: imgErr } = await sb.storage.from('catalogs').upload(imgPath, imgFile, { upsert: true });
+            if (!imgErr) {
+              const { data: uData } = sb.storage.from('catalogs').getPublicUrl(imgPath);
+              image_url = uData?.publicUrl || null;
+            } else {
+              console.warn('Image upload error:', imgErr);
+            }
+          }
+
+          // Upload Brochure PDF to Supabase Storage if selected
+          if (pdfFile) {
+            const safeName = pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const pdfPath = `${currentOrg.id}/brochures/${Date.now()}_${safeName}`;
+            const { error: pdfErr } = await sb.storage.from('catalogs').upload(pdfPath, pdfFile, { upsert: true });
+            if (!pdfErr) {
+              const { data: uData } = sb.storage.from('catalogs').getPublicUrl(pdfPath);
+              brochure_url = uData?.publicUrl || null;
+              brochure_filename = pdfFile.name;
+            } else {
+              console.warn('PDF upload error:', pdfErr);
+            }
+          }
+
+          const { error: insertErr } = await sb.from('products').insert({
             org_id: currentOrg.id,
             sku,
             name,
             price_raw,
+            model_specs,
+            image_url,
             brochure_url,
-            brochure_filename: brochure_url ? 'Catalog.pdf' : null,
+            brochure_filename,
             is_active: true
           });
-          if (error) throw error;
+          if (insertErr) throw insertErr;
         }
+
         closeQuickAddModal();
-        showToast(`Product "${name}" added to catalog!`, 'success');
+        if (document.getElementById('qaProductName')) document.getElementById('qaProductName').value = '';
+        if (document.getElementById('qaPriceRaw')) document.getElementById('qaPriceRaw').value = '';
+        if (document.getElementById('qaModel')) document.getElementById('qaModel').value = '';
+        if (document.getElementById('qaSku')) document.getElementById('qaSku').value = '';
+        if (imgInput) imgInput.value = '';
+        if (pdfInput) pdfInput.value = '';
+
+        showToast(`Machine "${name}" added to verified catalog!`, 'success');
         fetchCatalogProducts();
       } catch (err) {
         showToast(err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldBtnHtml;
+        }
       }
+    }
+
+    function parseCsvToRows(text) {
+      const lines = [];
+      let row = [];
+      let inQuotes = false;
+      let currentField = '';
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            currentField += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          row.push(currentField.trim());
+          currentField = '';
+        } else if ((char === '\r' || char === '\n') && !inQuotes) {
+          if (char === '\r' && nextChar === '\n') i++;
+          row.push(currentField.trim());
+          currentField = '';
+          if (row.length > 1 || (row.length === 1 && row[0] !== '')) {
+            lines.push(row);
+          }
+          row = [];
+        } else {
+          currentField += char;
+        }
+      }
+      if (currentField || row.length > 0) {
+        row.push(currentField.trim());
+        lines.push(row);
+      }
+      return lines;
     }
 
     async function handleCatalogFileSelected(event) {
       const file = event?.target?.files?.[0];
       if (!file || !currentOrg) return;
 
-      showToast(`Uploading and analyzing ${file.name}...`, 'info');
+      const isCsv = file.name.toLowerCase().endsWith('.csv');
+      showToast(`Analyzing and importing ${file.name}...`, 'info');
+
       try {
+        if (isCsv) {
+          const text = await file.text();
+          const rows = parseCsvToRows(text);
+
+          if (rows.length < 2) {
+            showToast('CSV file is empty or has no data rows', 'warning');
+            return;
+          }
+
+          const headerRow = rows[0].map(h => h.toLowerCase().trim());
+          let skuIdx = headerRow.findIndex(h => /sku|code|id/i.test(h));
+          let nameIdx = headerRow.findIndex(h => /name|item|product|title|machine/i.test(h));
+          let priceIdx = headerRow.findIndex(h => /price|rate|cost|mrp|amount/i.test(h));
+          let specsIdx = headerRow.findIndex(h => /model|spec|capacity|detail|feature/i.test(h));
+
+          if (nameIdx === -1) nameIdx = 0;
+          if (priceIdx === -1) priceIdx = headerRow.findIndex((h, idx) => idx !== nameIdx && /amt|rs|inr/i.test(h));
+
+          const productsToInsert = [];
+          for (let i = 1; i < rows.length; i++) {
+            const r = rows[i];
+            const name = (r[nameIdx] || '').trim();
+            if (!name || name.toLowerCase() === 'product name' || name.toLowerCase() === 'name') continue;
+
+            const sku = (skuIdx !== -1 && r[skuIdx]) ? r[skuIdx].trim() : `SKU-${Math.floor(100 + Math.random() * 900)}`;
+            const price_raw = (priceIdx !== -1 && r[priceIdx]) ? r[priceIdx].trim() : 'Contact for quote';
+            const model_specs = (specsIdx !== -1 && r[specsIdx]) ? r[specsIdx].trim() : '';
+
+            productsToInsert.push({
+              org_id: currentOrg.id,
+              sku,
+              name,
+              price_raw,
+              model_specs,
+              is_active: true
+            });
+          }
+
+          if (productsToInsert.length === 0) {
+            showToast('No valid product rows found in CSV', 'warning');
+            return;
+          }
+
+          if (sb) {
+            const { error: insErr } = await sb.from('products').insert(productsToInsert);
+            if (insErr) throw insErr;
+          }
+          showToast(`Successfully imported ${productsToInsert.length} products from CSV!`, 'success');
+          fetchCatalogProducts();
+          event.target.value = '';
+          return;
+        }
+
+        // PDF or Excel Upload
         let publicUrl = null;
         if (sb) {
-          const filePath = `${currentOrg.id}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
-          const { error: upErr } = await sb.storage.from('catalogs').upload(filePath, file);
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+          const filePath = `${currentOrg.id}/catalogs/${Date.now()}_${safeName}`;
+          const { error: upErr } = await sb.storage.from('catalogs').upload(filePath, file, { upsert: true });
           if (!upErr) {
             const { data: urlData } = sb.storage.from('catalogs').getPublicUrl(filePath);
             publicUrl = urlData?.publicUrl || null;
@@ -2293,6 +2504,7 @@
             sku: 'CAT-' + Math.floor(100 + Math.random() * 900),
             name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
             price_raw: 'Contact for Quote',
+            model_specs: 'Uploaded Brochure Catalog',
             brochure_url: publicUrl,
             brochure_filename: file.name,
             is_active: true
@@ -2300,12 +2512,12 @@
         }
         showToast(`Catalog "${file.name}" uploaded & parsed successfully!`, 'success');
         fetchCatalogProducts();
+        event.target.value = '';
       } catch (err) {
         showToast('Upload error: ' + err.message, 'error');
       }
     }
 
-    // =========================================================================
     // 📞 TWO-WAY CALL SCHEDULER
     // =========================================================================
     async function fetchCallRequests() {
