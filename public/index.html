@@ -343,9 +343,6 @@
           <button onclick="openActivationModal('Standard Growth Plan', '₹7,500 Setup + ₹2,999/mo', 'Autonomous B2B Sales Engine for your business')" class="text-xs font-semibold px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
             <span>⚡ Upgrade Plan</span>
           </button>
-          <button onclick="switchView('whatsapp')" class="text-xs font-semibold px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
-            <span>🟢 WhatsApp Engine</span>
-          </button>
         </div>
       </div>
 
@@ -381,7 +378,7 @@
             <div onclick="switchView('catalog')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
               <div class="flex items-center space-x-2 text-xs font-semibold text-indigo-300">
                 <span class="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[10px] font-bold">2</span>
-                <span id="step2Title">2. Drop Machine PDF Brochures</span>
+                <span id="step2Title">2. Drop PDF Catalogs</span>
               </div>
               <p id="step2Desc" class="text-[11px] text-slate-400 mt-1">Upload PDF, Excel, or CSV catalogs. AI extracts specs & pricing.</p>
             </div>
@@ -398,7 +395,7 @@
 
         <div class="flex items-center justify-between">
           <div>
-            <h1 id="dashOverviewTitle" class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Factory Sales Dashboard</h1>
+            <h1 id="dashOverviewTitle" class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">B2B Sales Dashboard</h1>
             <p id="dashOverviewSub" class="text-xs text-slate-500 mt-0.5">Real-time buyer qualification & instant WhatsApp dispatch.</p>
           </div>
           <button onclick="loadDashboardData()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700 shadow-sm transition">
@@ -582,45 +579,23 @@
 
         <!-- STRUCTURED PRODUCTS TABLE -->
         
-        <!-- Optional Website Knowledge Sync & Business Type Selection -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="text-base">🌐</span>
-                <h3 class="text-xs font-bold text-slate-900">Website Knowledge Sync</h3>
-              </div>
-              <span id="websiteSyncStatusBadge" class="text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-600">Not Synced</span>
-            </div>
-            <p class="text-[11px] text-slate-500">Train AI on your business website, about page, and service offerings.</p>
-            <div class="flex gap-2">
-              <input type="url" id="websiteUrlInput" placeholder="https://yourcompany.com" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
-              <button onclick="syncWebsiteKnowledge()" id="btnSyncWebsite" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition whitespace-nowrap">
-                <span>Sync Website</span>
-              </button>
-            </div>
-            <div id="websiteSyncInfo" class="text-[10px] text-slate-400"></div>
-          </div>
-
-          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+        <!-- Optional Website Knowledge Sync -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+          <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
-              <span class="text-base">🏭</span>
-              <h3 class="text-xs font-bold text-slate-900">Industry / Business Type</h3>
+              <span class="text-base">🌐</span>
+              <h3 class="text-xs font-bold text-slate-900">Website Knowledge Sync</h3>
             </div>
-            <p class="text-[11px] text-slate-500">Adapts AI terminology and catalog column headers for your specific industry.</p>
-            <div>
-              <select id="settingBusinessType" onchange="handleBusinessTypeChange(this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium">
-                <option value="Machinery">Packaging & Industrial Machinery</option>
-                <option value="Manufacturing">Custom Manufacturing & Fabrication</option>
-                <option value="Wholesale">Wholesale & B2B Distribution</option>
-                <option value="Textile">Textile, Garments & Yarns</option>
-                <option value="Chemicals">Chemicals, Polymers & Pharma</option>
-                <option value="Hardware">Hardware, Fasteners & Tools</option>
-                <option value="FoodProcessing">Agro & Food Processing</option>
-                <option value="General">General B2B Products & Services</option>
-              </select>
-            </div>
+            <span id="websiteSyncStatusBadge" class="text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-600">Not Synced</span>
           </div>
+          <p class="text-[11px] text-slate-500">Train AI on your business website, about page, and service offerings.</p>
+          <div class="flex gap-2">
+            <input type="url" id="websiteUrlInput" placeholder="https://yourcompany.com" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+            <button onclick="syncWebsiteKnowledge()" id="btnSyncWebsite" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition whitespace-nowrap">
+              <span>Sync Website</span>
+            </button>
+          </div>
+          <div id="websiteSyncInfo" class="text-[10px] text-slate-400"></div>
         </div>
   
 
@@ -635,8 +610,8 @@
                 <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
                   <th class="py-3 px-4">Photo</th>
                   <th class="py-3 px-4">SKU</th>
-                  <th class="py-3 px-4">Machine Name</th>
-                  <th class="py-3 px-4">Model / Specs</th>
+                  <th id="thColProductName" class="py-3 px-4">Machine Name</th>
+                  <th id="thColProductSpecs" class="py-3 px-4">Model / Specs</th>
                   <th class="py-3 px-4">Price Spec</th>
                   <th class="py-3 px-4">Brochure PDF</th>
                   <th class="py-3 px-4 text-right">Actions</th>
@@ -670,34 +645,49 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <!-- Card 1: Phone Numbers Configuration -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <div class="flex items-center space-x-3">
-              <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm">📱</div>
-              <div>
-                <h3 class="text-sm font-bold text-slate-900">Dedicated WhatsApp Numbers</h3>
-                <span class="text-[11px] text-slate-500">Saved directly to your cloud workspace organization</span>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm">📱</div>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900">Dedicated WhatsApp Numbers</h3>
+                  <span class="text-[11px] text-slate-500">Live linked SIM & sales escalation</span>
+                </div>
               </div>
+              <span id="waConnectedStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">⚪ Disconnected</span>
+            </div>
+
+            <!-- Connected Device Status Banner -->
+            <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between text-xs">
+              <div class="flex items-center space-x-2.5">
+                <span class="text-base">🤖</span>
+                <div>
+                  <div class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Connected WhatsApp SIM</div>
+                  <div id="waConnectedNumberDisplay" class="text-slate-500 font-normal text-xs">No device linked yet</div>
+                </div>
+              </div>
+              <span class="text-[10px] text-slate-400">Auto-detected upon scan</span>
             </div>
 
             <div class="space-y-3.5 text-xs">
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">
-                  Automation WhatsApp Number (Bot SIM to Link)
-                </label>
-                <input type="text" id="waBotNumberInput" placeholder="e.g. 9198XXXXXXXX (Country code + 10 digits)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                <p class="text-[10px] text-slate-400 mt-0.5">This number will send automatic product catalogs, pricing, and Hinglish AI replies to buyers.</p>
-              </div>
+              <!-- Hidden or sync input for waBotNumberInput for legacy ID compatibility -->
+              <input type="hidden" id="waBotNumberInput" value="">
 
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">
                   Main Owner / Sales Director WhatsApp Number (Alerts)
                 </label>
-                <input type="text" id="waOwnerAlertInput" placeholder="e.g. 9199XXXXXXXX (Country code + 10 digits)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                <input type="text" id="waOwnerAlertInput" placeholder="e.g. 98XXXXXXXX (Country code 91 auto-added)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 <p class="text-[10px] text-slate-400 mt-0.5">Receives instant hot-lead alerts, requested call bookings, and high-value buyer summaries.</p>
+                <!-- Warning badge if owner number equals linked bot SIM -->
+                <div id="waOwnerAlertWarning" class="hidden mt-1.5 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
+                  <span>⚠️</span>
+                  <span><strong>Notice:</strong> Owner Alert number cannot be the same as the linked Bot SIM, otherwise alerts will message yourself.</span>
+                </div>
               </div>
 
               <div class="pt-2">
                 <button onclick="saveWaPhoneNumbers()" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-2">
-                  <span>💾 Save Phone Numbers</span>
+                  <span>💾 Save Owner Alert Number</span>
                 </button>
               </div>
             </div>
@@ -752,7 +742,18 @@
 
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">Custom First Welcome Greeting</label>
-                <textarea id="waWelcomeMessageInput" rows="2" placeholder="Namaste! Thank you for inquiring about our machinery. Here is our official verified catalog & pricing details." class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+                <textarea id="waWelcomeMessageInput" oninput="updateWelcomePreview()" rows="2" placeholder="Namaste! Thank you for reaching out. How can our team assist you today?" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+              </div>
+
+              <!-- 💬 Live Preview Starting Greeting Box -->
+              <div class="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 text-xs space-y-1.5">
+                <div class="flex items-center justify-between text-[11px] font-bold text-indigo-900">
+                  <span class="flex items-center gap-1.5"><span>💬</span> Preview Starting Greeting (Buyer WhatsApp View)</span>
+                  <span class="text-[10px] font-normal text-indigo-500">Auto-sent on "Hi / Namaste / Hello"</span>
+                </div>
+                <div id="waWelcomePreviewText" class="bg-white border border-indigo-100/80 rounded-lg p-2.5 text-slate-700 text-xs shadow-xs italic whitespace-pre-line leading-relaxed">
+                  Namaste! Welcome to our store. How can we help you today?
+                </div>
               </div>
 
               <button onclick="saveWaAutomations()" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs transition">
@@ -791,6 +792,9 @@
 
             <!-- TAB 1: QR Code Section -->
             <div id="waTabQrContent" class="space-y-4 text-center">
+              <div class="text-[11px] text-indigo-700 font-medium bg-indigo-50/70 py-1.5 px-3 rounded-lg border border-indigo-100 inline-block">
+                ✨ <strong>Zero typing needed:</strong> Simply click below and point your WhatsApp camera to link!
+              </div>
               <div id="baileysQrContainer" class="w-56 h-56 bg-slate-50 mx-auto border border-gray-200 rounded-xl flex items-center justify-center text-xs text-slate-400 p-2 shadow-inner">
                 <div class="p-4 text-center space-y-2">
                   <div class="text-2xl">📱</div>
@@ -817,6 +821,12 @@
 
             <!-- TAB 2: 8-Digit Pairing Code Section -->
             <div id="waTabCodeContent" class="hidden space-y-4 text-center">
+              <div class="max-w-xs mx-auto text-left space-y-1">
+                <label class="block text-xs font-semibold text-slate-700">Phone Number to Pair (Bot SIM):</label>
+                <input type="text" id="waPairPhoneInput" oninput="syncBotNumber(this.value)" placeholder="e.g. 98XXXXXXXX (no +91 needed)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                <p class="text-[10px] text-slate-400">Enter the 10-digit number of the SIM you want to link. Country code 91 is auto-added.</p>
+              </div>
+
               <div class="bg-slate-50 border border-gray-200 rounded-xl p-5 text-center space-y-3">
                 <div class="text-xs text-slate-600">Pairing Code for Bot Number:</div>
                 <div id="waPairingCodeDisplay" class="text-2xl lg:text-3xl font-mono tracking-widest font-black text-slate-400 bg-white px-4 py-3 rounded-xl border border-dashed border-gray-300 inline-block">
@@ -861,7 +871,7 @@
 
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Recipient Phone Number (with Country Code)</label>
-              <input type="text" id="testRecipientPhone" placeholder="e.g. 9198XXXXXXXX" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+              <input type="text" id="testRecipientPhone" placeholder="e.g. 98XXXXXXXX (no +91 needed)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" />
             </div>
 
             <div>
@@ -873,7 +883,7 @@
 
             <div>
               <label class="block text-xs font-semibold text-slate-700 mb-1">Test Message</label>
-              <textarea id="testMessageText" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">Namaste! This is a live test message from your MartFlow AI Factory Sales Engine.</textarea>
+              <textarea id="testMessageText" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">Hi! Here are the details you requested from our team.</textarea>
             </div>
 
             <button onclick="sendLiveTestWhatsApp()" id="btnSendTestWa" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center justify-center space-x-1.5">
@@ -971,16 +981,30 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Factory Profile & Alert Settings (Primary for Owner) -->
+          <!-- Business Profile & Owner Alerts (Primary for Owner) -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
-              <h3 class="text-sm font-bold text-slate-900">Factory Profile & Owner Alerts</h3>
-              <p class="text-xs text-slate-500 mt-0.5">Basic information used by AI when replying to B2B buyers.</p>
+              <h3 class="text-sm font-bold text-slate-900">Business Profile & Owner Alerts</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Basic information used by AI when qualifying inbound buyer leads.</p>
             </div>
             <div class="space-y-3 text-xs">
               <div>
-                <label class="block font-semibold text-slate-700 mb-1">Company / Factory Display Name</label>
+                <label class="block font-semibold text-slate-700 mb-1">Company / Business Display Name</label>
                 <input type="text" id="settingCompanyName" placeholder="e.g. Apex Industrial Solutions" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Industry / Business Niche</label>
+                <select id="settingBusinessType" onchange="handleBusinessTypeChange(this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium">
+                  <option value="auto">✨ Auto-Detect from Catalog & Website</option>
+                  <option value="machinery">🏭 Packaging & Industrial Machinery</option>
+                  <option value="manufacturing">⚙️ Custom Manufacturing & Wholesale</option>
+                  <option value="coaching_ielts">🎓 IELTS, Study Visa & Coaching Institute</option>
+                  <option value="solar">☀️ Solar Rooftop & EPC Solutions</option>
+                  <option value="real_estate">🏢 Real Estate, Builders & Property</option>
+                  <option value="interiors">🛋️ Modular Kitchen, Interiors & Showrooms</option>
+                  <option value="services">💼 Clinics, Agencies & General Services</option>
+                </select>
+                <p class="text-[10px] text-slate-400 mt-0.5">Adapts AI qualification playbooks, KPI labels, and catalog column headers.</p>
               </div>
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">City / Dispatch Base</label>
@@ -992,7 +1016,7 @@
                 <p class="text-[10px] text-slate-400 mt-0.5">High-intent buyer dossiers and call confirmation alerts are sent here.</p>
               </div>
               <button onclick="saveAiSettings()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
-                Save Factory Profile
+                Save Business Profile
               </button>
             </div>
           </div>
@@ -2150,6 +2174,8 @@
         return;
       }
 
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
+
       try {
         let leads = [];
         let products = [];
@@ -2303,15 +2329,176 @@
       showToast('Industry niche set to: ' + val, 'info');
     }
 
-    function applyBusinessNiche(type) {
-      const isMachinery = (type === 'Machinery');
-      const isTextile = (type === 'Textile');
-      const isFood = (type === 'FoodProcessing');
+    function applyBusinessNiche(type = 'auto') {
+      const bType = (type || currentOrg?.business_type || 'auto').toLowerCase();
+      const sel = document.getElementById('settingBusinessType');
+      if (sel && sel.value !== bType) {
+        for (let i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === bType) {
+            sel.selectedIndex = i;
+            break;
+          }
+        }
+      }
 
+      // 0. Dashboard Title & Onboarding Card Subtitles
+      const dashTitle = document.getElementById('dashOverviewTitle');
+      if (dashTitle) {
+        if (bType === 'coaching_ielts') dashTitle.textContent = 'Student Admissions Dashboard';
+        else if (['real_estate', 'solar', 'interiors'].includes(bType)) dashTitle.textContent = 'Project Enquiries Dashboard';
+        else if (bType === 'machinery') dashTitle.textContent = 'Industrial Sales Dashboard';
+        else dashTitle.textContent = 'B2B Sales Dashboard';
+      }
+
+      const dashBannerSub = document.getElementById('dashBannerSub');
+      if (dashBannerSub) {
+        if (bType === 'coaching_ielts') dashBannerSub.textContent = 'Automated course brochure dispatch, eligibility qualification, and counseling call booking.';
+        else if (bType === 'machinery') dashBannerSub.textContent = 'Automated machine PDF catalog dispatch, Hinglish deal closing, and factory owner call booking.';
+        else dashBannerSub.textContent = 'Automated catalog PDF dispatch, Hinglish deal closing, and business owner call booking.';
+      }
+
+      const step2Title = document.getElementById('step2Title');
+      if (step2Title) {
+        if (bType === 'coaching_ielts') step2Title.textContent = '2. Drop Course Brochures';
+        else if (bType === 'machinery') step2Title.textContent = '2. Drop Machine Catalogs';
+        else step2Title.textContent = '2. Drop PDF Catalogs';
+      }
+
+      // 1. Dashboard KPI Label
+      const lblCat = document.getElementById('lblStatCatalogProducts');
+      if (lblCat) {
+        if (bType === 'coaching_ielts') lblCat.textContent = 'Active Course Brochures';
+        else if (['real_estate', 'solar', 'interiors'].includes(bType)) lblCat.textContent = 'Active Project PDFs';
+        else if (bType === 'machinery') lblCat.textContent = 'Active Machine PDFs';
+        else lblCat.textContent = 'Active Catalog PDFs';
+      }
+
+      // 2. Catalog Table Headers (Machine Name / Model & Specs)
+      const thName = document.getElementById('thColProductName');
+      const thSpecs = document.getElementById('thColProductSpecs');
+      if (thName && thSpecs) {
+        if (bType === 'coaching_ielts') {
+          thName.textContent = 'Course / Program Name';
+          thSpecs.textContent = 'Duration / Eligibility';
+        } else if (['solar', 'real_estate', 'interiors'].includes(bType)) {
+          thName.textContent = 'Project / Package Name';
+          thSpecs.textContent = 'kW / Area / Config';
+        } else if (['services', 'manufacturing'].includes(bType)) {
+          thName.textContent = 'Product / Service Name';
+          thSpecs.textContent = 'Details / Specs';
+        } else {
+          thName.textContent = 'Machine Name';
+          thSpecs.textContent = 'Model / Specs';
+        }
+      }
+
+      // 3. Edit Modal Labels
       const lblModalProd = document.getElementById('lblEditProductName');
       const lblModalSpecs = document.getElementById('lblEditModel');
-      if (lblModalProd) lblModalProd.textContent = isMachinery ? 'Machine / Product Name' : 'Product / Item Name';
-      if (lblModalSpecs) lblModalSpecs.textContent = isMachinery ? 'Model / Specs' : 'Specifications / Details';
+      if (lblModalProd) {
+        lblModalProd.textContent = (bType === 'coaching_ielts') ? 'Course / Program Name' :
+          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'Project / Package Name' :
+          (bType === 'machinery') ? 'Machine / Product Name' : 'Product / Item Name';
+      }
+      if (lblModalSpecs) {
+        lblModalSpecs.textContent = (bType === 'coaching_ielts') ? 'Duration / Eligibility' :
+          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'kW / Area / Config' :
+          (bType === 'machinery') ? 'Model / Specs' : 'Specifications / Details';
+      }
+
+      // 4. WhatsApp Welcome Greeting Placeholder
+      const waInput = document.getElementById('waWelcomeMessageInput');
+      const orgName = currentOrg?.name || 'our company';
+      if (waInput) {
+        let placeholder = '';
+        if (bType === 'coaching_ielts') {
+          placeholder = `Hello! Welcome to ${orgName}. We offer certified training for IELTS, PTE, and Study Visa counseling. Which course or destination country are you planning for?`;
+        } else if (bType === 'solar') {
+          placeholder = `Namaste! Welcome to ${orgName}. We provide Tier-1 Solar Rooftop & EPC solutions. What is your sanctioned load (kW) or average monthly electricity bill?`;
+        } else if (bType === 'real_estate') {
+          placeholder = `Hello! Welcome to ${orgName}. Explore our verified residential and commercial properties. Are you looking for 2/3 BHK flats, plots, or commercial space?`;
+        } else if (bType === 'interiors') {
+          placeholder = `Namaste! Welcome to ${orgName}. We design bespoke modular kitchens and turnkey interiors. Would you like to share your floor plan or schedule a free site visit?`;
+        } else if (bType === 'manufacturing') {
+          placeholder = `Namaste! Welcome to ${orgName}. We specialize in precision custom manufacturing and bulk supply. What is your required batch size or technical drawing spec?`;
+        } else if (bType === 'services') {
+          placeholder = `Namaste! Welcome to ${orgName}. Thank you for connecting with us. How can our team assist you with your requirements today?`;
+        } else {
+          placeholder = `Namaste! Welcome to ${orgName}. We manufacture high-performance packaging and industrial machinery. Which machine model or capacity are you looking for?`;
+        }
+        waInput.placeholder = placeholder;
+      }
+
+      // 5. Dashboard Header & 3-Step Guided Onboarding Text
+      const dTitle = document.getElementById('dashOverviewTitle');
+      const dSub = document.getElementById('dashOverviewSub');
+      const bTitle = document.getElementById('dashBannerTitle');
+      const bSub = document.getElementById('dashBannerSub');
+      if (dTitle) {
+        if (bType === 'coaching_ielts') dTitle.textContent = 'Institute Admissions & Student Inquiry Dashboard';
+        else if (bType === 'solar') dTitle.textContent = 'Solar Rooftop & EPC Inquiries Dashboard';
+        else if (bType === 'real_estate') dTitle.textContent = 'Real Estate & Property Inquiries Dashboard';
+        else if (bType === 'interiors') dTitle.textContent = 'Modular Interior & Turnkey Design Dashboard';
+        else if (bType === 'manufacturing') dTitle.textContent = 'Custom Manufacturing & B2B Inquiries Dashboard';
+        else if (bType === 'services') dTitle.textContent = 'Consultation & Client Booking Dashboard';
+        else if (bType === 'machinery') dTitle.textContent = 'Industrial Machinery Sales Dashboard';
+        else dTitle.textContent = 'Sales & Inquiries Dashboard';
+      }
+      if (dSub) {
+        dSub.textContent = 'Real-time buyer qualification & instant WhatsApp dispatch.';
+      }
+      if (bTitle) {
+        if (bType === 'coaching_ielts') bTitle.textContent = 'Study Visa & IELTS Student Inquiry Automation';
+        else if (bType === 'solar') bTitle.textContent = 'Solar Rooftop & EPC Lead Qualification Desk';
+        else if (bType === 'real_estate') bTitle.textContent = 'Real Estate Buyer Desk & Site Visit Scheduler';
+        else if (bType === 'interiors') bTitle.textContent = 'Turnkey Interiors & Modular Kitchen Sales Desk';
+        else if (bType === 'manufacturing') bTitle.textContent = 'Custom Manufacturing & B2B Inquiry Desk';
+        else if (bType === 'services') bTitle.textContent = 'Client Inquiry & Consultation Booking Desk';
+        else if (bType === 'machinery') bTitle.textContent = 'Industrial Machinery Sales & Catalog Dispatch';
+        else bTitle.textContent = 'Automated B2B Sales Engine & Catalog Dispatch';
+      }
+      if (bSub) {
+        if (bType === 'coaching_ielts') bSub.textContent = 'Automated course brochure dispatch, band eligibility qualification, and counsellor calls.';
+        else if (bType === 'solar') bSub.textContent = 'Instant solar capacity estimator, government subsidy guidance, and site survey booking.';
+        else if (bType === 'real_estate') bSub.textContent = 'Instant project floor plan dispatch, buyer budget qualification, and private site visits.';
+        else if (bType === 'interiors') bSub.textContent = 'Turnkey design catalog dispatch, 3D visualization consultation, and designer appointments.';
+        else if (bType === 'manufacturing') bSub.textContent = 'Technical spec analysis, MOQ/drawing requirement intake, and quotation follow-up.';
+        else if (bType === 'services') bSub.textContent = 'Service brief intake, portfolio sharing, and discovery consultation booking.';
+        else if (bType === 'machinery') bSub.textContent = 'Automated machine PDF catalog dispatch, Hinglish deal closing, and owner call booking.';
+        else bSub.textContent = 'Instant product brochure dispatch, buyer qualification, and priority call scheduling.';
+      }
+
+      // 6. Test WhatsApp Message Default
+      const testMsgInput = document.getElementById('testMessageText');
+      if (testMsgInput && (!testMsgInput.value || testMsgInput.value.includes('Factory Sales Engine') || testMsgInput.value.startsWith('Hi! Here are the details'))) {
+        if (bType === 'coaching_ielts') testMsgInput.value = 'Hello! Thank you for inquiring about our IELTS & Study Visa programs. Here are the brochure and fee details.';
+        else if (bType === 'solar') testMsgInput.value = 'Namaste! Thank you for inquiring about our Solar Rooftop solutions. Here is the technical brochure & estimated savings.';
+        else if (bType === 'real_estate') testMsgInput.value = 'Hello! Thank you for showing interest in our properties. Here are the floor plans & project overview.';
+        else if (bType === 'interiors') testMsgInput.value = 'Namaste! Here is our design catalog & modular interior packages for your review.';
+        else if (bType === 'manufacturing') testMsgInput.value = 'Namaste! Thank you for requesting a quotation. Here is our manufacturing capability brochure.';
+        else if (bType === 'services') testMsgInput.value = 'Hello! Thank you for connecting with us. Here are our service details and scope of work.';
+        else if (bType === 'machinery') testMsgInput.value = 'Namaste! Here is the official machine technical brochure & specifications for your production line.';
+        else testMsgInput.value = 'Hi! Here are the product details and specifications you requested from our team.';
+      }
+
+      // 7. Update live greeting preview
+      updateWelcomePreview();
+    }
+
+    function updateWelcomePreview() {
+      const previewEl = document.getElementById('waWelcomePreviewText');
+      if (!previewEl) return;
+      const customVal = (document.getElementById('waWelcomeMessageInput')?.value || '').trim();
+      if (customVal) {
+        previewEl.textContent = customVal;
+        previewEl.classList.remove('italic', 'text-slate-500');
+        previewEl.classList.add('text-slate-800');
+      } else {
+        const placeholder = document.getElementById('waWelcomeMessageInput')?.placeholder;
+        previewEl.textContent = placeholder || 'Namaste! Welcome to our store. How can we help you today?';
+        previewEl.classList.add('italic', 'text-slate-500');
+        previewEl.classList.remove('text-slate-800');
+      }
     }
 
     function debounceLeadsSearch() {
@@ -2330,6 +2517,8 @@
         else if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view leads.</td></tr>';
         return;
       }
+
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
 
       try {
         let leads = [];
@@ -2430,6 +2619,8 @@
 
     async function exportLeadsCsv() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
+
       try {
         let leads = [];
         if (sb) {
@@ -2644,6 +2835,7 @@
         if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view catalog.</td></tr>';
         return;
       }
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
 
       try {
         let prods = [];
@@ -2992,6 +3184,47 @@
       if (codeContent) codeContent.classList.toggle('hidden', isQr);
     }
 
+    function cleanPhoneNumber(phone) {
+      if (!phone) return '';
+      let clean = String(phone).replace(/\D/g, '');
+      if (clean.length === 10 && /^[6-9]/.test(clean)) {
+        clean = '91' + clean;
+      } else if (clean.startsWith('0') && clean.length === 11) {
+        clean = '91' + clean.slice(1);
+      }
+      return clean;
+    }
+
+    function syncBotNumber(val) {
+      const botInput = document.getElementById('waBotNumberInput');
+      if (botInput) botInput.value = cleanPhoneNumber(val);
+    }
+
+    let waRealtimeSubscribed = false;
+    function subscribeToWaRealtime() {
+      if (!sb || !currentOrg || waRealtimeSubscribed) return;
+      try {
+        sb.channel('org-wa-' + currentOrg.id)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'organizations', filter: 'id=eq.' + currentOrg.id },
+            (payload) => {
+              if (payload.new) {
+                currentOrg = { ...currentOrg, ...payload.new };
+                checkWaConnection();
+                if (payload.new.wa_status === 'connected' && waQrPollTimer) {
+                  clearInterval(waQrPollTimer);
+                  waQrPollTimer = null;
+                  showToast('WhatsApp connected successfully!', 'success');
+                }
+              }
+            }
+          )
+          .subscribe();
+        waRealtimeSubscribed = true;
+      } catch (e) {}
+    }
+
     async function checkWaConnection(force = false) {
       if (!currentOrg) return;
       if (sb) {
@@ -3001,7 +3234,9 @@
         } catch (e) {}
       }
 
-      // Update bottom-left sidebar socket status
+      subscribeToWaRealtime();
+
+      // Bottom-left sidebar socket status
       const waDot = document.getElementById('waStatusDot');
       const waBadge = document.getElementById('waStatusBadge');
       const waText = document.getElementById('waStatusText');
@@ -3009,8 +3244,8 @@
       if (currentOrg.wa_status === 'connected') {
         if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 pulse-dot';
         if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full';
-        const num = currentOrg.bot_whatsapp_number ? ` (+${currentOrg.bot_whatsapp_number})` : '';
-        if (waText) waText.textContent = `Connected${num}`;
+        const num = currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number ? ' (+' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number) + ')' : '';
+        if (waText) waText.textContent = 'Connected' + num;
       } else if (currentOrg.wa_status === 'qr_ready') {
         if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-dot';
         if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full';
@@ -3028,21 +3263,57 @@
         const hb = currentOrg.wa_worker_heartbeat;
         const ageSec = hb ? (Date.now() - new Date(hb).getTime()) / 1000 : 9999;
         if (ageSec < 45) {
-          pill.className = "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30";
-          pillText.textContent = "🟢 WhatsApp Engine Online";
+          pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30';
+          pillText.textContent = '🟢 WhatsApp Engine Online';
         } else {
-          pill.className = "inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/30";
-          pillText.textContent = "🟠 Start WhatsApp Worker (node server.js) to generate QR";
+          pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/30';
+          pillText.textContent = '🟡 Start WhatsApp Worker (node server.js) to generate QR';
         }
       }
 
-      // 2. Hydrate Inputs
-      if (document.getElementById('waBotNumberInput') && currentOrg.bot_whatsapp_number) {
-        document.getElementById('waBotNumberInput').value = currentOrg.bot_whatsapp_number;
+      // 2. Hydrate Inputs with typing guard (NEVER overwrite active typing!)
+      const botInput = document.getElementById('waBotNumberInput');
+      if (botInput && currentOrg.bot_whatsapp_number && document.activeElement !== botInput) {
+        botInput.value = currentOrg.bot_whatsapp_number;
       }
-      if (document.getElementById('waOwnerAlertInput') && currentOrg.owner_alert_number) {
-        document.getElementById('waOwnerAlertInput').value = currentOrg.owner_alert_number;
+      const pairInput = document.getElementById('waPairPhoneInput');
+      if (pairInput && currentOrg.bot_whatsapp_number && document.activeElement !== pairInput) {
+        pairInput.value = currentOrg.bot_whatsapp_number;
       }
+      const ownerInput = document.getElementById('waOwnerAlertInput');
+      if (ownerInput && currentOrg.owner_alert_number && document.activeElement !== ownerInput) {
+        ownerInput.value = currentOrg.owner_alert_number;
+      }
+
+      // Connected SIM card badge in Card 1
+      const connDisplay = document.getElementById('waConnectedNumberDisplay');
+      const connBadge = document.getElementById('waConnectedStatusBadge');
+      if (connDisplay && connBadge) {
+        if (currentOrg.wa_status === 'connected' && (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number)) {
+          connDisplay.textContent = '+' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number);
+          connDisplay.className = 'font-bold text-emerald-800 font-mono text-xs';
+          connBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800';
+          connBadge.textContent = '🟢 Online';
+        } else {
+          connDisplay.textContent = 'No device linked yet';
+          connDisplay.className = 'text-slate-500 font-normal text-xs';
+          connBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500';
+          connBadge.textContent = '⚪ Disconnected';
+        }
+      }
+
+      // Owner alert collision warning
+      const ownerWarn = document.getElementById('waOwnerAlertWarning');
+      if (ownerWarn) {
+        const oNum = cleanPhoneNumber(currentOrg.owner_alert_number);
+        const bNum = cleanPhoneNumber(currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number);
+        if (oNum && bNum && oNum === bNum) {
+          ownerWarn.classList.remove('hidden');
+        } else {
+          ownerWarn.classList.add('hidden');
+        }
+      }
+
       if (document.getElementById('waAutoReplyToggle')) {
         document.getElementById('waAutoReplyToggle').checked = currentOrg.wa_auto_reply !== false;
       }
@@ -3052,8 +3323,9 @@
       if (document.getElementById('waOwnerAlertsToggle')) {
         document.getElementById('waOwnerAlertsToggle').checked = currentOrg.wa_owner_alerts !== false;
       }
-      if (document.getElementById('waWelcomeMessageInput') && currentOrg.wa_welcome_message) {
-        document.getElementById('waWelcomeMessageInput').value = currentOrg.wa_welcome_message;
+      const welcomeInput = document.getElementById('waWelcomeMessageInput');
+      if (welcomeInput && currentOrg.wa_welcome_message && document.activeElement !== welcomeInput) {
+        welcomeInput.value = currentOrg.wa_welcome_message;
       }
 
       // 3. Status Display
@@ -3065,68 +3337,89 @@
 
       if (currentOrg.wa_status === 'connected') {
         if (badge) {
-          badge.className = "text-[11px] font-bold text-emerald-600";
-          badge.textContent = `✓ Connected as +${currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number}`;
+          badge.className = 'text-[11px] font-bold text-emerald-600';
+          badge.textContent = '✓ Connected as +' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number);
         }
         if (qrContainer) {
-          qrContainer.innerHTML = `<div class="p-4 text-center space-y-2"><div class="text-4xl text-emerald-600 font-bold">✓</div><div class="font-bold text-emerald-700">WhatsApp Live & Connected</div><div class="text-xs text-slate-500">+${currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number}</div></div>`;
+          const num = currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number;
+          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-4xl text-emerald-600 font-bold">✓</div><div class="font-bold text-emerald-700 text-sm">WhatsApp Live & Connected</div><div class="text-xs font-mono font-semibold text-slate-700">+' + num + '</div><div class="pt-2"><button onclick="disconnectLiveWa()" class="text-xs font-semibold px-3 py-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Disconnect / Change SIM</button></div></div>';
         }
-        if (qrMsg) qrMsg.textContent = "Your WhatsApp Business SIM is paired and actively handling customer inquiries.";
+        if (qrMsg) qrMsg.textContent = 'Your WhatsApp Business SIM is paired and actively handling customer inquiries.';
       } else if (currentOrg.wa_status === 'qr_ready' && currentOrg.wa_qr_data_url) {
         if (badge) {
-          badge.className = "text-[11px] font-bold text-indigo-600 animate-pulse";
-          badge.textContent = "Ready to Scan";
+          badge.className = 'text-[11px] font-bold text-indigo-600 animate-pulse';
+          badge.textContent = 'Ready to Scan';
         }
         if (qrContainer) {
-          qrContainer.innerHTML = `<img src="${currentOrg.wa_qr_data_url}" alt="WhatsApp QR Code" class="w-full h-full object-contain rounded-lg shadow-sm">`;
+          qrContainer.innerHTML = '<img src="' + currentOrg.wa_qr_data_url + '" alt="WhatsApp QR Code" class="w-full h-full object-contain rounded-lg shadow-sm">';
         }
-        if (qrMsg) qrMsg.textContent = "Scan this QR code with WhatsApp > Linked Devices > Link a Device.";
+        if (qrMsg) qrMsg.textContent = 'Scan this QR code with WhatsApp > Linked Devices > Link a Device.';
       } else if (currentOrg.wa_status === 'code_ready' && currentOrg.wa_pairing_code) {
         if (badge) {
-          badge.className = "text-[11px] font-bold text-emerald-600";
-          badge.textContent = "Code Ready";
+          badge.className = 'text-[11px] font-bold text-emerald-600';
+          badge.textContent = 'Code Ready';
         }
         if (codeDisplay) {
           codeDisplay.textContent = currentOrg.wa_pairing_code;
-          codeDisplay.className = "text-2xl lg:text-3xl font-mono tracking-widest font-black text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-300 inline-block";
+          codeDisplay.className = 'text-2xl lg:text-3xl font-mono tracking-widest font-black text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-300 inline-block';
         }
         if (codeCopy) codeCopy.classList.remove('hidden');
       } else if (currentOrg.wa_status === 'initializing') {
         if (badge) {
-          badge.className = "text-[11px] font-semibold text-amber-600";
-          badge.textContent = "Generating...";
+          badge.className = 'text-[11px] font-semibold text-amber-600 animate-pulse';
+          badge.textContent = 'Generating...';
         }
         if (qrContainer) {
-          qrContainer.innerHTML = `<div class="p-4 text-center space-y-2"><div class="animate-spin text-2xl text-indigo-600">⚙️</div><div class="text-xs text-slate-600 font-semibold">Generating fresh session...</div></div>`;
+          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="animate-spin text-2xl text-indigo-600">⚙️</div><div class="text-xs text-slate-700 font-semibold">Generating fresh session...</div><div class="text-[11px] text-slate-400">Request sent to WhatsApp engine.</div><button onclick="generateLiveQrCode()" class="mt-2 text-xs font-semibold px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200">Force Refresh QR</button></div>';
         }
+        if (qrMsg) qrMsg.textContent = 'Generating live session. Ensure background worker (node server.js) is active.';
       } else {
         if (badge) {
-          badge.className = "text-[11px] font-semibold text-slate-500";
-          badge.textContent = "Disconnected";
+          badge.className = 'text-[11px] font-semibold text-slate-500';
+          badge.textContent = 'Disconnected';
         }
         if (qrContainer) {
-          qrContainer.innerHTML = `<div class="p-4 text-center space-y-2"><div class="text-2xl">📱</div><div class="font-semibold text-slate-600">Click below to generate live QR code</div></div>`;
+          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-2xl">📱</div><div class="font-semibold text-slate-600">Click below to generate live QR code</div></div>';
         }
-        if (qrMsg) qrMsg.textContent = "Ready to pair spare WhatsApp Business SIM.";
+        if (qrMsg) qrMsg.textContent = 'Ready to pair spare WhatsApp Business SIM.';
       }
 
       populateTestBrochures();
     }
 
+    async function disconnectLiveWa() {
+      if (!currentOrg) return;
+      if (!confirm('Are you sure you want to disconnect this WhatsApp number?')) return;
+      if (sb) {
+        await sb.from('organizations').update({
+          wa_command: 'disconnect',
+          wa_status: 'disconnected',
+          wa_connected_number: null,
+          wa_qr_data_url: null,
+          wa_pairing_code: null
+        }).eq('id', currentOrg.id);
+        currentOrg.wa_status = 'disconnected';
+        currentOrg.wa_connected_number = null;
+        currentOrg.wa_qr_data_url = null;
+        showToast('WhatsApp session disconnected.', 'info');
+        checkWaConnection();
+      }
+    }
+
     async function saveWaPhoneNumbers() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
-      const botPhone = (document.getElementById('waBotNumberInput')?.value || '').trim();
-      const ownerPhone = (document.getElementById('waOwnerAlertInput')?.value || '').trim();
+      const botPhone = cleanPhoneNumber((document.getElementById('waPairPhoneInput')?.value || document.getElementById('waBotNumberInput')?.value || '').trim());
+      const ownerPhone = cleanPhoneNumber((document.getElementById('waOwnerAlertInput')?.value || '').trim());
 
       if (sb) {
-        const { error } = await sb.from('organizations').update({
-          bot_whatsapp_number: botPhone,
-          owner_alert_number: ownerPhone
-        }).eq('id', currentOrg.id);
+        const updateData = { owner_alert_number: ownerPhone };
+        if (botPhone) updateData.bot_whatsapp_number = botPhone;
+        const { error } = await sb.from('organizations').update(updateData).eq('id', currentOrg.id);
         if (error) return showToast(error.message, 'error');
-        currentOrg.bot_whatsapp_number = botPhone;
+        if (botPhone) currentOrg.bot_whatsapp_number = botPhone;
         currentOrg.owner_alert_number = ownerPhone;
-        showToast('Dedicated phone numbers saved to organization!', 'success');
+        showToast('Owner alert phone saved to organization!', 'success');
+        checkWaConnection();
       }
     }
 
@@ -3153,39 +3446,68 @@
       }
     }
 
+    let waQrPollTimer = null;
     async function generateLiveQrCode() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
-      await saveWaPhoneNumbers();
+      if (waQrPollTimer) clearInterval(waQrPollTimer);
+
+      const qrContainer = document.getElementById('baileysQrContainer');
+      if (qrContainer) {
+        qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="animate-spin text-2xl text-indigo-600">⚙️</div><div class="text-xs text-slate-700 font-semibold">Generating fresh session...</div><div class="text-[10px] text-slate-400">Request sent to WhatsApp engine.</div></div>';
+      }
+
       if (sb) {
         await sb.from('organizations').update({
           wa_command: 'start_qr',
-          wa_status: 'initializing'
+          wa_status: 'initializing',
+          wa_qr_data_url: null
         }).eq('id', currentOrg.id);
+        currentOrg.wa_status = 'initializing';
+        currentOrg.wa_qr_data_url = null;
         showToast('QR code request sent to WhatsApp engine. Generating...', 'info');
-        checkWaConnection();
 
         let attempts = 0;
-        const timer = setInterval(async () => {
+        waQrPollTimer = setInterval(async () => {
           attempts++;
           const { data: org } = await sb.from('organizations').select('wa_status, wa_qr_data_url, wa_connected_number').eq('id', currentOrg.id).single();
           if (org) {
+            const qrChanged = org.wa_qr_data_url !== currentOrg.wa_qr_data_url;
+            const statusChanged = org.wa_status !== currentOrg.wa_status;
             currentOrg = { ...currentOrg, ...org };
-            checkWaConnection();
-            if (org.wa_status === 'qr_ready' || org.wa_status === 'connected' || attempts > 25) {
-              clearInterval(timer);
+            if (qrChanged || statusChanged) {
+              checkWaConnection();
+            }
+            if (org.wa_status === 'qr_ready' && org.wa_qr_data_url) {
+              clearInterval(waQrPollTimer);
+              waQrPollTimer = null;
+              showToast('Live QR code ready! Scan with your phone.', 'success');
+            } else if (org.wa_status === 'connected') {
+              clearInterval(waQrPollTimer);
+              waQrPollTimer = null;
+              showToast('WhatsApp connected successfully!', 'success');
+            } else if (attempts >= 25) {
+              clearInterval(waQrPollTimer);
+              waQrPollTimer = null;
+              if (qrContainer && (!currentOrg.wa_qr_data_url || currentOrg.wa_status !== 'qr_ready')) {
+                qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-2xl text-amber-500">⚠️</div><div class="text-xs text-slate-700 font-bold">QR Generation Delayed</div><div class="text-[11px] text-slate-500">Ensure background worker (<code>node server.js</code>) is running on your machine.</div><button onclick="generateLiveQrCode()" class="mt-2 text-xs font-semibold px-3 py-1.5 bg-indigo-600 text-white rounded-lg shadow-sm">Retry Live QR</button></div>';
+              }
             }
           }
-        }, 1500);
+        }, 1000);
       }
     }
 
     async function getLivePairingCode() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
-      const botPhone = (document.getElementById('waBotNumberInput')?.value || '').replace(/\D/g, '');
+      const inputVal = (document.getElementById('waPairPhoneInput')?.value || document.getElementById('waBotNumberInput')?.value || '').trim();
+      const botPhone = cleanPhoneNumber(inputVal);
       if (!botPhone || botPhone.length < 10) {
-        showToast('Please enter a valid Automation WhatsApp Number with country code first (e.g. 9198XXXXXXXX)', 'warning');
-        document.getElementById('waBotNumberInput')?.focus();
+        showToast('Please enter a valid 10-digit WhatsApp number (e.g. 98XXXXXXXX)', 'warning');
+        document.getElementById('waPairPhoneInput')?.focus();
         return;
+      }
+      if (document.getElementById('waBotNumberInput')) {
+        document.getElementById('waBotNumberInput').value = botPhone;
       }
       if (sb) {
         await sb.from('organizations').update({
@@ -3203,7 +3525,7 @@
           if (org) {
             currentOrg = { ...currentOrg, ...org };
             checkWaConnection();
-            if (org.wa_status === 'code_ready' || org.wa_status === 'connected' || attempts > 25) {
+            if (org.wa_status === 'code_ready' || org.wa_status === 'connected' || attempts > 40) {
               clearInterval(timer);
             }
           }
@@ -3215,12 +3537,16 @@
       const code = currentOrg?.wa_pairing_code || document.getElementById('waPairingCodeDisplay')?.textContent?.trim();
       if (code && !code.includes('----')) {
         navigator.clipboard.writeText(code);
-        showToast(`Pairing code ${code} copied to clipboard!`, 'success');
+        showToast('Pairing code ' + code + ' copied to clipboard!', 'success');
       }
     }
 
     async function disconnectWaSession() {
       if (!currentOrg) return;
+      if (waQrPollTimer) {
+        clearInterval(waQrPollTimer);
+        waQrPollTimer = null;
+      }
       if (sb) {
         await sb.from('organizations').update({
           wa_command: 'disconnect',
@@ -3244,10 +3570,10 @@
       if (sb) {
         const { data: prods } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
         (prods || []).forEach(p => {
-          if (p.brochure_url || p.brochure_filename) {
+          if (p.brochure_url && /^https?:\/\//i.test(p.brochure_url)) {
             const opt = document.createElement('option');
-            opt.value = p.brochure_url || p.brochure_filename;
-            opt.textContent = `${p.name} (${p.brochure_filename || 'PDF Catalog'})`;
+            opt.value = p.brochure_url;
+            opt.textContent = p.name + ' (' + (p.brochure_filename || 'PDF Brochure') + ')';
             opt.dataset.name = p.name;
             sel.appendChild(opt);
           }
@@ -3257,30 +3583,84 @@
 
     async function sendLiveTestWhatsApp() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
-      const phoneInput = (document.getElementById('testRecipientPhone')?.value || '').replace(/\D/g, '');
-      if (!phoneInput || phoneInput.length < 10) {
-        showToast('Please enter a valid recipient phone number with country code (e.g. 9198XXXXXXXX)', 'warning');
-        return;
+      if (currentOrg.wa_status !== 'connected') {
+        return showToast('Please scan QR code to link your WhatsApp first before testing.', 'warning');
+      }
+      const rawPhone = (document.getElementById('testRecipientPhone')?.value || '').trim();
+      const phoneClean = cleanPhoneNumber(rawPhone);
+      if (!phoneClean || phoneClean.length < 10) {
+        return showToast('Please enter a valid 10-digit recipient phone number (e.g. 98XXXXXXXX)', 'warning');
       }
       const brochureSelect = document.getElementById('testBrochureSelect');
       const brochureUrl = brochureSelect ? brochureSelect.value : null;
       const brochureName = brochureSelect?.selectedOptions?.[0]?.dataset?.name || 'Product Catalog';
-      const msg = (document.getElementById('testMessageText')?.value || '').trim();
+      const msg = (document.getElementById('testMessageText')?.value || '').trim() || 'Hi! Here are the details you requested from our team.';
+
+      const btn = document.getElementById('btnSendTestWa');
+      const statusBox = document.getElementById('testDispatchStatus');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Sending Test WhatsApp...</span>';
+      }
+      if (statusBox) {
+        statusBox.classList.remove('hidden');
+        statusBox.className = 'text-xs text-center font-medium mt-1 text-slate-500';
+        statusBox.textContent = 'Queuing message to WhatsApp socket...';
+      }
 
       if (sb) {
-        const { error } = await sb.from('wa_outbound_queue').insert({
+        const { data: queueItem, error } = await sb.from('wa_outbound_queue').insert({
           org_id: currentOrg.id,
-          to_phone: phoneInput,
+          to_phone: phoneClean,
           message_text: msg,
           pdf_url: brochureUrl || null,
-          pdf_name: brochureUrl ? `${brochureName}.pdf` : null,
+          pdf_name: brochureUrl ? brochureName + '.pdf' : null,
           status: 'pending'
-        });
-        if (error) return showToast(error.message, 'error');
+        }).select().single();
 
-        const statusBox = document.getElementById('testDispatchStatus');
-        if (statusBox) statusBox.classList.remove('hidden');
-        showToast('Test WhatsApp message queued! Delivering in 2-3 seconds.', 'success');
+        if (error) {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
+          }
+          if (statusBox) {
+            statusBox.className = 'text-xs text-center font-medium mt-1 text-rose-600';
+            statusBox.textContent = '❌ Failed to queue: ' + error.message;
+          }
+          return showToast(error.message, 'error');
+        }
+
+        showToast('Message queued! Verifying delivery...', 'info');
+
+        let checks = 0;
+        const checkTimer = setInterval(async () => {
+          checks++;
+          const { data: item } = await sb.from('wa_outbound_queue').select('status, error_text').eq('id', queueItem.id).single();
+          if (item) {
+            if (item.status === 'sent') {
+              clearInterval(checkTimer);
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
+              }
+              if (statusBox) {
+                statusBox.className = 'text-xs text-center font-bold mt-1 text-emerald-600';
+                statusBox.textContent = '✓ Delivered to +' + phoneClean + ' on WhatsApp!';
+              }
+              showToast('Test message delivered to +' + phoneClean + '!', 'success');
+            } else if (item.status === 'failed' || checks >= 8) {
+              clearInterval(checkTimer);
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
+              }
+              if (statusBox) {
+                statusBox.className = 'text-xs text-center font-medium mt-1 text-rose-600';
+                statusBox.textContent = '⚠️ Delivery timeout or failed: ' + (item.error_text || 'Check WhatsApp worker');
+              }
+            }
+          }
+        }, 1000);
       }
     }
 
@@ -3299,6 +3679,9 @@
           if (cityInput) cityInput.value = org.company_city || '';
           const ownerInput = document.getElementById('settingOwnerPhone');
           if (ownerInput) ownerInput.value = org.owner_alert_number || '';
+          const typeSelect = document.getElementById('settingBusinessType');
+          if (typeSelect && org.business_type) typeSelect.value = org.business_type;
+          applyBusinessNiche(org.business_type || 'auto');
         }
       }
     }
@@ -3308,19 +3691,23 @@
       const name = (document.getElementById('settingCompanyName')?.value || '').trim();
       const city = (document.getElementById('settingCityBase')?.value || '').trim();
       const owner = (document.getElementById('settingOwnerPhone')?.value || '').trim();
+      const bType = document.getElementById('settingBusinessType')?.value || 'auto';
 
       if (sb) {
         const { error } = await sb.from('organizations').update({
           name: name || currentOrg.name,
           company_city: city,
-          owner_alert_number: owner
+          owner_alert_number: owner,
+          business_type: bType
         }).eq('id', currentOrg.id);
         if (error) return showToast(error.message, 'error');
         currentOrg.name = name || currentOrg.name;
         currentOrg.company_city = city;
         currentOrg.owner_alert_number = owner;
+        currentOrg.business_type = bType;
+        applyBusinessNiche(bType);
         updateAuthUI();
-        showToast('Factory settings saved to cloud!', 'success');
+        showToast('Business profile saved to cloud!', 'success');
       }
     }
 
@@ -3663,20 +4050,7 @@
     }
 
     function applyNicheAdaptation(type = 'auto') {
-      const bType = type || currentOrg?.business_type || 'auto';
-      const lblCat = document.getElementById('lblStatCatalogProducts');
-      const sel = document.getElementById('settingBusinessType');
-      if (sel && sel.value !== bType) sel.value = bType;
-
-      if (bType === 'coaching_ielts') {
-        if (lblCat) lblCat.textContent = 'Active Course PDFs';
-      } else if (bType === 'goods') {
-        if (lblCat) lblCat.textContent = 'Active Product PDFs';
-      } else if (bType === 'services') {
-        if (lblCat) lblCat.textContent = 'Active Service PDFs';
-      } else {
-        if (lblCat) lblCat.textContent = 'Active Machine PDFs';
-      }
+      applyBusinessNiche(type);
     }
 
     // =========================================================================

@@ -1,3 +1,8 @@
+import 'dotenv/config';
+import dns from 'dns';
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -25,6 +30,7 @@ import { createClient } from '@supabase/supabase-js';
 import apiRouter from './src/routes/api.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
 import db from './src/db/index.js';
+import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook } from './src/services/aiService.js';
 
 dotenv.config();
 
@@ -610,7 +616,55 @@ async function resolveWhatsAppJid(phoneDigits) {
 // ============================================================================
 // AI BRAIN: GEMINI 2.5 FLASH (TEXT + VOICE NOTES) + ZERO-KEY HINGLISH FALLBACK
 // ============================================================================
+export { buildAdaptiveWelcomeMessage, getIndustryPlaybook };
+
+export function generateNaturalBusinessReply({ org, lead, incomingText, products = [] }) {
+  const bType = org?.business_type || config.businessType || 'auto';
+  const playbook = getIndustryPlaybook(bType);
+  const qLower = (incomingText || '').trim().toLowerCase();
+  const isPureGreeting = /^(hi|hello|hey|namaste|pranam|good\s*(morning|afternoon|evening)|hlo|hie|salaam)\b[!?.]*$/i.test(qLower);
+  if (isPureGreeting) {
+    return buildAdaptiveWelcomeMessage(org || { name: config.companyName, business_type: bType }, products.length ? products : config.products);
+  }
+  const buyerName = lead?.name || lead?.buyer_name || '';
+  const prefix = buyerName ? `Namaste ${buyerName} Ji! ` : 'Namaste Ji!';
+  const isCall = /call|phone|baat|milna|meeting|director|owner|appointment|visiting/i.test(qLower);
+  if (isCall) {
+    return `${prefix}Humare senior specialist se aapki call consultation arrange karne ke liye main slot check kar raha hoon. Aapko aaj afternoon me ya evening me call karna convenient rahega?`;
+  }
+  const orgName = org?.name || config.companyName || 'our business';
+  switch (String(bType).toLowerCase()) {
+    case 'coaching_ielts':
+      return `${prefix}${orgName} me inquire karne ke liye shukriya. Aap kis particular country (Canada/UK/Australia) ya kis intake ke liye prepare karna chahte hain?`;
+    case 'solar':
+      return `${prefix}${orgName} me apka swagat hai. Aapka monthly electricity bill lagbhag kitna aata hai aur aap residential ya commercial installation plan kar rahe hain?`;
+    case 'real_estate':
+      return `${prefix}${orgName} ke verified projects me ruchi lene ke liye dhanyawad. Aap 2/3 BHK ya commercial space me kis budget range aur locality me dekh rahe hain?`;
+    case 'interiors':
+      return `${prefix}${orgName} me connect karne ke liye shukriya. Aapka flat/house kis location pe hai aur aap modular kitchen ya full interior turnkey work plan kar rahe hain?`;
+    case 'manufacturing':
+      return `${prefix}${orgName} se quotation ke liye dhanyawad. Kya aapke paas technical CAD drawing ya material specs available hain, aur aapka required batch size kitna hoga?`;
+    case 'services':
+      return `${prefix}${orgName} me contact karne ke liye shukriya. Aapki specific project timeline aur deliverables kya hain, taaki hum customized proposal share kar sakein?`;
+    case 'machinery':
+    default:
+      return `${prefix}${orgName} se quotation ke liye dhanyawad. Aapko kis product/filling material ke liye machine chahiye aur aapka required production speed kitna hai?`;
+  }
+}
+
 async function generateSalesReply({ lead, incomingText, audioBuffer, audioMime }) {
+  const qClean = String(incomingText || '').trim().toLowerCase();
+  const isPureGreeting = /^(hi|hello|hey|namaste|pranam|good\s*(morning|afternoon|evening)|hlo|hie|salaam)\b[!?.]*$/i.test(qClean);
+  if (isPureGreeting && (!lead.history || lead.history.length <= 1) && !audioBuffer) {
+    const welcome = buildAdaptiveWelcomeMessage({ name: config.companyName, business_type: config.businessType || 'auto' }, config.products);
+    return {
+      reply: welcome,
+      extractedCity: '',
+      extractedRequirement: '',
+      transcriptSummary: '',
+      isHotLead: false
+    };
+  }
   const learningsData = loadLearnings();
   const learnedSynonymsList = Object.entries(learningsData.synonyms || {})
     .slice(0, 20)
@@ -724,26 +778,26 @@ Respond STRICTLY as valid JSON without markdown fences:
     }
 
     const modelsToTry = [
-      'gemini-3.5-flash',
-      'gemini-3-flash-preview',
-      'gemini-3.5-flash-lite',
+      'gemini-3.8-flash',
       'gemini-flash-latest',
-      'gemini-3.7-flash',
-      'gemini-3.1-pro-preview'
+      'gemini-2.5-flash-lite'
     ];
     for (const modelName of modelsToTry) {
       try {
+        const genConfig = {
+          temperature: 0.35,
+          maxOutputTokens: 450,
+          responseMimeType: 'application/json'
+        };
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(config.geminiApiKey.trim())}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(6000),
             body: JSON.stringify({
               contents: [{ role: 'user', parts }],
-              generationConfig: {
-                temperature: 0.4,
-                responseMimeType: 'application/json'
-              }
+              generationConfig: genConfig
             })
           }
         );
@@ -874,8 +928,6 @@ Respond STRICTLY as valid JSON without markdown fences:
 // CORE B2B LEAD DISPATCHER (SENDS GREETING + PDF CATALOG IN 8 SECONDS)
 // ============================================================================
 async function processNewB2BLead({ name, phone, productQuery, city = '', message = '', source = 'B2B Push API', customDelaySec }) {
-// Alias for compatibility
-const processNewB2BLead = processNewB2BLead;
   const cleanPhone = normalizePhone(phone);
   if (!cleanPhone || cleanPhone.length < 10) {
     throw new Error('Valid 10-digit WhatsApp mobile number required.');
@@ -2054,11 +2106,11 @@ async function initSupabaseWorker() {
         if (cmd === 'start_qr') {
           await supabaseAdmin
             .from('organizations')
-            .update({ wa_status: 'initializing' })
+            .update({ wa_status: 'initializing', wa_qr_data_url: null })
             .eq('id', org.id);
 
           const inst = baileysManager.getInstance(org.id);
-          await inst.init();
+          await inst.init(true);
         } else if (cmd === 'start_pair_code') {
           await supabaseAdmin
             .from('organizations')
@@ -2175,11 +2227,22 @@ async function initSupabaseWorker() {
     }
   }
 
-  // Run command & queue poll every 3 seconds
-  setInterval(async () => {
-    await pollCommands();
-    await pollOutboundQueue();
-  }, 3000);
+  // Mutex-locked command & queue poll every 1.5 seconds
+  let isSyncing = false;
+  async function runSyncTick() {
+    if (isSyncing) return;
+    isSyncing = true;
+    try {
+      await pollCommands();
+      await pollOutboundQueue();
+    } catch (e) {
+      addLog(`[Supabase Worker] Sync tick error: ${e.message}`);
+    } finally {
+      isSyncing = false;
+    }
+  }
+
+  setInterval(runSyncTick, 1500);
 
   // Realtime subscription channel
   try {
@@ -2190,7 +2253,7 @@ async function initSupabaseWorker() {
         { event: 'UPDATE', schema: 'public', table: 'organizations' },
         (payload) => {
           if (payload.new && payload.new.wa_command) {
-            pollCommands();
+            runSyncTick();
           }
         }
       )
@@ -2198,7 +2261,7 @@ async function initSupabaseWorker() {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'wa_outbound_queue' },
         () => {
-          pollOutboundQueue();
+          runSyncTick();
         }
       )
       .subscribe((status) => {
@@ -2208,6 +2271,41 @@ async function initSupabaseWorker() {
     addLog(`[Supabase Worker] Realtime subscription fallback to polling: ${rtErr.message}`);
   }
 }
+
+// Direct local/cloud WhatsApp endpoints for instant responses
+app.get('/api/wa/status/:orgId', (req, res) => {
+  const orgId = req.params.orgId;
+  const inst = baileysManager.getInstance(orgId);
+  res.json({ ok: true, state: inst.getState() });
+});
+
+app.post('/api/wa/start-qr', async (req, res) => {
+  const { orgId } = req.body;
+  if (!orgId) return res.status(400).json({ ok: false, error: 'orgId required' });
+  const inst = baileysManager.getInstance(orgId);
+  await inst.init(true);
+  res.json({ ok: true, message: 'QR initialization started' });
+});
+
+app.post('/api/wa/pair-code', async (req, res) => {
+  const { orgId, phone } = req.body;
+  if (!orgId || !phone) return res.status(400).json({ ok: false, error: 'orgId and phone required' });
+  const inst = baileysManager.getInstance(orgId);
+  try {
+    const code = await inst.requestPairing(phone);
+    res.json({ ok: true, pairingCode: code });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post('/api/wa/disconnect', async (req, res) => {
+  const { orgId } = req.body;
+  if (!orgId) return res.status(400).json({ ok: false, error: 'orgId required' });
+  const inst = baileysManager.getInstance(orgId);
+  await inst.disconnect();
+  res.json({ ok: true, message: 'Session disconnected' });
+});
 
 const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, '0.0.0.0', () => {
