@@ -21,7 +21,7 @@
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+          fontFamily: { sans: ['"Plus Jakarta Sans"', '"Segoe UI Emoji"', 'system-ui', '-apple-system', 'sans-serif'] },
           colors: {
             brand: {
               50: '#eef2ff',
@@ -190,7 +190,7 @@
           </span>
           <div>
             <div class="font-bold text-emerald-300 flex items-center gap-1.5 flex-wrap">
-              <span>🎁 48-Hour Live Trial Active</span>
+              <span><span class="mr-1.5 inline-block">🎁</span>48-Hour Live Trial Active</span>
               <span id="trialLeadsBadge" class="text-slate-300 font-normal text-[11px]">(25 Free Inquiries Included)</span>
             </div>
             <div id="trialCountdownText" class="text-[11px] text-emerald-200/90 font-mono mt-0.5 font-medium">
@@ -207,15 +207,8 @@
           </button>
         </div>
       </div>
-        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
-          <button onclick="switchView('whatsapp')" class="text-xs font-semibold px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
-            <span>🟢</span>
-            <span>WhatsApp Engine</span>
-          </button>
-        </div>
-      </div>
 
-      <!-- ============================================== -->
+      <!-- ==============================================
       <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
       <!-- ============================================== -->
       <section id="view-dashboard" class="space-y-6">
@@ -228,9 +221,9 @@
               <p id="dashBannerSub" class="text-xs text-slate-300 mt-0.5">Automated machine PDF catalog dispatch, Hinglish deal closing, and factory owner call booking.</p>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="switchView('whatsapp')" class="text-xs font-semibold px-3.5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
-                <span>🟢</span>
-                <span id="btnSimLeadText">WhatsApp Engine</span>
+              <button onclick="openSimulationModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+                <span>⚡</span>
+                <span id="btnSimLeadText">Test Inbound Lead</span>
               </button>
             </div>
           </div>
@@ -444,7 +437,6 @@
             <div class="text-[11px] text-slate-500">Formats: PDF brochure, Excel (.xlsx, .xls), or CSV (Auto-extracts every product row!)</div>
             <div id="catalogUploadStatus" class="hidden text-xs text-indigo-600 font-semibold pt-1"></div>
           </div>
-        </div>
         </div>
 
         <!-- STRUCTURED PRODUCTS TABLE -->

@@ -1035,3 +1035,4 @@ if (!html.includes('startTrialCountdownTimer()')) {
 
 fs.writeFileSync(indexPath, html, 'utf8');
 console.log('✓ Frontend JavaScript successfully upgraded!');
+

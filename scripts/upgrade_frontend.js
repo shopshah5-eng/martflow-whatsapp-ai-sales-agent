@@ -347,3 +347,4 @@ html = html.replace(
 
 fs.writeFileSync(indexPath, html, 'utf8');
 console.log('✓ Frontend HTML structure updated successfully!');
+
