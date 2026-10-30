@@ -1575,10 +1575,12 @@ app.post('/api/simulate-lead', async (req, res) => {
   }
 });
 
-// Public Config Endpoint (exposes merchant UPI & support WhatsApp for live checkout)
+// Public Config Endpoint (exposes Supabase config, merchant UPI & support WhatsApp for live checkout)
 app.get('/api/public-config', (req, res) => {
   res.json({
     ok: true,
+    supabaseUrl: process.env.SUPABASE_URL || 'https://uriqhusalcdgdlgzgasp.supabase.co',
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE',
     merchantUpiId: process.env.MERCHANT_UPI_ID || 'payments@martflow.ai',
     merchantName: process.env.MERCHANT_NAME || 'MartFlow AI Sales',
     supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || '919825012345'
