@@ -1619,14 +1619,20 @@
             .maybeSingle();
 
           let org = profile?.organizations;
+
+          if (!org && profile?.org_id) {
+            const { data: directOrg } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
+            org = directOrg;
+          }
+
           if (!org) {
             const companyName = session.user.user_metadata?.company_name || 
               (session.user.user_metadata?.full_name ? `${session.user.user_metadata.full_name}'s Enterprise` : 'My Manufacturing Enterprise');
 
             const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
               name: companyName,
-              plan_status: 'trial',
-              monthly_lead_limit: 25,
+              plan_status: 'active',
+              monthly_lead_limit: 999999,
               leads_used: 0,
               wa_status: 'disconnected'
             }).select().single();
@@ -1644,12 +1650,19 @@
             }
           }
 
+          if (org && org.plan_status !== 'active') {
+            await sb.from('organizations').update({ plan_status: 'active', monthly_lead_limit: 999999 }).eq('id', org.id);
+            org.plan_status = 'active';
+            org.monthly_lead_limit = 999999;
+          }
+
           currentOrg = org;
           currentUser = {
             id: session.user.id,
             email: session.user.email,
             fullName: profile?.full_name || session.user.user_metadata?.full_name || session.user.email.split('@')[0]
           };
+          closeAuthModal();
           updateAuthUI();
           loadDashboardData();
           return;
@@ -1664,6 +1677,7 @@
         if (data.ok) {
           currentOrg = data.organization;
           currentUser = data.user;
+          closeAuthModal();
           updateAuthUI();
           loadDashboardData();
         }
@@ -1793,12 +1807,33 @@
         sb.auth.onAuthStateChange(async (event, session) => {
           if (session) {
             await handleAuthSession(session);
+            closeAuthModal();
+          } else if (event === 'SIGNED_OUT') {
+            currentOrg = null;
+            currentUser = null;
+            updateAuthUI();
+            openAuthModal('login');
           }
         });
+
+        // If URL has OAuth callback tokens, process them and prevent premature login modal popup
+        if (window.location.hash.includes('access_token') || window.location.hash.includes('error')) {
+          const { data: { session } } = await sb.auth.getSession();
+          if (session) {
+            await handleAuthSession(session);
+            closeAuthModal();
+            try {
+              window.history.replaceState(null, null, window.location.pathname);
+            } catch (e) {}
+            return;
+          }
+          return;
+        }
 
         const { data: { session } } = await sb.auth.getSession();
         if (session) {
           await handleAuthSession(session);
+          closeAuthModal();
           return;
         }
       }

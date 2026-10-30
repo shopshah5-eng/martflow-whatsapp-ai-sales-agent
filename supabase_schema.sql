@@ -252,7 +252,10 @@ CREATE POLICY wa_outbound_queue_isolation ON public.wa_outbound_queue
 
 -- 13. Auto-Provisioning Trigger on New User Signup (Google OAuth / Email Magic Link)
 CREATE OR REPLACE FUNCTION public.handle_new_user_provisioning()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+SECURITY DEFINER
+SET search_path = public, extensions, pg_temp
+AS $$
 DECLARE
     new_org_id UUID;
     clean_company_name TEXT;
@@ -262,23 +265,23 @@ BEGIN
     user_name := COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1));
     clean_company_name := COALESCE(NEW.raw_user_meta_data->>'company_name', user_name || ' Manufacturing');
 
-    -- Auto-create new isolated Organization with 48h Live Trial & 25 Leads
+    -- Auto-create new isolated Organization with 100% Free Live Enterprise Access
     INSERT INTO public.organizations (
         name,
         slug,
         webhook_key,
         plan_status,
-        trial_ends_at,
         monthly_lead_limit,
-        leads_used
+        leads_used,
+        wa_status
     ) VALUES (
         clean_company_name,
-        lower(regexp_replace(user_name, '[^a-zA-Z0-9]', '', 'g')) || '-' || substr(md5(random()::text), 1, 6),
-        encode(gen_random_bytes(16), 'hex'),
-        'trial',
-        now() + interval '48 hours',
-        25,
-        0
+        lower(regexp_replace(clean_company_name, '[^a-zA-Z0-9]+', '-', 'g')) || '-' || substr(md5(random()::text), 1, 6),
+        encode(extensions.gen_random_bytes(16), 'hex'),
+        'active',
+        999999,
+        0,
+        'disconnected'
     ) RETURNING id INTO new_org_id;
 
     -- Create linked user profile as Owner
@@ -299,6 +302,8 @@ BEGIN
     );
 
     RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
