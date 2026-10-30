@@ -38,9 +38,150 @@
   </script>
   <style>
     body { background-color: #fafafa; color: #0f172a; font-family: 'Plus Jakarta Sans', sans-serif; }
-    .nav-item.active { background-color: #f1f5f9; color: #4f46e5; font-weight: 600; }
     .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
     .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+    /* 1. Dedicated Smooth View Entrance (180ms Crisp Fade + 6px Glide) */
+    @keyframes viewEnter {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .view-panel:not(.hidden) {
+      animation: viewEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* 2. Sidebar Navigation Hover Glide & Active Pill Indicator */
+    .nav-item {
+      position: relative;
+      transition: background-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    }
+    .nav-item:hover:not(.active) {
+      background-color: #f8fafc;
+      transform: translateX(2px);
+    }
+    .nav-item:hover:not(.active) svg {
+      color: #4f46e5;
+    }
+    .nav-item.active {
+      background-color: #eef2ff !important;
+      color: #4f46e5 !important;
+      font-weight: 600;
+    }
+    .nav-item.active svg {
+      color: #4f46e5;
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 15%;
+      height: 70%;
+      width: 3.5px;
+      background-color: #4f46e5;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* 3. Interactive Card Hover Depth */
+    .kpi-card,
+    #view-dashboard .grid > div,
+    #view-analytics .grid > div,
+    #view-billing .grid > div {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .kpi-card:hover,
+    #view-dashboard .grid > div:hover,
+    #view-analytics .grid > div:hover,
+    #view-billing .grid > div:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px -8px rgba(15, 23, 42, 0.08);
+      border-color: #c7d2fe;
+    }
+
+    /* 4. Tactile Button Micro-Physics */
+    button, a.btn-action {
+      transition: transform 0.12s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+    }
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    button.bg-indigo-600:hover, button.bg-emerald-600:hover, button.bg-amber-500:hover {
+      box-shadow: 0 6px 16px -4px rgba(79, 70, 229, 0.35);
+    }
+
+    /* 5. Catalog Dropzone Hover & Drag-Over Physics */
+    #catalogDropzone {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease;
+    }
+    #catalogDropzone:hover, #catalogDropzone.dragover {
+      border-color: #6366f1;
+      background-color: rgba(238, 242, 255, 0.55);
+      transform: scale(1.005);
+    }
+    #catalogDropzone:hover .dropzone-icon,
+    #catalogDropzone.dragover .dropzone-icon {
+      transform: translateY(-3px);
+      transition: transform 0.2s ease;
+    }
+
+    /* 6. Spring Modal Backdrop & Card Entrance */
+    @keyframes modalPop {
+      from {
+        opacity: 0;
+        transform: scale(0.96) translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .fixed.z-50:not(.hidden) > div {
+      animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* 7. WhatsApp Live Chat Message Slide-In & Table Rows Hover */
+    @keyframes msgSlide {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    #chatMessagesStream > div {
+      animation: msgSlide 0.16s ease forwards;
+    }
+    tbody tr {
+      transition: background-color 0.14s ease;
+    }
+    tbody tr:hover {
+      background-color: rgba(238, 242, 255, 0.4);
+    }
+
+    /* Soft pulse dot for live connected socket */
+    @keyframes softPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.2); }
+    }
+    .pulse-dot {
+      animation: softPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
   </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden bg-[#fafafa]">
@@ -116,7 +257,7 @@
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             <span>Leads</span>
           </div>
-          <span id="badgeLeadCount"><span id="sidebarLeadCount" class="hidden"></span><span data-alias="sidebarLeadCount" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span>
+          <span id="badgeLeadCount" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span><span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span>
         </button>
 
         <button onclick="switchView('conversations')" id="nav-conversations" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
@@ -211,8 +352,7 @@
       <!-- ==============================================
       <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
       <!-- ============================================== -->
-      <section id="view-dashboard">
-      <div id="kpiTotalLeads" class="hidden">0</div><div id="dashboardLeadsBody" class="hidden"></div> class="space-y-6">
+      <section id="view-dashboard" class="view-panel space-y-6">
         <!-- 3-STEP GUIDED ONBOARDING CARD ("GO LIVE IN 3 SIMPLE STEPS — ZERO TECH NEEDED") -->
         <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -270,7 +410,7 @@
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatLeadsToday" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Today's Enquiries</div>
-            <div id="statLeadsToday"><span id="kpiTodayLeads" class="hidden"></span><span data-alias="kpiTodayLeads" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Asia/Kolkata date</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -285,12 +425,12 @@
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatCallsBooked" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Owner Calls Fixed</div>
-            <div id="statCallsBooked"><span id="kpiCallCount" class="hidden"></span><span data-alias="kpiCallCount" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
+            <div id="statCallsBooked" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">2-Way owner confirmed</div>
           </div>
           <div class="col-span-2 lg:col-span-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatCatalogProducts" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active Machine PDFs</div>
-            <div id="statCatalogProducts"><span id="kpiActiveProducts" class="hidden"></span><span data-alias="kpiActiveProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Verified catalog brochures</div>
           </div>
         </div>
@@ -310,8 +450,7 @@
       <!-- ============================================== -->
       <!-- VIEW 2: LEADS (FULL TABLE & SEARCH) -->
       <!-- ============================================== -->
-      <section id="view-leads">
-      <tbody id="leadsTableBody" class="hidden"></tbody> class="hidden space-y-6">
+      <section id="view-leads" class="view-panel hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Lead Management</h1>
@@ -328,7 +467,7 @@
         <!-- SEARCH & FILTER BAR -->
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
           <div class="flex-1 min-w-[240px]">
-            <input type="text" id="leadSearchInput" data-alias="leadsSearchInput" oninput="document.getElementById('leadsSearchInput') && (document.getElementById('leadsSearchInput').value = this.value); filterLeadsList(this.value)"><input type="hidden" id="leadsSearchInput" oninput="debounceLeadsSearch()" placeholder="Search buyer name, phone, city, or product..." class="w-full text-xs px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="text" id="leadSearchInput" oninput="debounceLeadsSearch()" placeholder="Search buyer name, phone, city, or product..." class="w-full text-xs px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div class="flex space-x-2">
             <select id="leadStatusFilter" onchange="fetchLeadsList()" class="text-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none">
@@ -356,8 +495,7 @@
       <!-- ============================================== -->
       <!-- VIEW 3: CONVERSATIONS (WHATSAPP INBOX) -->
       <!-- ============================================== -->
-      <section id="view-conversations">
-      <div id="conversationsListCol" class="hidden"></div><div id="conversationDetailCol" class="hidden"></div><div id="manualReplyInput" class="hidden"></div> class="hidden space-y-6">
+      <section id="view-conversations" class="view-panel hidden space-y-6">
         <div>
           <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Conversations Inbox</h1>
           <p class="text-xs text-slate-500 mt-0.5">Real-time WhatsApp buyer dialogs with AI Auto-Pilot vs Human Takeover toggle.</p>
@@ -370,7 +508,7 @@
               <span class="text-xs font-bold text-slate-700">All Inquiries</span>
               <button onclick="fetchConversationsList()" class="text-[11px] text-indigo-600 hover:underline">Refresh</button>
             </div>
-            <div id="conversationThreadList" data-alias="conversationsList"><div id="conversationsList" class="hidden"></div><div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
+            <div id="conversationThreadList" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
               <!-- Dynamically populated -->
             </div>
           </div>
@@ -390,14 +528,14 @@
               </div>
               <div id="chatModeControls" class="hidden items-center space-x-2">
                 <span class="text-xs text-slate-500 hidden sm:inline">Mode:</span>
-                <button onclick="toggleChatMode()" id="btnChatModeToggle" data-alias="btnToggleChatMode"><span id="btnToggleChatMode" class="hidden"></span><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <button onclick="toggleChatMode()" id="btnChatModeToggle" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
                   🤖 AI Active
                 </button>
               </div>
             </div>
 
             <!-- Messages Stream -->
-            <div id="chatMessagesStream" data-alias="chatMessagesBox"><div id="chatMessagesBox" class="hidden"></div><div class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
+            <div id="chatMessagesStream" class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
               <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
                 <svg class="w-12 h-12 mb-2 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                 Select a conversation thread to view live messages.
@@ -406,7 +544,7 @@
 
             <!-- Composer -->
             <div class="p-3 border-t border-gray-200 bg-white flex items-center space-x-2 shrink-0">
-              <input type="text" id="chatComposerInput" data-alias="manualReplyInput" onkeydown="if(event.key==='Enter') sendManualReply()" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <input type="text" id="chatComposerInput" onkeydown="if(event.key==='Enter') sendManualReply()" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <button onclick="sendManualReply()" class="text-xs font-semibold px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition">
                 Send
               </button>
@@ -418,8 +556,7 @@
       <!-- ============================================== -->
       <!-- VIEW 4: PRODUCT CATALOG -->
       <!-- ============================================== -->
-      <section id="view-catalog">
-      <span id="colHeaderProductName" class="hidden"></span><span id="lblColProduct" class="hidden"></span><span id="colHeaderProductSpecs" class="hidden"></span><span id="lblColSpecs" class="hidden"></span> class="hidden space-y-6">
+      <section id="view-catalog" class="view-panel hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Product Catalog Intelligence</h1>
@@ -516,7 +653,7 @@
       <!-- ============================================== -->
       <!-- VIEW 5: WHATSAPP INTEGRATION -->
       <!-- ============================================== -->
-      <section id="view-whatsapp" class="hidden space-y-6">
+      <section id="view-whatsapp" class="view-panel hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">WhatsApp Business Setup</h1>
@@ -750,7 +887,7 @@
       <!-- ============================================== -->
       <!-- VIEW 6: CALL SCHEDULER -->
       <!-- ============================================== -->
-      <section id="view-calls" class="hidden space-y-6">
+      <section id="view-calls" class="view-panel hidden space-y-6">
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Two-Way Call Scheduler</h1>
@@ -770,8 +907,7 @@
       <!-- ============================================== -->
       <!-- VIEW 7: ANALYTICS -->
       <!-- ============================================== -->
-      <section id="view-analytics">
-      <div id="anCallsBooked" class="hidden">0</div> class="hidden space-y-6">
+      <section id="view-analytics" class="view-panel hidden space-y-6">
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Genuine Analytics</h1>
@@ -828,7 +964,7 @@
       <!-- ============================================== -->
       <!-- VIEW 8: SETTINGS -->
       <!-- ============================================== -->
-      <section id="view-settings" class="hidden space-y-6">
+      <section id="view-settings" class="view-panel hidden space-y-6">
         <div>
           <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Settings</h1>
           <p class="text-xs text-slate-500 mt-0.5">Manage company identity, B2B webhook credentials, and AI deal rules.</p>
@@ -896,8 +1032,7 @@
       <!-- ============================================== -->
       <!-- VIEW 9: WORKSPACE MEMBERSHIP & PLAN ACTIVATION -->
       <!-- ============================================== -->
-      <section id="view-billing">
-      <div id="billingPlanStatus" class="hidden">Trial</div><div id="billingLeadUsage" class="hidden">0/25</div><div id="unlockCodeInput" class="hidden"></div><div id="payTabUpi" class="hidden"></div><div id="payTabRzp" class="hidden"></div><div id="payContentUpi" class="hidden"></div><div id="payContentRzp" class="hidden"></div> class="hidden space-y-6">
+      <section id="view-billing" class="view-panel hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Membership & Commercial Plans</h1>
@@ -1029,7 +1164,7 @@
       <!-- ============================================== -->
       <!-- VIEW 10: ENGINEER CONSOLE (?admin=1) -->
       <!-- ============================================== -->
-      <section id="view-engineer" class="hidden space-y-6">
+      <section id="view-engineer" class="view-panel hidden space-y-6">
         <div>
           <div class="flex items-center space-x-2">
             <span class="text-xs font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">Engineer Console (?admin=1)</span>
@@ -1750,9 +1885,10 @@
 
             const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
               name: companyName,
-              plan_status: 'active',
-              monthly_lead_limit: 999999,
+              plan_status: 'trial',
+              monthly_lead_limit: 25,
               leads_used: 0,
+              trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
               wa_status: 'disconnected'
             }).select().single();
 
@@ -1769,10 +1905,10 @@
             }
           }
 
-          if (org && org.plan_status !== 'active') {
-            await sb.from('organizations').update({ plan_status: 'active', monthly_lead_limit: 999999 }).eq('id', org.id);
-            org.plan_status = 'active';
-            org.monthly_lead_limit = 999999;
+          if (org && !org.trial_ends_at && org.plan_status === 'trial') {
+            const endsAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+            await sb.from('organizations').update({ trial_ends_at: endsAt }).eq('id', org.id);
+            org.trial_ends_at = endsAt;
           }
 
           currentOrg = org;
@@ -1783,6 +1919,8 @@
           };
           closeAuthModal();
           updateAuthUI();
+          await checkWaConnection();
+          startTrialCountdownTimer();
           loadDashboardData();
           return;
         } catch (e) {
@@ -1798,6 +1936,8 @@
           currentUser = data.user;
           closeAuthModal();
           updateAuthUI();
+          await checkWaConnection();
+          startTrialCountdownTimer();
           loadDashboardData();
         }
       } catch (e) {
@@ -2039,11 +2179,8 @@
         const qualRate = totalLeads > 0 ? Math.round((qualifiedCount / totalLeads) * 100) : 0;
 
         // Update all dashboard KPI elements (matching HTML IDs directly)
-        const statToday = document.getElementById('statLeadsToday') || document.getElementById('kpiTodayLeads');
+        const statToday = document.getElementById('statLeadsToday');
         if (statToday) statToday.textContent = todayLeads;
-
-        const statTotal = document.getElementById('kpiTotalLeads');
-        if (statTotal) statTotal.textContent = totalLeads;
 
         const statMedian = document.getElementById('statMedianResponse');
         if (statMedian) statMedian.textContent = totalLeads > 0 ? '< 10s' : '0s';
@@ -2051,14 +2188,14 @@
         const statQual = document.getElementById('statQualifiedRate');
         if (statQual) statQual.textContent = qualRate + '%';
 
-        const statCalls = document.getElementById('statCallsBooked') || document.getElementById('kpiCallCount');
+        const statCalls = document.getElementById('statCallsBooked');
         if (statCalls) statCalls.textContent = totalCalls;
 
-        const statProds = document.getElementById('statCatalogProducts') || document.getElementById('kpiActiveProducts');
+        const statProds = document.getElementById('statCatalogProducts');
         if (statProds) statProds.textContent = totalProducts;
 
         // Update sidebar badge
-        const badgeLeads = document.getElementById('badgeLeadCount') || document.getElementById('sidebarLeadCount');
+        const badgeLeads = document.getElementById('badgeLeadCount');
         if (badgeLeads) {
           badgeLeads.textContent = totalLeads;
           badgeLeads.classList.toggle('hidden', totalLeads === 0);
@@ -2072,31 +2209,24 @@
     }
 
     function renderEmptyDashboardState() {
-      const statToday = document.getElementById('statLeadsToday') || document.getElementById('kpiTodayLeads');
+      const statToday = document.getElementById('statLeadsToday');
       if (statToday) statToday.textContent = '0';
-      const statTotal = document.getElementById('kpiTotalLeads');
-      if (statTotal) statTotal.textContent = '0';
       const statMedian = document.getElementById('statMedianResponse');
       if (statMedian) statMedian.textContent = '0s';
       const statQual = document.getElementById('statQualifiedRate');
       if (statQual) statQual.textContent = '0%';
-      const statCalls = document.getElementById('statCallsBooked') || document.getElementById('kpiCallCount');
+      const statCalls = document.getElementById('statCallsBooked');
       if (statCalls) statCalls.textContent = '0';
-      const statProds = document.getElementById('statCatalogProducts') || document.getElementById('kpiActiveProducts');
+      const statProds = document.getElementById('statCatalogProducts');
       if (statProds) statProds.textContent = '0';
       renderDashboardLeadsTable([]);
     }
 
     function renderDashboardLeadsTable(leads) {
       const container = document.getElementById('dashboardLeadsTable');
-      const tbody = document.getElementById('dashboardLeadsBody');
-
+      if (!container) return;
       if (!leads || leads.length === 0) {
-        if (container) {
-          container.innerHTML = '<div class="py-8 text-center text-xs text-slate-400 font-medium">No inquiries in workspace yet. Pair WhatsApp or dispatch a test lead to see live responses!</div>';
-        } else if (tbody) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400 font-medium">No inquiries in workspace yet. Pair WhatsApp or dispatch a test lead to see live responses!</td></tr>';
-        }
+        container.innerHTML = '<div class="py-8 text-center text-xs text-slate-400 font-medium">No inquiries in workspace yet. Pair WhatsApp or dispatch a test lead to see live responses!</div>';
         return;
       }
 
@@ -2154,9 +2284,8 @@
     // 📋 LEADS TABLE & EXPORT
     // =========================================================================
     function filterLeadsList(query) {
-      if (document.getElementById('leadSearchInput')) {
-        document.getElementById('leadSearchInput').value = query || '';
-      }
+      const input = document.getElementById('leadSearchInput');
+      if (input && query !== undefined) input.value = query;
       debounceLeadsSearch();
     }
 
@@ -2178,22 +2307,11 @@
       const isMachinery = (type === 'Machinery');
       const isTextile = (type === 'Textile');
       const isFood = (type === 'FoodProcessing');
-      const isChemical = (type === 'Chemicals');
-
-      const colName = document.getElementById('colHeaderProductName') || document.getElementById('lblColProduct');
-      const colSpecs = document.getElementById('colHeaderProductSpecs') || document.getElementById('lblColSpecs');
-
-      if (colName) {
-        colName.textContent = isMachinery ? 'Machine Name' : (isTextile ? 'Fabric / Garment Name' : (isFood ? 'Food Product Name' : 'Product / Item Name'));
-      }
-      if (colSpecs) {
-        colSpecs.textContent = isMachinery ? 'Model / Capacity' : (isTextile ? 'GSM / Specs' : 'Specifications / Details');
-      }
 
       const lblModalProd = document.getElementById('lblEditProductName');
       const lblModalSpecs = document.getElementById('lblEditModel');
-      if (lblModalProd) lblModalProd.textContent = isMachinery ? 'Machine Name' : 'Product / Item Name';
-      if (lblModalSpecs) lblModalSpecs.textContent = isMachinery ? 'Model / Capacity Specs' : 'Specifications / Details';
+      if (lblModalProd) lblModalProd.textContent = isMachinery ? 'Machine / Product Name' : 'Product / Item Name';
+      if (lblModalSpecs) lblModalSpecs.textContent = isMachinery ? 'Model / Specs' : 'Specifications / Details';
     }
 
     function debounceLeadsSearch() {
@@ -2205,7 +2323,7 @@
 
     async function fetchLeadsList() {
       const container = document.getElementById('leadsTableContainer');
-      const tbody = document.getElementById('leadsTableBody');
+      const tbody = container?.querySelector('tbody');
 
       if (!currentOrg) {
         if (container) container.innerHTML = '<div class="py-12 text-center text-xs text-slate-400">Please sign in to view leads.</div>';
@@ -2228,7 +2346,7 @@
           leads = res.leads || [];
         }
 
-        const query = (document.getElementById('leadSearchInput')?.value || document.getElementById('leadsSearchInput')?.value || '').toLowerCase().trim();
+        const query = (document.getElementById('leadSearchInput')?.value || document.getElementById('leadSearchInput')?.value || '').toLowerCase().trim();
         const statusFilter = document.getElementById('leadStatusFilter')?.value || '';
 
         if (statusFilter) {
@@ -2358,7 +2476,7 @@
     // 💬 CONVERSATIONS & MESSAGING
     // =========================================================================
     async function fetchConversationsList() {
-      const container = document.getElementById('conversationThreadList') || document.getElementById('conversationsList');
+      const container = document.getElementById('conversationThreadList');
       if (!container) return;
       if (!currentOrg) {
         container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Sign in to view conversations.</div>';
@@ -2414,14 +2532,14 @@
 
     async function selectConversation(convId) {
       activeConversationId = convId;
-      const chatBox = document.getElementById('chatMessagesStream') || document.getElementById('chatMessagesBox');
+      const chatBox = document.getElementById('chatMessagesStream');
       if (!chatBox) return;
 
       const controls = document.getElementById('chatModeControls');
       if (controls) controls.classList.remove('hidden');
 
       // Update active highlight in thread list
-      document.querySelectorAll('#conversationThreadList > div, #conversationsList > div').forEach(el => {
+      document.querySelectorAll('#conversationThreadList > div').forEach(el => {
         el.classList.remove('bg-indigo-50/70', 'border-l-4', 'border-l-indigo-600');
       });
 
@@ -2455,7 +2573,7 @@
     }
 
     function renderMessages(msgs) {
-      const chatBox = document.getElementById('chatMessagesStream') || document.getElementById('chatMessagesBox');
+      const chatBox = document.getElementById('chatMessagesStream');
       if (!chatBox) return;
 
       if (msgs.length === 0) {
@@ -2479,14 +2597,14 @@
     }
 
     function mobileBackToThreads() {
-      const threadList = document.getElementById('conversationsListCol');
-      const chatDetail = document.getElementById('conversationDetailCol');
+      const threadList = document.getElementById('convThreadPanel');
+      const chatDetail = document.getElementById('convChatPanel');
       if (threadList) threadList.classList.remove('hidden');
       if (chatDetail) chatDetail.classList.add('hidden');
     }
 
     function updateModeButtonUI(mode) {
-      const btn = document.getElementById('btnToggleChatMode');
+      const btn = document.getElementById('btnChatModeToggle');
       if (btn) {
         btn.textContent = mode === 'manual' ? 'Switch to AI Mode' : 'Switch to Manual Rep Mode';
       }
@@ -2498,7 +2616,7 @@
     }
 
     async function sendManualReply() {
-      const input = document.getElementById('manualReplyInput');
+      const input = document.getElementById('chatComposerInput');
       const text = input ? input.value.trim() : '';
       if (!text || !activeConversationId) return;
 
@@ -2889,13 +3007,14 @@
       const waText = document.getElementById('waStatusText');
 
       if (currentOrg.wa_status === 'connected') {
-        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5';
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 pulse-dot';
         if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full';
-        if (waText) waText.textContent = 'Connected';
+        const num = currentOrg.bot_whatsapp_number ? ` (+${currentOrg.bot_whatsapp_number})` : '';
+        if (waText) waText.textContent = `Connected${num}`;
       } else if (currentOrg.wa_status === 'qr_ready') {
-        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5 animate-pulse';
-        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-full';
-        if (waText) waText.textContent = 'Scan QR';
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-dot';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'QR Ready';
       } else {
         if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5';
         if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full';
@@ -3227,8 +3346,8 @@
 
         const anLeads = document.getElementById('anTotalLeads');
         if (anLeads) anLeads.textContent = lCount;
-        const anCalls = document.getElementById('anCallsBooked');
-        if (anCalls) anCalls.textContent = cCount;
+        const anQual = document.getElementById('anQualRate');
+        if (anQual) anQual.textContent = lCount > 0 ? `${Math.round((qCount / lCount) * 100)}%` : '0%';
         const anCallRate = document.getElementById('anCallRate');
         if (anCallRate) anCallRate.textContent = lCount > 0 ? `${Math.round((cCount / lCount) * 100)}%` : '0%';
       }
@@ -3239,10 +3358,10 @@
     // =========================================================================
     function switchPayTab(tab) {
       const isUpi = tab === 'upi';
-      const upiBtn = document.getElementById('payTabUpi');
-      const rzpBtn = document.getElementById('payTabRzp');
-      const upiContent = document.getElementById('payContentUpi');
-      const rzpContent = document.getElementById('payContentRzp');
+      const upiBtn = document.getElementById('payTabUpiBtn');
+      const rzpBtn = document.getElementById('payTabRazorpayBtn');
+      const upiContent = document.getElementById('payTabUpiContent');
+      const rzpContent = document.getElementById('payTabRazorpayContent');
 
       if (upiBtn) upiBtn.className = isUpi ? 'py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold transition' : 'py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
       if (rzpBtn) rzpBtn.className = !isUpi ? 'py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold transition' : 'py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
@@ -3258,23 +3377,22 @@
           currentOrg = org;
         }
       }
-      const statusEl = document.getElementById('billingPlanStatus');
-      if (statusEl) statusEl.textContent = 'Active Enterprise (48-Hour Live Trial Plan)';
-
       const memBadge = document.getElementById('memStatusBadge');
-      if (memBadge) memBadge.textContent = '✨ 48-Hour Live Trial Live Enterprise Active';
+      if (memBadge) memBadge.textContent = '🎁 48-Hour Live Trial Active';
 
       const memCountdown = document.getElementById('memCountdownDisplay');
       if (memCountdown) memCountdown.textContent = '48-Hour Live Trial Access';
 
+      const leadsUsed = currentOrg?.trial_leads_used || currentOrg?.leads_used || 0;
+      const leadsLimit = currentOrg?.trial_lead_limit || currentOrg?.monthly_lead_limit || 25;
       const memLeadQuota = document.getElementById('memLeadQuotaText');
-      if (memLeadQuota) memLeadQuota.textContent = `${currentOrg?.leads_used || 0} / Unlimited Leads Included`;
+      if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Trial Leads Used`;
 
       const memProgressBar = document.getElementById('memLeadProgressBar');
-      if (memProgressBar) memProgressBar.style.width = '100%';
-
-      const limitEl = document.getElementById('billingLeadUsage');
-      if (limitEl) limitEl.textContent = `${currentOrg?.leads_used || 0} / Unlimited leads processed`;
+      if (memProgressBar) {
+        const pct = Math.min(100, Math.round((leadsUsed / Math.max(1, leadsLimit)) * 100));
+        memProgressBar.style.width = pct + '%';
+      }
     }
 
     const SALES_COUPONS = {
@@ -3287,7 +3405,7 @@
     };
 
     async function submitActivationCode() {
-      const code = (document.getElementById('unlockCodeInput')?.value || '').trim().toUpperCase();
+      const code = (document.getElementById('utrRefInput')?.value || '').trim().toUpperCase();
       if (!code) return showToast('Please enter an invite / coupon code', 'warning');
 
       const plan = SALES_COUPONS[code];
