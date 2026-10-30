@@ -2,7 +2,7 @@
   {
     "id": "IM-793468",
     "createdAt": "2026-10-29T08:16:33.468Z",
-    "updatedAt": "2026-10-29T09:41:04.189Z",
+    "updatedAt": "2026-10-30T08:35:09.245Z",
     "name": "",
     "phone": "919781018975",
     "productName": "Automatic Pouch Packing Machine",
@@ -12,7 +12,7 @@
     "source": "Live Demo Trigger",
     "pdfSent": true,
     "ownerAlerted": false,
-    "status": "⏰ Call Scheduled: Today at 5:00 PM",
+    "status": "🔥 HOT QUALIFIED",
     "history": [
       {
         "role": "ai",
@@ -78,6 +78,16 @@
         "role": "ai",
         "text": "[Call Scheduled Notification Sent to Customer for Today at 5:00 PM]",
         "ts": "2026-10-29T09:41:10.422Z"
+      },
+      {
+        "role": "buyer",
+        "text": "Hello",
+        "ts": "2026-10-30T08:34:46.059Z"
+      },
+      {
+        "role": "ai",
+        "text": "Namaste Ji! BPT-500 Collar Machine (50g pouch) ke liye Ludhiana hub se ready stock me hai. 👍\n\nBas batayein aap 50g me kaunsa item (Namkeen, Spices, ya Granules) pack kar rahe hain? Main turant exact live video aur quotation share kar deta hoon!",
+        "ts": "2026-10-30T08:35:09.245Z"
       }
     ],
     "callbackStatus": "scheduled",

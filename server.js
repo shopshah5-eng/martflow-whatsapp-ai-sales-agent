@@ -50,7 +50,7 @@ const defaultConfig = {
   cityBase: 'Delhi NCR / Ludhiana Dispatch Hub',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   ownerAlertPhone: process.env.OWNER_ALERT_PHONE || '',
-  replyDelaySec: 8,
+  replyDelaySec: 3,
   autoReplyEnabled: true,
   replyWithVoiceNotes: true,
   products: [
@@ -874,7 +874,7 @@ const processNewB2BLead = processNewB2BLead;
   }
 
   const product = matchProduct(`${productQuery} ${message}`);
-  const delaySec = typeof customDelaySec === 'number' ? customDelaySec : Number(config.replyDelaySec ?? 8);
+  const delaySec = typeof customDelaySec === 'number' ? customDelaySec : Number(config.replyDelaySec ?? 3);
 
   let lead = leads.find((l) => l.phone === cleanPhone);
   const nowIso = new Date().toISOString();
@@ -1259,9 +1259,49 @@ async function handleIncomingWhatsAppMessage(msg) {
     }
   } catch (syncErr) {}
 
-  // Check if buyer clicked our 1-Tap "B2B Demo Trigger" link!
+  // Check if buyer sent an initial pure greeting ("Hi", "Namaste", "Hello")
+  const isPureGreeting = /^(hi|hello|hey|namaste|namaskar|salaam|pranam|good\s*(morning|afternoon|evening)|ss|hii+|helo+)\b[\s!.?]*$/i.test(incomingText.trim());
   const isFirstTrigger = incomingText.toLowerCase().includes('b2b enquiry') || incomingText.toLowerCase().includes('send catalog');
   let lead = leads.find((l) => l.phone === phoneDigits);
+
+  const isInactive = lead ? (Date.now() - new Date(lead.updatedAt).getTime()) > 24 * 3600 * 1000 : false;
+  if (isPureGreeting && (!lead || (lead.history && lead.history.length === 0) || isInactive)) {
+    if (!lead) {
+      lead = {
+        id: 'IM-' + Date.now().toString().slice(-6),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        name: initialSafeName,
+        phone: phoneDigits,
+        productName: 'General Inquiry',
+        catalogFile: '',
+        city: '',
+        requirement: incomingText,
+        source: 'Direct WhatsApp Inbound',
+        pdfSent: false,
+        ownerAlerted: false,
+        status: 'Welcomed - Awaiting Inquiry',
+        history: []
+      };
+      leads.unshift(lead);
+    }
+    const politeGreeting = lead.name ? `Namaste *${lead.name} ji*!` : 'Namaste Ji!';
+    const welcomeText = `${politeGreeting} 🙏 Welcome to *${config.companyName || 'our sales team'}*.\n\nHow may we assist you today? Please share which product, machinery, or service you are interested in so we can send complete specs, pricing, and catalog!`;
+
+    if (sock) {
+      await sock.sendPresenceUpdate('composing', rawRemote);
+      await new Promise((r) => setTimeout(r, 800));
+      await sock.sendMessage(rawRemote, { text: welcomeText });
+      await sock.sendPresenceUpdate('paused', rawRemote);
+    }
+
+    lead.updatedAt = new Date().toISOString();
+    lead.history.push({ role: 'buyer', text: incomingText, ts: new Date().toISOString() });
+    lead.history.push({ role: 'ai', text: welcomeText, ts: lead.updatedAt });
+    saveLeads(leads);
+    addLog(`Conversational welcome sent to ${lead.name || pushName} (+${phoneDigits}) - awaiting inquiry.`);
+    return;
+  }
 
   if (!lead || isFirstTrigger) {
     const prod = matchProduct(incomingText);

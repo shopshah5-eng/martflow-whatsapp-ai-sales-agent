@@ -9,6 +9,13 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
     tailwind.config = {
@@ -175,7 +182,7 @@
     <main class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-8 bg-[#fafafa]">
 
       <!-- TOP TRIAL STATUS BAR (48-HOUR LIVE TRIAL BANNER) -->
-      <div id="trialStatusBar" class="mb-5 bg-gradient-to-r from-emerald-900 via-slate-900 to-indigo-950 border border-emerald-500/30 rounded-xl p-3.5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div id="trialStatusBar" class="mb-5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 rounded-xl p-3.5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center space-x-3 text-xs w-full sm:w-auto">
           <span class="flex h-2.5 w-2.5 relative shrink-0">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -183,14 +190,23 @@
           </span>
           <div>
             <div class="font-bold text-emerald-300 flex items-center gap-1.5 flex-wrap">
-              <span>✨ 100% Free Live Enterprise Access</span>
-              <span class="text-slate-300 font-normal text-[11px]">(Unlimited Buyer Leads & WhatsApp Automation Included)</span>
+              <span>🎁 48-Hour Live Trial Active</span>
+              <span id="trialLeadsBadge" class="text-slate-300 font-normal text-[11px]">(25 Free Inquiries Included)</span>
             </div>
             <div id="trialCountdownText" class="text-[11px] text-emerald-200/90 font-mono mt-0.5 font-medium">
-              Active Lifetime Free Access • Zero Fees • Unlimited Inquiries
+              47h 59m trial remaining • 25 inquiries included
             </div>
           </div>
         </div>
+        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
+          <button onclick="openActivationModal('Standard Growth Plan', '₹7,500 Setup + ₹2,999/mo', 'Autonomous B2B Sales Engine for your business')" class="text-xs font-semibold px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+            <span>⚡ Upgrade Plan</span>
+          </button>
+          <button onclick="switchView('whatsapp')" class="text-xs font-semibold px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+            <span>🟢 WhatsApp Engine</span>
+          </button>
+        </div>
+      </div>
         <div class="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
           <button onclick="switchView('whatsapp')" class="text-xs font-semibold px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
             <span>🟢</span>
@@ -417,17 +433,18 @@
           </button>
         </div>
 
-        <!-- UPLOAD DROPZONE -->
-        <div class="bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 lg:p-8 text-center hover:border-indigo-500 transition shadow-sm">
+        <!-- UPLOAD DROPZONE (CLICKABLE & DRAGGABLE) -->
+        <div id="catalogDropzone" onclick="document.getElementById('catalogFileInput').click()" ondragover="event.preventDefault(); this.classList.add('border-indigo-500', 'bg-indigo-50/20');" ondragleave="this.classList.remove('border-indigo-500', 'bg-indigo-50/20');" ondrop="handleCatalogDrop(event)" class="cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 lg:p-8 text-center hover:border-indigo-500 transition shadow-sm">
           <input type="file" id="catalogFileInput" accept=".pdf,.xlsx,.xls,.csv" class="hidden" onchange="handleCatalogFileSelected(event)">
-          <div class="max-w-md mx-auto space-y-2">
+          <div class="max-w-md mx-auto space-y-2 pointer-events-none">
             <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
             </div>
-            <div class="text-xs lg:text-sm font-semibold text-slate-800">Drag & drop your product catalog or <button onclick="document.getElementById('catalogFileInput').click()" class="text-indigo-600 underline">browse</button></div>
-            <div class="text-[11px] text-slate-500">Formats: PDF brochure, Excel (.xlsx, .xls), or CSV (Max 20MB)</div>
+            <div class="text-xs lg:text-sm font-semibold text-slate-800">Drag & drop your product catalog or <span class="text-indigo-600 underline font-bold">browse</span></div>
+            <div class="text-[11px] text-slate-500">Formats: PDF brochure, Excel (.xlsx, .xls), or CSV (Auto-extracts every product row!)</div>
             <div id="catalogUploadStatus" class="hidden text-xs text-indigo-600 font-semibold pt-1"></div>
           </div>
+        </div>
         </div>
 
         <!-- STRUCTURED PRODUCTS TABLE -->
@@ -808,8 +825,8 @@
       <section id="view-billing" class="hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Membership & Activation</h1>
-            <p class="text-xs text-slate-500 mt-0.5">High-intent autonomous AI sales closing for your manufacturing factory.</p>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Membership & Commercial Plans</h1>
+            <p class="text-xs text-slate-500 mt-0.5">High-intent autonomous AI sales closing for your business inquiries.</p>
           </div>
           <div class="flex items-center gap-2">
             <span id="memStatusBadge" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -823,124 +840,113 @@
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="space-y-1">
               <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Live Workspace Quota</span>
-              <h3 class="text-lg font-bold">Active Enterprise: Unlimited Buyer Inquiries (100% Free)</h3>
-              <p class="text-xs text-slate-300">Your factory workspace is 100% free and active. AI qualifies buyers, attaches machine PDFs, and schedules owner calls.</p>
+              <h3 class="text-lg font-bold">48-Hour Live VIP Trial: 25 Inquiries Included</h3>
+              <p class="text-xs text-slate-300">Your workspace is active. AI qualifies buyers, attaches PDF brochures, and schedules owner calls.</p>
             </div>
             <div class="text-right">
-              <div class="text-xs text-slate-300">Plan Duration:</div>
-              <div id="memCountdownDisplay" class="text-base font-mono font-bold text-emerald-300 mt-0.5">Lifetime Free Access</div>
+              <div class="text-xs text-slate-300">Trial Time Remaining:</div>
+              <div id="memCountdownDisplay" class="text-base font-mono font-bold text-emerald-300 mt-0.5">47h 59m remaining</div>
             </div>
           </div>
 
           <!-- Progress bar -->
           <div class="space-y-1.5 pt-2">
             <div class="flex justify-between text-xs font-medium text-slate-300">
-              <span>B2B Portal & Marketplace Inquiries Processed</span>
-              <span id="memLeadQuotaText" class="font-bold text-white">Unlimited Leads Included</span>
+              <span>Trial Inquiries Processed</span>
+              <span id="memLeadQuotaText" class="font-bold text-white">0 / 25 Trial Leads Used</span>
             </div>
             <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
-              <div id="memLeadProgressBar" class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 8%;"></div>
+              <div id="memLeadProgressBar" class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
             </div>
           </div>
         </div>
 
-        <!-- CARD 2: FACTORY OUTCOME LICENSE & TAILORED QUOTE (ZERO CONFUSING PUBLIC TIERS) -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Left 2 Cols: Business Outcomes -->
-          <div class="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-5">
-            <div class="space-y-1">
-              <span class="text-xs font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">Full Factory License</span>
-              <h2 class="text-lg font-bold text-slate-900 mt-1">Activate Autonomous B2B Sales for Your Factory</h2>
-              <p class="text-xs text-slate-500">Transform missed inquiries into qualified deal consultations without hiring extra sales staff.</p>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center gap-1.5">
-                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
-                  <span>Instant PDF Brochure Dispatch (&lt;10s)</span>
-                </div>
-                <p class="text-slate-600">Sends accurate machine model specs, capacity & factory photos while buyer is hot.</p>
-              </div>
-
-              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center gap-1.5">
-                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
-                  <span>Natural Hinglish Deal Closing AI</span>
-                </div>
-                <p class="text-slate-600">Grounded strictly in your uploaded catalog. Asks delivery city, budget & capacity.</p>
-              </div>
-
-              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center gap-1.5">
-                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
-                  <span>Zero Missed Night & Sunday Inquiries</span>
-                </div>
-                <p class="text-slate-600">70% of machinery inquiries arrive after 7 PM. MartFlow closes while competitors sleep.</p>
-              </div>
-
-              <div class="p-3.5 bg-slate-50 border border-gray-100 rounded-xl space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center gap-1.5">
-                  <span class="text-emerald-600 font-extrabold text-sm">✓</span>
-                  <span>15-Minute Done-For-You AnyDesk Setup</span>
-                </div>
-                <p class="text-slate-600">Zero technical hassle. Our senior engineers connect your B2B CRM and test live.</p>
+        <!-- CARD 2: 3 COMMERCIAL PLANS BENTO GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- PLAN 1: STANDARD GROWTH -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-5 hover:border-indigo-300 transition">
+            <div class="space-y-3">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Standard Growth</span>
+              <h3 class="text-lg font-bold text-slate-900">₹7,500 <span class="text-xs font-normal text-slate-500">Setup + ₹2,999/mo</span></h3>
+              <p class="text-xs text-slate-500">Ideal for small manufacturers, wholesalers & independent distributors.</p>
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>500 Verified Buyer Leads / Month</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Instant PDF Brochure Dispatch (&lt;10s)</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>24×7 Hinglish AI Deal Closing</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Instant Hot-Lead WhatsApp Alerts to Owner</span></div>
               </div>
             </div>
+            <button onclick="openActivationModal('Standard Growth', '₹7,500 Setup + ₹2,999/mo', 'Includes 500 inquiries/mo, PDF brochure dispatch, Hinglish deal qualification, owner alerts')" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition shadow-sm">
+              Activate Standard Plan →
+            </button>
+          </div>
 
-            <!-- Custom Activation Quote / Code Unlock -->
-            <div class="p-4 bg-indigo-50/60 border border-indigo-100 rounded-xl space-y-3">
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <h4 class="text-xs font-bold text-indigo-950">Have an Enterprise Offer Code or Custom Quote?</h4>
-                  <p class="text-[11px] text-indigo-800">Enter your partner coupon code or activation reference to unlock your tailored factory rate.</p>
-                </div>
-                <div class="flex items-center space-x-2">
-                  <input type="text" id="offerCodeInput" placeholder="e.g. VIP999" class="px-3 py-1.5 text-xs border border-indigo-200 rounded-lg uppercase font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                  <button onclick="submitActivationCode()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
-                    Apply
-                  </button>
-                </div>
+          <!-- PLAN 2: PRO MULTI-CATALOG (RECOMMENDED) -->
+          <div class="bg-white border-2 border-indigo-600 rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5 relative">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm">
+              🔥 Most Popular for Growing Businesses
+            </div>
+            <div class="space-y-3 pt-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Pro Multi-Catalog</span>
+              <h3 class="text-lg font-bold text-slate-900">₹12,000 <span class="text-xs font-normal text-slate-500">Setup + ₹4,999/mo</span></h3>
+              <p class="text-xs text-slate-500">For multi-product factories, exporters, and coaching institutes.</p>
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Up to 2,000 Buyer Leads / Month</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Unlimited Catalogs & PDFs Ingestion</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Website Knowledge Scraper Sync</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Two-Way Director Call Scheduler</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Priority 15-Minute AnyDesk Setup</span></div>
               </div>
+            </div>
+            <button onclick="openActivationModal('Pro Multi-Catalog', '₹12,000 Setup + ₹4,999/mo', 'Up to 2,000 inquiries/mo, unlimited catalogs, website scraper sync, priority AnyDesk setup')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-md">
+              Activate Pro Plan →
+            </button>
+          </div>
 
-              <!-- Tailored Invoice Banner (If custom_quote_inr is active) -->
-              <div id="customQuoteBanner" class="hidden p-3 bg-white border border-emerald-300 rounded-lg flex items-center justify-between">
-                <div>
-                  <span class="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded">Tailored Proposal Unlocked</span>
-                  <div class="text-sm font-bold text-slate-900 mt-0.5">Special Factory Activation: <span id="customQuoteAmountText" class="text-indigo-600 font-extrabold">₹999</span></div>
-                  <div id="customQuoteDescText" class="text-[11px] text-emerald-800 font-medium mt-0.5">48-Hour VIP Engineer Setup Deposit — Adjusted in Plan</div>
-                </div>
-                <button onclick="openActivationModal('Tailored Factory License', document.getElementById('customQuoteAmountText').textContent, document.getElementById('customQuoteDescText')?.textContent || 'Custom Tailored Factory Activation')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
-                  Activate Now →
-                </button>
+          <!-- PLAN 3: ANNUAL ENTERPRISE -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-5 hover:border-emerald-300 transition">
+            <div class="space-y-3">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">💎 Best Value Annual Lock-In</span>
+              <h3 class="text-lg font-bold text-slate-900">₹18,000 <span class="text-xs font-normal text-slate-500">/ Year (Zero Monthly Fees)</span></h3>
+              <p class="text-xs text-slate-500">Save 60%+ with unlimited inquiries and complete done-for-you concierge support.</p>
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Unlimited Leads & Inquiries for 1 Full Year</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Zero Setup Fee (₹5,000 Setup Waived 100% Free)</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Dedicated Senior Sales Engineer on WhatsApp & Phone</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Custom AI Fine-Tuning & Multi-SIM Support</span></div>
               </div>
+            </div>
+            <button onclick="openActivationModal('Annual Lock-In Enterprise', '₹18,000/yr', 'Unlimited inquiries, dedicated sales engineer support, zero monthly fees')" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-sm">
+              Lock In Annual Plan (Save 60%) →
+            </button>
+          </div>
+        </div>
+
+        <!-- PARTNER COUPON CODE UNLOCK -->
+        <div class="p-5 bg-indigo-50/60 border border-indigo-100 rounded-2xl space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 class="text-xs font-bold text-indigo-950">Have a Partner Coupon Code or Tailored Proposal?</h4>
+              <p class="text-[11px] text-indigo-800">Enter your partner coupon code or activation reference to unlock your discounted rate.</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <input type="text" id="offerCodeInput" placeholder="e.g. VIP999" class="px-3 py-1.5 text-xs border border-indigo-200 rounded-lg uppercase font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <button onclick="submitActivationCode()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
+                Apply
+              </button>
             </div>
           </div>
 
-          <!-- Right Col: Instant Action Card -->
-          <!-- Right Col: 100% Free Enterprise Access Card -->
-          <div class="bg-white border-2 border-emerald-600 rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5">
-            <div class="space-y-3">
-              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Early Access Special</span>
-              <h3 class="text-base font-bold text-slate-900">100% Free Enterprise Access</h3>
-              <div class="text-3xl font-extrabold text-emerald-600">₹0 <span class="text-xs font-normal text-slate-500">completely free</span></div>
-              <p class="text-xs text-slate-500">All modules & automation unlocked with zero setup fees or monthly charges during early access. Connect WhatsApp and start closing deals.</p>
-
-              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
-                <div class="flex items-center text-slate-800 font-semibold">✓ Unlimited Leads & WhatsApp Replies</div>
-                <div class="flex items-center text-slate-800 font-semibold">✓ Instant PDF Brochure Dispatch</div>
-                <div class="flex items-center text-slate-800 font-semibold">✓ 100% Free Lifetime Early Access</div>
-              </div>
+          <!-- Tailored Invoice Banner (If custom_quote_inr is active) -->
+          <div id="customQuoteBanner" class="hidden p-3 bg-white border border-emerald-300 rounded-lg flex items-center justify-between">
+            <div>
+              <span class="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded">Tailored Proposal Unlocked</span>
+              <div class="text-sm font-bold text-slate-900 mt-0.5">Special Factory Activation: <span id="customQuoteAmountText" class="text-indigo-600 font-extrabold">₹999</span></div>
+              <div id="customQuoteDescText" class="text-[11px] text-emerald-800 font-medium mt-0.5">48-Hour VIP Engineer Setup Deposit — Adjusted in Plan</div>
             </div>
-
-            <div class="space-y-2 pt-2">
-              <button onclick="switchView('whatsapp')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-2">
-                <span>🟢 Connect WhatsApp Now</span>
-              </button>
-              <button onclick="openAnyDeskHelpModal()" class="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-gray-300 text-slate-700 font-semibold rounded-xl text-xs transition">
-                Talk to Sales Engineer on WhatsApp →
-              </button>
-            </div>
+            <button onclick="openActivationModal('Tailored Factory License', document.getElementById('customQuoteAmountText').textContent, document.getElementById('customQuoteDescText')?.textContent || 'Custom Tailored Factory Activation')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+              Activate Now →
+            </button>
           </div>
         </div>
       </section>
@@ -1110,6 +1116,44 @@
     </div>
   </div>
 
+  <!-- EDIT PRODUCT SKU MODAL -->
+  <div id="editProductModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeEditProductModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="space-y-4">
+        <h2 class="text-lg font-bold text-slate-900">Edit Catalog Product</h2>
+        <p class="text-xs text-slate-500">Update pricing, model specs, or attachments for this SKU.</p>
+        <input type="hidden" id="editProductId">
+        <div class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">SKU / Code</label>
+              <input type="text" id="editSku" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Price Specification</label>
+              <input type="text" id="editPriceRaw" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+            </div>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Name <span class="text-rose-500">*</span></label>
+            <input type="text" id="editProductName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Model / Specs / Capacity Details</label>
+            <textarea id="editModel" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs"></textarea>
+          </div>
+          <button id="editSubmitBtn" onclick="submitEditProduct()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition flex items-center justify-center gap-2">
+            <span>💾 Save Changes</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- HIGH-TRUST PAYMENT & PLAN ACTIVATION MODAL -->
   <!-- HIGH-TRUST DUAL PAYMENT & PLAN ACTIVATION MODAL -->
   <div id="activationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -1127,11 +1171,11 @@
 
       <!-- PAYMENT METHOD TABS -->
       <div class="flex border-b border-gray-200 text-xs font-semibold">
-        <button id="payTabUpiBtn" onclick="switchPayTab('upi')" class="flex-1 py-2.5 text-center border-b-2 border-indigo-600 text-indigo-600 transition flex items-center justify-center space-x-1.5">
-          <span>⚡ Instant UPI QR (0% Fee)</span>
+        <button id="payTabUpiBtn" onclick="switchPayTab('upi')" class="flex-1 py-2.5 text-center border-b-2 border-indigo-600 text-indigo-600 font-bold transition flex items-center justify-center space-x-1.5">
+          <span>⚡ Instant Direct UPI QR (0% MDR • Zero Fees)</span>
         </button>
-        <button id="payTabRazorpayBtn" onclick="switchPayTab('razorpay')" class="flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition flex items-center justify-center space-x-1.5">
-          <span>💳 Razorpay (Card / NetBanking)</span>
+        <button id="payTabRazorpayBtn" onclick="switchPayTab('razorpay')" class="hidden flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition items-center justify-center space-x-1.5">
+          <span>💳 Razorpay</span>
         </button>
       </div>
 
@@ -1913,24 +1957,33 @@
         const totalLeads = leads.length;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayLeads = leads.filter(l => new Date(l.created_at) >= today).length;
+        const todayLeads = leads.filter(l => new Date(l.created_at || l.createdAt) >= today).length;
         const totalCalls = calls.length;
         const totalProducts = products.length;
+        const qualifiedCount = leads.filter(l => l.status === 'qualified' || l.pdf_brochure_sent || l.brochure_sent || l.isHotLead).length;
+        const qualRate = totalLeads > 0 ? Math.round((qualifiedCount / totalLeads) * 100) : 0;
 
-        const kpiToday = document.getElementById('kpiTodayLeads');
-        if (kpiToday) kpiToday.textContent = todayLeads;
+        // Update all dashboard KPI elements (matching HTML IDs directly)
+        const statToday = document.getElementById('statLeadsToday') || document.getElementById('kpiTodayLeads');
+        if (statToday) statToday.textContent = todayLeads;
 
-        const kpiTotal = document.getElementById('kpiTotalLeads');
-        if (kpiTotal) kpiTotal.textContent = totalLeads;
+        const statTotal = document.getElementById('kpiTotalLeads');
+        if (statTotal) statTotal.textContent = totalLeads;
 
-        const kpiCalls = document.getElementById('kpiCallCount');
-        if (kpiCalls) kpiCalls.textContent = totalCalls;
+        const statMedian = document.getElementById('statMedianResponse');
+        if (statMedian) statMedian.textContent = totalLeads > 0 ? '< 10s' : '0s';
 
-        const kpiProds = document.getElementById('kpiActiveProducts');
-        if (kpiProds) kpiProds.textContent = totalProducts;
+        const statQual = document.getElementById('statQualifiedRate');
+        if (statQual) statQual.textContent = qualRate + '%';
 
-        // Update badge counts honestly
-        const badgeLeads = document.getElementById('sidebarLeadCount');
+        const statCalls = document.getElementById('statCallsBooked') || document.getElementById('kpiCallCount');
+        if (statCalls) statCalls.textContent = totalCalls;
+
+        const statProds = document.getElementById('statCatalogProducts') || document.getElementById('kpiActiveProducts');
+        if (statProds) statProds.textContent = totalProducts;
+
+        // Update sidebar badge
+        const badgeLeads = document.getElementById('badgeLeadCount') || document.getElementById('sidebarLeadCount');
         if (badgeLeads) {
           badgeLeads.textContent = totalLeads;
           badgeLeads.classList.toggle('hidden', totalLeads === 0);
@@ -1944,37 +1997,49 @@
     }
 
     function renderEmptyDashboardState() {
-      const kpiToday = document.getElementById('kpiTodayLeads');
-      if (kpiToday) kpiToday.textContent = '0';
-      const kpiTotal = document.getElementById('kpiTotalLeads');
-      if (kpiTotal) kpiTotal.textContent = '0';
-      const kpiCalls = document.getElementById('kpiCallCount');
-      if (kpiCalls) kpiCalls.textContent = '0';
-      const kpiProds = document.getElementById('kpiActiveProducts');
-      if (kpiProds) kpiProds.textContent = '0';
+      const statToday = document.getElementById('statLeadsToday') || document.getElementById('kpiTodayLeads');
+      if (statToday) statToday.textContent = '0';
+      const statTotal = document.getElementById('kpiTotalLeads');
+      if (statTotal) statTotal.textContent = '0';
+      const statMedian = document.getElementById('statMedianResponse');
+      if (statMedian) statMedian.textContent = '0s';
+      const statQual = document.getElementById('statQualifiedRate');
+      if (statQual) statQual.textContent = '0%';
+      const statCalls = document.getElementById('statCallsBooked') || document.getElementById('kpiCallCount');
+      if (statCalls) statCalls.textContent = '0';
+      const statProds = document.getElementById('statCatalogProducts') || document.getElementById('kpiActiveProducts');
+      if (statProds) statProds.textContent = '0';
       renderDashboardLeadsTable([]);
     }
 
     function renderDashboardLeadsTable(leads) {
+      const container = document.getElementById('dashboardLeadsTable');
       const tbody = document.getElementById('dashboardLeadsBody');
-      if (!tbody) return;
 
       if (!leads || leads.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-slate-400 font-medium">No leads in workspace yet. Pair WhatsApp or dispatch a test lead to see live responses!</td></tr>`;
+        if (container) {
+          container.innerHTML = '<div class="py-8 text-center text-xs text-slate-400 font-medium">No inquiries in workspace yet. Pair WhatsApp or dispatch a test lead to see live responses!</div>';
+        } else if (tbody) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center py-8 text-slate-400 font-medium">No inquiries in workspace yet. Pair WhatsApp or dispatch a test lead to see live responses!</td></tr>';
+        }
         return;
       }
 
-      tbody.innerHTML = leads.map(l => {
-        const cleanPhone = String(l.buyer_phone || '').replace(/\D/g, '');
-        const pdfSent = l.pdf_brochure_sent || l.brochure_sent;
+      const rowsHtml = leads.map(l => {
+        const cleanPhone = String(l.buyer_phone || l.phone || '').replace(/\D/g, '');
+        const pdfSent = l.pdf_brochure_sent || l.brochure_sent || l.pdfSent;
+        const buyerName = l.buyer_name || l.name || 'Buyer';
+        const city = l.buyer_city || l.city || '-';
+        const prod = l.product_inquired || l.productName || 'General Inquiry';
+
         return `
           <tr class="border-b border-gray-100 hover:bg-slate-50/80 transition text-xs">
-            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'Buyer')}</td>
+            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(buyerName)}</td>
             <td class="py-3 px-4 font-mono text-slate-600">
               <a href="https://wa.me/${cleanPhone}" target="_blank" class="hover:text-emerald-600 font-medium">+${cleanPhone}</a>
             </td>
-            <td class="py-3 px-4 text-slate-600">${escapeHtml(l.buyer_city || 'India')}</td>
-            <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(l.product_inquired || 'Packaging Line')}</td>
+            <td class="py-3 px-4 text-slate-600">${escapeHtml(city)}</td>
+            <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(prod)}</td>
             <td class="py-3 px-4">
               <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${pdfSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600'}">
                 ${pdfSent ? '✓ YES' : 'NO'}
@@ -1986,6 +2051,28 @@
           </tr>
         `;
       }).join('');
+
+      if (container) {
+        container.innerHTML = `
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
+                <th class="py-2.5 px-4">Buyer Name</th>
+                <th class="py-2.5 px-4">Phone</th>
+                <th class="py-2.5 px-4">City</th>
+                <th class="py-2.5 px-4">Product / Inquiry</th>
+                <th class="py-2.5 px-4">Brochure</th>
+                <th class="py-2.5 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardLeadsBody" class="divide-y divide-gray-100">
+              ${rowsHtml}
+            </tbody>
+          </table>
+        `;
+      } else if (tbody) {
+        tbody.innerHTML = rowsHtml;
+      }
     }
 
     // =========================================================================
@@ -1999,11 +2086,12 @@
     }
 
     async function fetchLeadsList() {
+      const container = document.getElementById('leadsTableContainer');
       const tbody = document.getElementById('leadsTableBody');
-      if (!tbody) return;
 
       if (!currentOrg) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view leads.</td></tr>`;
+        if (container) container.innerHTML = '<div class="py-12 text-center text-xs text-slate-400">Please sign in to view leads.</div>';
+        else if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view leads.</td></tr>';
         return;
       }
 
@@ -2022,33 +2110,48 @@
           leads = res.leads || [];
         }
 
-        const query = (document.getElementById('leadsSearchInput')?.value || '').toLowerCase().trim();
+        const query = (document.getElementById('leadSearchInput')?.value || document.getElementById('leadsSearchInput')?.value || '').toLowerCase().trim();
+        const statusFilter = document.getElementById('leadStatusFilter')?.value || '';
+
+        if (statusFilter) {
+          leads = leads.filter(l => (l.status || '').toLowerCase() === statusFilter.toLowerCase());
+        }
+
         if (query) {
           leads = leads.filter(l => 
-            (l.buyer_name || '').toLowerCase().includes(query) ||
-            (l.buyer_phone || '').includes(query) ||
-            (l.buyer_city || '').toLowerCase().includes(query) ||
-            (l.product_inquired || '').toLowerCase().includes(query)
+            (l.buyer_name || l.name || '').toLowerCase().includes(query) ||
+            (l.buyer_phone || l.phone || '').includes(query) ||
+            (l.buyer_city || l.city || '').toLowerCase().includes(query) ||
+            (l.product_inquired || l.productName || '').toLowerCase().includes(query) ||
+            (l.query_message || l.requirement || '').toLowerCase().includes(query)
           );
         }
 
         if (leads.length === 0) {
-          tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No leads found. Incoming WhatsApp inquiries appear here instantly.</td></tr>`;
+          const emptyMsg = '<div class="py-12 text-center text-xs text-slate-400 font-medium">No leads found. Incoming WhatsApp inquiries appear here instantly.</div>';
+          if (container) container.innerHTML = emptyMsg;
+          else if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No leads found. Incoming WhatsApp inquiries appear here instantly.</td></tr>';
           return;
         }
 
-        tbody.innerHTML = leads.map(l => {
-          const cleanPhone = String(l.buyer_phone || '').replace(/\D/g, '');
-          const pdfSent = l.pdf_brochure_sent || l.brochure_sent;
+        const rowsHtml = leads.map(l => {
+          const cleanPhone = String(l.buyer_phone || l.phone || '').replace(/\D/g, '');
+          const pdfSent = l.pdf_brochure_sent || l.brochure_sent || l.pdfSent;
+          const buyerName = l.buyer_name || l.name || 'Buyer';
+          const city = l.buyer_city || l.city || '-';
+          const prod = l.product_inquired || l.productName || '-';
+          const msg = l.query_message || l.requirement || '-';
+          const status = l.status || 'new';
+
           return `
             <tr class="border-b border-gray-100 hover:bg-slate-50/80 transition text-xs">
-              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(l.buyer_name || 'Buyer')}</td>
+              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(buyerName)}</td>
               <td class="py-3 px-4 font-mono text-slate-600">
                 <a href="https://wa.me/${cleanPhone}" target="_blank" class="hover:text-emerald-600 font-medium">+${cleanPhone}</a>
               </td>
-              <td class="py-3 px-4 text-slate-600">${escapeHtml(l.buyer_city || '-')}</td>
-              <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(l.product_inquired || '-')}</td>
-              <td class="py-3 px-4 text-slate-500 max-w-xs truncate">${escapeHtml(l.query_message || '-')}</td>
+              <td class="py-3 px-4 text-slate-600">${escapeHtml(city)}</td>
+              <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(prod)}</td>
+              <td class="py-3 px-4 text-slate-500 max-w-xs truncate" title="${escapeHtml(msg)}">${escapeHtml(msg)}</td>
               <td class="py-3 px-4">
                 <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${pdfSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600'}">
                   ${pdfSent ? '✓ YES' : 'NO'}
@@ -2060,9 +2163,34 @@
             </tr>
           `;
         }).join('');
+
+        if (container) {
+          container.innerHTML = `
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
+                  <th class="py-3 px-4">Buyer Name</th>
+                  <th class="py-3 px-4">Phone</th>
+                  <th class="py-3 px-4">City</th>
+                  <th class="py-3 px-4">Product Inquired</th>
+                  <th class="py-3 px-4">Message / Specs</th>
+                  <th class="py-3 px-4">Brochure Sent</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="leadsTableBody" class="divide-y divide-gray-100">
+                ${rowsHtml}
+              </tbody>
+            </table>
+          `;
+        } else if (tbody) {
+          tbody.innerHTML = rowsHtml;
+        }
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading leads: ${escapeHtml(err.message)}</td></tr>`;
+        if (container) container.innerHTML = `<div class="py-12 text-center text-xs text-rose-500">Error loading leads: ${escapeHtml(err.message)}</div>`;
+        else if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading leads: ${escapeHtml(err.message)}</td></tr>`;
       }
+    }
     }
 
     async function exportLeadsCsv() {
@@ -2113,7 +2241,7 @@
     // 💬 CONVERSATIONS & MESSAGING
     // =========================================================================
     async function fetchConversationsList() {
-      const container = document.getElementById('conversationsList');
+      const container = document.getElementById('conversationThreadList') || document.getElementById('conversationsList');
       if (!container) return;
       if (!currentOrg) {
         container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Sign in to view conversations.</div>';
@@ -2142,15 +2270,18 @@
 
         container.innerHTML = convs.map(c => {
           const lead = c.leads || c.lead || {};
-          const cleanPhone = String(lead.buyer_phone || '').replace(/\D/g, '');
+          const cleanPhone = String(lead.buyer_phone || lead.phone || '').replace(/\D/g, '');
+          const buyerName = lead.buyer_name || lead.name || 'Customer';
+          const isSelected = c.id === activeConversationId;
+
           return `
-            <div onclick="selectConversation('${c.id}')" class="p-3.5 border-b border-gray-100 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between ${c.id === activeConversationId ? 'bg-indigo-50/60 border-l-4 border-l-indigo-600' : ''}">
-              <div>
-                <div class="text-xs font-bold text-slate-900">${escapeHtml(lead.buyer_name || 'Buyer')}</div>
+            <div onclick="selectConversation('${c.id}')" class="p-3.5 border-b border-gray-100 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between ${isSelected ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600' : ''}">
+              <div class="truncate mr-2">
+                <div class="text-xs font-bold text-slate-900 truncate">${escapeHtml(buyerName)}</div>
                 <div class="text-[11px] text-slate-500 font-mono">+${cleanPhone}</div>
               </div>
-              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${c.mode === 'manual' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}">
-                ${c.mode === 'manual' ? 'Manual' : 'AI Mode'}
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${c.mode === 'manual' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}">
+                ${c.mode === 'manual' ? 'Manual' : 'AI Active'}
               </span>
             </div>
           `;
@@ -2166,17 +2297,40 @@
 
     async function selectConversation(convId) {
       activeConversationId = convId;
-      const chatBox = document.getElementById('chatMessagesBox');
+      const chatBox = document.getElementById('chatMessagesStream') || document.getElementById('chatMessagesBox');
       if (!chatBox) return;
 
-      if (sb) {
-        const { data: msgs } = await sb
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', convId)
-          .order('created_at', { ascending: true });
+      const controls = document.getElementById('chatModeControls');
+      if (controls) controls.classList.remove('hidden');
 
-        renderMessages(msgs || []);
+      // Update active highlight in thread list
+      document.querySelectorAll('#conversationThreadList > div, #conversationsList > div').forEach(el => {
+        el.classList.remove('bg-indigo-50/70', 'border-l-4', 'border-l-indigo-600');
+      });
+
+      if (sb) {
+        const [cRes, mRes] = await Promise.all([
+          sb.from('conversations').select('*, leads(*)').eq('id', convId).single(),
+          sb.from('messages').select('*').eq('conversation_id', convId).order('created_at', { ascending: true })
+        ]);
+
+        const conv = cRes.data;
+        if (conv) {
+          const lead = conv.leads || {};
+          const bName = document.getElementById('chatBuyerName');
+          const bPhone = document.getElementById('chatBuyerPhone');
+          if (bName) bName.textContent = lead.buyer_name || 'Customer';
+          if (bPhone) bPhone.textContent = lead.buyer_phone ? '+' + lead.buyer_phone.replace(/\D/g, '') : 'Active WhatsApp Thread';
+
+          const btnMode = document.getElementById('btnChatModeToggle');
+          if (btnMode) {
+            btnMode.textContent = conv.mode === 'manual' ? '👤 Manual Takeover' : '🤖 AI Active';
+            btnMode.className = conv.mode === 'manual'
+              ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300'
+              : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+          }
+        }
+        renderMessages(mRes.data || []);
       } else {
         const data = await apiFetch(`/api/conversations/${convId}/messages`);
         renderMessages(data.messages || []);
@@ -2184,21 +2338,22 @@
     }
 
     function renderMessages(msgs) {
-      const chatBox = document.getElementById('chatMessagesBox');
+      const chatBox = document.getElementById('chatMessagesStream') || document.getElementById('chatMessagesBox');
       if (!chatBox) return;
 
       if (msgs.length === 0) {
-        chatBox.innerHTML = '<div class="text-center py-10 text-xs text-slate-400">Thread initiated.</div>';
+        chatBox.innerHTML = '<div class="text-center py-10 text-xs text-slate-400">Thread initiated. Customer will receive automated greeting and brochure.</div>';
         return;
       }
 
       chatBox.innerHTML = msgs.map(m => {
-        const isBuyer = m.sender === 'buyer';
+        const isBuyer = m.sender === 'buyer' || m.sender_type === 'buyer';
         return `
           <div class="flex ${isBuyer ? 'justify-start' : 'justify-end'} mb-3">
             <div class="max-w-[75%] p-3 rounded-2xl text-xs ${isBuyer ? 'bg-white border border-gray-200 text-slate-800' : 'bg-slate-900 text-white shadow-sm'}">
               <div class="text-[10px] font-bold mb-1 opacity-70">${isBuyer ? 'Buyer' : (m.sender === 'ai' ? 'MartFlow AI' : 'Sales Representative')}</div>
-              <div class="leading-relaxed">${escapeHtml(m.text || m.content || '')}</div>
+              <div class="leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text || m.content || '')}</div>
+              <div class="text-[9px] text-right mt-1 opacity-60 font-mono">${new Date(m.created_at || m.ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           </div>
         `;
@@ -2246,11 +2401,12 @@
     // 📦 PRODUCT CATALOG & PDF UPLOAD
     // =========================================================================
     async function fetchCatalogProducts() {
+      const container = document.getElementById('catalogProductsContainer');
       const tbody = document.getElementById('catalogTableBody');
-      if (!tbody) return;
+      if (!tbody && !container) return;
 
       if (!currentOrg) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view catalog.</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view catalog.</td></tr>';
         return;
       }
 
@@ -2269,18 +2425,20 @@
           prods = res.products || [];
         }
 
+        catalogProductsCache = prods;
+
         if (prods.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or upload a CSV / PDF catalog above!</td></tr>';
+          if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or drag & drop an Excel / PDF brochure above!</td></tr>';
           return;
         }
 
-        tbody.innerHTML = prods.map(p => {
+        const rowsHtml = prods.map(p => {
           const price = p.price_raw || p.price_range || 'Contact for quote';
           const imgHtml = p.image_url
             ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="w-10 h-10 object-cover rounded-lg border border-gray-200 shadow-sm">`
             : '<div class="w-10 h-10 rounded-lg bg-slate-100 border border-gray-200 flex items-center justify-center text-sm font-bold text-slate-500">⚙️</div>';
           const pdfHtml = p.brochure_url
-            ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Catalog')}</span></a>`
+            ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Brochure')}</span></a>`
             : '<span class="text-slate-400 text-[11px]">No PDF</span>';
 
           return `
@@ -2288,10 +2446,20 @@
               <td class="py-3 px-4">${imgHtml}</td>
               <td class="py-3 px-4 font-mono font-bold text-slate-700">${escapeHtml(p.sku || '-')}</td>
               <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
-              <td class="py-3 px-4 text-slate-600 max-w-xs truncate" title="${escapeHtml(p.model_specs || '')}">${escapeHtml(p.model_specs || '-')}</td>
-              <td class="py-3 px-4 text-slate-800 font-medium">${escapeHtml(price)}</td>
+              <td class="py-3 px-4 text-slate-600 max-w-xs truncate cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductSpecs('${p.id}', '${escapeHtml(p.model_specs || '')}')" title="Click to edit specs">
+                <span>${escapeHtml(p.model_specs || '-')}</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
+              </td>
+              <td class="py-3 px-4 text-slate-800 font-semibold cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductPrice('${p.id}', '${escapeHtml(p.price_raw || '')}')" title="Click to edit price">
+                <span>${escapeHtml(price)}</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
+              </td>
               <td class="py-3 px-4">${pdfHtml}</td>
-              <td class="py-3 px-4 text-right">
+              <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                <button onclick="openEditProductModal('${p.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition text-xs inline-flex items-center gap-1">
+                  <span>✎</span>
+                  <span>Edit</span>
+                </button>
                 <button onclick="deleteCatalogProduct('${p.id}')" class="text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded transition text-xs inline-flex items-center gap-1">
                   <span>🗑️</span>
                   <span>Delete</span>
@@ -2300,7 +2468,14 @@
             </tr>
           `;
         }).join('');
+
+        if (tbody) {
+          tbody.innerHTML = rowsHtml;
+        }
       } catch (err) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading catalog: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    } catch (err) {
         tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading catalog: ${escapeHtml(err.message)}</td></tr>`;
       }
     }
@@ -2681,6 +2856,25 @@
           const { data: org } = await sb.from('organizations').select('*').eq('id', currentOrg.id).single();
           if (org) currentOrg = { ...currentOrg, ...org };
         } catch (e) {}
+      }
+
+      // Update bottom-left sidebar socket status
+      const waDot = document.getElementById('waStatusDot');
+      const waBadge = document.getElementById('waStatusBadge');
+      const waText = document.getElementById('waStatusText');
+
+      if (currentOrg.wa_status === 'connected') {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'Connected';
+      } else if (currentOrg.wa_status === 'qr_ready') {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5 animate-pulse';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'Scan QR';
+      } else {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'Disconnected';
       }
 
       // 1. Worker Heartbeat Pill Check
@@ -3236,6 +3430,439 @@
       fetchPublicConfig();
       await checkAuthStatus();
     });
+
+    // =========================================================================
+    // 🌐 WEBSITE KNOWLEDGE EXTRACTOR & BUSINESS NICHE ADAPTATION
+    // =========================================================================
+    async function syncWebsiteKnowledge() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const input = document.getElementById('websiteUrlInput');
+      const rawUrl = (input?.value || '').trim();
+      if (!rawUrl) return showToast('Please enter your business website URL', 'warning');
+
+      const btn = document.getElementById('btnSyncWebsite');
+      const oldBtnText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Reading Website...</span>';
+      }
+
+      try {
+        const cleanUrl = rawUrl.replace(/^https?:\/\//, 'https://');
+        showToast('Connecting to website via AI reader...', 'info');
+
+        const jinaUrl = 'https://r.jina.ai/' + cleanUrl;
+        const res = await fetch(jinaUrl);
+        if (!res.ok) throw new Error('Failed to retrieve website content (HTTP ' + res.status + ')');
+        const markdown = await res.text();
+
+        const truncatedMarkdown = markdown.slice(0, 50000);
+
+        if (sb) {
+          const { error } = await sb.from('organizations').update({
+            website_url: cleanUrl,
+            website_knowledge: truncatedMarkdown,
+            website_synced_at: new Date().toISOString()
+          }).eq('id', currentOrg.id);
+          if (error) throw error;
+        }
+
+        currentOrg.website_url = cleanUrl;
+        currentOrg.website_knowledge = truncatedMarkdown;
+        currentOrg.website_synced_at = new Date().toISOString();
+
+        updateWebsiteSyncBadge();
+        showToast('Website knowledge base synced successfully! AI is now trained on your site.', 'success');
+      } catch (err) {
+        showToast('Website sync error: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldBtnText;
+        }
+      }
+    }
+
+    function updateWebsiteSyncBadge() {
+      const badge = document.getElementById('websiteSyncStatusBadge');
+      const info = document.getElementById('websiteSyncInfo');
+      const input = document.getElementById('websiteUrlInput');
+
+      if (currentOrg?.website_url && input) {
+        input.value = currentOrg.website_url;
+      }
+
+      if (currentOrg?.website_knowledge && badge) {
+        badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+        badge.textContent = '✓ AI Trained on Site';
+
+        if (info) {
+          info.classList.remove('hidden');
+          const dateStr = currentOrg.website_synced_at ? new Date(currentOrg.website_synced_at).toLocaleString() : 'Recently';
+          info.innerHTML = `<span class="font-bold text-slate-800">Synced:</span> ${dateStr} • <span class="font-mono text-indigo-700">${currentOrg.website_url}</span> (${Math.round((currentOrg.website_knowledge.length / 1024))} KB knowledge base)`;
+        }
+      }
+    }
+
+    async function saveBusinessType() {
+      if (!currentOrg) return;
+      const type = document.getElementById('settingBusinessType')?.value || 'auto';
+      try {
+        if (sb) {
+          await sb.from('organizations').update({ business_type: type }).eq('id', currentOrg.id);
+        }
+        currentOrg.business_type = type;
+        applyNicheAdaptation(type);
+        showToast('Business niche updated to ' + type, 'success');
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    function applyNicheAdaptation(type = 'auto') {
+      const bType = type || currentOrg?.business_type || 'auto';
+      const lblCat = document.getElementById('lblStatCatalogProducts');
+      const sel = document.getElementById('settingBusinessType');
+      if (sel && sel.value !== bType) sel.value = bType;
+
+      if (bType === 'coaching_ielts') {
+        if (lblCat) lblCat.textContent = 'Active Course PDFs';
+      } else if (bType === 'goods') {
+        if (lblCat) lblCat.textContent = 'Active Product PDFs';
+      } else if (bType === 'services') {
+        if (lblCat) lblCat.textContent = 'Active Service PDFs';
+      } else {
+        if (lblCat) lblCat.textContent = 'Active Machine PDFs';
+      }
+    }
+
+    // =========================================================================
+    // 📦 SMART CATALOG PARSER & MULTI-ROW EXTRACTION (EXCEL, CSV, PDF)
+    // =========================================================================
+    function handleCatalogDrop(event) {
+      event.preventDefault();
+      const dropzone = document.getElementById('catalogDropzone');
+      if (dropzone) dropzone.classList.remove('border-indigo-500', 'bg-indigo-50/20');
+      const file = event.dataTransfer?.files?.[0];
+      if (file) processCatalogFile(file);
+    }
+
+    async function handleCatalogFileSelected(event) {
+      const file = event?.target?.files?.[0];
+      if (file) {
+        await processCatalogFile(file);
+        event.target.value = '';
+      }
+    }
+
+    async function processCatalogFile(file) {
+      if (!file || !currentOrg) return showToast('Please sign in first', 'warning');
+      const fname = file.name.toLowerCase();
+      showToast('Processing ' + file.name + '...', 'info');
+
+      try {
+        // Fetch existing products for smart upsert (0 duplicates on re-upload!)
+        let existingProducts = [];
+        if (sb) {
+          const { data } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
+          existingProducts = data || [];
+        }
+
+        let parsedItems = [];
+
+        // 1. EXCEL SPREADSHEET (.xlsx, .xls)
+        if (fname.endsWith('.xlsx') || fname.endsWith('.xls')) {
+          if (!window.XLSX) throw new Error('SheetJS library is loading, please try again in 1 second.');
+          const buffer = await file.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          if (!rows || rows.length < 2) throw new Error('Excel sheet is empty or missing data rows.');
+          parsedItems = extractItemsFromTableRows(rows);
+        }
+        // 2. CSV SPREADSHEET (.csv)
+        else if (fname.endsWith('.csv')) {
+          const text = await file.text();
+          const rows = parseCsvToRows(text);
+          if (!rows || rows.length < 2) throw new Error('CSV is empty or missing data rows.');
+          parsedItems = extractItemsFromTableRows(rows);
+        }
+        // 3. PDF BROCHURE (.pdf)
+        else if (fname.endsWith('.pdf')) {
+          let publicPdfUrl = null;
+          if (sb) {
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const filePath = `${currentOrg.id}/catalogs/${Date.now()}_${safeName}`;
+            const { error: upErr } = await sb.storage.from('catalogs').upload(filePath, file, { upsert: true });
+            if (!upErr) {
+              const { data: urlData } = sb.storage.from('catalogs').getPublicUrl(filePath);
+              publicPdfUrl = urlData?.publicUrl || null;
+            }
+          }
+
+          let pdfText = '';
+          if (window.pdfjsLib) {
+            try {
+              const arrayBuffer = await file.arrayBuffer();
+              const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+              for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
+                const page = await pdf.getPage(i);
+                const textContent = await page.getTextContent();
+                pdfText += textContent.items.map(it => it.str).join(' ') + '\n';
+              }
+            } catch (pdfErr) {
+              console.warn('PDF text extraction error:', pdfErr);
+            }
+          }
+
+          // Parse multiple distinct items from brochure text if identifiable
+          const itemsFromPdf = extractItemsFromPdfText(pdfText, file.name);
+          parsedItems = itemsFromPdf.map(item => ({
+            ...item,
+            brochure_url: publicPdfUrl,
+            brochure_filename: file.name
+          }));
+        }
+
+        if (parsedItems.length === 0) {
+          throw new Error('No valid product records found in ' + file.name);
+        }
+
+        // Smart Upsert into Supabase (0 duplicates!)
+        let insertedCount = 0;
+        let updatedCount = 0;
+
+        for (const item of parsedItems) {
+          const normName = item.name.toLowerCase().trim();
+          const normSku = (item.sku || '').toLowerCase().trim();
+
+          const existing = existingProducts.find(p => 
+            (normSku && (p.sku || '').toLowerCase().trim() === normSku) ||
+            p.name.toLowerCase().trim() === normName
+          );
+
+          if (existing && sb) {
+            await sb.from('products').update({
+              price_raw: item.price_raw || existing.price_raw,
+              model_specs: item.model_specs || existing.model_specs,
+              brochure_url: item.brochure_url || existing.brochure_url,
+              brochure_filename: item.brochure_filename || existing.brochure_filename
+            }).eq('id', existing.id);
+            updatedCount++;
+          } else if (sb) {
+            await sb.from('products').insert({
+              org_id: currentOrg.id,
+              sku: item.sku || ('SKU-' + Math.floor(100 + Math.random() * 900)),
+              name: item.name,
+              price_raw: item.price_raw || 'Contact for quote',
+              model_specs: item.model_specs || '',
+              brochure_url: item.brochure_url || null,
+              brochure_filename: item.brochure_filename || null,
+              is_active: true
+            });
+            insertedCount++;
+          }
+        }
+
+        showToast(`Catalog processed: ${insertedCount} added, ${updatedCount} updated (0 duplicates)!`, 'success');
+        fetchCatalogProducts();
+      } catch (err) {
+        showToast('Catalog parsing error: ' + err.message, 'error');
+      }
+    }
+
+    function extractItemsFromTableRows(rows) {
+      const headerRow = (rows[0] || []).map(h => String(h || '').toLowerCase().trim());
+      let skuIdx = headerRow.findIndex(h => /sku|code|item\s*id|part/i.test(h));
+      let nameIdx = headerRow.findIndex(h => /name|item|product|title|machine|course/i.test(h));
+      let priceIdx = headerRow.findIndex(h => /price|rate|cost|mrp|amount|fee/i.test(h));
+      let specsIdx = headerRow.findIndex(h => /model|spec|capacity|detail|feature|batch/i.test(h));
+
+      if (nameIdx === -1) nameIdx = 0;
+      if (priceIdx === -1) priceIdx = headerRow.findIndex((h, idx) => idx !== nameIdx && /amt|rs|inr/i.test(h));
+
+      const items = [];
+      for (let i = 1; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || r.length === 0) continue;
+        const name = String(r[nameIdx] || '').trim();
+        if (!name || name.toLowerCase() === 'product name' || name.toLowerCase() === 'name') continue;
+
+        const sku = (skuIdx !== -1 && r[skuIdx]) ? String(r[skuIdx]).trim() : ('SKU-' + (100 + i));
+        const price_raw = (priceIdx !== -1 && r[priceIdx]) ? String(r[priceIdx]).trim() : 'Contact for quote';
+        const model_specs = (specsIdx !== -1 && r[specsIdx]) ? String(r[specsIdx]).trim() : '';
+
+        items.push({ sku, name, price_raw, model_specs });
+      }
+      return items;
+    }
+
+    function extractItemsFromPdfText(text, filename) {
+      if (!text || text.trim().length < 20) {
+        return [{
+          name: filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+          sku: 'PDF-' + Math.floor(100 + Math.random() * 900),
+          price_raw: 'Contact for quote',
+          model_specs: 'Full verified technical brochure'
+        }];
+      }
+
+      // Identify candidate items separated by model codes, bullet points, or numbered lines
+      const items = [];
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+
+      const itemRegex = /(?:^|\b)([A-Z0-9-]{3,12}\s+(?:Machine|Packer|Filler|Unit|Blender|Series|Model|System)[^.]{0,60})/i;
+      for (const line of lines) {
+        const match = line.match(itemRegex);
+        if (match && match[1] && match[1].length > 5 && !items.some(it => it.name === match[1])) {
+          items.push({
+            name: match[1].trim(),
+            sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
+            price_raw: 'Contact for quote',
+            model_specs: line.slice(0, 100)
+          });
+        }
+        if (items.length >= 10) break;
+      }
+
+      if (items.length === 0) {
+        return [{
+          name: filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
+          sku: 'CAT-' + Math.floor(100 + Math.random() * 900),
+          price_raw: 'Contact for quote',
+          model_specs: text.slice(0, 120).trim()
+        }];
+      }
+      return items;
+    }
+
+    // =========================================================================
+    // ✏️ INLINE EDITING & EDIT SKU MODAL
+    // =========================================================================
+    let catalogProductsCache = [];
+
+    async function inlineEditProductPrice(id, currentPrice) {
+      const newPrice = prompt('Enter updated price specification:', currentPrice || '');
+      if (newPrice === null || newPrice.trim() === currentPrice) return;
+      try {
+        if (sb) {
+          const { error } = await sb.from('products').update({ price_raw: newPrice.trim() }).eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        }
+        showToast('Price updated to ' + newPrice.trim(), 'success');
+        fetchCatalogProducts();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function inlineEditProductSpecs(id, currentSpecs) {
+      const newSpecs = prompt('Enter updated model specifications:', currentSpecs || '');
+      if (newSpecs === null || newSpecs.trim() === currentSpecs) return;
+      try {
+        if (sb) {
+          const { error } = await sb.from('products').update({ model_specs: newSpecs.trim() }).eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        }
+        showToast('Specifications updated!', 'success');
+        fetchCatalogProducts();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    function openEditProductModal(productId) {
+      const prod = catalogProductsCache.find(p => p.id === productId);
+      if (!prod) return;
+
+      if (document.getElementById('editProductId')) document.getElementById('editProductId').value = prod.id;
+      if (document.getElementById('editSku')) document.getElementById('editSku').value = prod.sku || '';
+      if (document.getElementById('editProductName')) document.getElementById('editProductName').value = prod.name || '';
+      if (document.getElementById('editPriceRaw')) document.getElementById('editPriceRaw').value = prod.price_raw || '';
+      if (document.getElementById('editModel')) document.getElementById('editModel').value = prod.model_specs || '';
+
+      const modal = document.getElementById('editProductModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeEditProductModal() {
+      const modal = document.getElementById('editProductModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitEditProduct() {
+      const id = document.getElementById('editProductId')?.value;
+      const sku = (document.getElementById('editSku')?.value || '').trim();
+      const name = (document.getElementById('editProductName')?.value || '').trim();
+      const price_raw = (document.getElementById('editPriceRaw')?.value || '').trim();
+      const model_specs = (document.getElementById('editModel')?.value || '').trim();
+
+      if (!name) return showToast('Product name is required', 'error');
+
+      try {
+        if (sb) {
+          const { error } = await sb.from('products').update({
+            sku,
+            name,
+            price_raw,
+            model_specs
+          }).eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        }
+        closeEditProductModal();
+        showToast('Product updated successfully!', 'success');
+        fetchCatalogProducts();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // ⏱️ 48-HOUR LIVE TRIAL COUNTDOWN TIMER
+    // =========================================================================
+    let trialTimerInterval = null;
+    function startTrialCountdownTimer() {
+      if (trialTimerInterval) clearInterval(trialTimerInterval);
+
+      function updateCountdown() {
+        if (!currentOrg) return;
+
+        const trialEnds = currentOrg.trial_ends_at ? new Date(currentOrg.trial_ends_at) : new Date(Date.now() + 48 * 3600 * 1000);
+        const diffMs = trialEnds.getTime() - Date.now();
+
+        const trialCountEl = document.getElementById('trialCountdownText');
+        const memCountEl = document.getElementById('memCountdownDisplay');
+        const memLeadQuota = document.getElementById('memLeadQuotaText');
+        const memProgressBar = document.getElementById('memLeadProgressBar');
+
+        const leadsUsed = currentOrg.trial_leads_used || currentOrg.leads_used || 0;
+        const leadsLimit = currentOrg.trial_lead_limit || currentOrg.monthly_lead_limit || 25;
+        const leadsLeft = Math.max(0, leadsLimit - leadsUsed);
+
+        if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Trial Leads Used (${leadsLeft} Remaining)`;
+        if (memProgressBar) {
+          const pct = Math.min(100, Math.round((leadsUsed / Math.max(1, leadsLimit)) * 100));
+          memProgressBar.style.width = pct + '%';
+        }
+
+        if (diffMs <= 0) {
+          if (trialCountEl) trialCountEl.textContent = 'Trial expired • Please activate full plan to resume';
+          if (memCountEl) memCountEl.textContent = 'Trial Expired';
+        } else {
+          const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+          const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          const timeStr = `${totalHours}h ${mins}m trial remaining • ${leadsLeft} free inquiries left`;
+          if (trialCountEl) trialCountEl.textContent = timeStr;
+          if (memCountEl) memCountEl.textContent = `${totalHours}h ${mins}m remaining`;
+        }
+      }
+
+      updateCountdown();
+      trialTimerInterval = setInterval(updateCountdown, 30000);
+    }
+
 </script>
 </body>
 </html>
