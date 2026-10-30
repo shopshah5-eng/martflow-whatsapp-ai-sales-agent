@@ -3,9 +3,9 @@
 > **Autonomous Multi-Tenant B2B Sales & Deal Closing SaaS for Indian Manufacturers & Wholesalers.**  
 > Grounded in real catalog specs with zero hallucinations, 2-way factory owner call booking, sub-10 second WhatsApp brochure dispatch, and multi-tenant PostgreSQL/Supabase architecture.
 
-[![Netlify Production Site](https://img.shields.io/badge/Netlify-Live%20Dashboard-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://indiamart-ai-sales-closing.netlify.app)
-[![GitHub Repository](https://img.shields.io/badge/GitHub-Repo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/shopshah5-eng/indiamart-whatsapp-ai-sales-agent)
-[![Tests Passing](https://img.shields.io/badge/Tests-7%2F7%20Passed-10B981?style=for-the-badge)](https://github.com/shopshah5-eng/indiamart-whatsapp-ai-sales-agent)
+[![Netlify Production Site](https://img.shields.io/badge/Netlify-Live%20Dashboard-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://martflow-ai-sales.netlify.app)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-Repo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/shopshah5-eng/martflow-whatsapp-ai-sales-agent)
+[![Tests Passing](https://img.shields.io/badge/Tests-7%2F7%20Passed-10B981?style=for-the-badge)](https://github.com/shopshah5-eng/martflow-whatsapp-ai-sales-agent)
 
 ---
 
