@@ -175,7 +175,7 @@
     <main class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-8 bg-[#fafafa]">
 
       <!-- TOP TRIAL STATUS BAR (48-HOUR LIVE TRIAL BANNER) -->
-      <div id="trialStatusBar" class="mb-5 bg-gradient-to-r from-emerald-900 via-indigo-950 to-slate-900 border border-emerald-500/30 rounded-xl p-3.5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div id="trialStatusBar" class="mb-5 bg-gradient-to-r from-emerald-900 via-slate-900 to-indigo-950 border border-emerald-500/30 rounded-xl p-3.5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center space-x-3 text-xs w-full sm:w-auto">
           <span class="flex h-2.5 w-2.5 relative shrink-0">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -183,20 +183,18 @@
           </span>
           <div>
             <div class="font-bold text-emerald-300 flex items-center gap-1.5 flex-wrap">
-              <span>🎁 48-Hour Live Trial Available</span>
-              <span class="text-slate-300 font-normal text-[11px]">(25 Free Buyer Leads Included)</span>
+              <span>✨ 100% Free Live Enterprise Access</span>
+              <span class="text-slate-300 font-normal text-[11px]">(Unlimited Buyer Leads & WhatsApp Automation Included)</span>
             </div>
             <div id="trialCountdownText" class="text-[11px] text-emerald-200/90 font-mono mt-0.5 font-medium">
-              47h 59m left • 23/25 trial leads remaining
+              Active Lifetime Free Access • Zero Fees • Unlimited Inquiries
             </div>
           </div>
         </div>
         <div class="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
-          <button onclick="startSelfTrial()" class="text-xs font-semibold px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm whitespace-nowrap">
-            Start Free 48h Trial
-          </button>
-          <button onclick="openActivationModal('VIP Pilot Done-For-You', '₹999', '100% Adjusted in Final Plan')" class="text-xs font-semibold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition shadow-sm whitespace-nowrap">
-            ⚡ ₹999 Engineer Setup
+          <button onclick="switchView('whatsapp')" class="text-xs font-semibold px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+            <span>🟢</span>
+            <span>WhatsApp Engine</span>
           </button>
         </div>
       </div>
@@ -214,9 +212,9 @@
               <p id="dashBannerSub" class="text-xs text-slate-300 mt-0.5">Automated machine PDF catalog dispatch, Hinglish deal closing, and factory owner call booking.</p>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="openSimulationModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
-                <span>⚡</span>
-                <span id="btnSimLeadText">Test Inbound Lead</span>
+              <button onclick="switchView('whatsapp')" class="text-xs font-semibold px-3.5 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+                <span>🟢</span>
+                <span id="btnSimLeadText">WhatsApp Engine</span>
               </button>
             </div>
           </div>
@@ -556,8 +554,8 @@
           </div>
         </div>
 
-        <!-- Row 2: Live Dual Device Pairing Card & Instant Real Test Card -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Row 2: Live Dual Device Pairing Card -->
+        <div class="grid grid-cols-1 gap-6">
           <!-- Card 3: Dual Real Pairing Card -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <div class="flex items-center justify-between">
@@ -640,43 +638,7 @@
             </div>
           </div>
 
-          <!-- Card 4: Instant Real Test Card -->
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <div class="flex items-center space-x-3">
-              <div class="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm">🧪</div>
-              <div>
-                <h3 class="text-sm font-bold text-slate-900">Send Live Test WhatsApp Now</h3>
-                <span class="text-[11px] text-slate-500">Test real message & PDF delivery to your phone in 1 click</span>
-              </div>
-            </div>
-
-            <div class="space-y-3.5 text-xs">
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Recipient Phone Number (with Country Code)</label>
-                <input type="text" id="testRecipientPhone" placeholder="e.g. 9198XXXXXXXX" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-amber-500 focus:outline-none">
-              </div>
-
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Attach Product Brochure PDF</label>
-                <select id="testBrochureSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
-                  <option value="">-- No Brochure (Text Message Only) --</option>
-                </select>
-              </div>
-
-              <div>
-                <label class="block font-semibold text-slate-700 mb-1">Test Message</label>
-                <textarea id="testMessageText" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">Namaste! This is a live test message from your MartFlow AI Factory Sales Engine.</textarea>
-              </div>
-
-              <button onclick="sendLiveTestWhatsApp()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-2">
-                <span>🚀 Send Live WhatsApp Test</span>
-              </button>
-
-              <div id="testDispatchStatus" class="hidden text-center text-xs p-2 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-medium">
-                ✓ Test queued! Check your WhatsApp in 2-3 seconds.
-              </div>
-            </div>
-          </div>
+          
         </div>
       </section>
 
@@ -846,12 +808,12 @@
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="space-y-1">
               <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Live Workspace Quota</span>
-              <h3 class="text-lg font-bold">48-Hour Live Trial: Real Buyer Inquiries</h3>
-              <p class="text-xs text-slate-300">Your factory workspace is live. AI qualifies buyers, attaches machine PDFs, and schedules owner calls.</p>
+              <h3 class="text-lg font-bold">Active Enterprise: Unlimited Buyer Inquiries (100% Free)</h3>
+              <p class="text-xs text-slate-300">Your factory workspace is 100% free and active. AI qualifies buyers, attaches machine PDFs, and schedules owner calls.</p>
             </div>
             <div class="text-right">
-              <div class="text-xs text-slate-300">Trial Time Remaining:</div>
-              <div id="memCountdownDisplay" class="text-base font-mono font-bold text-emerald-300 mt-0.5">47h 55m remaining</div>
+              <div class="text-xs text-slate-300">Plan Duration:</div>
+              <div id="memCountdownDisplay" class="text-base font-mono font-bold text-emerald-300 mt-0.5">Lifetime Free Access</div>
             </div>
           </div>
 
@@ -859,7 +821,7 @@
           <div class="space-y-1.5 pt-2">
             <div class="flex justify-between text-xs font-medium text-slate-300">
               <span>B2B Portal & Marketplace Inquiries Processed</span>
-              <span id="memLeadQuotaText" class="font-bold text-white">2 / 25 Leads Included</span>
+              <span id="memLeadQuotaText" class="font-bold text-white">Unlimited Leads Included</span>
             </div>
             <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
               <div id="memLeadProgressBar" class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 8%;"></div>
@@ -941,23 +903,24 @@
           </div>
 
           <!-- Right Col: Instant Action Card -->
-          <div class="bg-white border-2 border-indigo-600 rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5">
+          <!-- Right Col: 100% Free Enterprise Access Card -->
+          <div class="bg-white border-2 border-emerald-600 rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5">
             <div class="space-y-3">
-              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Risk-Free VIP Onboarding</span>
-              <h3 class="text-base font-bold text-slate-900">Lock VIP AnyDesk Engineer Deposit</h3>
-              <div class="text-3xl font-extrabold text-indigo-600">₹999 <span class="text-xs font-normal text-slate-500">deposit</span></div>
-              <p class="text-xs text-slate-500">100% adjusted into your final factory license. Our engineer sets up your B2B webhooks, catalogs & WhatsApp live.</p>
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Early Access Special</span>
+              <h3 class="text-base font-bold text-slate-900">100% Free Enterprise Access</h3>
+              <div class="text-3xl font-extrabold text-emerald-600">₹0 <span class="text-xs font-normal text-slate-500">completely free</span></div>
+              <p class="text-xs text-slate-500">All modules & automation unlocked with zero setup fees or monthly charges during early access. Connect WhatsApp and start closing deals.</p>
 
               <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
-                <div class="flex items-center text-slate-800 font-semibold">✓ 15-Minute Remote AnyDesk Setup</div>
-                <div class="flex items-center text-slate-800 font-semibold">✓ Live Test Inquiry Verified Together</div>
-                <div class="flex items-center text-slate-800 font-semibold">✓ 100% Money-Back Guarantee</div>
+                <div class="flex items-center text-slate-800 font-semibold">✓ Unlimited Leads & WhatsApp Replies</div>
+                <div class="flex items-center text-slate-800 font-semibold">✓ Instant PDF Brochure Dispatch</div>
+                <div class="flex items-center text-slate-800 font-semibold">✓ 100% Free Lifetime Early Access</div>
               </div>
             </div>
 
             <div class="space-y-2 pt-2">
-              <button onclick="openActivationModal('VIP Pilot Done-For-You Deposit', '₹999', '100% Adjusted in Final Factory Plan')" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-2">
-                <span>⚡ Lock ₹999 Deposit & Connect</span>
+              <button onclick="switchView('whatsapp')" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-2">
+                <span>🟢 Connect WhatsApp Now</span>
               </button>
               <button onclick="openAnyDeskHelpModal()" class="w-full py-2 bg-slate-50 hover:bg-slate-100 border border-gray-300 text-slate-700 font-semibold rounded-xl text-xs transition">
                 Talk to Sales Engineer on WhatsApp →
@@ -1838,7 +1801,7 @@
         if (orgNameEl) orgNameEl.textContent = currentOrg.name;
 
         const orgPlanEl = document.getElementById('topOrgPlan');
-        if (orgPlanEl) orgPlanEl.textContent = currentOrg.plan_status === 'active' ? 'Active' : '48h Trial';
+        if (orgPlanEl) orgPlanEl.textContent = 'Active (Free)';
 
         const userTopEl = document.getElementById('userNameTop');
         if (userTopEl) userTopEl.textContent = currentUser.fullName;
@@ -2827,17 +2790,25 @@
         const { data: org } = await sb.from('organizations').select('*').eq('id', currentOrg.id).single();
         if (org) {
           currentOrg = org;
-          const statusEl = document.getElementById('billingPlanStatus');
-          if (statusEl) statusEl.textContent = org.plan_status === 'active' ? 'Active Enterprise' : '48-Hour Live Trial';
-
-          const limitEl = document.getElementById('billingLeadUsage');
-          if (limitEl) limitEl.textContent = `${org.leads_used || 0} / ${org.monthly_lead_limit || 25} leads used`;
-
-          if (org.custom_quote_inr) {
-            updatePayAmounts(org.custom_quote_inr, 'Custom Unlocked Plan');
-          }
         }
       }
+      const statusEl = document.getElementById('billingPlanStatus');
+      if (statusEl) statusEl.textContent = 'Active Enterprise (100% Free Plan)';
+
+      const memBadge = document.getElementById('memStatusBadge');
+      if (memBadge) memBadge.textContent = '✨ 100% Free Live Enterprise Active';
+
+      const memCountdown = document.getElementById('memCountdownDisplay');
+      if (memCountdown) memCountdown.textContent = 'Lifetime Free Access';
+
+      const memLeadQuota = document.getElementById('memLeadQuotaText');
+      if (memLeadQuota) memLeadQuota.textContent = `${currentOrg?.leads_used || 0} / Unlimited Leads Included`;
+
+      const memProgressBar = document.getElementById('memLeadProgressBar');
+      if (memProgressBar) memProgressBar.style.width = '100%';
+
+      const limitEl = document.getElementById('billingLeadUsage');
+      if (limitEl) limitEl.textContent = `${currentOrg?.leads_used || 0} / Unlimited leads processed`;
     }
 
     const SALES_COUPONS = {

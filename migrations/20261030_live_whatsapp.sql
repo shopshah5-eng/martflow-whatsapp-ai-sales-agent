@@ -97,3 +97,4 @@ ALTER TABLE public.conversations REPLICA IDENTITY FULL;
 ALTER TABLE public.messages REPLICA IDENTITY FULL;
 ALTER TABLE public.wa_outbound_queue REPLICA IDENTITY FULL;
 ALTER TABLE public.call_requests REPLICA IDENTITY FULL;
+
