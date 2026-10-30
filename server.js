@@ -28,6 +28,14 @@ import db from './src/db/index.js';
 
 dotenv.config();
 
+// Global crash handlers to prevent server crashes
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught Exception:', err.message, err.stack);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -1244,18 +1252,54 @@ async function handleIncomingWhatsAppMessage(msg) {
         conv = db.insert('conversations', {
           organization_id: org.id,
           lead_id: dbLead.id,
-          channel: 'whatsapp',
-          mode: 'ai',
-          is_unread: true
+          buyer_phone: phoneDigits,
+          mode: 'ai'
         });
       }
       db.insert('messages', {
         organization_id: org.id,
         conversation_id: conv.id,
-        sender_type: 'buyer',
-        content: isAudio ? '[Voice Note Audio]' : incomingText,
-        delivery_status: 'delivered'
+        sender: 'buyer',
+        text: isAudio ? '[Voice Note Audio]' : incomingText
       });
+
+      if (supabaseAdmin) {
+        (async () => {
+          try {
+            let { data: sLead } = await supabaseAdmin.from('leads').select('id').eq('org_id', org.id).ilike('buyer_phone', `%${phoneDigits.slice(-10)}`).maybeSingle();
+            if (!sLead) {
+              const { data: nLead } = await supabaseAdmin.from('leads').insert({
+                org_id: org.id,
+                buyer_name: initialSafeName || 'Customer',
+                buyer_phone: phoneDigits,
+                requirement: incomingText,
+                status: 'new'
+              }).select('id').single();
+              sLead = nLead;
+            }
+            if (sLead) {
+              let { data: sConv } = await supabaseAdmin.from('conversations').select('id').eq('org_id', org.id).eq('lead_id', sLead.id).maybeSingle();
+              if (!sConv) {
+                const { data: nConv } = await supabaseAdmin.from('conversations').insert({
+                  org_id: org.id,
+                  lead_id: sLead.id,
+                  buyer_phone: phoneDigits,
+                  mode: 'ai'
+                }).select('id').single();
+                sConv = nConv;
+              }
+              if (sConv) {
+                await supabaseAdmin.from('messages').insert({
+                  org_id: org.id,
+                  conversation_id: sConv.id,
+                  sender: 'buyer',
+                  text: isAudio ? '[Voice Note Audio]' : incomingText
+                });
+              }
+            }
+          } catch (e) {}
+        })();
+      }
     }
   } catch (syncErr) {}
 

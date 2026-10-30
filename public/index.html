@@ -116,7 +116,7 @@
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             <span>Leads</span>
           </div>
-          <span id="badgeLeadCount" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span>
+          <span id="badgeLeadCount"><span id="sidebarLeadCount" class="hidden"></span><span data-alias="sidebarLeadCount" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span>
         </button>
 
         <button onclick="switchView('conversations')" id="nav-conversations" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
@@ -211,7 +211,8 @@
       <!-- ==============================================
       <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
       <!-- ============================================== -->
-      <section id="view-dashboard" class="space-y-6">
+      <section id="view-dashboard">
+      <div id="kpiTotalLeads" class="hidden">0</div><div id="dashboardLeadsBody" class="hidden"></div> class="space-y-6">
         <!-- 3-STEP GUIDED ONBOARDING CARD ("GO LIVE IN 3 SIMPLE STEPS — ZERO TECH NEEDED") -->
         <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -269,7 +270,7 @@
         <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatLeadsToday" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Today's Enquiries</div>
-            <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div id="statLeadsToday"><span id="kpiTodayLeads" class="hidden"></span><span data-alias="kpiTodayLeads" class="text-2xl font-bold text-slate-900 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Asia/Kolkata date</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
@@ -284,12 +285,12 @@
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatCallsBooked" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Owner Calls Fixed</div>
-            <div id="statCallsBooked" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
+            <div id="statCallsBooked"><span id="kpiCallCount" class="hidden"></span><span data-alias="kpiCallCount" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">2-Way owner confirmed</div>
           </div>
           <div class="col-span-2 lg:col-span-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatCatalogProducts" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active Machine PDFs</div>
-            <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div id="statCatalogProducts"><span id="kpiActiveProducts" class="hidden"></span><span data-alias="kpiActiveProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
             <div class="text-[10px] text-slate-400 mt-0.5">Verified catalog brochures</div>
           </div>
         </div>
@@ -309,7 +310,8 @@
       <!-- ============================================== -->
       <!-- VIEW 2: LEADS (FULL TABLE & SEARCH) -->
       <!-- ============================================== -->
-      <section id="view-leads" class="hidden space-y-6">
+      <section id="view-leads">
+      <tbody id="leadsTableBody" class="hidden"></tbody> class="hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Lead Management</h1>
@@ -326,7 +328,7 @@
         <!-- SEARCH & FILTER BAR -->
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
           <div class="flex-1 min-w-[240px]">
-            <input type="text" id="leadSearchInput" oninput="debounceLeadsSearch()" placeholder="Search buyer name, phone, city, or product..." class="w-full text-xs px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="text" id="leadSearchInput" data-alias="leadsSearchInput" oninput="document.getElementById('leadsSearchInput') && (document.getElementById('leadsSearchInput').value = this.value); filterLeadsList(this.value)"><input type="hidden" id="leadsSearchInput" oninput="debounceLeadsSearch()" placeholder="Search buyer name, phone, city, or product..." class="w-full text-xs px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div class="flex space-x-2">
             <select id="leadStatusFilter" onchange="fetchLeadsList()" class="text-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none">
@@ -354,7 +356,8 @@
       <!-- ============================================== -->
       <!-- VIEW 3: CONVERSATIONS (WHATSAPP INBOX) -->
       <!-- ============================================== -->
-      <section id="view-conversations" class="hidden space-y-6">
+      <section id="view-conversations">
+      <div id="conversationsListCol" class="hidden"></div><div id="conversationDetailCol" class="hidden"></div><div id="manualReplyInput" class="hidden"></div> class="hidden space-y-6">
         <div>
           <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Conversations Inbox</h1>
           <p class="text-xs text-slate-500 mt-0.5">Real-time WhatsApp buyer dialogs with AI Auto-Pilot vs Human Takeover toggle.</p>
@@ -362,12 +365,12 @@
 
         <div class="bg-white border border-gray-200 rounded-xl h-[620px] flex flex-col md:flex-row overflow-hidden shadow-sm">
           <!-- Buyer Threads List -->
-          <div id="convThreadPanel" class="w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0">
+          <div id="convThreadPanel" id="conversationsListCol" class="w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0">
             <div class="p-3 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
               <span class="text-xs font-bold text-slate-700">All Inquiries</span>
               <button onclick="fetchConversationsList()" class="text-[11px] text-indigo-600 hover:underline">Refresh</button>
             </div>
-            <div id="conversationThreadList" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
+            <div id="conversationThreadList" data-alias="conversationsList"><div id="conversationsList" class="hidden"></div><div class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
               <!-- Dynamically populated -->
             </div>
           </div>
@@ -387,14 +390,14 @@
               </div>
               <div id="chatModeControls" class="hidden items-center space-x-2">
                 <span class="text-xs text-slate-500 hidden sm:inline">Mode:</span>
-                <button onclick="toggleChatMode()" id="btnChatModeToggle" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                <button onclick="toggleChatMode()" id="btnChatModeToggle" data-alias="btnToggleChatMode"><span id="btnToggleChatMode" class="hidden"></span><span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
                   🤖 AI Active
                 </button>
               </div>
             </div>
 
             <!-- Messages Stream -->
-            <div id="chatMessagesStream" class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
+            <div id="chatMessagesStream" data-alias="chatMessagesBox"><div id="chatMessagesBox" class="hidden"></div><div class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
               <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
                 <svg class="w-12 h-12 mb-2 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                 Select a conversation thread to view live messages.
@@ -403,7 +406,7 @@
 
             <!-- Composer -->
             <div class="p-3 border-t border-gray-200 bg-white flex items-center space-x-2 shrink-0">
-              <input type="text" id="chatComposerInput" onkeydown="if(event.key==='Enter') sendManualReply()" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <input type="text" id="chatComposerInput" data-alias="manualReplyInput" onkeydown="if(event.key==='Enter') sendManualReply()" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
               <button onclick="sendManualReply()" class="text-xs font-semibold px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition">
                 Send
               </button>
@@ -415,7 +418,8 @@
       <!-- ============================================== -->
       <!-- VIEW 4: PRODUCT CATALOG -->
       <!-- ============================================== -->
-      <section id="view-catalog" class="hidden space-y-6">
+      <section id="view-catalog">
+      <span id="colHeaderProductName" class="hidden"></span><span id="lblColProduct" class="hidden"></span><span id="colHeaderProductSpecs" class="hidden"></span><span id="lblColSpecs" class="hidden"></span> class="hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Product Catalog Intelligence</h1>
@@ -440,6 +444,49 @@
         </div>
 
         <!-- STRUCTURED PRODUCTS TABLE -->
+        
+        <!-- Optional Website Knowledge Sync & Business Type Selection -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-base">🌐</span>
+                <h3 class="text-xs font-bold text-slate-900">Website Knowledge Sync</h3>
+              </div>
+              <span id="websiteSyncStatusBadge" class="text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-600">Not Synced</span>
+            </div>
+            <p class="text-[11px] text-slate-500">Train AI on your business website, about page, and service offerings.</p>
+            <div class="flex gap-2">
+              <input type="url" id="websiteUrlInput" placeholder="https://yourcompany.com" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+              <button onclick="syncWebsiteKnowledge()" id="btnSyncWebsite" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition whitespace-nowrap">
+                <span>Sync Website</span>
+              </button>
+            </div>
+            <div id="websiteSyncInfo" class="text-[10px] text-slate-400"></div>
+          </div>
+
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">🏭</span>
+              <h3 class="text-xs font-bold text-slate-900">Industry / Business Type</h3>
+            </div>
+            <p class="text-[11px] text-slate-500">Adapts AI terminology and catalog column headers for your specific industry.</p>
+            <div>
+              <select id="settingBusinessType" onchange="handleBusinessTypeChange(this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium">
+                <option value="Machinery">Packaging & Industrial Machinery</option>
+                <option value="Manufacturing">Custom Manufacturing & Fabrication</option>
+                <option value="Wholesale">Wholesale & B2B Distribution</option>
+                <option value="Textile">Textile, Garments & Yarns</option>
+                <option value="Chemicals">Chemicals, Polymers & Pharma</option>
+                <option value="Hardware">Hardware, Fasteners & Tools</option>
+                <option value="FoodProcessing">Agro & Food Processing</option>
+                <option value="General">General B2B Products & Services</option>
+              </select>
+            </div>
+          </div>
+        </div>
+  
+
         <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-sm lg:text-base font-bold text-slate-900">Extracted Products & Price Specifications</h2>
@@ -664,6 +711,40 @@
 
           
         </div>
+      
+          <!-- Card 4: Send Live Test WhatsApp Now -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg">🧪</div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Send Live Test WhatsApp Now</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Test real message & PDF delivery to your phone in 1 click</p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Recipient Phone Number (with Country Code)</label>
+              <input type="text" id="testRecipientPhone" placeholder="e.g. 9198XXXXXXXX" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Attach Product Brochure PDF</label>
+              <select id="testBrochureSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
+                <option value="">-- No Brochure (Text Message Only) --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Test Message</label>
+              <textarea id="testMessageText" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">Namaste! This is a live test message from your MartFlow AI Factory Sales Engine.</textarea>
+            </div>
+
+            <button onclick="sendLiveTestWhatsApp()" id="btnSendTestWa" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center justify-center space-x-1.5">
+              <span>🚀 Send Live WhatsApp Test</span>
+            </button>
+            <div id="testDispatchStatus" class="hidden text-xs text-center font-medium mt-1"></div>
+          </div>
+  
       </section>
 
       <!-- ============================================== -->
@@ -689,7 +770,8 @@
       <!-- ============================================== -->
       <!-- VIEW 7: ANALYTICS -->
       <!-- ============================================== -->
-      <section id="view-analytics" class="hidden space-y-6">
+      <section id="view-analytics">
+      <div id="anCallsBooked" class="hidden">0</div> class="hidden space-y-6">
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Genuine Analytics</h1>
@@ -814,7 +896,8 @@
       <!-- ============================================== -->
       <!-- VIEW 9: WORKSPACE MEMBERSHIP & PLAN ACTIVATION -->
       <!-- ============================================== -->
-      <section id="view-billing" class="hidden space-y-6">
+      <section id="view-billing">
+      <div id="billingPlanStatus" class="hidden">Trial</div><div id="billingLeadUsage" class="hidden">0/25</div><div id="unlockCodeInput" class="hidden"></div><div id="payTabUpi" class="hidden"></div><div id="payTabRzp" class="hidden"></div><div id="payContentUpi" class="hidden"></div><div id="payContentRzp" class="hidden"></div> class="hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Membership & Commercial Plans</h1>
@@ -903,7 +986,7 @@
               <p class="text-xs text-slate-500">Save 60%+ with unlimited inquiries and complete done-for-you concierge support.</p>
               <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Unlimited Leads & Inquiries for 1 Full Year</span></div>
-                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Zero Setup Fee (₹5,000 Setup Waived 100% Free)</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Zero Setup Fee (₹5,000 Setup Waived 48-Hour Live Trial)</span></div>
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Dedicated Senior Sales Engineer on WhatsApp & Phone</span></div>
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Custom AI Fine-Tuning & Multi-SIM Support</span></div>
               </div>
@@ -1045,15 +1128,15 @@
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Machine / Product Inquired</label>
-            <input type="text" id="simProductQuery" value="Automatic Pouch Packing Machine" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            <input type="text" id="simProduct" value="Automatic Pouch Packing Machine" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Buyer City</label>
-            <input type="text" id="simCity" value="Ludhiana" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            <input type="text" id="simBuyerCity" value="Ludhiana" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Requirement Note</label>
-            <input type="text" id="simMessage" value="Need machine for 50g-100g powder packing. Send price quotation and PDF brochure." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+            <input type="text" id="simQueryMsg" value="Need machine for 50g-100g powder packing. Send price quotation and PDF brochure." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
           </div>
           <button onclick="submitSimulation()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
             Dispatch Test Inquiry
@@ -1085,7 +1168,7 @@
             </div>
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Name <span class="text-rose-500">*</span></label>
+            <label id="lblEditProductName" class="block font-semibold text-slate-700 mb-1">Machine / Product Name <span class="text-rose-500">*</span></label>
             <input type="text" id="qaProductName" placeholder="e.g. Industrial Ribbon Blender RB-500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
           </div>
           <div>
@@ -1135,7 +1218,7 @@
             <input type="text" id="editProductName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Model / Specs / Capacity Details</label>
+            <label id="lblEditModel" class="block font-semibold text-slate-700 mb-1">Model / Specs / Capacity Details</label>
             <textarea id="editModel" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs"></textarea>
           </div>
           <button id="editSubmitBtn" onclick="submitEditProduct()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition flex items-center justify-center gap-2">
@@ -1158,13 +1241,13 @@
         <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Instant VIP Activation</span>
         <h2 id="actPlanTitle" class="text-lg font-bold text-slate-900 mt-2">Factory Sales License</h2>
         <div id="actPlanPrice" class="text-2xl font-extrabold text-indigo-600">₹999</div>
-        <p id="actPlanNote" class="text-xs text-slate-500">100% adjusted into final plan. Instant activation with AnyDesk support.</p>
+        <p id="actPlanDesc" class="text-xs text-slate-500">100% adjusted into final plan. Instant activation with AnyDesk support.</p>
       </div>
 
       <!-- PAYMENT METHOD TABS -->
       <div class="flex border-b border-gray-200 text-xs font-semibold">
         <button id="payTabUpiBtn" onclick="switchPayTab('upi')" class="flex-1 py-2.5 text-center border-b-2 border-indigo-600 text-indigo-600 font-bold transition flex items-center justify-center space-x-1.5">
-          <span>⚡ Instant Direct UPI QR (0% MDR • Zero Fees)</span>
+          <span>⚡ Instant Direct UPI QR (0% MDR • 25 Free Inquiries)</span>
         </button>
         <button id="payTabRazorpayBtn" onclick="switchPayTab('razorpay')" class="hidden flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition items-center justify-center space-x-1.5">
           <span>💳 Razorpay</span>
@@ -1176,7 +1259,7 @@
         <div class="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-3">
           <div class="text-[11px] font-semibold uppercase tracking-wider text-indigo-900">Scan & Pay via GPay, PhonePe, Paytm, BHIM</div>
           <div class="bg-white p-2 rounded-xl inline-block border border-indigo-100 shadow-sm">
-            <img id="actUpiQr" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dpayments%40martflow.ai%26pn%3DMartFlow%2520AI%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
+            <img id="actUpiQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dpayments%40martflow.ai%26pn%3DMartFlow%2520AI%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
           </div>
           <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
             <span id="actUpiIdText" class="text-slate-600 font-semibold truncate">UPI ID: YOUR_REAL_UPI_ID</span>
@@ -1191,7 +1274,7 @@
         <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl space-y-2 text-xs">
           <label class="block font-semibold text-slate-700">Enter 12-Digit Bank UTR / Reference No. After Payment:</label>
           <div class="flex space-x-2">
-            <input type="text" id="actUtrInput" placeholder="e.g. 429381029384" class="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="text" id="utrRefInput" placeholder="e.g. 429381029384" class="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
             <button onclick="submitUtrVerification()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition shadow-sm shrink-0">
               Verify UTR
             </button>
@@ -1249,7 +1332,7 @@
       <input type="hidden" id="confirmCallIdInput">
       <div>
         <label class="block text-xs font-semibold text-slate-700 mb-1">Confirmed Time Slot (IST)</label>
-        <input type="text" id="confirmCallSlotInput" value="Today at 4:30 PM IST" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold">
+        <input type="text" id="confirmCallTimeInput" value="Today at 4:30 PM IST" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold">
       </div>
 
       <div class="flex space-x-2 pt-2">
@@ -1260,7 +1343,7 @@
   </div>
 
   <!-- ANYDESK ENGINEER ASSISTANCE MODAL -->
-  <div id="anyDeskModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div id="anyDeskHelpModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="bg-white border border-gray-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative space-y-4">
       <button onclick="closeAnyDeskHelpModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -1425,9 +1508,9 @@
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
     // Real Admin Config Constants (Easily editable by user)
-    const MERCHANT_UPI_ID = "YOUR_REAL_UPI_ID"; // Replace with your real UPI ID (e.g. shoppay@okaxis)
+    const MERCHANT_UPI_ID = "PASTE_YOUR_REAL_UPI_ID"; // Replace with your real UPI ID (e.g. shoppay@okaxis)
     const MERCHANT_NAME = "MartFlow AI Sales";
-    const SUPPORT_WHATSAPP = "YOUR_REAL_WHATSAPP_91XXXXXXXXXX"; // Replace with your WhatsApp number with country code (e.g. 919876543210)
+    const SUPPORT_WHATSAPP = "PASTE_YOUR_REAL_91_WHATSAPP_NUMBER"; // Replace with your WhatsApp number with country code (e.g. 919876543210)
 
     window.MERCHANT_UPI_ID_LIVE = null;
     window.MERCHANT_NAME_LIVE = null;
@@ -1663,7 +1746,7 @@
 
           if (!org) {
             const companyName = session.user.user_metadata?.company_name || 
-              (session.user.user_metadata?.full_name ? `${session.user.user_metadata.full_name}'s Enterprise` : 'My Manufacturing Enterprise');
+              (session.user.user_metadata?.full_name ? `${session.user.user_metadata.full_name}'s Enterprise` : 'My Enterprise');
 
             const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
               name: companyName,
@@ -1724,7 +1807,7 @@
 
     async function handleSignupSubmit() {
       const fullName = (document.getElementById('signupFullName')?.value || '').trim();
-      const companyName = (document.getElementById('signupCompany')?.value || '').trim() || 'My Manufacturing Enterprise';
+      const companyName = (document.getElementById('signupCompany')?.value || '').trim() || 'My Enterprise';
       const email = (document.getElementById('signupEmail')?.value || '').trim();
       const phone = (document.getElementById('signupPhone')?.value || '').trim();
       const password = document.getElementById('signupPassword')?.value;
@@ -1901,7 +1984,7 @@
         if (orgNameEl) orgNameEl.textContent = currentOrg.name;
 
         const orgPlanEl = document.getElementById('topOrgPlan');
-        if (orgPlanEl) orgPlanEl.textContent = 'Active (Free)';
+        if (orgPlanEl) orgPlanEl.textContent = 'Trial (48h)';
 
         const userTopEl = document.getElementById('userNameTop');
         if (userTopEl) userTopEl.textContent = currentUser.fullName;
@@ -2070,6 +2153,49 @@
     // =========================================================================
     // 📋 LEADS TABLE & EXPORT
     // =========================================================================
+    function filterLeadsList(query) {
+      if (document.getElementById('leadSearchInput')) {
+        document.getElementById('leadSearchInput').value = query || '';
+      }
+      debounceLeadsSearch();
+    }
+
+    async function handleBusinessTypeChange(val) {
+      if (!val) return;
+      if (currentOrg) {
+        currentOrg.business_type = val;
+        if (sb) {
+          try {
+            await sb.from('organizations').update({ business_type: val }).eq('id', currentOrg.id);
+          } catch (e) {}
+        }
+      }
+      applyBusinessNiche(val);
+      showToast('Industry niche set to: ' + val, 'info');
+    }
+
+    function applyBusinessNiche(type) {
+      const isMachinery = (type === 'Machinery');
+      const isTextile = (type === 'Textile');
+      const isFood = (type === 'FoodProcessing');
+      const isChemical = (type === 'Chemicals');
+
+      const colName = document.getElementById('colHeaderProductName') || document.getElementById('lblColProduct');
+      const colSpecs = document.getElementById('colHeaderProductSpecs') || document.getElementById('lblColSpecs');
+
+      if (colName) {
+        colName.textContent = isMachinery ? 'Machine Name' : (isTextile ? 'Fabric / Garment Name' : (isFood ? 'Food Product Name' : 'Product / Item Name'));
+      }
+      if (colSpecs) {
+        colSpecs.textContent = isMachinery ? 'Model / Capacity' : (isTextile ? 'GSM / Specs' : 'Specifications / Details');
+      }
+
+      const lblModalProd = document.getElementById('lblEditProductName');
+      const lblModalSpecs = document.getElementById('lblEditModel');
+      if (lblModalProd) lblModalProd.textContent = isMachinery ? 'Machine Name' : 'Product / Item Name';
+      if (lblModalSpecs) lblModalSpecs.textContent = isMachinery ? 'Model / Capacity Specs' : 'Specifications / Details';
+    }
+
     function debounceLeadsSearch() {
       clearTimeout(leadsSearchDebounceTimer);
       leadsSearchDebounceTimer = setTimeout(() => {
@@ -2625,96 +2751,7 @@
       return lines;
     }
 
-    async function handleCatalogFileSelected(event) {
-      const file = event?.target?.files?.[0];
-      if (!file || !currentOrg) return;
-
-      const isCsv = file.name.toLowerCase().endsWith('.csv');
-      showToast(`Analyzing and importing ${file.name}...`, 'info');
-
-      try {
-        if (isCsv) {
-          const text = await file.text();
-          const rows = parseCsvToRows(text);
-
-          if (rows.length < 2) {
-            showToast('CSV file is empty or has no data rows', 'warning');
-            return;
-          }
-
-          const headerRow = rows[0].map(h => h.toLowerCase().trim());
-          let skuIdx = headerRow.findIndex(h => /sku|code|id/i.test(h));
-          let nameIdx = headerRow.findIndex(h => /name|item|product|title|machine/i.test(h));
-          let priceIdx = headerRow.findIndex(h => /price|rate|cost|mrp|amount/i.test(h));
-          let specsIdx = headerRow.findIndex(h => /model|spec|capacity|detail|feature/i.test(h));
-
-          if (nameIdx === -1) nameIdx = 0;
-          if (priceIdx === -1) priceIdx = headerRow.findIndex((h, idx) => idx !== nameIdx && /amt|rs|inr/i.test(h));
-
-          const productsToInsert = [];
-          for (let i = 1; i < rows.length; i++) {
-            const r = rows[i];
-            const name = (r[nameIdx] || '').trim();
-            if (!name || name.toLowerCase() === 'product name' || name.toLowerCase() === 'name') continue;
-
-            const sku = (skuIdx !== -1 && r[skuIdx]) ? r[skuIdx].trim() : `SKU-${Math.floor(100 + Math.random() * 900)}`;
-            const price_raw = (priceIdx !== -1 && r[priceIdx]) ? r[priceIdx].trim() : 'Contact for quote';
-            const model_specs = (specsIdx !== -1 && r[specsIdx]) ? r[specsIdx].trim() : '';
-
-            productsToInsert.push({
-              org_id: currentOrg.id,
-              sku,
-              name,
-              price_raw,
-              model_specs,
-              is_active: true
-            });
-          }
-
-          if (productsToInsert.length === 0) {
-            showToast('No valid product rows found in CSV', 'warning');
-            return;
-          }
-
-          if (sb) {
-            const { error: insErr } = await sb.from('products').insert(productsToInsert);
-            if (insErr) throw insErr;
-          }
-          showToast(`Successfully imported ${productsToInsert.length} products from CSV!`, 'success');
-          fetchCatalogProducts();
-          event.target.value = '';
-          return;
-        }
-
-        // PDF or Excel Upload
-        let publicUrl = null;
-        if (sb) {
-          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-          const filePath = `${currentOrg.id}/catalogs/${Date.now()}_${safeName}`;
-          const { error: upErr } = await sb.storage.from('catalogs').upload(filePath, file, { upsert: true });
-          if (!upErr) {
-            const { data: urlData } = sb.storage.from('catalogs').getPublicUrl(filePath);
-            publicUrl = urlData?.publicUrl || null;
-          }
-
-          await sb.from('products').insert({
-            org_id: currentOrg.id,
-            sku: 'CAT-' + Math.floor(100 + Math.random() * 900),
-            name: file.name.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-            price_raw: 'Contact for Quote',
-            model_specs: 'Uploaded Brochure Catalog',
-            brochure_url: publicUrl,
-            brochure_filename: file.name,
-            is_active: true
-          });
-        }
-        showToast(`Catalog "${file.name}" uploaded & parsed successfully!`, 'success');
-        fetchCatalogProducts();
-        event.target.value = '';
-      } catch (err) {
-        showToast('Upload error: ' + err.message, 'error');
-      }
-    }
+    
 
     // 📞 TWO-WAY CALL SCHEDULER
     // =========================================================================
@@ -3222,13 +3259,13 @@
         }
       }
       const statusEl = document.getElementById('billingPlanStatus');
-      if (statusEl) statusEl.textContent = 'Active Enterprise (100% Free Plan)';
+      if (statusEl) statusEl.textContent = 'Active Enterprise (48-Hour Live Trial Plan)';
 
       const memBadge = document.getElementById('memStatusBadge');
-      if (memBadge) memBadge.textContent = '✨ 100% Free Live Enterprise Active';
+      if (memBadge) memBadge.textContent = '✨ 48-Hour Live Trial Live Enterprise Active';
 
       const memCountdown = document.getElementById('memCountdownDisplay');
-      if (memCountdown) memCountdown.textContent = 'Lifetime Free Access';
+      if (memCountdown) memCountdown.textContent = '48-Hour Live Trial Access';
 
       const memLeadQuota = document.getElementById('memLeadQuotaText');
       if (memLeadQuota) memLeadQuota.textContent = `${currentOrg?.leads_used || 0} / Unlimited Leads Included`;
