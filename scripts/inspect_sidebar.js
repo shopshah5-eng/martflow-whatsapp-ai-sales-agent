@@ -10,3 +10,4 @@ const html = fs.readFileSync(indexPath, 'utf8');
 const asideStart = html.indexOf('<aside id="appSidebar"');
 const asideEnd = html.indexOf('</aside>') + 8;
 console.log(html.slice(asideStart, asideEnd));
+

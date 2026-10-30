@@ -2183,7 +2183,6 @@
         else if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading leads: ${escapeHtml(err.message)}</td></tr>`;
       }
     }
-    }
 
     async function exportLeadsCsv() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
@@ -2466,9 +2465,6 @@
         }
       } catch (err) {
         if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading catalog: ${escapeHtml(err.message)}</td></tr>`;
-      }
-    } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading catalog: ${escapeHtml(err.message)}</td></tr>`;
       }
     }
 
