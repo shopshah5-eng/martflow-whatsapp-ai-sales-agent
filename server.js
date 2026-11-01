@@ -29,6 +29,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import apiRouter from './src/routes/api.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
+import { restoreSessionFromSupabase } from './src/integrations/whatsapp/sessionSync.js';
 import db from './src/db/index.js';
 import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook, invalidateCache } from './src/services/aiService.js';
 
@@ -2000,14 +2001,24 @@ async function initSupabaseWorker() {
       for (const org of orgs) {
         const inst = baileysManager.getInstance(org.id);
         const credsFile = path.join(inst.authDir, 'creds.json');
-        const hasCreds = fs.existsSync(credsFile);
+        let hasCreds = fs.existsSync(credsFile);
+
+        // If credentials not found locally on disk, restore from Supabase Cloud Storage
+        if (!hasCreds) {
+          try {
+            const restored = await restoreSessionFromSupabase(org.id);
+            if (restored) {
+              hasCreds = fs.existsSync(credsFile);
+            }
+          } catch (e) {}
+        }
 
         if (hasCreds && !inst.isConnected) {
-          addLog(`[Supabase Worker] Organization ${org.name || org.id} has saved creds on disk. Auto-resuming...`);
+          addLog(`[Supabase Worker] Organization ${org.name || org.id} has saved creds (local/cloud). Auto-resuming...`);
           await supabaseAdmin.from('organizations').update({ wa_status: 'initializing' }).eq('id', org.id);
           inst.init(false);
         } else if (org.wa_status === 'connected' && !hasCreds) {
-          addLog(`[Supabase Worker] Organization ${org.name || org.id} marked 'connected' in DB but has no credentials on disk. Resetting to disconnected.`);
+          addLog(`[Supabase Worker] Organization ${org.name || org.id} marked 'connected' in DB but has no credentials. Resetting to disconnected.`);
           await supabaseAdmin.from('organizations').update({
             wa_status: 'disconnected',
             wa_connected_number: null,

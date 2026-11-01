@@ -20,6 +20,12 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import db from '../../db/index.js';
 import { AIService } from '../../services/aiService.js';
+import {
+  backupSessionToSupabase,
+  debouncedBackupSession,
+  restoreSessionFromSupabase,
+  deleteRemoteSession
+} from './sessionSync.js';
 
 const BASE_AUTH_DIR = path.join(process.cwd(), 'auth_info');
 
@@ -183,6 +189,9 @@ export class TenantBaileysInstance {
       try {
         fs.rmSync(this.authDir, { recursive: true, force: true });
       } catch (e) { }
+      try {
+        await deleteRemoteSession(this.orgId);
+      } catch (e) { }
     } else {
       if (this.isConnecting || this.state.status === 'connected') return;
       this.isConnecting = true;
@@ -193,6 +202,12 @@ export class TenantBaileysInstance {
     try {
       if (!fs.existsSync(this.authDir)) {
         fs.mkdirSync(this.authDir, { recursive: true });
+      }
+
+      // If credentials do not exist on disk, pull from Supabase Cloud Storage
+      const credsFile = path.join(this.authDir, 'creds.json');
+      if (!fs.existsSync(credsFile)) {
+        await restoreSessionFromSupabase(this.orgId);
       }
 
       const { state, saveCreds } = await useMultiFileAuthState(this.authDir);
@@ -207,7 +222,12 @@ export class TenantBaileysInstance {
         markOnlineOnConnect: false
       });
 
-      this.sock.ev.on('creds.update', saveCreds);
+      this.sock.ev.on('creds.update', async () => {
+        try {
+          await saveCreds();
+          debouncedBackupSession(this.orgId);
+        } catch (e) {}
+      });
 
       this.sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
@@ -255,6 +275,10 @@ export class TenantBaileysInstance {
               })
               .eq('id', this.orgId);
           }
+          // Sync fresh connection state to Supabase Cloud Storage
+          try {
+            await backupSessionToSupabase(this.orgId);
+          } catch (e) {}
         }
 
         if (connection === 'close') {
@@ -272,6 +296,9 @@ export class TenantBaileysInstance {
             this.addLog('Session logged out. Cleared local auth state.');
             try {
               fs.rmSync(this.authDir, { recursive: true, force: true });
+            } catch (e) { }
+            try {
+              await deleteRemoteSession(this.orgId);
             } catch (e) { }
             const admin = getSupabaseAdmin();
             if (admin && this.orgId) {

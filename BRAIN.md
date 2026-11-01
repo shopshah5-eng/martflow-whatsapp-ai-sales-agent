@@ -60,10 +60,14 @@ indiamart-whatsapp-demo/
 
 ### A. WhatsApp Baileys Engine ([`src/integrations/whatsapp/baileysManager.js`](file:///c:/Users/Asus/Downloads/IndiaMART-WhatsApp-AI-Demo-Windows/indiamart-whatsapp-demo/src/integrations/whatsapp/baileysManager.js))
 - **Class**: `TenantBaileysInstance` & `BaileysManager`
+- **Cloud Session Sync (`src/integrations/whatsapp/sessionSync.js`)**:
+  - Automatically compresses (`zlib.gzip`) and backs up all session files to Supabase Storage bucket `wa-sessions/<orgId>/session.json.gz`.
+  - When Render boots up, `restoreSessionFromSupabase(orgId)` downloads and unpacks the session onto Render's disk before Baileys connects.
+  - Keeps WhatsApp connected 24/7 in the cloud without needing local desktop or re-scanning.
 - **Session Isolation**: Each organization has an isolated credentials folder `auth_info/<orgId>/`.
 - **Connection Handshake**:
-  - `connection === 'open'`: sets `this.isConnected = true`, updates `organizations.wa_status = 'connected'`.
-  - `connection === 'close'`: sets `this.isConnected = false`. If status code 515 (restart), re-connects immediately in 150ms. If logged out (401), purges `auth_info/<orgId>` and sets `wa_status = 'disconnected'`.
+  - `connection === 'open'`: sets `this.isConnected = true`, updates `organizations.wa_status = 'connected'`, and backs up session to Supabase Storage.
+  - `connection === 'close'`: sets `this.isConnected = false`. If status code 515 (restart), re-connects immediately in 150ms. If logged out (401), purges local & remote session and sets `wa_status = 'disconnected'`.
 - **LID Resolution (`resolvePhoneFromJid`)**:
   - WhatsApp Linked Devices use `@lid` identifiers (e.g. `148004724064491`).
   - Scans `auth_info/<orgId>/lid-mapping-<phone>.json` to translate LIDs back to authentic Indian mobile numbers (`919781018975`).
