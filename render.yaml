@@ -1,13 +1,39 @@
 services:
   - type: web
     name: martflow-ai-sales-agent
-    env: node
+    runtime: node
     plan: starter
+    region: singapore
     buildCommand: npm install
     startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: auth-storage
+      mountPath: /app/auth_info
+      sizeGB: 1
     envVars:
       - key: PORT
         value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
-
+      - key: MERCHANT_UPI_ID
+        value: saraitaj6-2@okaxis
+      - key: MERCHANT_NAME
+        value: MartFlow AI Sales
+      - key: SUPPORT_WHATSAPP
+        value: "919781018975"
+      - key: OWNER_ALERT_PHONE
+        value: "919781018975"
+      - key: SESSION_SECRET
+        generateValue: true

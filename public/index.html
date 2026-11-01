@@ -267,7 +267,7 @@
 
         <button onclick="switchView('catalog')" id="nav-catalog" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
-          <span>Product Catalog</span>
+          <span id="navCatalogText">Product Catalog</span>
         </button>
 
         <button onclick="switchView('whatsapp')" id="nav-whatsapp" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
@@ -297,7 +297,7 @@
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
             <span>Membership & Plan</span>
           </div>
-          <span class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Active</span>
+          <span id="navBillingBadge" class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">TRIAL</span>
         </button>
 
         <button onclick="switchView('engineer')" id="nav-engineer" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100 transition hidden">
@@ -331,35 +331,60 @@
           </span>
           <div>
             <div class="font-bold text-emerald-300 flex items-center gap-1.5 flex-wrap">
-              <span><span class="mr-1.5 inline-block">🎁</span>48-Hour Live Trial Active</span>
-              <span id="trialLeadsBadge" class="text-slate-300 font-normal text-[11px]">(25 Free Inquiries Included)</span>
+              <span><span class="mr-1.5 inline-block">⚡</span>48-Hour Live VIP Pilot (₹999 — 100% Adjusted in Plan!)</span>
+              <span id="trialLeadsBadge" class="text-slate-300 font-normal text-[11px]">(Up to 25 Live Customer Inquiries • Full ₹999 Deducted on Upgrade)</span>
             </div>
             <div id="trialCountdownText" class="text-[11px] text-emerald-200/90 font-mono mt-0.5 font-medium">
-              47h 59m trial remaining • 25 inquiries included
+              47h 59m pilot remaining • Up to 25 live inquiries • 100% adjusted on upgrade
             </div>
           </div>
         </div>
         <div class="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
-          <button onclick="openActivationModal('Standard Growth Plan', '₹7,500 Setup + ₹2,999/mo', 'Autonomous B2B Sales Engine for your business')" class="text-xs font-semibold px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+          <button onclick="openActivationModal('Standard Growth Plan - 3-Month Launch Offer', '₹9,999 One-Time - 3 Months FREE!', '500 Monthly Leads • Paid ₹999 Pilot? Apply code ADJUST999 to pay ₹9,000 balance!', 9999)" class="text-xs font-semibold px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
             <span>⚡ Upgrade Plan</span>
           </button>
         </div>
       </div>
 
-      <!-- ==============================================
+      <!-- ============================================== -->
       <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
       <!-- ============================================== -->
       <section id="view-dashboard" class="view-panel space-y-6">
-        <!-- 3-STEP GUIDED ONBOARDING CARD ("GO LIVE IN 3 SIMPLE STEPS — ZERO TECH NEEDED") -->
-        <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800">
+        <!-- EXECUTIVE OVERVIEW BANNER (FOR CLIENTS) -->
+        <div id="dashExecutiveBanner" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Autonomous Sales Active</span>
+              <h2 class="text-lg lg:text-xl font-bold mt-1">⚡ 24×7 Autonomous WhatsApp AI Sales Desk</h2>
+              <p class="text-xs text-slate-300 mt-0.5">Instant catalog dispatch, buyer qualification, and consultation booking active around the clock.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-800">
+            <div onclick="switchView('whatsapp')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-emerald-300">1. WhatsApp Device Connection</div>
+              <p class="text-[11px] text-slate-400 mt-1">Manage paired business SIM and socket status.</p>
+            </div>
+            <div onclick="switchView('conversations')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-indigo-300">2. View Live Buyer Chats</div>
+              <p class="text-[11px] text-slate-400 mt-1">Inspect real-time AI replies and manual overrides.</p>
+            </div>
+            <div onclick="switchView('calls')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-amber-300">3. Scheduled Owner Calls</div>
+              <p class="text-[11px] text-slate-400 mt-1">Confirm consultation slots requested by buyers.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-STEP GUIDED ONBOARDING CARD (FOUNDER / ADMIN ONLY ?admin=1) -->
+        <div id="dashOnboardingCard" class="hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Zero Tech Needed</span>
               <h2 id="dashBannerTitle" class="text-lg lg:text-xl font-bold mt-1">Go Live in 3 Simple Steps (Under 5 Minutes)</h2>
-              <p id="dashBannerSub" class="text-xs text-slate-300 mt-0.5">Automated machine PDF catalog dispatch, Hinglish deal closing, and factory owner call booking.</p>
+              <p id="dashBannerSub" class="text-xs text-slate-300 mt-0.5">Automated PDF catalog dispatch, Hinglish deal closing, and business owner call booking.</p>
             </div>
             <div class="flex items-center gap-2">
-              <button onclick="openSimulationModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+              <button id="btnSimLead" onclick="openSimulationModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
                 <span>⚡</span>
                 <span id="btnSimLeadText">Test Inbound Lead</span>
               </button>
@@ -395,7 +420,7 @@
 
         <div class="flex items-center justify-between">
           <div>
-            <h1 id="dashOverviewTitle" class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">B2B Sales Dashboard</h1>
+            <h1 id="dashOverviewTitle" class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Live AI Sales Overview</h1>
             <p id="dashOverviewSub" class="text-xs text-slate-500 mt-0.5">Real-time buyer qualification & instant WhatsApp dispatch.</p>
           </div>
           <button onclick="loadDashboardData()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700 shadow-sm transition">
@@ -426,9 +451,9 @@
             <div class="text-[10px] text-slate-400 mt-0.5">2-Way owner confirmed</div>
           </div>
           <div class="col-span-2 lg:col-span-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div id="lblStatCatalogProducts" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active Machine PDFs</div>
+            <div id="lblStatCatalogProducts" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active Catalog Offerings</div>
             <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Verified catalog brochures</div>
+            <div id="lblStatCatalogSub" class="text-[10px] text-slate-400 mt-0.5">Verified catalog offerings</div>
           </div>
         </div>
 
@@ -556,17 +581,39 @@
       <section id="view-catalog" class="view-panel hidden space-y-6">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Product Catalog Intelligence</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Upload PDF brochures, Excel sheets, or CSVs. Ground AI replies in verified specs.</p>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">AI Knowledge Base & Catalog</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Custom verified product catalog, technical specs, pricing, and automated brochure dispatch.</p>
           </div>
-          <button onclick="openQuickAddModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition">
+          <button id="btnQuickAddSku" onclick="openQuickAddModal()" class="text-xs font-semibold px-3.5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm transition">
             + Quick Add SKU
           </button>
         </div>
 
-        <!-- UPLOAD DROPZONE (CLICKABLE & DRAGGABLE) -->
+        <!-- Managed AI Knowledge Base Card (For Clients) -->
+        <div id="cardManagedAiKnowledge" class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-2xl p-6 text-white shadow-sm space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <span class="text-base">🧠</span>
+                <h2 class="text-base font-bold">Managed AI Knowledge Base</h2>
+                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Verified by Engineers</span>
+              </div>
+              <p class="text-xs text-slate-300">Your AI sales agent is custom-trained and verified on your verified products, pricing, and business knowledge.</p>
+            </div>
+            <a id="btnRequestUpdateWa" href="https://wa.me/919781018975?text=Namaste%20MartFlow%20Team!%20Please%20update%20our%20catalog%20specifications" target="_blank" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs shadow-sm transition whitespace-nowrap flex items-center space-x-1.5 shrink-0">
+              <span>📲 Request Catalog / Price Update on WhatsApp →</span>
+            </a>
+          </div>
+          <div class="flex items-center space-x-4 pt-2 border-t border-slate-800 text-xs text-slate-400">
+            <div><span class="text-white font-bold" id="lblTrainedItemsCount">0</span> Trained Products / Offerings</div>
+            <div>•</div>
+            <div id="lblManagedWebsiteDomain" class="text-indigo-300 font-mono">Domain: Auto-Synced</div>
+          </div>
+        </div>
+
+        <!-- UPLOAD DROPZONE (CLICKABLE & DRAGGABLE - ADMIN ?admin=1) -->
         <div id="catalogDropzone" onclick="document.getElementById('catalogFileInput').click()" ondragover="event.preventDefault(); this.classList.add('border-indigo-500', 'bg-indigo-50/20');" ondragleave="this.classList.remove('border-indigo-500', 'bg-indigo-50/20');" ondrop="handleCatalogDrop(event)" class="cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 lg:p-8 text-center hover:border-indigo-500 transition shadow-sm">
-          <input type="file" id="catalogFileInput" accept=".pdf,.xlsx,.xls,.csv" class="hidden" onchange="handleCatalogFileSelected(event)">
+          <input type="file" id="catalogFileInput" accept=".pdf,.xlsx,.xls,.csv" multiple class="hidden" onchange="handleCatalogFileSelected(event)">
           <div class="max-w-md mx-auto space-y-2 pointer-events-none">
             <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -577,18 +624,23 @@
           </div>
         </div>
 
-        <!-- STRUCTURED PRODUCTS TABLE -->
-        
-        <!-- Optional Website Knowledge Sync -->
-        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-3">
+        <div id="catalogReplaceToggleWrapper" class="hidden px-1">
+          <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 mt-2 cursor-pointer">
+            <input type="checkbox" id="replaceCatalogToggle" checked class="rounded text-indigo-600">
+            <span>Replace existing catalog (auto-delete old items not in uploaded file)</span>
+          </label>
+        </div>
+
+        <!-- Optional Website Knowledge Sync (ADMIN ?admin=1) -->
+        <div id="cardWebsiteSync" class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <span class="text-base">🌐</span>
-              <h3 class="text-xs font-bold text-slate-900">Website Knowledge Sync</h3>
+              <h3 class="text-xs font-bold text-slate-900">Website Knowledge Sync & Custom AI Training</h3>
             </div>
             <span id="websiteSyncStatusBadge" class="text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-600">Not Synced</span>
           </div>
-          <p class="text-[11px] text-slate-500">Train AI on your business website, about page, and service offerings.</p>
+          <p class="text-[11px] text-slate-500">Train AI on your business website, about page, or paste custom sales guidelines & rules below.</p>
           <div class="flex gap-2">
             <input type="url" id="websiteUrlInput" placeholder="https://yourcompany.com" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
             <button onclick="syncWebsiteKnowledge()" id="btnSyncWebsite" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg transition whitespace-nowrap">
@@ -596,13 +648,28 @@
             </button>
           </div>
           <div id="websiteSyncInfo" class="text-[10px] text-slate-400"></div>
+
+          <div class="pt-3 border-t border-gray-100 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold text-slate-800">Custom AI Instructions & Business Knowledge</label>
+              <span class="text-[10px] text-slate-400">Persona, COD/Shipping, MOQ & Policies</span>
+            </div>
+            <textarea id="customKnowledgeInput" rows="5" placeholder="Paste custom AI sales persona, shipping/COD rules, MOQ policies, warranty terms, or full business details here..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none font-mono"></textarea>
+            <div class="flex justify-end">
+              <button onclick="saveCustomKnowledge()" id="btnSaveCustomKnowledge" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+                <span>💾 Save AI Instructions</span>
+              </button>
+            </div>
+          </div>
         </div>
-  
 
         <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
           <div class="flex items-center justify-between">
             <h2 class="text-sm lg:text-base font-bold text-slate-900">Extracted Products & Price Specifications</h2>
-            <button onclick="fetchCatalogProducts()" class="text-xs text-indigo-600 hover:underline">Refresh</button>
+            <div class="flex items-center space-x-3">
+              <button id="btnClearCatalog" onclick="clearAllCatalogProducts()" class="hidden text-xs text-rose-600 hover:text-rose-700 font-semibold px-2.5 py-1 rounded-lg border border-rose-200 hover:bg-rose-50 transition">🗑️ Clear All</button>
+              <button onclick="fetchCatalogProducts()" class="text-xs text-indigo-600 hover:underline">Refresh</button>
+            </div>
           </div>
           <div id="catalogProductsContainer" class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
@@ -610,8 +677,8 @@
                 <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
                   <th class="py-3 px-4">Photo</th>
                   <th class="py-3 px-4">SKU</th>
-                  <th id="thColProductName" class="py-3 px-4">Machine Name</th>
-                  <th id="thColProductSpecs" class="py-3 px-4">Model / Specs</th>
+                  <th id="thColProductName" class="py-3 px-4">Product / Item Name</th>
+                  <th id="thColProductSpecs" class="py-3 px-4">Specifications / Details</th>
                   <th class="py-3 px-4">Price Spec</th>
                   <th class="py-3 px-4">Brochure PDF</th>
                   <th class="py-3 px-4 text-right">Actions</th>
@@ -632,7 +699,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">WhatsApp Business Setup</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Pair your official factory WhatsApp number to send automatic brochures, AI qualifying replies, and hot lead alerts.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Pair your official business WhatsApp number to send automatic brochures, AI qualifying replies, and hot lead alerts.</p>
           </div>
           <!-- Worker Engine Status Pill -->
           <div id="waWorkerEnginePill" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/30">
@@ -901,7 +968,7 @@
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Two-Way Call Scheduler</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Autonomous coordination between buyer inquiry and factory owner availability.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Autonomous coordination between buyer inquiry and business specialist availability.</p>
           </div>
           <button onclick="fetchCallRequests()" class="text-xs text-indigo-600 font-semibold hover:underline">Refresh</button>
         </div>
@@ -993,18 +1060,7 @@
                 <input type="text" id="settingCompanyName" placeholder="e.g. Apex Industrial Solutions" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
               <div>
-                <label class="block font-semibold text-slate-700 mb-1">Industry / Business Niche</label>
-                <select id="settingBusinessType" onchange="handleBusinessTypeChange(this.value)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white font-medium">
-                  <option value="auto">✨ Auto-Detect from Catalog & Website</option>
-                  <option value="machinery">🏭 Packaging & Industrial Machinery</option>
-                  <option value="manufacturing">⚙️ Custom Manufacturing & Wholesale</option>
-                  <option value="coaching_ielts">🎓 IELTS, Study Visa & Coaching Institute</option>
-                  <option value="solar">☀️ Solar Rooftop & EPC Solutions</option>
-                  <option value="real_estate">🏢 Real Estate, Builders & Property</option>
-                  <option value="interiors">🛋️ Modular Kitchen, Interiors & Showrooms</option>
-                  <option value="services">💼 Clinics, Agencies & General Services</option>
-                </select>
-                <p class="text-[10px] text-slate-400 mt-0.5">Adapts AI qualification playbooks, KPI labels, and catalog column headers.</p>
+                <input type="hidden" id="settingBusinessType" value="auto">
               </div>
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">City / Dispatch Base</label>
@@ -1021,8 +1077,29 @@
             </div>
           </div>
 
-          <!-- Engineer Setup & Webhook Settings (Technical) -->
+          <!-- Account Security & Change Password -->
           <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">🔒 Account Security — Change Password</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Update your account login password securely.</p>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">New Password</label>
+                <input type="password" id="newPasswordInput" placeholder="Enter new password (min 6 chars)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Confirm New Password</label>
+                <input type="password" id="confirmPasswordInput" placeholder="Re-enter new password" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <button onclick="handleChangePassword()" class="w-full py-2.5 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 shadow-sm transition">
+                Update Password
+              </button>
+            </div>
+          </div>
+
+          <!-- Engineer Setup & Webhook Settings (Technical - Admin Only ?admin=1) -->
+          <div id="cardEngineerSettings" class="hidden bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
             <div>
               <h3 class="text-sm font-bold text-slate-900">🔧 Engineer Setup & Webhook Settings</h3>
               <p class="text-xs text-slate-500 mt-0.5">Paste into B2B Seller Portal / CRM or connect persistent cloud server.</p>
@@ -1048,6 +1125,9 @@
                 <label class="block font-semibold text-slate-700 mb-1">Google Gemini API Key (Optional)</label>
                 <input type="password" id="settingGeminiKey" placeholder="AIzaSy... (Leave empty to use smart zero-key engine)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
               </div>
+              <button onclick="saveEngineerSettings()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg text-xs shadow-sm transition">
+                Save Technical Settings
+              </button>
             </div>
           </div>
         </div>
@@ -1064,21 +1144,21 @@
           </div>
           <div class="flex items-center gap-2">
             <span id="memStatusBadge" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-              🎁 48-Hour Live Trial Active
+              ⚡ 48-Hour Live VIP Pilot Active
             </span>
           </div>
         </div>
 
-        <!-- CARD 1: TRIAL STATUS & LIVE LEADS USAGE BAR -->
+        <!-- CARD 1: VIP PILOT STATUS & LIVE LEADS USAGE BAR -->
         <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 text-white shadow-sm border border-slate-800 space-y-4">
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="space-y-1">
               <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Live Workspace Quota</span>
-              <h3 class="text-lg font-bold">48-Hour Live VIP Trial: 25 Inquiries Included</h3>
+              <h3 class="text-lg font-bold">48-Hour Live VIP Pilot: 25 Inquiries Included (₹999 — 100% Deducted on Upgrade)</h3>
               <p class="text-xs text-slate-300">Your workspace is active. AI qualifies buyers, attaches PDF brochures, and schedules owner calls.</p>
             </div>
             <div class="text-right">
-              <div class="text-xs text-slate-300">Trial Time Remaining:</div>
+              <div class="text-xs text-slate-300">Pilot Time Remaining:</div>
               <div id="memCountdownDisplay" class="text-base font-mono font-bold text-emerald-300 mt-0.5">47h 59m remaining</div>
             </div>
           </div>
@@ -1086,11 +1166,30 @@
           <!-- Progress bar -->
           <div class="space-y-1.5 pt-2">
             <div class="flex justify-between text-xs font-medium text-slate-300">
-              <span>Trial Inquiries Processed</span>
-              <span id="memLeadQuotaText" class="font-bold text-white">0 / 25 Trial Leads Used</span>
+              <span>Pilot Inquiries Processed</span>
+              <span id="memLeadQuotaText" class="font-bold text-white">0 / 25 Pilot Leads Used</span>
             </div>
             <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
               <div id="memLeadProgressBar" class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROMINENT VIP PILOT CARD (JUST ₹999 - 100% ADJUSTED IN PLAN) -->
+        <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border-2 border-emerald-500/70 rounded-2xl p-6 text-white shadow-lg space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-400/40">🚀 VIP Launch Pilot • 100% Risk-Free</span>
+              <h3 class="text-lg lg:text-xl font-bold text-white">Start With 48-Hour Live VIP Pilot on Your WhatsApp — Just ₹999 (100% Adjusted in Your Plan!)</h3>
+              <p class="text-xs text-slate-300 max-w-3xl">Put MartFlow AI live on YOUR business WhatsApp for 48 Hours (up to 25 real customer inquiries + Engineer AI Setup + FREE Custom PDF Brochure Design). When you upgrade, your entire ₹999 is 100% deducted (pay just ₹9,000 balance for Standard or ₹14,000 for Pro)!</p>
+            </div>
+            <div class="shrink-0 flex flex-col sm:flex-row items-center gap-2">
+              <button onclick="openDemoBotChat()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 shadow-sm">
+                <span>🤖 Test Live AI Bot (+91 91157 48457) →</span>
+              </button>
+              <button onclick="openActivationModal('48-Hour Live VIP Pilot - 100% Adjustable', '₹999 Adjustable Setup Deposit', '48 Hours Live on Your WhatsApp - 25 Real Leads + White-Glove AI Training + Free PDF Brochure • 100% Deducted on Upgrade!', 999)" class="w-full sm:w-auto px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-md flex items-center justify-center space-x-1.5">
+                <span>⚡ Start ₹999 VIP Pilot Now →</span>
+              </button>
             </div>
           </div>
         </div>
@@ -1101,8 +1200,8 @@
           <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-5 hover:border-indigo-300 transition">
             <div class="space-y-3">
               <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Standard Growth</span>
-              <h3 class="text-lg font-bold text-slate-900">₹7,500 <span class="text-xs font-normal text-slate-500">Setup + ₹2,999/mo</span></h3>
-              <p class="text-xs text-slate-500">Ideal for small manufacturers, wholesalers & independent distributors.</p>
+              <h3 class="text-lg font-bold text-slate-900">₹9,999 <span class="text-xs font-normal text-slate-500">One-Time (3 Months Maintenance FREE!)</span></h3>
+              <p class="text-xs text-slate-500">Regular ₹7,500 + ₹2,999/mo • 500 Leads/mo. Ideal for manufacturers, wholesalers & distributors.</p>
               <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>500 Verified Buyer Leads / Month</span></div>
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Instant PDF Brochure Dispatch (&lt;10s)</span></div>
@@ -1110,20 +1209,20 @@
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Instant Hot-Lead WhatsApp Alerts to Owner</span></div>
               </div>
             </div>
-            <button onclick="openActivationModal('Standard Growth', '₹7,500 Setup + ₹2,999/mo', 'Includes 500 inquiries/mo, PDF brochure dispatch, Hinglish deal qualification, owner alerts')" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition shadow-sm">
-              Activate Standard Plan →
+            <button onclick="openActivationModal('Standard Growth', '₹9,999 One-Time', 'Includes 500 leads/mo, 3 Months Maintenance FREE, PDF brochure dispatch, Hinglish deal qualification, owner alerts', 9999)" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition shadow-sm">
+              Activate Standard Plan (₹9,999) →
             </button>
           </div>
 
-          <!-- PLAN 2: PRO MULTI-CATALOG (RECOMMENDED) -->
+          <!-- PLAN 2: PRO HIGH-VOLUME (MOST POPULAR) -->
           <div class="bg-white border-2 border-indigo-600 rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5 relative">
             <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm">
               🔥 Most Popular for Growing Businesses
             </div>
             <div class="space-y-3 pt-1">
-              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Pro Multi-Catalog</span>
-              <h3 class="text-lg font-bold text-slate-900">₹12,000 <span class="text-xs font-normal text-slate-500">Setup + ₹4,999/mo</span></h3>
-              <p class="text-xs text-slate-500">For multi-product factories, exporters, and coaching institutes.</p>
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">Pro High-Volume</span>
+              <h3 class="text-lg font-bold text-slate-900">₹14,999 <span class="text-xs font-normal text-slate-500">One-Time (3 Months Maintenance FREE!)</span></h3>
+              <p class="text-xs text-slate-500">Regular ₹12,000 + ₹4,999/mo • 2,000 Leads/mo. For multi-product brands, exporters & high-volume teams.</p>
               <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Up to 2,000 Buyer Leads / Month</span></div>
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Unlimited Catalogs & PDFs Ingestion</span></div>
@@ -1132,26 +1231,26 @@
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Priority 15-Minute AnyDesk Setup</span></div>
               </div>
             </div>
-            <button onclick="openActivationModal('Pro Multi-Catalog', '₹12,000 Setup + ₹4,999/mo', 'Up to 2,000 inquiries/mo, unlimited catalogs, website scraper sync, priority AnyDesk setup')" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-md">
-              Activate Pro Plan →
+            <button onclick="openActivationModal('Pro High-Volume', '₹14,999 One-Time', 'Includes 2,000 leads/mo, 3 Months Maintenance FREE, unlimited catalogs, website scraper sync, priority AnyDesk setup', 14999)" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-md">
+              Activate Pro Plan (₹14,999) →
             </button>
           </div>
 
-          <!-- PLAN 3: ANNUAL ENTERPRISE -->
+          <!-- PLAN 3: ENTERPRISE OFFICIAL META API -->
           <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-5 hover:border-emerald-300 transition">
             <div class="space-y-3">
-              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">💎 Best Value Annual Lock-In</span>
-              <h3 class="text-lg font-bold text-slate-900">₹18,000 <span class="text-xs font-normal text-slate-500">/ Year (Zero Monthly Fees)</span></h3>
-              <p class="text-xs text-slate-500">Save 60%+ with unlimited inquiries and complete done-for-you concierge support.</p>
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">💎 Enterprise Official Meta API</span>
+              <h3 class="text-lg font-bold text-slate-900">₹25,000 <span class="text-xs font-normal text-slate-500">Setup + ₹7,999/mo</span></h3>
+              <p class="text-xs text-slate-500">300+ Leads/day • Official Meta Cloud API • High throughput for enterprise sales departments.</p>
               <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
-                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Unlimited Leads & Inquiries for 1 Full Year</span></div>
-                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Zero Setup Fee (₹5,000 Setup Waived 48-Hour Live Trial)</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Official Meta Cloud WhatsApp Business API</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Green Tick Brand Verification Assistance</span></div>
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Dedicated Senior Sales Engineer on WhatsApp & Phone</span></div>
                 <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Custom AI Fine-Tuning & Multi-SIM Support</span></div>
               </div>
             </div>
-            <button onclick="openActivationModal('Annual Lock-In Enterprise', '₹18,000/yr', 'Unlimited inquiries, dedicated sales engineer support, zero monthly fees')" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-sm">
-              Lock In Annual Plan (Save 60%) →
+            <button onclick="openActivationModal('Enterprise Official Meta API', '₹25,000 Setup + ₹7,999/mo', '300+ Leads/day, Official Meta Cloud API, dedicated engineer support', 25000)" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-sm">
+              Activate Enterprise (₹25,000) →
             </button>
           </div>
         </div>
@@ -1164,7 +1263,7 @@
               <p class="text-[11px] text-indigo-800">Enter your partner coupon code or activation reference to unlock your discounted rate.</p>
             </div>
             <div class="flex items-center space-x-2">
-              <input type="text" id="offerCodeInput" placeholder="e.g. VIP999" class="px-3 py-1.5 text-xs border border-indigo-200 rounded-lg uppercase font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+              <input type="text" id="offerCodeInput" placeholder="Enter partner code" class="px-3 py-1.5 text-xs border border-indigo-200 rounded-lg uppercase font-mono font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none">
               <button onclick="submitActivationCode()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition">
                 Apply
               </button>
@@ -1175,10 +1274,10 @@
           <div id="customQuoteBanner" class="hidden p-3 bg-white border border-emerald-300 rounded-lg flex items-center justify-between">
             <div>
               <span class="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded">Tailored Proposal Unlocked</span>
-              <div class="text-sm font-bold text-slate-900 mt-0.5">Special Factory Activation: <span id="customQuoteAmountText" class="text-indigo-600 font-extrabold">₹999</span></div>
-              <div id="customQuoteDescText" class="text-[11px] text-emerald-800 font-medium mt-0.5">48-Hour VIP Engineer Setup Deposit — Adjusted in Plan</div>
+              <div class="text-sm font-bold text-slate-900 mt-0.5">Special Commercial Activation: <span id="customQuoteAmountText" class="text-indigo-600 font-extrabold">₹999</span></div>
+              <div id="customQuoteDescText" class="text-[11px] text-emerald-800 font-medium mt-0.5">48-Hour VIP Setup Deposit — Adjusted in Plan</div>
             </div>
-            <button onclick="openActivationModal('Tailored Factory License', document.getElementById('customQuoteAmountText').textContent, document.getElementById('customQuoteDescText')?.textContent || 'Custom Tailored Factory Activation')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+            <button onclick="openActivationModal('Tailored Commercial License', document.getElementById('customQuoteAmountText').textContent, document.getElementById('customQuoteDescText')?.textContent || 'Custom Tailored Commercial Activation')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
               Activate Now →
             </button>
           </div>
@@ -1286,7 +1385,7 @@
             <input type="text" id="simBuyerPhone" placeholder="9876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Inquired</label>
+            <label class="block font-semibold text-slate-700 mb-1">Product / Offering Inquired</label>
             <input type="text" id="simProduct" value="Automatic Pouch Packing Machine" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
           </div>
           <div>
@@ -1313,8 +1412,8 @@
       </button>
 
       <div class="space-y-4">
-        <h2 class="text-lg font-bold text-slate-900">+ Quick Add Machine SKU</h2>
-        <p class="text-xs text-slate-500">Add a product directly to your verified catalog knowledge base in 10 seconds.</p>
+        <h2 class="text-lg font-bold text-slate-900">+ Quick Add Product / Service</h2>
+        <p class="text-xs text-slate-500">Add a product or service directly to your verified catalog knowledge base in 10 seconds.</p>
         <div class="space-y-3 text-xs">
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -1327,11 +1426,11 @@
             </div>
           </div>
           <div>
-            <label id="lblEditProductName" class="block font-semibold text-slate-700 mb-1">Machine / Product Name <span class="text-rose-500">*</span></label>
+            <label id="lblEditProductName" class="block font-semibold text-slate-700 mb-1">Product / Offering Name <span class="text-rose-500">*</span></label>
             <input type="text" id="qaProductName" placeholder="e.g. Industrial Ribbon Blender RB-500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Model / Capacity Details</label>
+            <label class="block font-semibold text-slate-700 mb-1">Model / Capacity / Specs Details</label>
             <input type="text" id="qaModel" placeholder="e.g. 500 Kg Batch Capacity, SS-304" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
           </div>
           <div>
@@ -1339,7 +1438,7 @@
             <input type="file" id="qaImageFile" accept="image/*" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-slate-50 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Machine Brochure PDF (Auto-sent to WhatsApp)</label>
+            <label class="block font-semibold text-slate-700 mb-1">Product / Service Brochure PDF (Auto-sent to WhatsApp)</label>
             <input type="file" id="qaPdfFile" accept=".pdf" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-slate-50 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
           </div>
           <button id="qaSubmitBtn" onclick="submitQuickAddProduct()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition flex items-center justify-center gap-2">
@@ -1358,8 +1457,8 @@
       </button>
 
       <div class="space-y-4">
-        <h2 class="text-lg font-bold text-slate-900">Edit Catalog Product</h2>
-        <p class="text-xs text-slate-500">Update pricing, model specs, or attachments for this SKU.</p>
+        <h2 class="text-lg font-bold text-slate-900">Edit Catalog Product / Offering</h2>
+        <p class="text-xs text-slate-500">Update pricing, specifications, photos, or brochure PDF for this SKU.</p>
         <input type="hidden" id="editProductId">
         <div class="space-y-3 text-xs">
           <div class="grid grid-cols-2 gap-3">
@@ -1373,12 +1472,22 @@
             </div>
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Machine / Product Name <span class="text-rose-500">*</span></label>
+            <label class="block font-semibold text-slate-700 mb-1">Product / Offering Name <span class="text-rose-500">*</span></label>
             <input type="text" id="editProductName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
           </div>
           <div>
             <label id="lblEditModel" class="block font-semibold text-slate-700 mb-1">Model / Specs / Capacity Details</label>
             <textarea id="editModel" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Update Photo (Optional)</label>
+              <input type="file" id="editImageFile" accept="image/*" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-[10px] bg-slate-50 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Update PDF Brochure</label>
+              <input type="file" id="editPdfFile" accept=".pdf" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-[10px] bg-slate-50 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+            </div>
           </div>
           <button id="editSubmitBtn" onclick="submitEditProduct()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition flex items-center justify-center gap-2">
             <span>💾 Save Changes</span>
@@ -1398,7 +1507,7 @@
 
       <div class="text-center space-y-1">
         <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Instant VIP Activation</span>
-        <h2 id="actPlanTitle" class="text-lg font-bold text-slate-900 mt-2">Factory Sales License</h2>
+        <h2 id="actPlanTitle" class="text-lg font-bold text-slate-900 mt-2">Commercial Sales License</h2>
         <div id="actPlanPrice" class="text-2xl font-extrabold text-indigo-600">₹999</div>
         <p id="actPlanDesc" class="text-xs text-slate-500">100% adjusted into final plan. Instant activation with AnyDesk support.</p>
       </div>
@@ -1406,7 +1515,7 @@
       <!-- PAYMENT METHOD TABS -->
       <div class="flex border-b border-gray-200 text-xs font-semibold">
         <button id="payTabUpiBtn" onclick="switchPayTab('upi')" class="flex-1 py-2.5 text-center border-b-2 border-indigo-600 text-indigo-600 font-bold transition flex items-center justify-center space-x-1.5">
-          <span>⚡ Instant Direct UPI QR (0% MDR • 25 Free Inquiries)</span>
+          <span>⚡ Instant Direct UPI QR (0% MDR • ₹999 VIP Pilot / Full Plan)</span>
         </button>
         <button id="payTabRazorpayBtn" onclick="switchPayTab('razorpay')" class="hidden flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition items-center justify-center space-x-1.5">
           <span>💳 Razorpay</span>
@@ -1418,7 +1527,7 @@
         <div class="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-3">
           <div class="text-[11px] font-semibold uppercase tracking-wider text-indigo-900">Scan & Pay via GPay, PhonePe, Paytm, BHIM</div>
           <div class="bg-white p-2 rounded-xl inline-block border border-indigo-100 shadow-sm">
-            <img id="actUpiQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dpayments%40martflow.ai%26pn%3DMartFlow%2520AI%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
+            <img id="actUpiQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dsaraitaj6-2%40okaxis%26pn%3DMartFlow%2520AI%26am%3D9999%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
           </div>
           <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
             <span id="actUpiIdText" class="text-slate-600 font-semibold truncate">UPI ID: YOUR_REAL_UPI_ID</span>
@@ -1465,10 +1574,10 @@
 
       <!-- 1-Click WhatsApp Direct Activation -->
       <div class="space-y-2 pt-1 border-t border-gray-100">
-        <a id="actWaBtn" href="https://wa.me/YOUR_REAL_WHATSAPP_91XXXXXXXXXX?text=Namaste%20MartFlow%20Team!%20I%20want%20to%20activate%20my%20factory%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+        <a id="actWaBtn" href="https://wa.me/919781018975?text=Namaste%20MartFlow%20Team!%20I%20want%20to%20activate%20my%20workspace%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
           ⚡ Confirm & Connect on WhatsApp (Under 10 Mins) →
         </a>
-        <p class="text-[11px] text-center text-slate-400">Our senior onboarding engineer will reach out on WhatsApp instantly.</p>
+        <p class="text-[11px] text-center text-slate-400">Our senior onboarding specialist will reach out on WhatsApp instantly.</p>
       </div>
     </div>
   </div>
@@ -1485,7 +1594,7 @@
       </div>
       <div>
         <h3 class="text-base font-bold text-slate-900">Confirm Call Consultation</h3>
-        <p class="text-xs text-slate-500 mt-0.5">Select or enter the confirmed time slot for buyer & factory engineer call.</p>
+        <p class="text-xs text-slate-500 mt-0.5">Select or enter the confirmed time slot for buyer & specialist consultation call.</p>
       </div>
 
       <input type="hidden" id="confirmCallIdInput">
@@ -1522,7 +1631,7 @@
         <div>✓ Live test inquiry verified together</div>
       </div>
 
-      <a id="anyDeskWaBtn" href="https://wa.me/YOUR_REAL_WHATSAPP_91XXXXXXXXXX?text=Namaste%20MartFlow%20Team!%20Please%20connect%20via%20AnyDesk%20to%20set%20up%20my%20B2B%20integration" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+      <a id="anyDeskWaBtn" href="https://wa.me/919781018975?text=Namaste%20MartFlow%20Team!%20Please%20connect%20via%20AnyDesk%20to%20set%20up%20my%20B2B%20integration" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
         Chat with Engineer on WhatsApp →
       </a>
     </div>
@@ -1542,12 +1651,12 @@
       <p class="text-xs text-slate-600">To upgrade your monthly buyer lead quota or activate multi-user team seats, contact our onboarding director via WhatsApp:</p>
 
       <div class="p-3 bg-slate-50 border border-gray-200 rounded-lg text-xs space-y-1 text-left font-mono">
-        <div><strong>UPI ID:</strong> <span id="upgradeModalUpi">YOUR_REAL_UPI_ID</span></div>
-        <div><strong>Direct Desk:</strong> <span id="upgradeDeskPhone">+91 98250 12345</span></div>
+        <div><strong>UPI ID:</strong> <span id="upgradeModalUpi">saraitaj6-2@okaxis</span></div>
+        <div><strong>Direct Desk:</strong> <span id="upgradeDeskPhone">+91 97810 18975</span></div>
         <div><strong>Instant Activation:</strong> Under 15 Minutes</div>
       </div>
 
-      <a id="upgradeWaLink" href="https://wa.me/YOUR_REAL_WHATSAPP_91XXXXXXXXXX?text=Hi%20MartFlow%20Team,%20I%20want%20to%20upgrade%20my%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
+      <a id="upgradeWaLink" href="https://wa.me/919781018975?text=Hi%20MartFlow%20Team,%20I%20want%20to%20upgrade%20my%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
         Chat on WhatsApp to Upgrade →
       </a>
     </div>
@@ -1564,6 +1673,11 @@
       <div id="loginFormBlock" class="space-y-4">
         <h2 class="text-lg lg:text-xl font-bold text-slate-900">Sign in to MartFlow AI</h2>
         <p class="text-xs text-slate-500">Access your organization's sales intelligence workspace.</p>
+
+        <!-- 1-Click Live AI Demo Bot Tester -->
+        <button onclick="openDemoBotChat()" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 text-emerald-800 font-bold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm">
+          <span>🤖 Test Our Live AI Sales Bot Now (+91 91157 48457) →</span>
+        </button>
 
         <!-- Google / Gmail OAuth Button -->
         <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-lg text-slate-700 font-semibold text-xs hover:bg-gray-50 transition flex items-center justify-center space-x-2 shadow-sm">
@@ -1588,13 +1702,15 @@
             <input type="email" id="loginEmail" placeholder="you@company.com" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Password</label>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block font-semibold text-slate-700">Password</label>
+              <button type="button" onclick="handleForgotPassword()" class="text-[11px] text-indigo-600 hover:underline">Forgot password?</button>
+            </div>
             <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <button onclick="handleLoginSubmit()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
             Sign In
           </button>
-          
         </div>
         <div class="text-center text-xs text-slate-500 pt-2">
           Don't have an account? <button onclick="toggleAuthMode('signup')" class="text-indigo-600 font-semibold underline">Create Company Workspace</button>
@@ -1604,7 +1720,12 @@
       <!-- SIGNUP FORM -->
       <div id="signupFormBlock" class="hidden space-y-4">
         <h2 class="text-lg lg:text-xl font-bold text-slate-900">Create Company Workspace</h2>
-        <p class="text-xs text-slate-500">Start closing B2B machinery deals automatically on WhatsApp.</p>
+        <p class="text-xs text-slate-500">Automate customer inquiries, brochures & call bookings on WhatsApp 24×7.</p>
+
+        <!-- 1-Click Live AI Demo Bot Tester -->
+        <button onclick="openDemoBotChat()" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 text-emerald-800 font-bold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm">
+          <span>🤖 Test Our Live AI Sales Bot Now (+91 91157 48457) →</span>
+        </button>
 
         <!-- Google / Gmail OAuth Button -->
         <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-lg text-slate-700 font-semibold text-xs hover:bg-gray-50 transition flex items-center justify-center space-x-2 shadow-sm">
@@ -1629,8 +1750,8 @@
             <input type="text" id="signupFullName" placeholder="e.g. Rahul Sharma" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
-            <label class="block font-semibold text-slate-700 mb-1">Company / Factory Name</label>
-            <input type="text" id="signupCompany" placeholder="e.g. Sharma PackTech Machinery" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <label class="block font-semibold text-slate-700 mb-1">Business / Company Name</label>
+            <input type="text" id="signupCompany" placeholder="e.g. Apex Solar / Global Visa / Sharma Industries" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Business Email</label>
@@ -1667,9 +1788,15 @@
     window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
 
     // Real Admin Config Constants (Easily editable by user)
-    const MERCHANT_UPI_ID = "PASTE_YOUR_REAL_UPI_ID"; // Replace with your real UPI ID (e.g. shoppay@okaxis)
+    const MERCHANT_UPI_ID = "saraitaj6-2@okaxis"; // Real Merchant UPI ID
     const MERCHANT_NAME = "MartFlow AI Sales";
-    const SUPPORT_WHATSAPP = "PASTE_YOUR_REAL_91_WHATSAPP_NUMBER"; // Replace with your WhatsApp number with country code (e.g. 919876543210)
+    const SUPPORT_WHATSAPP = "919781018975"; // Founder & VIP Activation Desk
+    const DEMO_BOT_WHATSAPP = ["91911", "5748457"].join(""); // Live 24/7 AI Testing Bot
+
+    function openDemoBotChat() {
+      const num = window.DEMO_BOT_WHATSAPP || DEMO_BOT_WHATSAPP;
+      window.open(`https://wa.me/${num}?text=Hi!%20Show%20me%20how%20MartFlow%20AI%20handles%20customer%20inquiries%20live`, '_blank');
+    }
 
     window.MERCHANT_UPI_ID_LIVE = null;
     window.MERCHANT_NAME_LIVE = null;
@@ -1728,10 +1855,14 @@
 
       const actWaBtn = document.getElementById('actWaBtn');
       if (actWaBtn) {
-        const planTitle = document.getElementById('actPlanTitle')?.textContent || 'Factory Sales License';
+        const planTitle = document.getElementById('actPlanTitle')?.textContent || 'Commercial Sales License';
         const planPrice = document.getElementById('actPlanPrice')?.textContent || '₹999';
-        actWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(`Namaste MartFlow Team! I want to activate the ${planTitle} (${planPrice}) for my factory workspace.`)}`;
+        actWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(`Namaste MartFlow Team! I want to activate the ${planTitle} (${planPrice}) for my workspace.`)}`;
       }
+
+      try {
+        updatePayAmounts(9999, 'Standard 3-Month Launch Offer');
+      } catch (e) {}
     }
 
     // 0. API Base URL Configuration
@@ -1790,6 +1921,27 @@
         .replace(/'/g, '&#39;');
     }
 
+    function formatDisplayPhone(rawPhone) {
+      if (!rawPhone) return '';
+      const digits = String(rawPhone).replace(/\D/g, '');
+      if (!digits) return '';
+      // If WhatsApp LID (longer than 12 digits, e.g. 148004724064491)
+      if (digits.length > 12) {
+        if (digits === '148004724064491') return '+91 97810 18975';
+        if (digits === '82012517978236') return '+91 94635 91820';
+        if (digits === '99273974743237') return '+91 62808 44278';
+        const last10 = digits.slice(-10);
+        return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+      }
+      if (digits.length === 12 && digits.startsWith('91')) {
+        return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
+      }
+      if (digits.length === 10) {
+        return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+      }
+      return `+${digits}`;
+    }
+
     // 3. Central Safe API Fetch Wrapper (With fallback handler compatibility)
     async function apiFetch(url, options = {}) {
       const headers = { ...options.headers };
@@ -1835,7 +1987,26 @@
 
       if (viewName === 'dashboard') loadDashboardData();
       if (viewName === 'leads') fetchLeadsList();
-      if (viewName === 'conversations') fetchConversationsList();
+      if (viewName === 'conversations') {
+        fetchConversationsList();
+        if (!window.convsPollTimer) {
+          window.convsPollTimer = setInterval(() => {
+            const currentView = document.getElementById('view-conversations');
+            if (currentView && !currentView.classList.contains('hidden') && currentOrg) {
+              fetchConversationsList();
+              if (activeConversationId) selectConversation(activeConversationId, true);
+            } else {
+              clearInterval(window.convsPollTimer);
+              window.convsPollTimer = null;
+            }
+          }, 4000);
+        }
+      } else {
+        if (window.convsPollTimer) {
+          clearInterval(window.convsPollTimer);
+          window.convsPollTimer = null;
+        }
+      }
       if (viewName === 'catalog') fetchCatalogProducts();
       if (viewName === 'calls') fetchCallRequests();
       if (viewName === 'analytics') loadAnalyticsData();
@@ -2077,25 +2248,112 @@
       }
       localStorage.removeItem('mf_token');
       localStorage.removeItem('mf_auth_token');
-      currentAuthToken = '';
+      clearWorkspaceState();
+      showToast('Logged out of workspace.', 'info');
+    }
+
+    async function handleForgotPassword() {
+      const email = (document.getElementById('loginEmail')?.value || '').trim();
+      if (!email) return showToast('Please enter your business email above first', 'warning');
+      try {
+        if (sb) {
+          const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+          if (error) throw error;
+          showToast(`Password reset link sent to ${email}! Check your inbox.`, 'success');
+        } else {
+          showToast('Please contact administrator to reset password.', 'info');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleChangePassword() {
+      const p1 = (document.getElementById('newPasswordInput')?.value || '').trim();
+      const p2 = (document.getElementById('confirmPasswordInput')?.value || '').trim();
+      if (!p1 || p1.length < 6) return showToast('Password must be at least 6 characters long', 'error');
+      if (p1 !== p2) return showToast('Passwords do not match', 'error');
+
+      try {
+        if (sb) {
+          const { error } = await sb.auth.updateUser({ password: p1 });
+          if (error) throw error;
+          showToast('Password updated successfully!', 'success');
+          document.getElementById('newPasswordInput').value = '';
+          document.getElementById('confirmPasswordInput').value = '';
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function clearWorkspaceState() {
       currentOrg = null;
       currentUser = null;
+      currentAuthToken = '';
       updateAuthUI();
-      showToast('Logged out of workspace.', 'info');
+      renderEmptyDashboardState();
       openAuthModal('login');
     }
 
+    function checkAdminParam() {
+      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+      const navEng = document.getElementById('nav-engineer');
+      const cardEng = document.getElementById('cardEngineerSettings');
+      const onbCard = document.getElementById('dashOnboardingCard');
+      const execBanner = document.getElementById('dashExecutiveBanner');
+      const simBtn = document.getElementById('btnSimLead');
+      const managedAiCard = document.getElementById('cardManagedAiKnowledge');
+      const dropzone = document.getElementById('catalogDropzone');
+      const webSync = document.getElementById('cardWebsiteSync');
+      const quickAdd = document.getElementById('btnQuickAddSku');
+      const navCatText = document.getElementById('navCatalogText');
+      const replaceWrap = document.getElementById('catalogReplaceToggleWrapper');
+      const clearCatBtn = document.getElementById('btnClearCatalog');
+
+      if (isAdmin) {
+        if (navEng) navEng.classList.remove('hidden');
+        if (cardEng) cardEng.classList.remove('hidden');
+        if (onbCard) onbCard.classList.remove('hidden');
+        if (execBanner) execBanner.classList.add('hidden');
+        if (simBtn) simBtn.classList.remove('hidden');
+        if (managedAiCard) managedAiCard.classList.add('hidden');
+        if (dropzone) dropzone.classList.remove('hidden');
+        if (webSync) webSync.classList.remove('hidden');
+        if (quickAdd) quickAdd.classList.remove('hidden');
+        if (replaceWrap) replaceWrap.classList.remove('hidden');
+        if (clearCatBtn) clearCatBtn.classList.remove('hidden');
+        if (navCatText) navCatText.textContent = 'Product Catalog';
+      } else {
+        if (navEng) navEng.classList.add('hidden');
+        if (cardEng) cardEng.classList.add('hidden');
+        if (onbCard) onbCard.classList.add('hidden');
+        if (execBanner) execBanner.classList.remove('hidden');
+        if (simBtn) simBtn.classList.add('hidden');
+        if (managedAiCard) managedAiCard.classList.remove('hidden');
+        if (dropzone) dropzone.classList.add('hidden');
+        if (webSync) webSync.classList.add('hidden');
+        if (quickAdd) quickAdd.classList.add('hidden');
+        if (replaceWrap) replaceWrap.classList.add('hidden');
+        if (clearCatBtn) clearCatBtn.classList.add('hidden');
+        if (navCatText) navCatText.textContent = 'AI Knowledge Base';
+      }
+    }
+
     async function checkAuthStatus() {
+      checkAdminParam();
       if (sb) {
         sb.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            switchView('settings');
+            showToast('Please set your new account password in Settings.', 'info');
+            return;
+          }
           if (session) {
             await handleAuthSession(session);
             closeAuthModal();
           } else if (event === 'SIGNED_OUT') {
-            currentOrg = null;
-            currentUser = null;
-            updateAuthUI();
-            openAuthModal('login');
+            clearWorkspaceState();
           }
         });
 
@@ -2121,11 +2379,8 @@
         }
       }
 
-      // If no session, show clean unauthenticated login modal
-      currentOrg = null;
-      currentUser = null;
-      updateAuthUI();
-      openAuthModal('login');
+      // If no session on page load, reset and open real login modal
+      clearWorkspaceState();
     }
 
     function updateAuthUI() {
@@ -2148,7 +2403,18 @@
         if (orgNameEl) orgNameEl.textContent = currentOrg.name;
 
         const orgPlanEl = document.getElementById('topOrgPlan');
-        if (orgPlanEl) orgPlanEl.textContent = 'Trial (48h)';
+        if (orgPlanEl) {
+          if (currentOrg.plan_status === 'active') {
+            orgPlanEl.textContent = 'PRO ACTIVE';
+            orgPlanEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+          } else if (currentOrg.plan_status === 'pending_verification') {
+            orgPlanEl.textContent = 'VERIFYING PAYMENT';
+            orgPlanEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300';
+          } else {
+            orgPlanEl.textContent = 'TRIAL (48H)';
+            orgPlanEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+          }
+        }
 
         const userTopEl = document.getElementById('userNameTop');
         if (userTopEl) userTopEl.textContent = currentUser.fullName;
@@ -2157,6 +2423,17 @@
           const origin = window.location.origin;
           const whInput = document.getElementById('webhookUrlInput');
           if (whInput) whInput.value = `${origin}/api/webhook/b2b/${currentOrg.webhook_key}`;
+        }
+
+        const navBadge = document.getElementById('navBillingBadge');
+        if (navBadge) {
+          if (currentOrg.plan_status === 'active') {
+            navBadge.className = 'text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800';
+            navBadge.textContent = 'ACTIVE';
+          } else {
+            navBadge.className = 'text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800';
+            navBadge.textContent = 'TRIAL';
+          }
         }
       } else {
         if (topOrgBadge) topOrgBadge.classList.add('hidden');
@@ -2387,8 +2664,8 @@
           thName.textContent = 'Product / Service Name';
           thSpecs.textContent = 'Details / Specs';
         } else {
-          thName.textContent = 'Machine Name';
-          thSpecs.textContent = 'Model / Specs';
+          thName.textContent = 'Product / Catalog Name';
+          thSpecs.textContent = 'Specifications / Details';
         }
       }
 
@@ -2397,13 +2674,11 @@
       const lblModalSpecs = document.getElementById('lblEditModel');
       if (lblModalProd) {
         lblModalProd.textContent = (bType === 'coaching_ielts') ? 'Course / Program Name' :
-          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'Project / Package Name' :
-          (bType === 'machinery') ? 'Machine / Product Name' : 'Product / Item Name';
+          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'Project / Package Name' : 'Product / Item Name';
       }
       if (lblModalSpecs) {
         lblModalSpecs.textContent = (bType === 'coaching_ielts') ? 'Duration / Eligibility' :
-          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'kW / Area / Config' :
-          (bType === 'machinery') ? 'Model / Specs' : 'Specifications / Details';
+          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'kW / Area / Config' : 'Specifications / Details';
       }
 
       // 4. WhatsApp Welcome Greeting Placeholder
@@ -2424,7 +2699,7 @@
         } else if (bType === 'services') {
           placeholder = `Namaste! Welcome to ${orgName}. Thank you for connecting with us. How can our team assist you with your requirements today?`;
         } else {
-          placeholder = `Namaste! Welcome to ${orgName}. We manufacture high-performance packaging and industrial machinery. Which machine model or capacity are you looking for?`;
+          placeholder = `Namaste! Welcome to ${orgName}. How can our sales desk assist your business today?`;
         }
         waInput.placeholder = placeholder;
       }
@@ -2682,11 +2957,15 @@
             .select('*, leads(*)')
             .eq('org_id', currentOrg.id)
             .order('updated_at', { ascending: false });
-          if (error) throw error;
-          convs = data || [];
-        } else {
-          const res = await apiFetch('/api/conversations');
-          convs = res.conversations || [];
+          if (!error && data && data.length > 0) {
+            convs = data;
+          }
+        }
+        if (convs.length === 0) {
+          try {
+            const res = await apiFetch(`/api/conversations?orgId=${encodeURIComponent(currentOrg.id)}`);
+            convs = res.conversations || res.threads || [];
+          } catch (e) {}
         }
 
         if (convs.length === 0) {
@@ -2696,15 +2975,17 @@
 
         container.innerHTML = convs.map(c => {
           const lead = c.leads || c.lead || {};
-          const cleanPhone = String(lead.buyer_phone || lead.phone || '').replace(/\D/g, '');
-          const buyerName = lead.buyer_name || lead.name || 'Customer';
+          const rawPhone = lead.buyer_phone || lead.phone || c.buyer_phone || '';
+          const formattedPhone = formatDisplayPhone(rawPhone);
+          const cleanPhone = String(rawPhone).replace(/\D/g, '');
+          const buyerName = lead.buyer_name || lead.name || (rawPhone ? 'Customer (' + formattedPhone + ')' : 'Customer');
           const isSelected = c.id === activeConversationId;
 
           return `
             <div onclick="selectConversation('${c.id}')" class="p-3.5 border-b border-gray-100 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between ${isSelected ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600' : ''}">
               <div class="truncate mr-2">
                 <div class="text-xs font-bold text-slate-900 truncate">${escapeHtml(buyerName)}</div>
-                <div class="text-[11px] text-slate-500 font-mono">+${cleanPhone}</div>
+                <div class="text-[11px] text-slate-500 font-mono">${escapeHtml(formattedPhone || ('+' + cleanPhone))}</div>
               </div>
               <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${c.mode === 'manual' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}">
                 ${c.mode === 'manual' ? 'Manual' : 'AI Active'}
@@ -2721,7 +3002,7 @@
       }
     }
 
-    async function selectConversation(convId) {
+    async function selectConversation(convId, silent = false) {
       activeConversationId = convId;
       const chatBox = document.getElementById('chatMessagesStream');
       if (!chatBox) return;
@@ -2729,10 +3010,12 @@
       const controls = document.getElementById('chatModeControls');
       if (controls) controls.classList.remove('hidden');
 
-      // Update active highlight in thread list
-      document.querySelectorAll('#conversationThreadList > div').forEach(el => {
-        el.classList.remove('bg-indigo-50/70', 'border-l-4', 'border-l-indigo-600');
-      });
+      if (!silent) {
+        // Update active highlight in thread list
+        document.querySelectorAll('#conversationThreadList > div').forEach(el => {
+          el.classList.remove('bg-indigo-50/70', 'border-l-4', 'border-l-indigo-600');
+        });
+      }
 
       if (sb) {
         const [cRes, mRes] = await Promise.all([
@@ -2743,10 +3026,12 @@
         const conv = cRes.data;
         if (conv) {
           const lead = conv.leads || {};
+          const rawPhone = lead.buyer_phone || lead.phone || conv.buyer_phone || '';
+          const formattedPhone = formatDisplayPhone(rawPhone);
           const bName = document.getElementById('chatBuyerName');
           const bPhone = document.getElementById('chatBuyerPhone');
-          if (bName) bName.textContent = lead.buyer_name || 'Customer';
-          if (bPhone) bPhone.textContent = lead.buyer_phone ? '+' + lead.buyer_phone.replace(/\D/g, '') : 'Active WhatsApp Thread';
+          if (bName) bName.textContent = lead.buyer_name || lead.name || (rawPhone ? 'Customer (' + formattedPhone + ')' : 'Customer');
+          if (bPhone) bPhone.textContent = formattedPhone || 'Active WhatsApp Thread';
 
           const btnMode = document.getElementById('btnChatModeToggle');
           if (btnMode) {
@@ -2778,7 +3063,7 @@
           <div class="flex ${isBuyer ? 'justify-start' : 'justify-end'} mb-3">
             <div class="max-w-[75%] p-3 rounded-2xl text-xs ${isBuyer ? 'bg-white border border-gray-200 text-slate-800' : 'bg-slate-900 text-white shadow-sm'}">
               <div class="text-[10px] font-bold mb-1 opacity-70">${isBuyer ? 'Buyer' : (m.sender === 'ai' ? 'MartFlow AI' : 'Sales Representative')}</div>
-              <div class="leading-relaxed whitespace-pre-wrap">${escapeHtml(m.text || m.content || '')}</div>
+              <div class="leading-relaxed whitespace-pre-wrap">${(m.text || m.content || '').startsWith('[Product Photo Sent:') ? '<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md font-semibold text-[11px]">📸 Product Photo Attached & Sent</span>' : (m.text || m.content || '').startsWith('[Brochure Sent:') ? '<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md font-semibold text-[11px]">📄 Official PDF Brochure Delivered</span>' : escapeHtml(m.text || m.content || '')}</div>
               <div class="text-[9px] text-right mt-1 opacity-60 font-mono">${new Date(m.created_at || m.ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           </div>
@@ -2794,22 +3079,31 @@
       if (chatDetail) chatDetail.classList.add('hidden');
     }
 
-    function updateModeButtonUI(mode) {
-      const btn = document.getElementById('btnChatModeToggle');
-      if (btn) {
-        btn.textContent = mode === 'manual' ? 'Switch to AI Mode' : 'Switch to Manual Rep Mode';
-      }
-    }
-
     async function toggleChatMode() {
-      if (!activeConversationId) return;
-      showToast('Switched chat mode', 'info');
+      if (!activeConversationId || !currentOrg) return;
+      try {
+        if (sb) {
+          const { data: conv } = await sb.from('conversations').select('mode').eq('id', activeConversationId).single();
+          const newMode = (conv?.mode === 'manual') ? 'ai' : 'manual';
+          await sb.from('conversations').update({ mode: newMode }).eq('id', activeConversationId);
+          const btnMode = document.getElementById('btnChatModeToggle');
+          if (btnMode) {
+            btnMode.textContent = newMode === 'manual' ? '👤 Manual Takeover' : '🤖 AI Active';
+            btnMode.className = newMode === 'manual'
+              ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300'
+              : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+          }
+          showToast(newMode === 'manual' ? 'Switched to Manual Sales Mode (AI paused)' : 'Switched to AI Agent Mode', 'info');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
     }
 
     async function sendManualReply() {
       const input = document.getElementById('chatComposerInput');
       const text = input ? input.value.trim() : '';
-      if (!text || !activeConversationId) return;
+      if (!text || !activeConversationId || !currentOrg) return;
 
       input.value = '';
       if (sb) {
@@ -2819,7 +3113,25 @@
           sender: 'agent',
           text
         });
+
+        await sb.from('conversations').update({ mode: 'manual', updated_at: new Date().toISOString() }).eq('id', activeConversationId);
+        const btnMode = document.getElementById('btnChatModeToggle');
+        if (btnMode) {
+          btnMode.textContent = '👤 Manual Takeover';
+          btnMode.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+        }
+
+        const { data: conv } = await sb.from('conversations').select('buyer_phone').eq('id', activeConversationId).single();
+        if (conv?.buyer_phone) {
+          await sb.from('wa_outbound_queue').insert({
+            org_id: currentOrg.id,
+            to_phone: conv.buyer_phone,
+            message_text: text,
+            status: 'pending'
+          });
+        }
         selectConversation(activeConversationId);
+        showToast('Manual reply sent & queued to WhatsApp!', 'success');
       }
     }
 
@@ -2854,6 +3166,20 @@
 
         catalogProductsCache = prods;
 
+        const countEl = document.getElementById('lblTrainedItemsCount');
+        if (countEl) countEl.textContent = prods.length;
+        const domainEl = document.getElementById('lblManagedWebsiteDomain');
+        if (domainEl && currentOrg?.name) {
+          domainEl.textContent = 'Account: ' + currentOrg.name;
+        }
+
+        const custKnowInput = document.getElementById('customKnowledgeInput');
+        if (custKnowInput && currentOrg) {
+          custKnowInput.value = currentOrg.website_knowledge || '';
+        }
+
+        const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+
         if (prods.length === 0) {
           if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or drag & drop an Excel / PDF brochure above!</td></tr>';
           return;
@@ -2862,8 +3188,8 @@
         const rowsHtml = prods.map(p => {
           const price = p.price_raw || p.price_range || 'Contact for quote';
           const imgHtml = p.image_url
-            ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" class="w-10 h-10 object-cover rounded-lg border border-gray-200 shadow-sm">`
-            : '<div class="w-10 h-10 rounded-lg bg-slate-100 border border-gray-200 flex items-center justify-center text-sm font-bold text-slate-500">⚙️</div>';
+            ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600',textContent:'📦'}));" class="w-12 h-12 object-cover rounded-lg border border-gray-200 shadow-sm bg-white">`
+            : '<div class="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600">📦</div>';
           const pdfHtml = p.brochure_url
             ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Brochure')}</span></a>`
             : '<span class="text-slate-400 text-[11px]">No PDF</span>';
@@ -2873,11 +3199,11 @@
               <td class="py-3 px-4">${imgHtml}</td>
               <td class="py-3 px-4 font-mono font-bold text-slate-700">${escapeHtml(p.sku || '-')}</td>
               <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
-              <td class="py-3 px-4 text-slate-600 max-w-xs truncate cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductSpecs('${p.id}', '${escapeHtml(p.model_specs || '')}')" title="Click to edit specs">
+              <td class="py-3 px-4 text-slate-600 max-w-xs truncate cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductSpecs('${p.id}')" title="Click to edit specs">
                 <span>${escapeHtml(p.model_specs || '-')}</span>
                 <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
               </td>
-              <td class="py-3 px-4 text-slate-800 font-semibold cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductPrice('${p.id}', '${escapeHtml(p.price_raw || '')}')" title="Click to edit price">
+              <td class="py-3 px-4 text-slate-800 font-semibold cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductPrice('${p.id}')" title="Click to edit price">
                 <span>${escapeHtml(price)}</span>
                 <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
               </td>
@@ -2887,10 +3213,11 @@
                   <span>✎</span>
                   <span>Edit</span>
                 </button>
+                ${isAdmin ? `
                 <button onclick="deleteCatalogProduct('${p.id}')" class="text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded transition text-xs inline-flex items-center gap-1">
                   <span>🗑️</span>
                   <span>Delete</span>
-                </button>
+                </button>` : ''}
               </td>
             </tr>
           `;
@@ -3089,7 +3416,7 @@
         }
 
         if (calls.length === 0) {
-          container.innerHTML = '<div class="py-10 text-center text-xs text-slate-400 font-medium">No call bookings requested yet. When buyers ask for factory visits or phone calls, slots appear here.</div>';
+          container.innerHTML = '<div class="py-10 text-center text-xs text-slate-400 font-medium">No call bookings requested yet. When buyers ask for meetings or phone calls, slots appear here.</div>';
           return;
         }
 
@@ -3150,14 +3477,24 @@
 
       try {
         if (sb) {
+          const { data: callReq } = await sb.from('call_requests').select('buyer_phone').eq('id', activeCallConfirmId).single();
           await sb.from('call_requests').update({
             status: 'confirmed',
             proposed_time_raw: slotTime,
             confirmed_by: 'owner'
           }).eq('id', activeCallConfirmId);
+
+          if (callReq?.buyer_phone) {
+            await sb.from('wa_outbound_queue').insert({
+              org_id: currentOrg.id,
+              to_phone: callReq.buyer_phone,
+              message_text: `Namaste! Your consultation call with ${currentOrg.name} has been confirmed for *${slotTime}*. Looking forward to speaking with you!`,
+              status: 'pending'
+            });
+          }
         }
         closeConfirmCallModal();
-        showToast('Call slot confirmed and updated!', 'success');
+        showToast('Call confirmed and WhatsApp notification queued!', 'success');
         fetchCallRequests();
       } catch (err) {
         showToast(err.message, 'error');
@@ -3204,7 +3541,7 @@
     function subscribeToWaRealtime() {
       if (!sb || !currentOrg || waRealtimeSubscribed) return;
       try {
-        sb.channel('org-wa-' + currentOrg.id)
+        sb.channel('org-live-' + currentOrg.id)
           .on(
             'postgres_changes',
             { event: 'UPDATE', schema: 'public', table: 'organizations', filter: 'id=eq.' + currentOrg.id },
@@ -3220,9 +3557,35 @@
               }
             }
           )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'messages', filter: 'org_id=eq.' + currentOrg.id },
+            (payload) => {
+              if (payload.new && activeConversationId && payload.new.conversation_id === activeConversationId) {
+                selectConversation(activeConversationId);
+              }
+              fetchConversationsList();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'conversations', filter: 'org_id=eq.' + currentOrg.id },
+            () => {
+              fetchConversationsList();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'leads', filter: 'org_id=eq.' + currentOrg.id },
+            () => {
+              fetchLeadsList();
+            }
+          )
           .subscribe();
         waRealtimeSubscribed = true;
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Realtime subscription error:', e);
+      }
     }
 
     async function checkWaConnection(force = false) {
@@ -3236,16 +3599,24 @@
 
       subscribeToWaRealtime();
 
+      const hb = currentOrg.wa_worker_heartbeat;
+      const workerAlive = hb && ((Date.now() - new Date(hb).getTime()) / 1000 < 45);
+      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+
       // Bottom-left sidebar socket status
       const waDot = document.getElementById('waStatusDot');
       const waBadge = document.getElementById('waStatusBadge');
       const waText = document.getElementById('waStatusText');
 
-      if (currentOrg.wa_status === 'connected') {
+      if (currentOrg.wa_status === 'connected' && workerAlive) {
         if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 pulse-dot';
         if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full';
         const num = currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number ? ' (+' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number) + ')' : '';
         if (waText) waText.textContent = 'Connected' + num;
+      } else if (currentOrg.wa_status === 'connected' && !workerAlive) {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-dot';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'Engine Standby';
       } else if (currentOrg.wa_status === 'qr_ready') {
         if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-dot';
         if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full';
@@ -3260,14 +3631,12 @@
       const pill = document.getElementById('waWorkerEnginePill');
       const pillText = document.getElementById('waEnginePillText');
       if (pill && pillText) {
-        const hb = currentOrg.wa_worker_heartbeat;
-        const ageSec = hb ? (Date.now() - new Date(hb).getTime()) / 1000 : 9999;
-        if (ageSec < 45) {
+        if (workerAlive) {
           pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30';
           pillText.textContent = '🟢 WhatsApp Engine Online';
         } else {
           pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/30';
-          pillText.textContent = '🟡 Start WhatsApp Worker (node server.js) to generate QR';
+          pillText.textContent = isAdmin ? '🟡 Start WhatsApp Worker (node server.js) to generate QR' : '🟡 Cloud Engine Reconnecting...';
         }
       }
 
@@ -3291,9 +3660,9 @@
       if (connDisplay && connBadge) {
         if (currentOrg.wa_status === 'connected' && (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number)) {
           connDisplay.textContent = '+' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number);
-          connDisplay.className = 'font-bold text-emerald-800 font-mono text-xs';
-          connBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800';
-          connBadge.textContent = '🟢 Online';
+          connDisplay.className = 'font-bold font-mono text-xs ' + (workerAlive ? 'text-emerald-800' : 'text-amber-800');
+          connBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold ' + (workerAlive ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800');
+          connBadge.textContent = workerAlive ? '🟢 Online' : '🟡 Standby';
         } else {
           connDisplay.textContent = 'No device linked yet';
           connDisplay.className = 'text-slate-500 font-normal text-xs';
@@ -3336,16 +3705,16 @@
       const codeCopy = document.getElementById('waPairingCodeCopyBtnContainer');
 
       if (currentOrg.wa_status === 'connected') {
+        const num = currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number;
         if (badge) {
-          badge.className = 'text-[11px] font-bold text-emerald-600';
-          badge.textContent = '✓ Connected as +' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number);
+          badge.className = 'text-[11px] font-bold ' + (workerAlive ? 'text-emerald-600' : 'text-amber-600');
+          badge.textContent = (workerAlive ? '✓ Connected as +' : '🟡 Standby / Reconnecting +') + num;
         }
         if (qrContainer) {
-          const num = currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number;
-          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-4xl text-emerald-600 font-bold">✓</div><div class="font-bold text-emerald-700 text-sm">WhatsApp Live & Connected</div><div class="text-xs font-mono font-semibold text-slate-700">+' + num + '</div><div class="pt-2"><button onclick="disconnectLiveWa()" class="text-xs font-semibold px-3 py-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Disconnect / Change SIM</button></div></div>';
+          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-4xl ' + (workerAlive ? 'text-emerald-600' : 'text-amber-500') + ' font-bold">' + (workerAlive ? '✓' : '⚡') + '</div><div class="font-bold ' + (workerAlive ? 'text-emerald-700' : 'text-amber-700') + ' text-sm">' + (workerAlive ? 'WhatsApp Live & Connected' : 'Engine Standby / Reconnecting') + '</div><div class="text-xs font-mono font-semibold text-slate-700">+' + num + '</div><div class="pt-2"><button onclick="disconnectLiveWa()" class="text-xs font-semibold px-3 py-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Disconnect / Change SIM</button></div></div>';
         }
-        if (qrMsg) qrMsg.textContent = 'Your WhatsApp Business SIM is paired and actively handling customer inquiries.';
-      } else if (currentOrg.wa_status === 'qr_ready' && currentOrg.wa_qr_data_url) {
+        if (qrMsg) qrMsg.textContent = workerAlive ? 'Your WhatsApp Business SIM is paired and actively handling customer inquiries.' : 'Cloud engine is connecting. Socket will resume automatically.';
+      } else if (currentOrg.wa_qr_data_url) {
         if (badge) {
           badge.className = 'text-[11px] font-bold text-indigo-600 animate-pulse';
           badge.textContent = 'Ready to Scan';
@@ -3448,52 +3817,112 @@
 
     let waQrPollTimer = null;
     async function generateLiveQrCode() {
-      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      if (!currentOrg) {
+        const savedId = localStorage.getItem('mf_active_org_id') || '89b1dbfa-fdb2-439a-b596-f9b764b2d0a4';
+        currentOrg = { id: savedId, name: 'My Enterprise' };
+      }
       if (waQrPollTimer) clearInterval(waQrPollTimer);
 
       const qrContainer = document.getElementById('baileysQrContainer');
+      const qrMsg = document.getElementById('baileysStatusMessage');
+      const badge = document.getElementById('waConnectionBadge');
+
       if (qrContainer) {
         qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="animate-spin text-2xl text-indigo-600">⚙️</div><div class="text-xs text-slate-700 font-semibold">Generating fresh session...</div><div class="text-[10px] text-slate-400">Request sent to WhatsApp engine.</div></div>';
       }
+      if (badge) {
+        badge.className = 'text-[11px] font-semibold text-amber-600 animate-pulse';
+        badge.textContent = 'Generating...';
+      }
+      if (qrMsg) {
+        qrMsg.textContent = 'Contacting WhatsApp socket engine...';
+      }
+
+      // Fast-path REST trigger to local/cloud backend if alive
+      try {
+        apiFetch('/api/wa/start-qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId: currentOrg.id })
+        }).catch(() => {});
+      } catch (e) {}
 
       if (sb) {
-        await sb.from('organizations').update({
-          wa_command: 'start_qr',
-          wa_status: 'initializing',
-          wa_qr_data_url: null
-        }).eq('id', currentOrg.id);
+        try {
+          await sb.from('organizations').update({
+            wa_command: 'start_qr',
+            wa_status: 'initializing',
+            wa_qr_data_url: null
+          }).eq('id', currentOrg.id);
+        } catch (e) {}
         currentOrg.wa_status = 'initializing';
         currentOrg.wa_qr_data_url = null;
-        showToast('QR code request sent to WhatsApp engine. Generating...', 'info');
+        showToast('Requesting fresh QR code from WhatsApp engine...', 'info');
 
         let attempts = 0;
+        let qrShown = false;
         waQrPollTimer = setInterval(async () => {
           attempts++;
-          const { data: org } = await sb.from('organizations').select('wa_status, wa_qr_data_url, wa_connected_number').eq('id', currentOrg.id).single();
-          if (org) {
-            const qrChanged = org.wa_qr_data_url !== currentOrg.wa_qr_data_url;
-            const statusChanged = org.wa_status !== currentOrg.wa_status;
-            currentOrg = { ...currentOrg, ...org };
-            if (qrChanged || statusChanged) {
-              checkWaConnection();
+          try {
+            // Check Supabase first
+            const { data: org } = await sb.from('organizations').select('wa_status, wa_qr_data_url, wa_connected_number, bot_whatsapp_number').eq('id', currentOrg.id).single();
+            let qrUrl = org?.wa_qr_data_url || null;
+            let status = org?.wa_status || null;
+
+            // Fallback to local REST status if Supabase hasn't caught up yet
+            if (!qrUrl && attempts % 2 === 0) {
+              try {
+                const apiRes = await apiFetch('/api/wa/status/' + currentOrg.id);
+                if (apiRes?.state?.qrDataUrl) {
+                  qrUrl = apiRes.state.qrDataUrl;
+                }
+                if (apiRes?.state?.status) {
+                  status = apiRes.state.status;
+                }
+              } catch (e) {}
             }
-            if (org.wa_status === 'qr_ready' && org.wa_qr_data_url) {
+
+            if (org) {
+              currentOrg = { ...currentOrg, ...org };
+            }
+
+            if (status === 'connected' || org?.wa_status === 'connected') {
               clearInterval(waQrPollTimer);
               waQrPollTimer = null;
-              showToast('Live QR code ready! Scan with your phone.', 'success');
-            } else if (org.wa_status === 'connected') {
-              clearInterval(waQrPollTimer);
-              waQrPollTimer = null;
+              currentOrg.wa_status = 'connected';
+              checkWaConnection();
               showToast('WhatsApp connected successfully!', 'success');
-            } else if (attempts >= 25) {
+              return;
+            }
+
+            if (qrUrl && (!qrShown || qrContainer?.querySelector('img')?.src !== qrUrl)) {
+              qrShown = true;
+              currentOrg.wa_status = 'qr_ready';
+              currentOrg.wa_qr_data_url = qrUrl;
+              if (qrContainer) {
+                qrContainer.innerHTML = '<img src="' + qrUrl + '" alt="WhatsApp QR Code" class="w-full h-full object-contain rounded-lg shadow-sm">';
+              }
+              if (badge) {
+                badge.className = 'text-[11px] font-bold text-indigo-600 animate-pulse';
+                badge.textContent = 'Ready to Scan';
+              }
+              if (qrMsg) {
+                qrMsg.textContent = 'Scan this QR code with WhatsApp > Linked Devices > Link a Device.';
+              }
+              showToast('Live QR code ready! Point WhatsApp camera to link.', 'success');
+            }
+
+            if (attempts >= 45 && !qrShown) {
               clearInterval(waQrPollTimer);
               waQrPollTimer = null;
-              if (qrContainer && (!currentOrg.wa_qr_data_url || currentOrg.wa_status !== 'qr_ready')) {
-                qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-2xl text-amber-500">⚠️</div><div class="text-xs text-slate-700 font-bold">QR Generation Delayed</div><div class="text-[11px] text-slate-500">Ensure background worker (<code>node server.js</code>) is running on your machine.</div><button onclick="generateLiveQrCode()" class="mt-2 text-xs font-semibold px-3 py-1.5 bg-indigo-600 text-white rounded-lg shadow-sm">Retry Live QR</button></div>';
+              if (qrContainer && !currentOrg.wa_qr_data_url) {
+                qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-2xl text-amber-500">⚠️</div><div class="text-xs text-slate-700 font-bold">QR Generation Delayed</div><div class="text-[11px] text-slate-500">Ensure background worker (<code>node server.js</code>) is running.</div><button onclick="generateLiveQrCode()" class="mt-2 text-xs font-semibold px-3 py-1.5 bg-indigo-600 text-white rounded-lg shadow-sm">Retry Live QR</button></div>';
               }
             }
+          } catch (pollErr) {
+            console.warn('QR poll error:', pollErr);
           }
-        }, 1000);
+        }, 800);
       }
     }
 
@@ -3730,6 +4159,7 @@
         const { data: calls } = await sb.from('call_requests').select('*').eq('org_id', currentOrg.id);
         const lCount = leads ? leads.length : 0;
         const cCount = calls ? calls.length : 0;
+        const qCount = (leads || []).filter(l => l.status === 'qualified' || l.status === 'won' || l.status === 'Hot Lead' || l.pdf_brochure_sent).length;
 
         const anLeads = document.getElementById('anTotalLeads');
         if (anLeads) anLeads.textContent = lCount;
@@ -3765,15 +4195,38 @@
         }
       }
       const memBadge = document.getElementById('memStatusBadge');
-      if (memBadge) memBadge.textContent = '🎁 48-Hour Live Trial Active';
-
       const memCountdown = document.getElementById('memCountdownDisplay');
-      if (memCountdown) memCountdown.textContent = '48-Hour Live Trial Access';
+
+      if (currentOrg.plan_status === 'active') {
+        if (memBadge) {
+          memBadge.className = 'text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/30';
+          memBadge.textContent = '✅ Commercial Plan Active';
+        }
+        if (memCountdown) {
+          memCountdown.className = 'text-base font-mono font-bold text-emerald-300 mt-0.5';
+          memCountdown.textContent = 'Commercial License Active';
+        }
+      } else if (currentOrg.plan_status === 'pending_verification') {
+        if (memBadge) {
+          memBadge.className = 'text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-950/60 px-3 py-1 rounded-full border border-blue-500/30';
+          memBadge.textContent = '⏳ Verifying UTR Payment';
+        }
+        if (memCountdown) {
+          memCountdown.className = 'text-base font-mono font-bold text-blue-300 mt-0.5';
+          memCountdown.textContent = 'Verification in Progress (~10m)';
+        }
+      } else {
+        if (memBadge) {
+          memBadge.className = 'text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 px-3 py-1 rounded-full border border-amber-500/30';
+          memBadge.textContent = '⚡ 48-Hour Live VIP Pilot Active';
+        }
+        startTrialCountdownTimer();
+      }
 
       const leadsUsed = currentOrg?.trial_leads_used || currentOrg?.leads_used || 0;
       const leadsLimit = currentOrg?.trial_lead_limit || currentOrg?.monthly_lead_limit || 25;
       const memLeadQuota = document.getElementById('memLeadQuotaText');
-      if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Trial Leads Used`;
+      if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Leads Processed`;
 
       const memProgressBar = document.getElementById('memLeadProgressBar');
       if (memProgressBar) {
@@ -3783,20 +4236,24 @@
     }
 
     const SALES_COUPONS = {
-      'PILOT999': { amount: 999, desc: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
-      'VIP999': { amount: 999, desc: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
-      'SETUP5K': { amount: 5000, desc: 'One-Time Factory Setup & Catalog AI Training' },
-      'START75': { amount: 7499, desc: '₹5,000 Setup + ₹2,499 First Month — 400 Leads/mo' },
-      'PRO12K': { amount: 12499, desc: '₹7,500 Setup + ₹4,999 First Month — 1,500 Leads/mo' },
-      'ANNUAL18K': { amount: 18000, desc: 'Full 1-Year Factory License — ₹5,000 Setup Waived FREE!' }
+      'LAUNCH9999': { amount: 9999, desc: 'Standard Growth 3-Month Launch Offer (₹9,999)' },
+      'PRO14999': { amount: 14999, desc: 'Pro High-Volume 3-Month Launch Offer (₹14,999)' },
+      'PILOT999': { amount: 999, desc: 'VIP Concierge Setup Deposit — Adjusted in Full Plan' },
+      'VIP999': { amount: 999, desc: 'VIP Concierge Setup Deposit — Adjusted in Full Plan' },
+      'ADJUST999': { amount: 999, discount: 999, desc: '₹999 VIP Pilot Deposit Deducted!', label: '₹999 VIP Pilot Deposit Deducted!' },
+      'SETUP5K': { amount: 5000, desc: 'One-Time Onboarding & Catalog AI Training Setup' },
+      'START75': { amount: 7499, desc: 'Standard Growth Plan — 500 Leads/mo' },
+      'PRO12K': { amount: 12499, desc: 'Pro Multi-Catalog Plan — 2,000 Leads/mo' },
+      'ANNUAL18K': { amount: 18000, desc: 'Full 1-Year Commercial License — Setup Waived FREE!' },
+      'ANNUAL20K': { amount: 20000, desc: 'Full 1-Year Commercial License — Zero Setup Fee' }
     };
 
     async function submitActivationCode() {
-      const code = (document.getElementById('utrRefInput')?.value || '').trim().toUpperCase();
-      if (!code) return showToast('Please enter an invite / coupon code', 'warning');
+      const code = (document.getElementById('offerCodeInput')?.value || document.getElementById('utrRefInput')?.value || '').trim().toUpperCase();
+      if (!code) return showToast('Please enter a partner or coupon code', 'warning');
 
       const plan = SALES_COUPONS[code];
-      if (!plan) return showToast('Invalid code. Please contact your sales engineer.', 'error');
+      if (!plan) return showToast('Invalid code. Please contact your sales representative.', 'error');
 
       if (sb && currentOrg) {
         await sb.from('organizations').update({
@@ -3817,6 +4274,10 @@
       if (qrImg) {
         qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiStr)}`;
       }
+      const mobileBtn = document.getElementById('actUpiMobileBtn');
+      if (mobileBtn) {
+        mobileBtn.href = upiStr;
+      }
       const amtEl = document.getElementById('actPlanPrice');
       if (amtEl) amtEl.textContent = `₹${amount.toLocaleString('en-IN')}`;
       const descEl = document.getElementById('actPlanDesc');
@@ -3826,7 +4287,7 @@
     async function submitUtrVerification() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
       const utr = (document.getElementById('utrRefInput')?.value || '').trim();
-      if (!utr || utr.length < 6) return showToast('Please enter a valid 12-digit UPI Transaction / UTR number', 'error');
+      if (!utr || !/^\d{12}$/.test(utr)) return showToast('Please enter a valid 12-digit numeric UPI Transaction / UTR number', 'error');
 
       const amount = currentOrg.custom_quote_inr || 999;
       try {
@@ -3838,10 +4299,11 @@
             utr_reference: utr,
             status: 'pending'
           });
-          await sb.from('organizations').update({ plan_status: 'active' }).eq('id', currentOrg.id);
-          currentOrg.plan_status = 'active';
+          await sb.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', currentOrg.id);
+          currentOrg.plan_status = 'pending_verification';
         }
-        showToast('UTR submitted successfully! Workspace activated in active status.', 'success');
+        showToast('UTR received! Our billing desk is verifying your bank transfer (activates within 10 mins).', 'success');
+        updateAuthUI();
         loadMembershipData();
       } catch (err) {
         showToast(err.message, 'error');
@@ -3866,11 +4328,19 @@
       const m = document.getElementById('upgradeModal');
       if (m) m.classList.add('hidden');
     }
-    function openActivationModal(planTitle, planPrice, planDesc) {
+    function openActivationModal(planTitle, planPrice, planDesc, numericAmount) {
       const m = document.getElementById('activationModal');
       if (m) m.classList.remove('hidden');
       if (planTitle && document.getElementById('actPlanTitle')) document.getElementById('actPlanTitle').textContent = planTitle;
       if (planPrice && document.getElementById('actPlanPrice')) document.getElementById('actPlanPrice').textContent = planPrice;
+      if (planDesc && document.getElementById('actPlanDesc')) document.getElementById('actPlanDesc').textContent = planDesc;
+
+      let amt = numericAmount;
+      if (!amt) {
+        const numParsed = parseInt(String(planPrice || '').replace(/[^\d]/g, ''), 10);
+        amt = (!isNaN(numParsed) && numParsed > 0) ? numParsed : 9999;
+      }
+      updatePayAmounts(amt, planDesc);
     }
     function closeActivationModal() {
       const m = document.getElementById('activationModal');
@@ -3889,12 +4359,25 @@
     function loadEngineerSettings() {
       const upiInput = document.getElementById('engMerchantUpiId');
       if (upiInput) upiInput.value = getMerchantUpi();
+      const geminiInput = document.getElementById('settingGeminiKey');
+      if (geminiInput) geminiInput.value = localStorage.getItem('mf_gemini_key') || '';
     }
-    function saveEngineerSettings() {
+    async function saveEngineerSettings() {
       const upi = document.getElementById('engMerchantUpiId')?.value?.trim();
       if (upi) localStorage.setItem('mf_merchant_upi', upi);
+      const geminiKey = document.getElementById('settingGeminiKey')?.value?.trim();
+      if (geminiKey) {
+        localStorage.setItem('mf_gemini_key', geminiKey);
+        try {
+          await apiFetch('/api/admin/gemini-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: geminiKey })
+          });
+        } catch (e) {}
+      }
       refreshPaymentAndSupportLinks();
-      showToast('Engineer payment configuration saved!', 'success');
+      showToast('Technical configuration & Gemini API key saved!', 'success');
     }
 
     function openSimulationModal() {
@@ -3957,6 +4440,7 @@
     // 🚀 INITIALIZATION ON PAGE LOAD
     // =========================================================================
     window.addEventListener('DOMContentLoaded', async () => {
+      refreshPaymentAndSupportLinks();
       fetchPublicConfig();
       await checkAuthStatus();
     });
@@ -3964,6 +4448,48 @@
     // =========================================================================
     // 🌐 WEBSITE KNOWLEDGE EXTRACTOR & BUSINESS NICHE ADAPTATION
     // =========================================================================
+    async function saveCustomKnowledge() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const input = document.getElementById('customKnowledgeInput');
+      const val = (input?.value || '').trim();
+      const btn = document.getElementById('btnSaveCustomKnowledge') || document.getElementById('btnSaveKnowledge');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Saving...</span>';
+      }
+      try {
+        if (sb) {
+          const { error } = await sb.from('organizations').update({ website_knowledge: val }).eq('id', currentOrg.id);
+          if (error) throw error;
+        }
+        currentOrg.website_knowledge = val;
+        showToast('AI instructions & business knowledge saved!', 'success');
+      } catch (err) {
+        showToast('Failed to save knowledge: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>💾 Save AI Instructions</span>';
+        }
+      }
+    }
+
+    async function clearAllCatalogProducts() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      if (!confirm('Are you sure you want to delete ALL products from your catalog? This cannot be undone.')) return;
+      try {
+        if (sb) {
+          const { error } = await sb.from('products').delete().eq('org_id', currentOrg.id);
+          if (error) throw error;
+        }
+        catalogProductsCache = [];
+        showToast('All products deleted from catalog.', 'info');
+        fetchCatalogProducts();
+      } catch (err) {
+        showToast('Failed to clear catalog: ' + err.message, 'error');
+      }
+    }
+
     async function syncWebsiteKnowledge() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
       const input = document.getElementById('websiteUrlInput');
@@ -3981,10 +4507,27 @@
         const cleanUrl = rawUrl.replace(/^https?:\/\//, 'https://');
         showToast('Connecting to website via AI reader...', 'info');
 
-        const jinaUrl = 'https://r.jina.ai/' + cleanUrl;
-        const res = await fetch(jinaUrl);
-        if (!res.ok) throw new Error('Failed to retrieve website content (HTTP ' + res.status + ')');
-        const markdown = await res.text();
+        let markdown = '';
+        try {
+          const jinaUrl = 'https://r.jina.ai/' + cleanUrl;
+          const res = await fetch(jinaUrl);
+          if (res.ok) markdown = await res.text();
+        } catch (e) {}
+
+        if (!markdown) {
+          const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}`;
+          const res2 = await fetch(fallbackUrl);
+          if (res2.ok) {
+            const rawHtml = await res2.text();
+            markdown = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+              .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+        }
+
+        if (!markdown) throw new Error('Could not read website content. Please check URL.');
 
         const truncatedMarkdown = markdown.slice(0, 50000);
 
@@ -4060,199 +4603,287 @@
       event.preventDefault();
       const dropzone = document.getElementById('catalogDropzone');
       if (dropzone) dropzone.classList.remove('border-indigo-500', 'bg-indigo-50/20');
-      const file = event.dataTransfer?.files?.[0];
-      if (file) processCatalogFile(file);
+      const files = Array.from(event.dataTransfer?.files || []);
+      if (files.length) processCatalogFiles(files);
     }
 
     async function handleCatalogFileSelected(event) {
-      const file = event?.target?.files?.[0];
-      if (file) {
-        await processCatalogFile(file);
+      const files = Array.from(event?.target?.files || []);
+      if (files.length) {
+        await processCatalogFiles(files);
         event.target.value = '';
       }
     }
 
-    async function processCatalogFile(file) {
-      if (!file || !currentOrg) return showToast('Please sign in first', 'warning');
-      const fname = file.name.toLowerCase();
-      showToast('Processing ' + file.name + '...', 'info');
+    async function renderAndParsePdfWithImages(arrayBuffer) {
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const extractedItems = [];
+      const fullTextChunks = [];
+      const skuLineRegex = /^([A-Z]{2,4}-\d{2,4}[A-Z]?)\s+(.+?)\s+((?:Rs\.?|₹|INR)\s*[\d,]+(?:\s*\/\s*[A-Za-z.]+|\s*\([^)]+\)|\s*\+\s*[A-Za-z0-9.,/\s]+|\s*Deposit)?)$/i;
+      const priceFallbackRegex = /((?:Rs\.?|₹|INR)\s*[\d,]+[^\n|]*)/i;
 
-      try {
-        // Fetch existing products for smart upsert (0 duplicates on re-upload!)
-        let existingProducts = [];
-        if (sb) {
-          const { data } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
-          existingProducts = data || [];
-        }
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const scale = 1.6;
+        const viewport = page.getViewport({ scale });
+        const pageHeightPt = viewport.height / scale;
 
-        let parsedItems = [];
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
 
-        // 1. EXCEL SPREADSHEET (.xlsx, .xls)
-        if (fname.endsWith('.xlsx') || fname.endsWith('.xls')) {
-          if (!window.XLSX) throw new Error('SheetJS library is loading, please try again in 1 second.');
-          const buffer = await file.arrayBuffer();
-          const workbook = XLSX.read(buffer, { type: 'array' });
-          const firstSheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[firstSheetName];
-          const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-          if (!rows || rows.length < 2) throw new Error('Excel sheet is empty or missing data rows.');
-          parsedItems = extractItemsFromTableRows(rows);
-        }
-        // 2. CSV SPREADSHEET (.csv)
-        else if (fname.endsWith('.csv')) {
-          const text = await file.text();
-          const rows = parseCsvToRows(text);
-          if (!rows || rows.length < 2) throw new Error('CSV is empty or missing data rows.');
-          parsedItems = extractItemsFromTableRows(rows);
-        }
-        // 3. PDF BROCHURE (.pdf)
-        else if (fname.endsWith('.pdf')) {
-          let publicPdfUrl = null;
-          if (sb) {
-            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const filePath = `${currentOrg.id}/catalogs/${Date.now()}_${safeName}`;
-            const { error: upErr } = await sb.storage.from('catalogs').upload(filePath, file, { upsert: true });
-            if (!upErr) {
-              const { data: urlData } = sb.storage.from('catalogs').getPublicUrl(filePath);
-              publicPdfUrl = urlData?.publicUrl || null;
-            }
+        const content = await page.getTextContent();
+        const rowBuckets = [];
+        for (const it of content.items) {
+          const str = (it.str || '').trim();
+          if (!str) continue;
+          const xPt = it.transform[4];
+          const yPt = it.transform[5];
+          let bucket = rowBuckets.find(b => Math.abs(b.yPt - yPt) <= 3.5);
+          if (!bucket) {
+            bucket = { yPt, parts: [] };
+            rowBuckets.push(bucket);
           }
+          bucket.parts.push({ xPt, str });
+        }
+        rowBuckets.sort((a, b) => b.yPt - a.yPt);
+        const lines = rowBuckets.map(b => {
+          b.parts.sort((p1, p2) => p1.xPt - p2.xPt);
+          return {
+            yPt: b.yPt,
+            minXPt: b.parts[0].xPt,
+            text: b.parts.map(p => p.str).join(' ').replace(/\s+/g, ' ').trim()
+          };
+        });
+        fullTextChunks.push(lines.map(l => l.text).join('\n'));
 
-          let pdfText = '';
-          if (window.pdfjsLib) {
-            try {
-              const arrayBuffer = await file.arrayBuffer();
-              const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-              for (let i = 1; i <= Math.min(pdf.numPages, 15); i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                pdfText += textContent.items.map(it => it.str).join(' ') + '\n';
+        const cardIndices = [];
+        lines.forEach((ln, idx) => {
+          if (/^[A-Z]{2,4}-\d{2,4}[A-Z]?\b/.test(ln.text) && !/\b(?:Series|System)\s*-/i.test(ln.text)) {
+            cardIndices.push(idx);
+          }
+        });
+
+        for (let cIdx = 0; cIdx < cardIndices.length; cIdx++) {
+          const startIdx = cardIndices[cIdx];
+          const nextIdx = cIdx + 1 < cardIndices.length ? cardIndices[cIdx + 1] : lines.length;
+          const headerLine = lines[startIdx];
+
+          let sku = `ITEM-${pageNum}${cIdx + 1}`;
+          let name = headerLine.text;
+          let price = 'Ask for Price';
+
+          const m = headerLine.text.match(skuLineRegex);
+          if (m) {
+            sku = m[1].trim();
+            name = m[2].trim();
+            price = m[3].trim();
+          } else {
+            const skuMatch = headerLine.text.match(/^([A-Z]{2,4}-\d{2,4}[A-Z]?)\s+(.+)$/);
+            if (skuMatch) {
+              sku = skuMatch[1].trim();
+              let rest = skuMatch[2].trim();
+              const pm = rest.match(priceFallbackRegex);
+              if (pm) {
+                price = pm[1].trim();
+                rest = rest.replace(pm[0], '').trim();
               }
-            } catch (pdfErr) {
-              console.warn('PDF text extraction error:', pdfErr);
+              name = rest || sku;
             }
           }
 
-          // Parse multiple distinct items from brochure text if identifiable
-          const itemsFromPdf = extractItemsFromPdfText(pdfText, file.name);
-          parsedItems = itemsFromPdf.map(item => ({
-            ...item,
-            brochure_url: publicPdfUrl,
-            brochure_filename: file.name
-          }));
-        }
-
-        if (parsedItems.length === 0) {
-          throw new Error('No valid product records found in ' + file.name);
-        }
-
-        // Smart Upsert into Supabase (0 duplicates!)
-        let insertedCount = 0;
-        let updatedCount = 0;
-
-        for (const item of parsedItems) {
-          const normName = item.name.toLowerCase().trim();
-          const normSku = (item.sku || '').toLowerCase().trim();
-
-          const existing = existingProducts.find(p => 
-            (normSku && (p.sku || '').toLowerCase().trim() === normSku) ||
-            p.name.toLowerCase().trim() === normName
-          );
-
-          if (existing && sb) {
-            await sb.from('products').update({
-              price_raw: item.price_raw || existing.price_raw,
-              model_specs: item.model_specs || existing.model_specs,
-              brochure_url: item.brochure_url || existing.brochure_url,
-              brochure_filename: item.brochure_filename || existing.brochure_filename
-            }).eq('id', existing.id);
-            updatedCount++;
-          } else if (sb) {
-            await sb.from('products').insert({
-              org_id: currentOrg.id,
-              sku: item.sku || ('SKU-' + Math.floor(100 + Math.random() * 900)),
-              name: item.name,
-              price_raw: item.price_raw || 'Contact for quote',
-              model_specs: item.model_specs || '',
-              brochure_url: item.brochure_url || null,
-              brochure_filename: item.brochure_filename || null,
-              is_active: true
-            });
-            insertedCount++;
+          const specLines = [];
+          for (let k = startIdx + 1; k < nextIdx; k++) {
+            const t = lines[k].text.replace(/^[•\-*]\s*/, '').trim();
+            if (!t) continue;
+            if (/^(?:HOW TO TEST|HOW YOUR|STORE SHIPPING|BOOKING,|WHOLESALE ORDERING|SUBSIDY PAPERWORK|CERTIFICATION,|SAYA DATE|CONSULTATION,|LIVE AI DEMO|WHATSAPP SALES)/i.test(t)) break;
+            specLines.push(t);
           }
-        }
 
-        showToast(`Catalog processed: ${insertedCount} added, ${updatedCount} updated (0 duplicates)!`, 'success');
-        fetchCatalogProducts();
-      } catch (err) {
-        showToast('Catalog parsing error: ' + err.message, 'error');
-      }
-    }
+          let thumbDataUrl = '';
+          try {
+            if (headerLine.minXPt >= 130) {
+              const topPt = pageHeightPt - (headerLine.yPt + 15);
+              const cropX = Math.max(0, Math.round(41 * scale));
+              const cropY = Math.max(0, Math.round(topPt * scale));
+              const cropSize = Math.round(108 * scale);
+              const tc = document.createElement('canvas');
+              tc.width = 220;
+              tc.height = 220;
+              const tctx = tc.getContext('2d');
+              tctx.fillStyle = '#ffffff';
+              tctx.fillRect(0, 0, 220, 220);
+              tctx.drawImage(canvas, cropX, cropY, cropSize, cropSize, 0, 0, 220, 220);
+              thumbDataUrl = tc.toDataURL('image/jpeg', 0.82);
+            }
+          } catch (cropErr) {
+            console.warn('Thumbnail crop skipped for', sku, cropErr);
+          }
 
-    function extractItemsFromTableRows(rows) {
-      const headerRow = (rows[0] || []).map(h => String(h || '').toLowerCase().trim());
-      let skuIdx = headerRow.findIndex(h => /sku|code|item\s*id|part/i.test(h));
-      let nameIdx = headerRow.findIndex(h => /name|item|product|title|machine|course/i.test(h));
-      let priceIdx = headerRow.findIndex(h => /price|rate|cost|mrp|amount|fee/i.test(h));
-      let specsIdx = headerRow.findIndex(h => /model|spec|capacity|detail|feature|batch/i.test(h));
-
-      if (nameIdx === -1) nameIdx = 0;
-      if (priceIdx === -1) priceIdx = headerRow.findIndex((h, idx) => idx !== nameIdx && /amt|rs|inr/i.test(h));
-
-      const items = [];
-      for (let i = 1; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r || r.length === 0) continue;
-        const name = String(r[nameIdx] || '').trim();
-        if (!name || name.toLowerCase() === 'product name' || name.toLowerCase() === 'name') continue;
-
-        const sku = (skuIdx !== -1 && r[skuIdx]) ? String(r[skuIdx]).trim() : ('SKU-' + (100 + i));
-        const price_raw = (priceIdx !== -1 && r[priceIdx]) ? String(r[priceIdx]).trim() : 'Contact for quote';
-        const model_specs = (specsIdx !== -1 && r[specsIdx]) ? String(r[specsIdx]).trim() : '';
-
-        items.push({ sku, name, price_raw, model_specs });
-      }
-      return items;
-    }
-
-    function extractItemsFromPdfText(text, filename) {
-      if (!text || text.trim().length < 20) {
-        return [{
-          name: filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-          sku: 'PDF-' + Math.floor(100 + Math.random() * 900),
-          price_raw: 'Contact for quote',
-          model_specs: 'Full verified technical brochure'
-        }];
-      }
-
-      // Identify candidate items separated by model codes, bullet points, or numbered lines
-      const items = [];
-      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-
-      const itemRegex = /(?:^|\b)([A-Z0-9-]{3,12}\s+(?:Machine|Packer|Filler|Unit|Blender|Series|Model|System)[^.]{0,60})/i;
-      for (const line of lines) {
-        const match = line.match(itemRegex);
-        if (match && match[1] && match[1].length > 5 && !items.some(it => it.name === match[1])) {
-          items.push({
-            name: match[1].trim(),
-            sku: 'SKU-' + Math.floor(100 + Math.random() * 900),
-            price_raw: 'Contact for quote',
-            model_specs: line.slice(0, 100)
+          extractedItems.push({
+            sku_code: sku,
+            name: name.substring(0, 120),
+            model_specs: (specLines.join(' | ') || 'Standard Specification').substring(0, 600),
+            price_raw: price.substring(0, 80),
+            moq: 'Standard',
+            stock_status: 'Available',
+            image_url: thumbDataUrl
           });
         }
-        if (items.length >= 10) break;
       }
+      return { items: extractedItems, rawText: fullTextChunks.join('\n\n') };
+    }
 
-      if (items.length === 0) {
-        return [{
-          name: filename.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '),
-          sku: 'CAT-' + Math.floor(100 + Math.random() * 900),
-          price_raw: 'Contact for quote',
-          model_specs: text.slice(0, 120).trim()
-        }];
+    async function processCatalogFile(file) {
+      if (file) return processCatalogFiles([file]);
+    }
+
+    async function processCatalogFiles(fileList) {
+      if (!fileList?.length) return;
+      if (!currentOrg) return showToast('Please sign in first to upload catalogs.', 'warning');
+
+      const statusBox = document.getElementById('uploadStatusToast');
+      const statusMsg = document.getElementById('uploadStatusText');
+      const setStatus = (msg) => {
+        if (statusBox) statusBox.classList.remove('hidden');
+        if (statusMsg) statusMsg.textContent = msg;
+      };
+
+      try {
+        const shouldReplace = document.getElementById('replaceCatalogToggle')
+          ? document.getElementById('replaceCatalogToggle').checked
+          : true;
+
+        // Cache existing SKU images so uploading an Excel sheet NEVER wipes out existing PDF photos!
+        const existingBySku = new Map();
+        if (sb) {
+          const { data: oldRows } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
+          (oldRows || []).forEach(r => {
+            if (r.sku_code) existingBySku.set(String(r.sku_code).trim().toUpperCase(), r);
+          });
+        }
+
+        // Sort files so PDFs run FIRST (extracting photos + uploading PDF brochure), then Excel/CSV enriches/merges!
+        const sortedFiles = [...fileList].sort((a, b) => {
+          const aPdf = a.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
+          const bPdf = b.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
+          return aPdf - bPdf;
+        });
+
+        const mergedMap = new Map();
+        if (!shouldReplace) {
+          existingBySku.forEach((r, key) => {
+            mergedMap.set(key, {
+              sku_code: r.sku_code,
+              name: r.name,
+              model_specs: r.model_specs,
+              price_raw: r.price_raw,
+              moq: r.moq || 'Standard',
+              stock_status: r.stock_status || 'Available',
+              image_url: r.image_url || ''
+            });
+          });
+        }
+
+        for (const file of sortedFiles) {
+          const ext = file.name.split('.').pop().toLowerCase();
+          let fileItems = [];
+
+          if (ext === 'pdf') {
+            setStatus(`Uploading ${file.name} & cropping product photos...`);
+            if (sb) {
+              const storagePath = `org_${currentOrg.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+              const { error: upErr } = await sb.storage.from('catalogs').upload(storagePath, file, { contentType: 'application/pdf', upsert: true });
+              if (!upErr) {
+                const { data: pubUrlData } = sb.storage.from('catalogs').getPublicUrl(storagePath);
+                if (pubUrlData?.publicUrl) {
+                  await sb.from('organizations').update({ catalog_pdf_url: pubUrlData.publicUrl, catalog_pdf_name: file.name }).eq('id', currentOrg.id);
+                  currentOrg.catalog_pdf_url = pubUrlData.publicUrl;
+                  currentOrg.catalog_pdf_name = file.name;
+                }
+              }
+            }
+            const arrayBuf = await file.arrayBuffer();
+            const { items, rawText } = await renderAndParsePdfWithImages(arrayBuf);
+            fileItems = items;
+
+            if (fileItems.length === 0 && rawText.trim().length > 20) {
+              setStatus(`Extracting items from ${file.name} with AI...`);
+              const resp = await fetch(`${API_BASE}/api/catalog/extract-ai`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rawText, fileName: file.name })
+              }).catch(() => null);
+              if (resp && resp.ok) {
+                const j = await resp.json();
+                if (Array.isArray(j.items)) fileItems = j.items;
+              }
+            }
+          } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+            setStatus(`Reading spreadsheet ${file.name}...`);
+            const buf = await file.arrayBuffer();
+            const wb = XLSX.read(buf, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+            fileItems = rows.map((r, i) => ({
+              sku_code: String(r.SKU || r['SKU Code'] || r.Code || `ITEM-${101 + i}`).trim(),
+              name: String(r['Product Name'] || r.Name || r.Item || r.Title || '').trim(),
+              price_raw: String(r.Price || r.Rate || r.MRP || 'Ask for Price').trim(),
+              model_specs: String(r['Specifications & Details'] || r.Specifications || r.Specs || r.Description || 'Standard').trim(),
+              moq: String(r.MOQ || 'Standard').trim(),
+              stock_status: 'Available',
+              image_url: String(r['Image URL'] || r.Image || '').trim()
+            })).filter(x => x.name);
+          }
+
+          // Smart SKU Merge across PDF + Excel!
+          for (const item of fileItems) {
+            const key = (item.sku_code || item.name).trim().toUpperCase();
+            const prev = mergedMap.get(key);
+            const fallbackOldImg = existingBySku.get(key)?.image_url || '';
+            mergedMap.set(key, {
+              sku_code: item.sku_code || prev?.sku_code || 'ITEM',
+              name: item.name || prev?.name || '',
+              model_specs: (item.model_specs && item.model_specs.length >= (prev?.model_specs?.length || 0)) ? item.model_specs : (prev?.model_specs || item.model_specs),
+              price_raw: (item.price_raw && item.price_raw !== 'Ask for Price') ? item.price_raw : (prev?.price_raw || 'Ask for Price'),
+              moq: item.moq || prev?.moq || 'Standard',
+              stock_status: item.stock_status || prev?.stock_status || 'Available',
+              image_url: item.image_url || prev?.image_url || fallbackOldImg || ''
+            });
+          }
+        }
+
+        const finalItems = Array.from(mergedMap.values());
+        if (!finalItems.length) throw new Error('Could not detect items in the selected file(s).');
+
+        setStatus(`Saving ${finalItems.length} merged items & photos to live database...`);
+        if (sb) {
+          const { error: delErr } = await sb.from('products').delete().eq('org_id', currentOrg.id);
+          if (delErr) throw delErr;
+          const rowsToInsert = finalItems.map(item => ({
+            org_id: currentOrg.id,
+            sku_code: item.sku_code,
+            name: item.name,
+            model_specs: String(item.model_specs || '').substring(0, 600),
+            price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
+            moq: item.moq || 'Standard',
+            stock_status: item.stock_status || 'Available',
+            image_url: item.image_url || ''
+          }));
+          const { error: insErr } = await sb.from('products').insert(rowsToInsert);
+          if (insErr) throw insErr;
+        }
+
+        await fetchCatalogProducts();
+        if (typeof updateCatalogBannerUI === 'function') updateCatalogBannerUI();
+        showToast(`✅ Synced ${finalItems.length} unique products with photos!`, 'success');
+      } catch (err) {
+        console.error('Catalog process error:', err);
+        showToast('Catalog upload error: ' + (err.message || err), 'error');
+      } finally {
+        setTimeout(() => { if (statusBox) statusBox.classList.add('hidden'); }, 1500);
       }
-      return items;
     }
 
     // =========================================================================
@@ -4260,34 +4891,34 @@
     // =========================================================================
     let catalogProductsCache = [];
 
-    async function inlineEditProductPrice(id, currentPrice) {
-      const newPrice = prompt('Enter updated price specification:', currentPrice || '');
+    async function inlineEditProductPrice(id) {
+      const existing = (catalogProductsCache || []).find(x => String(x.id) === String(id));
+      const currentPrice = existing ? (existing.price_raw || '') : '';
+      const newPrice = prompt('Enter updated price specification:', currentPrice);
       if (newPrice === null || newPrice.trim() === currentPrice) return;
       try {
-        if (sb) {
+        if (sb && currentOrg) {
           const { error } = await sb.from('products').update({ price_raw: newPrice.trim() }).eq('id', id).eq('org_id', currentOrg.id);
           if (error) throw error;
         }
         showToast('Price updated to ' + newPrice.trim(), 'success');
-        fetchCatalogProducts();
-      } catch (e) {
-        showToast(e.message, 'error');
-      }
+        await fetchCatalogProducts();
+      } catch (e) { showToast('Update failed: ' + e.message, 'error'); }
     }
 
-    async function inlineEditProductSpecs(id, currentSpecs) {
-      const newSpecs = prompt('Enter updated model specifications:', currentSpecs || '');
+    async function inlineEditProductSpecs(id) {
+      const existing = (catalogProductsCache || []).find(x => String(x.id) === String(id));
+      const currentSpecs = existing ? (existing.model_specs || '') : '';
+      const newSpecs = prompt('Enter updated specifications & details:', currentSpecs);
       if (newSpecs === null || newSpecs.trim() === currentSpecs) return;
       try {
-        if (sb) {
+        if (sb && currentOrg) {
           const { error } = await sb.from('products').update({ model_specs: newSpecs.trim() }).eq('id', id).eq('org_id', currentOrg.id);
           if (error) throw error;
         }
         showToast('Specifications updated!', 'success');
-        fetchCatalogProducts();
-      } catch (e) {
-        showToast(e.message, 'error');
-      }
+        await fetchCatalogProducts();
+      } catch (e) { showToast('Update failed: ' + e.message, 'error'); }
     }
 
     function openEditProductModal(productId) {
@@ -4358,19 +4989,19 @@
         const leadsLimit = currentOrg.trial_lead_limit || currentOrg.monthly_lead_limit || 25;
         const leadsLeft = Math.max(0, leadsLimit - leadsUsed);
 
-        if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Trial Leads Used (${leadsLeft} Remaining)`;
+        if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Pilot Leads Used (${leadsLeft} Remaining)`;
         if (memProgressBar) {
           const pct = Math.min(100, Math.round((leadsUsed / Math.max(1, leadsLimit)) * 100));
           memProgressBar.style.width = pct + '%';
         }
 
         if (diffMs <= 0) {
-          if (trialCountEl) trialCountEl.textContent = 'Trial expired • Please activate full plan to resume';
-          if (memCountEl) memCountEl.textContent = 'Trial Expired';
+          if (trialCountEl) trialCountEl.textContent = 'Pilot expired • Upgrade to full plan to resume';
+          if (memCountEl) memCountEl.textContent = 'Pilot Expired';
         } else {
           const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
           const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-          const timeStr = `${totalHours}h ${mins}m trial remaining • ${leadsLeft} free inquiries left`;
+          const timeStr = `${totalHours}h ${mins}m pilot remaining • ${leadsLeft} live inquiries left`;
           if (trialCountEl) trialCountEl.textContent = timeStr;
           if (memCountEl) memCountEl.textContent = `${totalHours}h ${mins}m remaining`;
         }

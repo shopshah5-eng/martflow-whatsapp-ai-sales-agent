@@ -91,6 +91,55 @@ export class TenantBaileysInstance {
     };
     this.reconnectTimer = null;
     this.isConnecting = false;
+    this.isConnected = false;
+    this.sentPdfs = new Set();
+    this.reverseLidMap = new Map([
+      ['148004724064491', '919781018975'],
+      ['82012517978236', '919463591820'],
+      ['99273974743237', '916280844278']
+    ]);
+  }
+
+  resolvePhoneFromJid(remoteJid, altJid) {
+    let raw = (remoteJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+    const alt = (altJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+    if (alt && alt.length >= 10 && alt.length <= 13) {
+      if (raw) this.reverseLidMap.set(raw, alt);
+      return alt;
+    }
+    if (this.reverseLidMap.has(raw)) {
+      return this.reverseLidMap.get(raw);
+    }
+    try {
+      const revFile = path.join(this.authDir, `lid-mapping-${raw}_reverse.json`);
+      if (fs.existsSync(revFile)) {
+        const val = JSON.parse(fs.readFileSync(revFile, 'utf8'));
+        if (val) {
+          const cleanVal = String(val).replace(/\D/g, '');
+          this.reverseLidMap.set(raw, cleanVal);
+          return cleanVal;
+        }
+      }
+      if (fs.existsSync(this.authDir)) {
+        const files = fs.readdirSync(this.authDir);
+        for (const f of files) {
+          if (f.startsWith('lid-mapping-') && f.endsWith('.json') && !f.includes('_reverse')) {
+            try {
+              const content = fs.readFileSync(path.join(this.authDir, f), 'utf8').trim().replace(/["']/g, '');
+              if (content === raw) {
+                const realPhone = f.replace('lid-mapping-', '').replace('.json', '').replace(/\D/g, '');
+                if (realPhone) {
+                  this.reverseLidMap.set(raw, realPhone);
+                  return realPhone;
+                }
+              }
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
+    if (raw.length === 10 && /^[6-9]/.test(raw)) return '91' + raw;
+    return raw;
   }
 
   addLog(msg) {
@@ -111,6 +160,7 @@ export class TenantBaileysInstance {
     return {
       orgId: this.orgId,
       status: this.state.status,
+      isConnected: this.isConnected,
       connectedNumber: this.state.connectedNumber,
       qrDataUrl: this.state.qrDataUrl,
       lastEvent: this.state.lastEvent,
@@ -124,7 +174,7 @@ export class TenantBaileysInstance {
         try {
           this.sock.ev.removeAllListeners();
           this.sock.end();
-        } catch (e) {}
+        } catch (e) { }
         this.sock = null;
       }
       this.isConnecting = false;
@@ -132,7 +182,7 @@ export class TenantBaileysInstance {
       this.state.qrDataUrl = null;
       try {
         fs.rmSync(this.authDir, { recursive: true, force: true });
-      } catch (e) {}
+      } catch (e) { }
     } else {
       if (this.isConnecting || this.state.status === 'connected') return;
       this.isConnecting = true;
@@ -182,6 +232,7 @@ export class TenantBaileysInstance {
 
         if (connection === 'open') {
           this.isConnecting = false;
+          this.isConnected = true;
           if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
           this.state.status = 'connected';
           this.state.qrDataUrl = null;
@@ -208,6 +259,7 @@ export class TenantBaileysInstance {
 
         if (connection === 'close') {
           this.isConnecting = false;
+          this.isConnected = false;
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           const isLoggedOut = statusCode === DisconnectReason.loggedOut;
           this.state.qrDataUrl = null;
@@ -220,7 +272,7 @@ export class TenantBaileysInstance {
             this.addLog('Session logged out. Cleared local auth state.');
             try {
               fs.rmSync(this.authDir, { recursive: true, force: true });
-            } catch (e) {}
+            } catch (e) { }
             const admin = getSupabaseAdmin();
             if (admin && this.orgId) {
               await admin
@@ -240,7 +292,7 @@ export class TenantBaileysInstance {
             this.state.lastEvent = isRestart
               ? 'Finalizing session handshake...'
               : `Connection interrupted (code: ${statusCode || 'unknown'}). Reconnecting...`;
-            
+
             // Post-scan restart (515) must reconnect IMMEDIATELY (150ms) to finish cryptographic handshake!
             const delay = isRestart ? 150 : 2000;
             this.addLog(`Socket closed (code: ${statusCode}). Reconnecting in ${delay}ms...`);
@@ -264,8 +316,10 @@ export class TenantBaileysInstance {
           const remoteJid = msg.key.remoteJid;
           if (!remoteJid || remoteJid.includes('@g.us') || remoteJid.includes('broadcast')) continue;
 
-          const rawPhone = remoteJid.split('@')[0];
-          const phone = rawPhone.replace(/[^0-9]/g, '');
+          // Resolve WhatsApp multi-device LID (Linked ID) to genuine mobile number
+          const altJid = msg.key.remoteJidAlt || msg.key.participant || '';
+          let phone = this.resolvePhoneFromJid(remoteJid, altJid);
+          if (phone.length === 10 && /^[6-9]/.test(phone)) phone = '91' + phone;
 
           const text =
             msg.message.conversation ||
@@ -312,9 +366,98 @@ export class TenantBaileysInstance {
             provider_message_id: msg.key.id
           });
 
-          // If conversation is in AI Auto-Pilot mode, generate catalog-grounded reply
+          // Supabase sync for lead, conversation & inbound message
+          const admin = getSupabaseAdmin();
+          let sbConvId = null;
+          if (admin && this.orgId) {
+            try {
+              let { data: existingLead } = await admin.from('leads').select('id, buyer_name, buyer_phone').eq('org_id', this.orgId).ilike('buyer_phone', `%${phone.slice(-10)}%`).maybeSingle();
+              let leadId = existingLead?.id;
+              if (!existingLead) {
+                const { data: newLead, error: leadErr } = await admin.from('leads').insert({
+                  org_id: this.orgId,
+                  buyer_name: msg.pushName || 'WhatsApp Customer',
+                  buyer_phone: phone,
+                  product_inquired: 'Inbound Inquiry',
+                  query_message: text,
+                  status: 'Hot Lead'
+                }).select('id').single();
+                if (leadErr) console.warn('[Baileys Supabase] Lead insert warning:', leadErr.message);
+                leadId = newLead?.id;
+              }
+
+              let { data: existingConv } = await admin.from('conversations').select('id, lead_id').eq('org_id', this.orgId).eq('buyer_phone', phone).maybeSingle();
+              if (!existingConv) {
+                const { data: newConv } = await admin.from('conversations').insert({
+                  org_id: this.orgId,
+                  lead_id: leadId || null,
+                  buyer_phone: phone,
+                  mode: 'auto'
+                }).select('id').single();
+                sbConvId = newConv?.id;
+              } else {
+                sbConvId = existingConv.id;
+                if (!existingConv.lead_id && leadId) {
+                  await admin.from('conversations').update({ lead_id: leadId }).eq('id', sbConvId);
+                }
+              }
+
+              if (sbConvId) {
+                await admin.from('messages').insert({
+                  org_id: this.orgId,
+                  conversation_id: sbConvId,
+                  sender: 'buyer',
+                  text: text
+                });
+                await admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
+              }
+            } catch (syncErr) {
+              this.addLog(`Supabase inbound sync error: ${syncErr.message}`);
+            }
+          }
+
+          // If conversation is in AI Auto-Pilot mode, verify 48-hour / 25-lead trial limits
           if (conv.mode === 'ai') {
-            this.sock.sendPresenceUpdate('composing', remoteJid).catch(() => {});
+            let isExpired = false;
+            let ownerAlertNumber = null;
+            if (admin && this.orgId) {
+              try {
+                const { data: orgData } = await admin
+                  .from('organizations')
+                  .select('plan_status, trial_ends_at, leads_used, monthly_lead_limit, owner_alert_number, escalation_phone')
+                  .eq('id', this.orgId)
+                  .single();
+
+                if (orgData) {
+                  ownerAlertNumber = orgData.owner_alert_number || orgData.escalation_phone;
+                  const trialExpired = orgData.trial_ends_at && (new Date(orgData.trial_ends_at) < new Date());
+                  const leadLimitReached = (orgData.leads_used || 0) >= (orgData.monthly_lead_limit || 25);
+                  if (orgData.plan_status !== 'active' && (trialExpired || leadLimitReached)) {
+                    isExpired = true;
+                  } else {
+                    await admin
+                      .from('organizations')
+                      .update({ leads_used: (orgData.leads_used || 0) + 1 })
+                      .eq('id', this.orgId);
+                  }
+                }
+              } catch (e) {}
+            }
+
+            if (isExpired) {
+              this.addLog(`[Trial Limit] 48-Hour / 25-Lead trial ended for organization ${this.orgId}. Lead recorded, AI reply withheld.`);
+              if (ownerAlertNumber) {
+                try {
+                  const alertJid = `${ownerAlertNumber.replace(/\D/g, '')}@s.whatsapp.net`;
+                  await this.sock.sendMessage(alertJid, {
+                    text: `⚠️ *MartFlow AI Alert*\n\nNew buyer inquiry from +${phone} received, but your *48-Hour Live Trial has ended*. Please upgrade your plan in your workspace dashboard to restore instant 24×7 AI replies!`
+                  });
+                } catch (e) {}
+              }
+              continue;
+            }
+
+            this.sock.sendPresenceUpdate('composing', remoteJid).catch(() => { });
 
             const conversationHistory = db.findScoped('messages', this.orgId)
               .filter((m) => m.conversation_id === conv.id)
@@ -330,7 +473,7 @@ export class TenantBaileysInstance {
                 // Send reply immediately — NO artificial wait!
                 await this.sock.sendMessage(remoteJid, { text: aiReplyObj.reply });
                 this.addLog(`AI Auto-Reply sent to +${phone}: "${aiReplyObj.reply.slice(0, 40)}..."`);
-                this.sock.sendPresenceUpdate('paused', remoteJid).catch(() => {});
+                this.sock.sendPresenceUpdate('paused', remoteJid).catch(() => { });
 
                 // Save message & handle async brochure delivery in background
                 db.insert('messages', {
@@ -341,39 +484,113 @@ export class TenantBaileysInstance {
                   delivery_status: 'sent'
                 });
 
-                // Sync with Supabase messages & conversations if configured
-                const admin = getSupabaseAdmin();
-                if (admin && this.orgId) {
+                // Sync AI reply to Supabase
+                if (admin && this.orgId && sbConvId) {
                   try {
-                    let { data: sbConv } = await admin.from('conversations').select('id').eq('org_id', this.orgId).eq('buyer_phone', phone).maybeSingle();
-                    if (!sbConv) {
-                      const { data: newSbConv } = await admin.from('conversations').insert({
-                        org_id: this.orgId,
-                        buyer_phone: phone,
-                        mode: 'ai'
-                      }).select('id').single();
-                      sbConv = newSbConv;
-                    }
-                    if (sbConv?.id) {
-                      await admin.from('messages').insert([
-                        { org_id: this.orgId, conversation_id: sbConv.id, sender: 'buyer', text: text },
-                        { org_id: this.orgId, conversation_id: sbConv.id, sender: 'ai', text: aiReplyObj.reply }
-                      ]);
-                      await admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConv.id);
-                    }
+                    await admin.from('messages').insert({
+                      org_id: this.orgId,
+                      conversation_id: sbConvId,
+                      sender: 'ai',
+                      text: aiReplyObj.reply
+                    });
+                    await admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
                   } catch (sbMsgErr) {
-                    // Non-blocking sync
+                    this.addLog(`Supabase AI reply sync error: ${sbMsgErr.message}`);
                   }
                 }
 
-                if (aiReplyObj.matchedBrochureUrl) {
+                // Product Photo / Image Dispatch
+                if (aiReplyObj.matchedImageUrl || aiReplyObj.matchedImagePath) {
+                  try {
+                    let imgSource = null;
+                    if (aiReplyObj.matchedImagePath && fs.existsSync(aiReplyObj.matchedImagePath)) {
+                      imgSource = fs.readFileSync(aiReplyObj.matchedImagePath);
+                    } else if (aiReplyObj.matchedImageUrl && aiReplyObj.matchedImageUrl.startsWith('data:image')) {
+                      const b64 = aiReplyObj.matchedImageUrl.split(',')[1] || aiReplyObj.matchedImageUrl;
+                      imgSource = Buffer.from(b64, 'base64');
+                    } else if (aiReplyObj.matchedImageUrl && aiReplyObj.matchedImageUrl.startsWith('http')) {
+                      imgSource = { url: aiReplyObj.matchedImageUrl };
+                    }
+                    if (imgSource) {
+                      const imgCaption = aiReplyObj.matchedImageCaption ? `📸 ${aiReplyObj.matchedImageCaption}` : 'Live Product Photo & Machine View';
+                      await this.sock.sendMessage(remoteJid, {
+                        image: imgSource,
+                        caption: imgCaption
+                      });
+                      this.addLog(`Product photo sent to +${phone}: "${imgCaption}"`);
+                    }
+
+                    const imgLogText = `[Product Photo Sent: ${aiReplyObj.matchedImageCaption || 'Image'}]`;
+                    db.insert('messages', {
+                      organization_id: this.orgId,
+                      conversation_id: conv.id,
+                      sender_type: 'ai',
+                      content: imgLogText,
+                      delivery_status: 'sent'
+                    });
+
+                    if (admin && this.orgId && sbConvId) {
+                      try {
+                        await admin.from('messages').insert({
+                          org_id: this.orgId,
+                          conversation_id: sbConvId,
+                          sender: 'ai',
+                          text: imgLogText
+                        });
+                        await admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
+                      } catch (e) {}
+                    }
+                  } catch (imgErr) {
+                    this.addLog(`Product photo delivery error: ${imgErr.message}`);
+                  }
+                }
+
+                const fileName = aiReplyObj.matchedBrochureName || 'Catalog.pdf';
+                const pdfKey = `${phone}:${aiReplyObj.matchedBrochureUrl}`;
+                const isExplicitResend = /again|dobara|phir\s*se|resend|re-send|mila\s*nahi|open\s*nahi|bhejo\s*phir/i.test(text);
+
+                // Anti-Spam Check: In-memory set, DB lead marked sent, or logged in recent messages
+                const hasSentInMemory = this.sentPdfs.has(pdfKey);
+                const hasSentInLead = Boolean(lead?.pdf_brochure_sent || lead?.pdfSent);
+                const hasSentInHistory = conversationHistory.some(m => (m.content || m.text || '').includes('[Brochure Sent:'));
+
+                const shouldSendPdf = isExplicitResend || (!hasSentInMemory && !hasSentInLead && !hasSentInHistory);
+
+                if (aiReplyObj.matchedBrochureUrl && shouldSendPdf) {
                   try {
                     const pdfBuf = await getPdfBuffer(aiReplyObj.matchedBrochureUrl);
                     const docPayload = pdfBuf
-                      ? { document: pdfBuf, mimetype: 'application/pdf', fileName: aiReplyObj.matchedBrochureName || 'Catalog.pdf', caption: 'Official Product Brochure & Specifications' }
-                      : { document: { url: aiReplyObj.matchedBrochureUrl }, mimetype: 'application/pdf', fileName: aiReplyObj.matchedBrochureName || 'Catalog.pdf', caption: 'Official Product Brochure & Specifications' };
+                      ? { document: pdfBuf, mimetype: 'application/pdf', fileName, caption: 'Official Product Brochure & Specifications' }
+                      : { document: { url: aiReplyObj.matchedBrochureUrl }, mimetype: 'application/pdf', fileName, caption: 'Official Product Brochure & Specifications' };
                     await this.sock.sendMessage(remoteJid, docPayload);
+                    this.sentPdfs.add(pdfKey);
                     this.addLog(`PDF Brochure dispatched to +${phone}`);
+
+                    // Record brochure dispatch event in local and Supabase DB
+                    db.update('leads', lead.id, { pdf_brochure_sent: true, pdfSent: true });
+                    lead.pdf_brochure_sent = true;
+                    lead.pdfSent = true;
+
+                    const brochureMsgText = `[Brochure Sent: ${fileName}]`;
+                    db.insert('messages', {
+                      organization_id: this.orgId,
+                      conversation_id: conv.id,
+                      sender_type: 'ai',
+                      content: brochureMsgText,
+                      delivery_status: 'sent'
+                    });
+
+                    if (admin && this.orgId && sbConvId) {
+                      try {
+                        await admin.from('messages').insert({
+                          org_id: this.orgId,
+                          conversation_id: sbConvId,
+                          sender: 'ai',
+                          text: brochureMsgText
+                        });
+                        await admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
+                      } catch (e) {}
+                    }
                   } catch (pdfErr) {
                     this.addLog(`Brochure delivery error: ${pdfErr.message}`);
                   }
@@ -402,7 +619,7 @@ export class TenantBaileysInstance {
     if (!jid) return { ok: false, error: 'Invalid phone number format.' };
 
     try {
-      this.sock.sendPresenceUpdate('composing', jid).catch(() => {});
+      this.sock.sendPresenceUpdate('composing', jid).catch(() => { });
 
       let sentMsg = null;
       if (attachmentPath) {
@@ -449,7 +666,7 @@ export class TenantBaileysInstance {
         sentMsg = await this.sock.sendMessage(jid, { text });
       }
 
-      this.sock.sendPresenceUpdate('paused', jid).catch(() => {});
+      this.sock.sendPresenceUpdate('paused', jid).catch(() => { });
       return { ok: true, messageId: sentMsg?.key?.id };
     } catch (err) {
       return { ok: false, error: err.message };
@@ -486,10 +703,11 @@ export class TenantBaileysInstance {
   }
 
   async disconnect() {
+    this.isConnected = false;
     if (this.sock) {
       try {
         await this.sock.logout();
-      } catch (e) {}
+      } catch (e) { }
       this.sock = null;
     }
     this.state.status = 'disconnected';
@@ -499,7 +717,7 @@ export class TenantBaileysInstance {
     this.state.lastEvent = 'WhatsApp disconnected. Pairing data cleared.';
     try {
       fs.rmSync(this.authDir, { recursive: true, force: true });
-    } catch (e) {}
+    } catch (e) { }
     this.addLog('Disconnected WhatsApp and cleared tenant session keys.');
     const admin = getSupabaseAdmin();
     if (admin && this.orgId) {
@@ -514,7 +732,7 @@ export class TenantBaileysInstance {
             wa_command: null
           })
           .eq('id', this.orgId);
-      } catch (e) {}
+      } catch (e) { }
     }
     return { ok: true };
   }
@@ -539,6 +757,10 @@ export class MultiTenantBaileysManager {
 
   getState(orgId = 'default_org') {
     return this.getInstance(orgId).getState();
+  }
+
+  isConnected(orgId = 'default_org') {
+    return !!this.getInstance(orgId).isConnected;
   }
 
   async sendMessage(orgId = 'default_org', toPhone, text, attachmentPath = null, caption = '') {

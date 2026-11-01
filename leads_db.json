@@ -2,13 +2,13 @@
   {
     "id": "IM-793468",
     "createdAt": "2026-10-29T08:16:33.468Z",
-    "updatedAt": "2026-10-30T08:35:09.245Z",
+    "updatedAt": "2026-10-30T11:33:21.222Z",
     "name": "",
     "phone": "919781018975",
     "productName": "Automatic Pouch Packing Machine",
     "catalogFile": "Pouch-Packing-Machine-Catalog.pdf",
     "city": "Amritsar",
-    "requirement": "BPT-500 Collar Type PLC Pouch Machine | BPT-500 Collar Type PLC Pouch Machine | 50g pouch | BPT-500 Collar Type PLC Machine",
+    "requirement": "BPT-500 Collar Type PLC Pouch Machine | BPT-500 Collar Type PLC Pouch Machine | 50g pouch | BPT-500 Collar Type PLC Machine | BPT-500 Collar Type PLC Pouch Machine",
     "source": "Live Demo Trigger",
     "pdfSent": true,
     "ownerAlerted": false,
@@ -88,6 +88,36 @@
         "role": "ai",
         "text": "Namaste Ji! BPT-500 Collar Machine (50g pouch) ke liye Ludhiana hub se ready stock me hai. 👍\n\nBas batayein aap 50g me kaunsa item (Namkeen, Spices, ya Granules) pack kar rahe hain? Main turant exact live video aur quotation share kar deta hoon!",
         "ts": "2026-10-30T08:35:09.245Z"
+      },
+      {
+        "role": "buyer",
+        "text": "Hi",
+        "ts": "2026-10-30T10:54:27.730Z"
+      },
+      {
+        "role": "ai",
+        "text": "Namaste Ji! 👋\n\nBPT-500 Collar Machine ke regarding guide karne ke liye main yahan available hoon.\n\nBas batayein aap 50g mein kya item (Namkeen, Spices, ya Granules) pack kar rahe hain?\n\nMain turant exact live video aur quotation share kar deta hoon!",
+        "ts": "2026-10-30T10:54:36.763Z"
+      },
+      {
+        "role": "buyer",
+        "text": "Hello",
+        "ts": "2026-10-30T11:32:09.862Z"
+      },
+      {
+        "role": "ai",
+        "text": "Namaste Ji! 👋\n\nMain aapki BPT-500 Collar Machine ki file aur videos ready kar raha hoon.\n\nBas batayein 50g pouch me kaunsa material (Namkeen, Spices, ya Granules) pack hoga? Main exact quotation bhej deta hoon!",
+        "ts": "2026-10-30T11:32:16.988Z"
+      },
+      {
+        "role": "buyer",
+        "text": "Hlo",
+        "ts": "2026-10-30T11:33:09.754Z"
+      },
+      {
+        "role": "ai",
+        "text": "Namaste Ji! 👋\n\nAmritsar ke liye BPT-500 (50g) model hamare Ludhiana hub mein ready stock hai. Bas material (Namkeen, Spices ya Kurkure) confirm kar dein, main turant technical quotation aur live testing video share karta hoon! 🙏",
+        "ts": "2026-10-30T11:33:21.222Z"
       }
     ],
     "callbackStatus": "scheduled",

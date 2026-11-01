@@ -34,6 +34,8 @@ import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook } from './s
 
 dotenv.config();
 
+const sentPdfs = new Set();
+
 // Global crash handlers to prevent server crashes
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] Uncaught Exception:', err.message, err.stack);
@@ -628,6 +630,20 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
   }
   const buyerName = lead?.name || lead?.buyer_name || '';
   const prefix = buyerName ? `Namaste ${buyerName} Ji! ` : 'Namaste Ji!';
+
+  // Objections & Pricing (Persuasive Sales Closer)
+  if (/mehnga|costly|expensive|discount|kam\s*karo|budget|price|kitna\s*lagega|pricing|fees|pilot/i.test(qLower)) {
+    return `${prefix}Sir sochiye—ek human telecaller mahine ka ₹12,000–₹15,000 leta hai aur shaam 7 baje phone band kar deta hai. MartFlow ₹9,999 mein poore 3 mahine 24/7 chalta hai (yaani ₹110/din se bhi kam—agar mahine mein sirf 1 missed customer convert ho gaya toh pehle hafte mein poora paisa vasool!). Aur abhi ₹9,999 nahi dene—sirf ₹999 Adjustable VIP Pilot se 48 ghante apne real WhatsApp pe live chala ke dekhiye; upgrade karne pe yeh ₹999 poore minus ho jayenge (pay only ₹9,000 balance)! Kya main aapka VIP pilot setup karwa doon?`;
+  }
+
+  if (/ban|block|number\s*block|safe|secure/i.test(qLower)) {
+    return `${prefix}100% safe hai sir! Number tab ban hota hai jab koi anjaan logon ko bulk cold spam bhejta hai. MartFlow zero spam karta hai—yeh sirf un customers ko natural 3-second human reply deta hai jo khud aapke ad ya page se aapko pehle message karte hain. Aapka WhatsApp number bilkul secure rehta hai.`;
+  }
+
+  if (/catalog\s*nahi|pdf\s*nahi|brochure\s*nahi|rate\s*list\s*nahi/i.test(qLower)) {
+    return `${prefix}Koi tension nahi sir! Bas 1 minute ka voice note ya rate list ki photo WhatsApp (+91 97810 18975) pe bhej dijiye, hamare engineers setup ke dauraan aapke liye photo-rich PDF brochure FREE design kar denge!`;
+  }
+
   const isCall = /call|phone|baat|milna|meeting|director|owner|appointment|visiting/i.test(qLower);
   if (isCall) {
     return `${prefix}Humare senior specialist se aapki call consultation arrange karne ke liye main slot check kar raha hoon. Aapko aaj afternoon me ya evening me call karna convenient rahega?`;
@@ -637,13 +653,13 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
     case 'coaching_ielts':
       return `${prefix}${orgName} me inquire karne ke liye shukriya. Aap kis particular country (Canada/UK/Australia) ya kis intake ke liye prepare karna chahte hain?`;
     case 'solar':
-      return `${prefix}${orgName} me apka swagat hai. Aapka monthly electricity bill lagbhag kitna aata hai aur aap residential ya commercial installation plan kar rahe hain?`;
+      return `${prefix}${orgName} me apka swagat hai. PM Surya Ghar yojana mein ₹78,000 subsidy seedha bank account mein aati hai. Aapka monthly electricity bill lagbhag kitna aata hai?`;
     case 'real_estate':
-      return `${prefix}${orgName} ke verified projects me ruchi lene ke liye dhanyawad. Aap 2/3 BHK ya commercial space me kis budget range aur locality me dekh rahe hain?`;
+      return `${prefix}${orgName} ke verified projects me ruchi lene ke liye dhanyawad. Aap 2/3 BHK ya commercial space me kis budget range aur preferred locality me dekh rahe hain?`;
     case 'interiors':
-      return `${prefix}${orgName} me connect karne ke liye shukriya. Aapka flat/house kis location pe hai aur aap modular kitchen ya full interior turnkey work plan kar rahe hain?`;
+      return `${prefix}${orgName} me connect karne ke liye shukriya. Hum turnkey modular interiors provide karte hain. Aapka property location kahan hai aur aapka floor plan ready hai?`;
     case 'manufacturing':
-      return `${prefix}${orgName} se quotation ke liye dhanyawad. Kya aapke paas technical CAD drawing ya material specs available hain, aur aapka required batch size kitna hoga?`;
+      return `${prefix}${orgName} se quotation ke liye dhanyawad. Kya aapke paas technical drawing ya material specs available hain, aur aapka required batch size kitna hoga?`;
     case 'services':
       return `${prefix}${orgName} me contact karne ke liye shukriya. Aapki specific project timeline aur deliverables kya hain, taaki hum customized proposal share kar sakein?`;
     case 'machinery':
@@ -777,10 +793,10 @@ Respond STRICTLY as valid JSON without markdown fences:
       parts.push({ text: `Buyer's new WhatsApp message: "${incomingText}"` });
     }
 
+    const activeGeminiKey = (config.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
     const modelsToTry = [
-      'gemini-3.8-flash',
-      'gemini-flash-latest',
-      'gemini-2.5-flash-lite'
+      'gemini-flash-lite-latest',
+      'gemini-3.5-flash-lite'
     ];
     for (const modelName of modelsToTry) {
       try {
@@ -790,11 +806,11 @@ Respond STRICTLY as valid JSON without markdown fences:
           responseMimeType: 'application/json'
         };
         const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(config.geminiApiKey.trim())}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(activeGeminiKey)}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(6000),
+            signal: AbortSignal.timeout(12000),
             body: JSON.stringify({
               contents: [{ role: 'user', parts }],
               generationConfig: genConfig
@@ -1244,6 +1260,9 @@ async function handleIncomingWhatsAppMessage(msg) {
   } else {
     phoneDigits = normalizePhone(rawRemote.split('@')[0]);
   }
+  if (phoneDigits === '148004724064491') phoneDigits = '919781018975';
+  if (phoneDigits === '82012517978236') phoneDigits = '919463591820';
+  if (phoneDigits === '99273974743237') phoneDigits = '916280844278';
 
   // Unwrap ephemeral/viewOnce wrappers if present
   const content = msg.message?.ephemeralMessage?.message || msg.message;
@@ -1634,6 +1653,11 @@ app.get('/api/test-audio', async (req, res) => {
   }
 });
 
+// Render & Uptime Healthcheck Endpoint
+app.get('/api/health', (req, res) => {
+  res.json({ ok: true, status: 'healthy', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
 app.get('/api/status', (req, res) => {
   const pendingCallbacks = leads.filter((l) => l.callbackStatus === 'awaiting_client_time');
   res.json({
@@ -1961,6 +1985,75 @@ app.post('/api/upload-catalog', async (req, res) => {
   }
 });
 
+// AI Catalog Extraction Fallback Endpoint for unstructured text
+app.post('/api/catalog/extract-ai', async (req, res) => {
+  try {
+    const { rawText, fileName } = req.body;
+    if (!rawText || !rawText.trim()) {
+      return res.status(400).json({ ok: false, items: [], error: 'rawText is required' });
+    }
+    const activeGeminiKey = (config.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
+    if (!activeGeminiKey) {
+      return res.json({ ok: false, items: [], error: 'Gemini API key not configured' });
+    }
+    const prompt = `You are a B2B product catalog parser. Extract all distinct commercial products, services, or SKUs from the catalog text below.
+Filename: "${fileName || 'Catalog.pdf'}"
+Catalog Text:
+${rawText.slice(0, 8000)}
+
+Return a strict JSON object with this structure:
+{
+  "items": [
+    {
+      "sku_code": "SKU-CODE",
+      "name": "Product Name",
+      "price_raw": "₹Price with details or Contact for Quote",
+      "model_specs": "Key specifications, features, capacity, warranty",
+      "moq": "Standard MOQ",
+      "stock_status": "Available"
+    }
+  ]
+}`;
+
+    const models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
+    for (const m of models) {
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(activeGeminiKey)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(15000),
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                maxOutputTokens: 2000,
+                temperature: 0.2
+              }
+            })
+          }
+        );
+        if (resp.ok) {
+          const d = await resp.json();
+          const jsonText = d?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (jsonText) {
+            const parsed = JSON.parse(jsonText);
+            if (Array.isArray(parsed?.items)) {
+              return res.json({ ok: true, items: parsed.items });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[Catalog Extract AI] Model ${m} error:`, err.message);
+      }
+    }
+    res.json({ ok: false, items: [], error: 'Failed to extract items with AI' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 // Confirm available call time from Client Dashboard and notify both parties
 app.post('/api/callbacks/confirm-time', async (req, res) => {
   try {
@@ -2082,6 +2175,41 @@ async function initSupabaseWorker() {
 
   await sendHeartbeat();
   setInterval(sendHeartbeat, 20000);
+
+  // Reconcile Database Status with In-Memory Sockets & Disk Credentials
+  async function syncConnectedStatus() {
+    try {
+      const { data: orgs, error } = await supabaseAdmin
+        .from('organizations')
+        .select('id, name, wa_status');
+      if (error || !orgs) return;
+      for (const org of orgs) {
+        const inst = baileysManager.getInstance(org.id);
+        const credsFile = path.join(inst.authDir, 'creds.json');
+        const hasCreds = fs.existsSync(credsFile);
+
+        if (org.wa_status === 'connected') {
+          if (!inst.isConnected) {
+            if (hasCreds) {
+              addLog(`[Supabase Worker] Organization ${org.name || org.id} has saved creds but socket disconnected. Auto-resuming...`);
+              await supabaseAdmin.from('organizations').update({ wa_status: 'initializing' }).eq('id', org.id);
+              inst.init(false);
+            } else {
+              addLog(`[Supabase Worker] Organization ${org.name || org.id} marked 'connected' in DB but has no credentials on disk. Resetting to disconnected.`);
+              await supabaseAdmin.from('organizations').update({
+                wa_status: 'disconnected',
+                wa_connected_number: null,
+                wa_qr_data_url: null,
+                wa_pairing_code: null
+              }).eq('id', org.id);
+            }
+          }
+        }
+      }
+    } catch (err) {}
+  }
+
+  await syncConnectedStatus();
 
   // 2. Poll & Process Organizations Commands (wa_command)
   async function pollCommands() {
@@ -2229,12 +2357,17 @@ async function initSupabaseWorker() {
 
   // Mutex-locked command & queue poll every 1.5 seconds
   let isSyncing = false;
+  let syncTickCounter = 0;
   async function runSyncTick() {
     if (isSyncing) return;
     isSyncing = true;
     try {
       await pollCommands();
       await pollOutboundQueue();
+      syncTickCounter++;
+      if (syncTickCounter % 10 === 0) {
+        await syncConnectedStatus();
+      }
     } catch (e) {
       addLog(`[Supabase Worker] Sync tick error: ${e.message}`);
     } finally {
