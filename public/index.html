@@ -4736,6 +4736,24 @@
       return { items: extractedItems, rawText: fullTextChunks.join('\n\n') };
     }
 
+    function inferCategory(name = '', sku = '') {
+      const n = (name || '').toLowerCase();
+      const s = (sku || '').toUpperCase();
+      if (s.startsWith('CL-') || /clothing|apparel|dress|kurti|shirt|suit|boutique/i.test(n)) return 'Apparel & Boutique';
+      if (s.startsWith('TR-') || /tour|travel|holiday|package|manali|kashmir|resort/i.test(n)) return 'Tours & Travel Packages';
+      if (s.startsWith('TX-') || /blanket|quilt|textile|bedsheet|mink/i.test(n)) return 'Blankets & Textiles';
+      if (s.startsWith('SL-') || /solar|rooftop|bifacial|panel|inverter/i.test(n)) return 'Solar Power Plants';
+      if (s.startsWith('CR-') || /car|suv|sedan|vehicle|pre-owned/i.test(n)) return 'Automobiles & Pre-Owned Cars';
+      if (s.startsWith('WD-') || /wedding|banquet|hall|catering|marriage/i.test(n)) return 'Wedding Banquets & Catering';
+      if (s.startsWith('IN-') || /kitchen|modular|interior|wardrobe|plywood/i.test(n)) return 'Interiors & Modular Kitchens';
+      if (s.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(n)) return 'MartFlow AI Setup Plans';
+      if (/ielts|pte|visa|coaching|english batch/i.test(n)) return 'Education & Study Visa';
+      if (/pouch|packing|packaging|collar|auger/i.test(n)) return 'Pouch Packing Machinery';
+      if (/liquid|filling|paste|bottle|syrup/i.test(n)) return 'Liquid & Paste Filling';
+      if (/sealer|sealing|strap|strapping|carton/i.test(n)) return 'Carton Sealing & Strapping';
+      return 'General Products';
+    }
+
     async function processCatalogFile(file) {
       if (file) return processCatalogFiles([file]);
     }
@@ -4865,6 +4883,7 @@
             org_id: currentOrg.id,
             sku_code: item.sku_code,
             name: item.name,
+            category: item.category || inferCategory(item.name, item.sku_code),
             model_specs: String(item.model_specs || '').substring(0, 600),
             price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
             moq: item.moq || 'Standard',
@@ -4873,6 +4892,13 @@
           }));
           const { error: insErr } = await sb.from('products').insert(rowsToInsert);
           if (insErr) throw insErr;
+
+          // Instantly sync backend AI cache
+          fetch(`${API_BASE}/api/catalog/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orgId: currentOrg.id })
+          }).catch(() => {});
         }
 
         await fetchCatalogProducts();

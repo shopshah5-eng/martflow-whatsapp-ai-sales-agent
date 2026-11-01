@@ -25,6 +25,37 @@ function getSupabaseAdmin() {
 
 // 15-second RAM cache for org and product catalog to eliminate redundant DB roundtrips
 const ramCache = new Map();
+
+export function invalidateCache(organizationId = null) {
+  if (organizationId) {
+    ramCache.delete(organizationId);
+  } else {
+    ramCache.clear();
+  }
+}
+
+export function inferProductCategory(p = {}) {
+  const name = (p.name || p.product_name || '').toLowerCase();
+  const sku = (p.sku_code || p.sku || '').toUpperCase();
+
+  if (/ielts|pte|visa|coaching|english batch/i.test(name)) return 'Education & Study Visa';
+  if (/wedding|banquet|lawn|catering|reception|varmala/i.test(name)) return 'Wedding Banquets & Catering';
+  if (/kitchen|modular|wardrobe|plywood|acrylic/i.test(name)) return 'Interiors & Modular Kitchens';
+  if (/pouch|packing|packaging|collar|auger/i.test(name)) return 'Pouch Packing Machinery';
+  if (/liquid|filling|paste|bottle|syrup/i.test(name)) return 'Liquid & Paste Filling';
+  if (/sealer|sealing|strap|strapping|carton/i.test(name)) return 'Carton Sealing & Strapping';
+  if (sku.startsWith('CL-') || /clothing|apparel|dress|kurti|shirt|suit|boutique/i.test(name)) return 'Apparel & Boutique';
+  if (sku.startsWith('TR-') || /tour|travel|holiday|package|manali|kashmir|resort/i.test(name)) return 'Tours & Travel Packages';
+  if (sku.startsWith('TX-') || /blanket|quilt|textile|bedsheet|mink/i.test(name)) return 'Blankets & Textiles';
+  if (sku.startsWith('SL-') || /solar|rooftop|bifacial|panel|inverter/i.test(name)) return 'Solar Power Plants';
+  if (sku.startsWith('CR-') || /car|suv|sedan|vehicle|pre-owned/i.test(name)) return 'Automobiles & Pre-Owned Cars';
+  if (sku.startsWith('WD-') || /marriage/i.test(name)) return 'Wedding Banquets & Catering';
+  if (sku.startsWith('IN-')) return 'Interiors & Modular Kitchens';
+  if (sku.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(name)) return 'MartFlow AI Setup Plans';
+
+  return 'Commercial Products';
+}
+
 async function getCachedOrgData(organizationId) {
   const now = Date.now();
   const cached = ramCache.get(organizationId);
@@ -47,6 +78,12 @@ async function getCachedOrgData(organizationId) {
       console.warn('[AI Service] Supabase cache fetch error:', e.message);
     }
   }
+
+  // Ensure all products have an accurate category inferred if null
+  products = (products || []).map(p => ({
+    ...p,
+    category: inferProductCategory(p)
+  }));
 
   const entry = { org, products, ts: now };
   ramCache.set(organizationId, entry);
@@ -337,50 +374,61 @@ export class AIService {
     const isAffirmativeNext = /^(ha|haji|haa|yes|next|agla|sure|dikhao|bhejo)\b/i.test(qLower) || /(next|agla|aur\s*batao|aur\s*dikhao|aur\s*bhejo)/i.test(qLower);
     const histStr = (conversationHistory || []).map(m => (m.content || m.text || '')).join(' ').toLowerCase();
 
-    if (asksForImages || isAffirmativeNext) {
-      let matchedProd = null;
-
-      if (isAffirmativeNext && (histStr.includes('liquid') || histStr.includes('paste filling'))) {
-        matchedProd = allProducts.find(p => /carton|strap/i.test(p.name || ''));
-        matchedImageUrl = 'https://uriqhusalcdgdlgzgasp.supabase.co/storage/v1/object/public/catalogs/demo/carton-sealing-machine.jpg';
-        matchedImageCaption = 'Carton Sealer & Box Strapping Machine (₹34,000 – ₹48,500 + GST)';
-      } else if (isAffirmativeNext && (histStr.includes('pouch') || histStr.includes('packing machine'))) {
-        matchedProd = allProducts.find(p => /liquid|filling/i.test(p.name || ''));
-        matchedImageUrl = 'https://uriqhusalcdgdlgzgasp.supabase.co/storage/v1/object/public/catalogs/demo/liquid-filling-machine.jpg';
-        matchedImageCaption = 'Automatic Liquid & Paste Filling Machine (₹68,000 – ₹2,85,000 + GST)';
-      } else if (isOneByOne) {
-        // When buyer asks for "one by one" or "all with images", start with the flagship pouch packing machine
-        matchedProd = allProducts.find(p => p.sku === 'BPT-POUCH-01') ||
-                      allProducts.find(p => /pouch/i.test(p.name || '')) ||
-                      allProducts.find(p => p.image_url || p.imageUrl);
-      } else {
-        const stopwords = new Set(['with', 'that', 'this', 'there', 'have', 'from', 'they', 'krr', 'skte', 'kya', 'aap', 'sbhi', 'share', 'images', 'prices', 'photos', 'pics', 'bhejo', 'dikhao']);
-        matchedProd = allProducts.find(p => (p.image_url || p.imageUrl) && (
-          qLower.includes((p.name || '').toLowerCase()) ||
-          (p.category && qLower.includes(p.category.toLowerCase())) ||
-          (p.model_specs && qLower.split(/\s+/).some(w => w.length > 3 && !stopwords.has(w) && p.model_specs.toLowerCase().includes(w)))
-        ));
+    // 1. Identify which product index in the catalog is currently being viewed from conversation history
+    let lastSeenProductIndex = -1;
+    for (let i = 0; i < allProducts.length; i++) {
+      const p = allProducts[i];
+      const pNameLower = (p.name || '').toLowerCase();
+      const pSkuLower = (p.sku_code || p.sku || '').toLowerCase();
+      if ((pNameLower && histStr.includes(pNameLower)) || (pSkuLower && histStr.includes(pSkuLower))) {
+        lastSeenProductIndex = i;
       }
+    }
 
-      if (!matchedProd) {
-        matchedProd = allProducts.find(p => p.sku === 'BPT-POUCH-01') || allProducts.find(p => p.image_url || p.imageUrl);
-      }
+    const queryMatchedIdx = allProducts.findIndex(p => {
+      const pName = (p.name || '').toLowerCase();
+      const pCat = (p.category || '').toLowerCase();
+      const pSku = (p.sku_code || p.sku || '').toLowerCase();
+      return (pName && qLower.includes(pName)) ||
+             (pCat && qLower.includes(pCat)) ||
+             (pSku && qLower.includes(pSku)) ||
+             qLower.split(/\s+/).some(w => w.length > 3 && (pName.includes(w) || pCat.includes(w)));
+    });
 
-      if (!matchedImageUrl && matchedProd && (matchedProd.image_url || matchedProd.imageUrl)) {
-        matchedImageUrl = matchedProd.image_url || matchedProd.imageUrl;
-        matchedImageCaption = `${matchedProd.name} (${matchedProd.price_raw || 'Price on request'})`;
-      } else if (!matchedImageUrl) {
-        const localImg = path.join(process.cwd(), 'catalogs/images/pouch-packing-machine.jpg');
-        if (fs.existsSync(localImg)) {
-          matchedImagePath = localImg;
-          matchedImageCaption = 'Automatic Pouch Packing Machine';
+    let targetProductIndex = 0;
+    if (isAffirmativeNext && lastSeenProductIndex >= 0) {
+      targetProductIndex = (lastSeenProductIndex + 1) % allProducts.length;
+    } else if (isOneByOne) {
+      targetProductIndex = 0;
+    } else if (queryMatchedIdx >= 0) {
+      targetProductIndex = queryMatchedIdx;
+    } else if (asksForImages) {
+      targetProductIndex = lastSeenProductIndex >= 0 ? lastSeenProductIndex : 0;
+    }
+
+    const currentTourProduct = allProducts[targetProductIndex] || allProducts[0];
+    const nextTourProduct = allProducts.length > 1 ? allProducts[(targetProductIndex + 1) % allProducts.length] : null;
+
+    if (asksForImages || isOneByOne || isAffirmativeNext || queryMatchedIdx >= 0) {
+      if (currentTourProduct) {
+        if (currentTourProduct.image_url || currentTourProduct.imageUrl) {
+          matchedImageUrl = currentTourProduct.image_url || currentTourProduct.imageUrl;
+          matchedImageCaption = `${currentTourProduct.name} (${currentTourProduct.price_raw || 'Price on request'})`;
+        } else {
+          const localImgs = ['pouch-packing-machine.jpg', 'liquid-filling-machine.jpg', 'carton-sealing-machine.jpg', 'bpt-500-collar-plc.jpg'];
+          const matchedLocal = localImgs.find(img => img.includes(currentTourProduct.category?.toLowerCase()?.slice(0, 5) || 'pouch'));
+          const localImgPath = path.join(process.cwd(), 'catalogs', 'images', matchedLocal || 'pouch-packing-machine.jpg');
+          if (fs.existsSync(localImgPath)) {
+            matchedImagePath = localImgPath;
+            matchedImageCaption = `${currentTourProduct.name} (${currentTourProduct.price_raw || 'Price on request'})`;
+          }
         }
       }
     }
 
     const catalogContext = this.getCatalogContext(products, `${lead.product_inquired || ''} ${incomingText}`);
 
-    // 6. CALL GEMINI 2.5 FLASH (WITH STATEFUL LIFECYCLE & PERSONA)
+    // 6. CALL GEMINI (WITH STATEFUL LIFECYCLE & PERSONA)
     const geminiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
     if (geminiKey && geminiKey.length > 10) {
       try {
@@ -392,7 +440,7 @@ export class AIService {
         const systemPrompt = `You are the friendly, highly experienced Senior Sales Director at "${orgName}" (${cityBase}).
 Industry Domain: ${playbook.niche}.
 Official Website: ${websiteUrl || 'Available on request'}.
-You are texting directly with a customer on WhatsApp. You know every product, price, category, and machine specification inside out.
+You are texting directly with a customer on WhatsApp. You know every product, price, category, and specification inside out.
 
 CONVERSATION LIFECYCLE STAGE: ${lifecycleStage}
 ${lifecycleStage === 'NEW_FIRST_TIME' ? '- First message from customer: greet warmly in 1 short line.' : '- Conversation already in progress: DO NOT say "Namaste", "Hello", or greet again! Answer the buyer directly in natural context.'}
@@ -405,15 +453,16 @@ CRITICAL SALES RULES:
    - NEVER pitch or say "aapko best machine aur quotation provide karenge... target daily production kitna hai" in response to a casual "Kaise hai aap" or "Who are you"!
 2. ONE-BY-ONE SHOWCASE / PHOTO REQUESTS ("Kya aap one by one sbhi share krr skte hai with their images and prices?", "sabka bata do", "photo bhejo"):
    - When the buyer asks to share one-by-one or with photos and prices:
-     DO NOT ask which category they want in a loop! DO NOT repeat categories!
-     Immediately START the tour with Product #1 from verified catalog (e.g. *Automatic Pouch Packing Machine*). Quote its exact price range, mention key specs, announce that you have shared its photo below ("Maine iski photo WhatsApp pe attach kar di hai! 👇"), and ask if they would like to see model #2 next!
-   - When buyer replies "Next", "Haan", "Yes", "Agla batao": Present the NEXT model in sequence with its price, announce that its photo is sent below, and invite them to see the next model!
+     STRICT RULE: DO NOT ask which category they want in a loop! DO NOT repeat the category list!
+     Immediately START the tour with Product #1 from verified catalog: "${currentTourProduct?.name || 'our flagship product'}".
+     Quote its exact price range (${currentTourProduct?.price_raw || 'Price on request'}), mention top 1-2 specs, announce that you have shared its photo below ("Maine iski photo WhatsApp pe attach kar di hai! 👇"), and invite them to see the next model (${nextTourProduct ? `"${nextTourProduct.name}"` : 'our next model'})!
+   - When buyer replies "Next", "Haan", "Yes", "Agla batao": Present the NEXT model in sequence with its price, announce that its photo is sent below, and invite them to see the subsequent model!
 3. CATEGORY-WISE EXPLORATION:
-   - If buyer specifically asks category-wise (e.g. "pouch packing", "liquid filling", "carton sealer"), present the specific models in THAT category with verified prices and specs.
+   - If buyer specifically asks category-wise (e.g. "${catalogCategories.slice(0, 3).join('", "')}"), present ONLY the specific models in THAT category with verified prices and specs.
 4. SHORT VS HUGE CATALOG:
 ${isShortCatalog
   ? `- SHORT CATALOG (${allProducts.length} items total): When the customer says "App sbhi ka bta dejiye" or asks what you offer, list all ${allProducts.length} items directly with their starting price and main application! Keep it clean, friendly, and transparent.`
-  : `- HUGE CATALOG (${allProducts.length} items in categories: ${catalogCategories.join(', ')}): If the buyer asks generally what you do, summarize the 3-4 key categories with starting price ranges, and ask what they produce/pack. BUT if they asked for "one by one" or a specific category, follow Rule 2 and show the specific items directly!`}
+  : `- HUGE CATALOG (${allProducts.length} items in categories: ${catalogCategories.join(', ')}): If the buyer asks generally what you do, summarize the 3-4 key categories with starting price ranges, and ask what they produce/need. BUT if they asked for "one by one" or a specific category, follow Rule 2 and show the specific items directly! Always offer to send the full PDF brochure or website link (${websiteUrl || 'our catalog link'}) if they want to browse everything at once.`}
 5. Keep answers short: 2 to 4 natural WhatsApp sentences. NO robotic walls of text.
 6. Speak natural, conversational Indian Hinglish (or English if the customer wrote in English). Friendly, confident, plain business owner style.
 7. GROUNDING: Only quote specifications & prices from verified catalog knowledge below. Never invent arbitrary specs.
@@ -439,7 +488,7 @@ CUSTOMER'S NEW MESSAGE:
 
 Output: Exactly 1 to 3 natural lines of WhatsApp text.`;
 
-        const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
+        const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.8-flash'];
         for (const modelName of modelsToTry) {
           try {
             const resp = await fetch(
@@ -486,7 +535,7 @@ Output: Exactly 1 to 3 natural lines of WhatsApp text.`;
       }
     }
 
-    // 7. DETERMINISTIC STATEFUL FALLBACK (NO ROBOTIC STRINGS)
+    // 7. DETERMINISTIC STATEFUL FALLBACK (100% DYNAMIC TO ACTUAL CATALOG)
     const greetingPrefix = isFirstTurn ? (firstName ? `Namaste ${firstName} Ji! ` : 'Namaste Ji! ') : '';
 
     // Quantity / Number Response
@@ -501,31 +550,10 @@ Output: Exactly 1 to 3 natural lines of WhatsApp text.`;
 
     // Catalog Request Response
     if (isCatalogRequest) {
-      const prodList = (products || []).slice(0, 3).map(p => `• ${p.name} (${p.price_raw || 'Price on request'})`).join('\n');
+      const prodList = (allProducts || []).slice(0, 3).map(p => `• ${p.name} (${p.price_raw || 'Price on request'})`).join('\n');
       const attachNotice = matchedBrochureUrl ? 'Maine catalog PDF brochure share kar diya hai. ' : '';
       return {
-        reply: `${greetingPrefix}${attachNotice}Hamare top verified models:${prodList ? '\n' + prodList : ''}\n\nAapko kis product ke liye aur kitni daily production speed chahiye?`,
-        matchedBrochureUrl,
-        matchedBrochureName,
-        provider: 'rule_engine'
-      };
-    }
-
-    // Product Use-case Matching
-    if (/namkeen|snacks|chips|kurkure/i.test(qLower)) {
-      const matched = (products || []).find(p => /pouch|packing|packaging|collar|auger/i.test(p.name + ' ' + (p.model_specs || ''))) || products[0];
-      const pName = matched ? matched.name : 'Automatic Pouch Packing Machine';
-      return {
-        reply: `${greetingPrefix}${pName} namkeen aur fryums packaging ke liye best suited hai. Isme nitrogen flushing aur automatic batch coding available hai. Aapko kitne gram (50g / 200g / 500g) pouch pack karna hai?`,
-        matchedBrochureUrl,
-        matchedBrochureName,
-        provider: 'rule_engine'
-      };
-    }
-
-    if (/oil|juice|water|liquid|syrup/i.test(qLower)) {
-      return {
-        reply: `${greetingPrefix}Hamare paas Semi-Automatic aur Fully-Automatic Liquid Filling Machines available hain (100ml se 5 Litre tak). Aapko daily kitne bottles ya pouches fill karne hain?`,
+        reply: `${greetingPrefix}${attachNotice}Hamare top verified models:${prodList ? '\n' + prodList : ''}\n\nAapko kis specific model ke baare mein quotation aur details chahiye?`,
         matchedBrochureUrl,
         matchedBrochureName,
         provider: 'rule_engine'
@@ -533,37 +561,54 @@ Output: Exactly 1 to 3 natural lines of WhatsApp text.`;
     }
 
     // One-by-One Product Demonstration with Live Photos & Prices
-    if (isOneByOne) {
-      return {
-        reply: `Bilkul! Chaliye sabse pehle humari best-selling *Automatic Pouch Packing Machine* se shuru karte hain:\n\n• Price: ₹1,45,000 – ₹3,15,000 + GST\n• Speed: 40–65 Pouches/Min (SS-304 Food Grade, Delta PLC Touchscreen)\n• Best for: Namkeen, chips, spices, dry fruits, grains\n\nMaine iski factory live photo WhatsApp pe attach kar di hai! 👇\n\nKya aap iske baad next model (*Automatic Liquid & Paste Filling Machine*) ki details aur photo dekhna chahenge?`,
-        matchedImageUrl: 'https://uriqhusalcdgdlgzgasp.supabase.co/storage/v1/object/public/catalogs/demo/pouch-packing-machine.jpg',
-        matchedImageCaption: 'Automatic Pouch Packing Machine (₹1,45,000 – ₹3,15,000 + GST)',
-        provider: 'rule_engine'
-      };
-    }
+    if (isOneByOne || (isAffirmativeNext && currentTourProduct)) {
+      const nextPrompt = nextTourProduct
+        ? `\n\nKya aap iske baad next model (*${nextTourProduct.name}*) ki details aur photo dekhna chahenge?`
+        : `\n\nYeh humare catalog ke top verified models the. Aapko inme se kis item ke baare mein quotation ya order finalize karna hai?`;
 
-    // Sequence progression: Next product in sequence
-    if (isAffirmativeNext && (histStr.includes('liquid') || histStr.includes('paste filling'))) {
       return {
-        reply: `Yeh raha humara 3rd model: *Carton Sealer & Box Strapping Machine*:\n\n• Price: ₹34,000 (Strapper) | ₹48,500 (Carton Taper) + GST\n• Speed: 20 meters/min top & bottom tape sealing\n• Application: Dispatch packing, corrugated boxes, heavy bundle strapping\n\nIski live photo WhatsApp pe share kar di hai! 👇\n\nKya aap 4th industrial model (*BPT-500 High-Speed Servo*) bhi dekhna chahenge?`,
-        matchedImageUrl: 'https://uriqhusalcdgdlgzgasp.supabase.co/storage/v1/object/public/catalogs/demo/carton-sealing-machine.jpg',
-        matchedImageCaption: 'Carton Sealer & Box Strapping Machine (₹34,000 – ₹48,500 + GST)',
-        provider: 'rule_engine'
-      };
-    } else if (isAffirmativeNext && (histStr.includes('pouch') || histStr.includes('packing machine'))) {
-      return {
-        reply: `Yeh raha humara 2nd model: *Automatic Liquid & Paste Filling Machine*:\n\n• Price: ₹68,000 (Semi-Auto) se ₹2,85,000 + GST (Fully Auto Anti-Drip)\n• Capacity: 100ml se 5 Litre bottles/pouches\n• Application: Edible oils, juices, honey, sauces, sanitizers, shampoos\n\nIski live photo WhatsApp pe share kar di hai! 👇\n\nKya aap 3rd model (*Carton Sealer & Strapping Machine*) ki details dekhna chahenge?`,
-        matchedImageUrl: 'https://uriqhusalcdgdlgzgasp.supabase.co/storage/v1/object/public/catalogs/demo/liquid-filling-machine.jpg',
-        matchedImageCaption: 'Automatic Liquid & Paste Filling Machine (₹68,000 – ₹2,85,000 + GST)',
+        reply: `Bilkul! Chaliye sabse pehle humare top model se shuru karte hain:\n\n*${currentTourProduct.name}*\n• Price: ${currentTourProduct.price_raw || 'Price on request'}\n• Specs: ${currentTourProduct.model_specs || 'High grade standard build'}\n\nMaine iski photo WhatsApp pe attach kar di hai! 👇${nextPrompt}`,
+        matchedImageUrl,
+        matchedImagePath,
+        matchedImageCaption,
         provider: 'rule_engine'
       };
     }
 
     // All Products Overview ("App sbhi ka bta dejiye" / "sabka bata do")
-    const isAllProducts = /sbhi|sabka|sab\s*bata|all\s*machines|all\s*products|tell\s*all|saari\s*machine/i.test(qLower);
+    const isAllProducts = /sbhi|sabka|sab\s*bata|all\s*machines|all\s*products|tell\s*all|saari\s*item|saare\s*product/i.test(qLower);
     if (isAllProducts) {
+      if (isShortCatalog) {
+        const prodList = allProducts.map((p, i) => `${i + 1}. *${p.name}* (${p.price_raw || 'Price on request'}) — ${p.model_specs?.slice(0, 70) || 'Verified offering'}`).join('\n');
+        return {
+          reply: `Humare paas yeh ${allProducts.length} main offerings available hain:\n\n${prodList}\n\nAapko kis item ke baare mein exact details ya quotation chahiye? (Agar photos dekhni hain toh bas "one by one photo bhejo" likhein!)`,
+          provider: 'rule_engine'
+        };
+      } else {
+        const catList = catalogCategories.slice(0, 4).map((c, i) => `${i + 1}. *${c}*`).join('\n');
+        const webMention = websiteUrl ? `\n\nHumari official website par sabhi items live hain: ${websiteUrl}` : '';
+        return {
+          reply: `Humare catalog mein ${allProducts.length}+ products hain across main categories:\n\n${catList}\n\nAap kis category ya application ke liye dekh rahe hain? (Ya agar aap poora PDF catalog dekhna chahein toh bas "PDF bhejo" likhein!)${webMention}`,
+          matchedBrochureUrl,
+          matchedBrochureName,
+          provider: 'rule_engine'
+        };
+      }
+    }
+
+    // Category / Keyword Search across all active products
+    const matchedCategoryProd = allProducts.find(p => {
+      const pName = (p.name || '').toLowerCase();
+      const pCat = (p.category || '').toLowerCase();
+      const pSpecs = (p.model_specs || '').toLowerCase();
+      return qLower.split(/\s+/).some(w => w.length > 3 && (pName.includes(w) || pCat.includes(w) || pSpecs.includes(w)));
+    });
+
+    if (matchedCategoryProd) {
       return {
-        reply: `Humare paas 4 main manufacturing models available hain:\n\n1. *Automatic Pouch Packing Machine* (₹1.45L – ₹3.15L) — Namkeen, chips, spices ke liye\n2. *Automatic Liquid & Paste Filling Machine* (₹68K – ₹2.85L) — Oil, juice, syrup, shampoo ke liye\n3. *Carton Sealer & Box Strapper* (₹34K – ₹48.5K) — Outer box packing ke liye\n4. *BPT-500 High-Speed Servo Collar Machine* (₹2.85L – ₹3.75L) — 80 pouches/min industrial line\n\nAapko kis product ki packaging shuru karni hai?`,
+        reply: `${greetingPrefix}*${matchedCategoryProd.name}* (${matchedCategoryProd.price_raw || 'Price on request'}) hamara verified model hai.\n• Specs: ${matchedCategoryProd.model_specs?.slice(0, 150) || 'Standard build'}\n\nAapki delivery city kaunsi hai taaki exact dispatch time aur quotation finalize kar sakein?`,
+        matchedImageUrl: matchedCategoryProd.image_url || null,
+        matchedImageCaption: `${matchedCategoryProd.name} (${matchedCategoryProd.price_raw || 'Price on request'})`,
         provider: 'rule_engine'
       };
     }
@@ -584,8 +629,10 @@ Output: Exactly 1 to 3 natural lines of WhatsApp text.`;
     }
 
     // Default Human Consultative Reply
+    const fallbackFirstProd = allProducts[0];
+    const suggestionText = fallbackFirstProd ? ` (Jaise hamara *${fallbackFirstProd.name}*)` : '';
     return {
-      reply: `${greetingPrefix}Ji zaroor! ${orgName} se aapko kis specific product ya model ki requirement hai? Thoda sa idea de dijiye taaki main exact details share kar sakoon.`,
+      reply: `${greetingPrefix}Ji zaroor! ${orgName} se aapko kis specific product ya model ki requirement hai?${suggestionText} Thoda sa idea de dijiye taaki main exact details share kar sakoon.`,
       provider: 'rule_engine'
     };
   }

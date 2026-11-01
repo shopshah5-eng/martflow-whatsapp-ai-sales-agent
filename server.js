@@ -30,7 +30,7 @@ import { createClient } from '@supabase/supabase-js';
 import apiRouter from './src/routes/api.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
 import db from './src/db/index.js';
-import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook } from './src/services/aiService.js';
+import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook, invalidateCache } from './src/services/aiService.js';
 
 dotenv.config();
 
@@ -669,274 +669,52 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
 }
 
 async function generateSalesReply({ lead, incomingText, audioBuffer, audioMime }) {
-  const qClean = String(incomingText || '').trim().toLowerCase();
-  const isPureGreeting = /^(hi|hello|hey|namaste|pranam|good\s*(morning|afternoon|evening)|hlo|hie|salaam)\b[!?.]*$/i.test(qClean);
-  if (isPureGreeting && (!lead.history || lead.history.length <= 1) && !audioBuffer) {
-    const welcome = buildAdaptiveWelcomeMessage({ name: config.companyName, business_type: config.businessType || 'auto' }, config.products);
-    return {
-      reply: welcome,
-      extractedCity: '',
-      extractedRequirement: '',
-      transcriptSummary: '',
-      isHotLead: false
-    };
-  }
-  const learningsData = loadLearnings();
-  const learnedSynonymsList = Object.entries(learningsData.synonyms || {})
-    .slice(0, 20)
-    .map(([k, v]) => `"${k}" -> ${v}`)
-    .join(', ');
-  const learnedFaqsList = (learningsData.faqs || [])
-    .slice(0, 6)
-    .map((f) => `• ${f.trigger}: ${f.learnedAnswer}`)
-    .join('\n');
+  const org = db.findOne('organizations', () => true) || { id: '6fd354d9-3437-412d-856e-28bc19d44268' };
+  const convHistory = (lead.history || []).map(h => ({
+    sender: h.role === 'buyer' ? 'buyer' : 'ai',
+    text: h.text
+  }));
 
-  const catalogSummary = config.products
-    .map((p) => {
-      const sub = (p.subModels || [])
-        .map((sm) => `  * ${sm.name}: ${sm.price} (${sm.speed}, pack size: ${sm.packSize || 'flexible'}, best for: ${sm.suitableFor})`)
-        .join('\n');
-      return `📌 CATEGORY: ${p.name} (Base Range: ${p.priceRange})\n${sub || '  * Standard production line model'}`;
-    })
-    .join('\n\n');
+  try {
+    const aiResult = await AIService.generateSalesReply({
+      organizationId: org.id,
+      lead: {
+        buyer_name: lead.name,
+        buyer_phone: lead.phone,
+        product_inquired: lead.productName,
+        city: lead.city,
+        pdf_brochure_sent: lead.pdfSent
+      },
+      incomingText: incomingText || '',
+      conversationHistory: convHistory
+    });
 
-  const historyText = (lead.history || [])
-    .slice(-8)
-    .map((h) => `${h.role === 'buyer' ? 'Buyer' : 'Sales AI'}: ${h.text}`)
-    .join('\n');
-
-  // If Gemini API key is configured, use real LLM + native Voice Note audio understanding!
-  if (config.geminiApiKey && config.geminiApiKey.trim().length > 15) {
-    const knowledgeData = loadCatalogKnowledge();
-    const catalogKnowledgeText = (knowledgeData.textKnowledge || '').slice(0, 5000);
-
-    const systemInstruction = `You are the Senior B2B Sales Specialist on WhatsApp for "${config.companyName}" (${config.cityBase}).
-Speak natural, polite, confident Indian B2B Hinglish (mix of simple English & Roman Hindi like real factory sales managers use on WhatsApp—keep it concise: 3 to 5 short lines max, WhatsApp friendly with bullet points if needed).
-
-COMPANY'S PRODUCT CATALOG & ACTIVE SPECIFICATIONS:
-${catalogSummary}
-
-FULL EXTRACTED CATALOG KNOWLEDGE BASE (FROM UPLOADED PDF BROCHURES & EXCEL SHEETS):
-${catalogKnowledgeText || 'Standard factory specifications apply.'}
-
-AUTONOMOUSLY LEARNED BUYER SLANG & SYNONYMS:
-${learnedSynonymsList || 'No learned synonyms yet'}
-
-AUTONOMOUSLY LEARNED FAQ KNOWLEDGE:
-${learnedFaqsList || 'Standard factory specs apply'}
-
-CURRENT LEAD CONTEXT:
-- Customer Name: ${lead.name ? lead.name : '[NOT SHARED YET - DO NOT INVENT A NAME]'}
-- Product Enquired: ${lead.productName}
-- Known Delivery City: ${lead.city || 'Unknown'}
-- Known Requirements / Specs: ${lead.requirement || 'Unknown'}
-
-CONVERSATION SO FAR:
-${historyText || '(First reply after sending PDF catalog)'}
-
-CRITICAL RULES:
-1. STRICT CUSTOMER NAME RULE:
-   - NEVER invent, assume, or guess the customer's name!
-   - ONLY address the customer by their name IF they have explicitly stated their name in the chat (e.g. "Mera naam Ramesh hai", "I am Vikram", "This is Amit") or if a verified name is present in CURRENT LEAD CONTEXT above.
-   - If the customer has NOT explicitly shared their name, ALWAYS address them respectfully with neutral Indian B2B terms: "Namaste Ji!", "Ji Sir", or "Sir/Ma'am".
-   - Under NO circumstances should you call them "Rajesh", "Rahul", "Buyer", or any random/made-up name!
-
-2. UNIVERSAL PRODUCT INGESTION & ANALYSIS RULE:
-   - The company sells WHATEVER products are listed in the uploaded catalog and knowledge base above (packaging machines, industrial components, chemicals, garments, hardware, electronics, etc.).
-   - Carefully analyze and answer inquiries for ANY product found in the catalog knowledge above.
-   - If the customer asks for a product using partial names, slang, or specs from the catalog, match it accurately.
-   - If multiple models or variants match the customer's broad query, present 1-2-3 clear options from the catalog.
-   - If a product is truly not present in the uploaded catalog, politely inform the customer what product lines the company specializes in from the catalog.
-
-3. ANTI-REPETITION:
-   - Carefully inspect CONVERSATION SO FAR:
-   - If the customer already specified their product/model, city, or specs, NEVER ask for those details again!
-   - Acknowledge what they said with genuine excitement and move to the immediate next step.
-
-4. 1-2-3 MULTI-PRODUCT SELECTION RULE:
-   - If the customer's inquiry is broad or matches multiple models in the catalog, present 1-2-3 options and ask them: "Bas 1, 2 ya 3 reply kar dijiye ya product bata dijiye!"
-
-5. PRODUCT PHOTO REQUEST:
-   - If the customer asked for photos/pics ("photo bhejo", "pics", "dikhao", "image", etc.), acknowledge warmly: "Maine aapko factory floor se machine/product ki live photo WhatsApp pe attach kar di hai! 🙏" and ask if they would also like a live video demonstration!
-
-6. OWNER UNAVAILABLE / CALL REQUEST RULE:
-   - If the customer asks for a phone call, asks to speak with owner/engineer, complains about no call, or asks when they will get a call:
-     - Reassure them: "Namaste Ji! Hamare technical director abhi manufacturing plant floor pe hain. Main turant unse unka free time confirm karke aapko update karta hoon ki wo kis time call karenge!"
-     - Confirm that their product requirement and delivery city are locked in priority queue.
-     - Set "requestedCallback": true in the output.
-
-7. If missing details remain (e.g. pack weight, quantity, or city), ask specifically for only that one detail.
-
-Respond STRICTLY as valid JSON without markdown fences:
-{
-  "reply": "Your concise WhatsApp message here",
-  "extractedCustomerName": "real name ONLY if customer explicitly introduced themselves in this message (e.g. 'Mera naam Vikas hai' -> 'Vikas'), else empty string",
-  "extractedCity": "city name if customer mentioned it, else empty string",
-  "extractedRequirement": "product model or item mentioned, else empty string",
-  "transcriptSummary": "if voice note, 1-line summary, else empty string",
-  "isHotLead": true or false,
-  "requestedCallback": true or false,
-  "preferredCallbackTime": "time slot if mentioned, else empty string"
-}`;
-
-    const parts = [{ text: systemInstruction }];
-    if (audioBuffer) {
-      const cleanMime = (audioMime || 'audio/ogg').split(';')[0].trim();
-      parts.push({
-        inline_data: {
-          mime_type: cleanMime,
-          data: audioBuffer.toString('base64')
-        }
-      });
-      parts.push({ text: 'Buyer sent the attached WhatsApp voice note. Understand their Hindi/Punjabi/English audio and generate the JSON response.' });
-    } else {
-      parts.push({ text: `Buyer's new WhatsApp message: "${incomingText}"` });
+    if (aiResult && aiResult.reply) {
+      return {
+        reply: aiResult.reply,
+        matchedImageUrl: aiResult.matchedImageUrl || null,
+        matchedImagePath: aiResult.matchedImagePath || null,
+        matchedImageCaption: aiResult.matchedImageCaption || null,
+        matchedBrochureUrl: aiResult.matchedBrochureUrl || null,
+        matchedBrochureName: aiResult.matchedBrochureName || null,
+        extractedCity: aiResult.extractedCity || '',
+        extractedRequirement: aiResult.extractedRequirement || '',
+        transcriptSummary: audioBuffer ? 'Voice Note' : '',
+        isHotLead: Boolean(aiResult.isCallRequest)
+      };
     }
-
-    const activeGeminiKey = (config.geminiApiKey || process.env.GEMINI_API_KEY || '').trim();
-    const modelsToTry = [
-      'gemini-flash-lite-latest',
-      'gemini-3.5-flash-lite'
-    ];
-    for (const modelName of modelsToTry) {
-      try {
-        const genConfig = {
-          temperature: 0.35,
-          maxOutputTokens: 450,
-          responseMimeType: 'application/json'
-        };
-        const resp = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(activeGeminiKey)}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(12000),
-            body: JSON.stringify({
-              contents: [{ role: 'user', parts }],
-              generationConfig: genConfig
-            })
-          }
-        );
-
-        if (resp.ok) {
-          const data = await resp.json();
-          const rawJson = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          const cleaned = rawJson.replace(/```json|```/g, '').trim();
-          const parsed = JSON.parse(cleaned);
-          if (parsed?.reply) {
-            if (parsed.extractedCustomerName && parsed.extractedCustomerName.trim().length >= 2) {
-              const cleanExtracted = parsed.extractedCustomerName.trim();
-              if (!/^(buyer|sir|unknown|rajesh|customer|user)$/i.test(cleanExtracted)) {
-                lead.name = cleanExtracted;
-              }
-            }
-            return parsed;
-          }
-        } else {
-          const errTxt = await resp.text();
-          addLog(`Gemini (${modelName}) HTTP ${resp.status}: ${errTxt.slice(0, 120)}`);
-        }
-      } catch (e) {
-        addLog(`Gemini call fallback notice: ${e.message}`);
-      }
-    }
+  } catch (err) {
+    addLog(`AIService delegation error: ${err.message}`);
   }
 
-  // ==========================================================================
-  // SMART BUILT-IN HINGLISH FALLBACK (Works with ZERO API Key!)
-  // ==========================================================================
-  const msg = String(incomingText || '').toLowerCase();
-  const matchedProd = matchProduct(msg || lead.productName);
-
-  // Extract Indian cities if mentioned (including common typos)
-  const cities = [
-    'delhi', 'noida', 'gurgaon', 'faridabad', 'ghaziabad', 'ludhiana', 'chandigarh', 'amritsar', 'amritsra', 'jalandhar',
-    'jaipur', 'mumbai', 'pune', 'surat', 'ahmedabad', 'rajkot', 'vadodara', 'indore', 'bhopal', 'lucknow',
-    'kanpur', 'patna', 'kolkata', 'hyderabad', 'bangalore', 'bengaluru', 'chennai', 'coimbatore', 'nagpur', 'raipur',
-    'punjab', 'haryana', 'up', 'uttar pradesh', 'gujarat', 'maharashtra', 'rajasthan'
-  ];
-  const foundCityRaw = cities.find((c) => msg.includes(c));
-  const cityResolved = foundCityRaw === 'amritsra' ? 'amritsar' : foundCityRaw;
-  const cityCap = cityResolved ? cityResolved.charAt(0).toUpperCase() + cityResolved.slice(1) : '';
-
-  // Extract weight/qty mentions (e.g., 100g, 500gm, 1kg, 50 pouch, Namkeen, Masala)
-  const sizeMatch = msg.match(/(\d+\s?(g|gm|gram|kg|ml|ltr|liter|pouch|bottle|piece|machine|ton))/i);
-  const itemWords = [
-    'namkeen', 'masala', 'haldi', 'mirch', 'oil', 'kurkure', 'chips', 'tea', 'atta', 'besan', 'detergent', 'juice', 'paste', 'honey', 'box', 'carton',
-    'bpt', 'collar', 'plc', 'auger', 'ffs', 'pneumatic', 'pouch', 'granule', 'powder'
-  ];
-  const foundItem = itemWords.find((w) => msg.includes(w));
-  const extractedReq = [foundItem ? foundItem.toUpperCase() : '', sizeMatch ? sizeMatch[0] : ''].filter(Boolean).join(' ').trim() || (msg.length < 50 ? msg.trim() : '');
-
-  // Extract customer name ONLY if they explicitly introduced themselves!
-  const nameIntroMatch = msg.match(/(?:mera naam|my name is|i am|this is|naam hai)\s+([a-zA-Z\u0900-\u097F]+)/i);
-  if (nameIntroMatch && nameIntroMatch[1]) {
-    const rawN = nameIntroMatch[1].trim();
-    if (!/^(buyer|sir|ji|kya|hai|koi|machin|machine|need)$/i.test(rawN)) {
-      lead.name = rawN.charAt(0).toUpperCase() + rawN.slice(1).toLowerCase();
-    }
-  }
-
-  const politeSir = lead.name ? `${lead.name} ji` : 'Sir';
-  const politeGreeting = lead.name ? `Namaste *${lead.name} ji*!` : 'Namaste Ji!';
-
-  if (audioBuffer) {
-    return {
-      reply: `Ji ${politeSir}, aapka voice note mil gaya! 🙏\n*${matchedProd.name}* mein hamare paas models ready stock mein hain (${matchedProd.priceRange}).\n\nExact quotation aur live product video bhejne ke liye bas batayein:\n1️⃣ Kya item pack/fill karna hai?\n2️⃣ Delivery kis City mein chahiye?`,
-      extractedCity: '',
-      extractedRequirement: 'Voice Note Received',
-      transcriptSummary: 'Voice Note',
-      isHotLead: true
-    };
-  }
-
-  let reply = '';
-  const effectiveCity = cityCap || lead.city;
-  const effectiveReq = extractedReq || lead.requirement;
-
-  // Check if buyer asked for a call
-  if (msg.includes('call') || msg.includes('phone') || msg.includes('baat') || msg.includes('number') || msg.includes('kab call')) {
-    return {
-      reply: `${politeGreeting} 🙏 Hamare technical director abhi manufacturing plant floor pe hain. Main turant unse unka free time pooch kar aapko WhatsApp pe confirm karta hoon ki wo kis time call karenge! Tab tak hamara technical brochure zaroor check kar lijiye.`,
-      extractedCity: cityCap || lead.city || '',
-      extractedRequirement: extractedReq || lead.requirement || '',
-      transcriptSummary: '',
-      isHotLead: true,
-      requestedCallback: true
-    };
-  }
-
-  // Check if we already greeted the customer in recent history
-  const alreadyGreeted = (lead.history || []).some((h) => h.role === 'ai' && (h.text.includes('swagat hai') || h.text.includes('Price List')));
-
-  if (msg.includes('price') || msg.includes('rate') || msg.includes('kitne') || msg.includes('cost') || msg.includes('budget')) {
-    reply = `Ji ${politeSir}, *${matchedProd.name}* ki ex-factory range *${matchedProd.priceRange}* hai.\n\n${
-      !effectiveReq
-        ? 'Exact model suggest karne ke liye batayein aap *kya product/item* produce ya pack karna chahte hain?'
-        : !effectiveCity
-        ? `Great! *${effectiveReq}* ke liye model ready stock mein hai. Aapki unit kis *City* mein hai taaki transport jod ke final quote bhej sakein?`
-        : `Perfect! *${effectiveReq}* (${effectiveCity} delivery) ke liye hamare Senior Specialist aapko final GST quote aur details bhej rahe hain. Kya 2 min call pe baat ho sakti hai?`
-    }`;
-  } else if (msg.includes('single phase') || msg.includes('bijli') || msg.includes('power') || msg.includes('warranty')) {
-    reply = `Haan ji ${politeSir}! Standard models single-phase ya 3-phase option ke saath aate hain. Saath mein *1 Saal ki On-Site Warranty + Free Installation Support* milega.\n\nAapko kis application ke liye chahiye aur kis *City* mein delivery chahiye?`;
-  } else if (effectiveCity && effectiveReq) {
-    reply = `Bahut badhiya ${politeSir}! ✅ Maine note kar liya:\n• *Requirement:* ${effectiveReq}\n• *Delivery City:* ${effectiveCity}\n• *Suggested Line:* ${matchedProd.name} (${matchedProd.priceRange})\n\nHamare Senior Technical Engineer aapko final GST offer forward kar rahe hain! 🙏`;
-  } else if (effectiveReq && !effectiveCity) {
-    reply = `Noted ${politeSir}! *${effectiveReq}* ke liye hamara model best rahega (${matchedProd.priceRange}).\n\nBas apni *Delivery City / State* bata dijiye taaki main transport kharcha aur final GST rate bhej sakoon?`;
-  } else if (effectiveCity && !effectiveReq) {
-    reply = `Ji ${politeSir}, *${effectiveCity}* ke liye hamare dispatch hub se fast delivery ho jayegi.\n\nAapko isme *kaunsa item ya capacity* chahiye?`;
-  } else if (alreadyGreeted) {
-    reply = `Ji ${politeSir}, aapki details note kar li hain. Hamare Senior Factory Engineer aapko directly WhatsApp pe running video aur exact GST offer bhej rahe hain. Kya main call connect karwaun?`;
-  } else {
-    reply = `${politeGreeting} *${config.companyName}* mein aapka swagat hai.\n*${matchedProd.name}* (${matchedProd.priceRange}) ready stock mein available hai.\n\nExact quotation aur details ke liye bas 2 cheezein bata dijiye:\n1️⃣ Kaunsa item / capacity chahiye?\n2️⃣ Delivery kis *City* mein chahiye?`;
-  }
-
+  // Graceful human fallback grounded to active catalog
+  const fallbackWelcome = buildAdaptiveWelcomeMessage({ name: config.companyName, business_type: config.businessType || 'auto' }, config.products);
   return {
-    reply,
-    extractedCity: cityCap,
-    extractedRequirement: extractedReq,
-    transcriptSummary: '',
-    isHotLead: Boolean(effectiveCity || effectiveReq || msg.includes('price') || msg.includes('rate') || msg.includes('call'))
+    reply: fallbackWelcome,
+    extractedCity: '',
+    extractedRequirement: '',
+    transcriptSummary: audioBuffer ? 'Voice Note' : '',
+    isHotLead: false
   };
 }
 
@@ -1499,23 +1277,6 @@ async function handleIncomingWhatsAppMessage(msg) {
     }
   }
 
-  // 2. Check if buyer asked for real product photos / images
-  const asksForImage = /(photo|pic|image|tasveer|dikhao|dikha|bhejo|share karo|send photo|send pic)/i.test(incomingText);
-  if (asksForImage && sock) {
-    const prod = matchProduct(lead.productName || incomingText);
-    const imgFile = prod.imageFile || 'pouch-packing-machine.jpg';
-    const imgPath = path.join(__dirname, 'catalogs', 'images', imgFile);
-    if (fs.existsSync(imgPath)) {
-      await sock.sendPresenceUpdate('composing', rawRemote);
-      await new Promise((r) => setTimeout(r, 600));
-      await sock.sendMessage(rawRemote, {
-        image: fs.readFileSync(imgPath),
-        caption: `📸 *${prod.name}* (Factory Floor Live Unit)\n• SS-304 Food Grade Material\n• Delta Touchscreen PLC Controller\n• Ready Stock in Ludhiana/Delhi Dispatch Hub`
-      });
-      addLog(`Sent product photo (${imgFile}) to ${lead.name} (+${phoneDigits})`);
-    }
-  }
-
   lead.history.push({
     role: 'buyer',
     text: isAudio ? '🎤 [Voice Note Sent]' : incomingText,
@@ -1538,6 +1299,47 @@ async function handleIncomingWhatsAppMessage(msg) {
     lead.requirement = lead.requirement
       ? `${lead.requirement} | ${aiResult.extractedRequirement}`
       : aiResult.extractedRequirement;
+  }
+
+  // 1. Dispatch matched product photo / live image if available
+  if (sock && (aiResult.matchedImageUrl || aiResult.matchedImagePath)) {
+    try {
+      let imgSource = null;
+      if (aiResult.matchedImagePath && fs.existsSync(aiResult.matchedImagePath)) {
+        imgSource = fs.readFileSync(aiResult.matchedImagePath);
+      } else if (aiResult.matchedImageUrl && aiResult.matchedImageUrl.startsWith('data:image')) {
+        const b64 = aiResult.matchedImageUrl.split(',')[1] || aiResult.matchedImageUrl;
+        imgSource = Buffer.from(b64, 'base64');
+      } else if (aiResult.matchedImageUrl && aiResult.matchedImageUrl.startsWith('http')) {
+        imgSource = { url: aiResult.matchedImageUrl };
+      }
+      if (imgSource) {
+        const imgCaption = aiResult.matchedImageCaption ? `📸 ${aiResult.matchedImageCaption}` : 'Live Product Photo';
+        await sock.sendMessage(rawRemote, {
+          image: imgSource,
+          caption: imgCaption
+        });
+        addLog(`Sent product photo to ${lead.name} (+${phoneDigits}): "${imgCaption}"`);
+      }
+    } catch (e) {
+      addLog(`Image dispatch error: ${e.message}`);
+    }
+  }
+
+  // 2. Dispatch matched catalog brochure PDF if requested
+  if (sock && aiResult.matchedBrochureUrl) {
+    try {
+      await sock.sendMessage(rawRemote, {
+        document: { url: aiResult.matchedBrochureUrl },
+        mimetype: 'application/pdf',
+        fileName: aiResult.matchedBrochureName || 'Catalog.pdf',
+        caption: `Aapka official technical brochure & price list! 🙏`
+      });
+      lead.pdfSent = true;
+      addLog(`Sent brochure PDF (${aiResult.matchedBrochureName}) to ${lead.name} (+${phoneDigits})`);
+    } catch (e) {
+      addLog(`Brochure dispatch error: ${e.message}`);
+    }
   }
 
   // Only send voice note when explicitly asked by the buyer or when buyer sent a voice note!
@@ -1985,6 +1787,18 @@ app.post('/api/upload-catalog', async (req, res) => {
   }
 });
 
+// Real-Time Catalog Cache Invalidation & Instant AI Sync Endpoint
+app.post('/api/catalog/sync', async (req, res) => {
+  try {
+    const { orgId } = req.body || {};
+    invalidateCache(orgId);
+    addLog(`[Catalog Sync] Flushed RAM cache for org: ${orgId || 'all'}`);
+    res.json({ ok: true, message: 'Catalog cache refreshed successfully' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // AI Catalog Extraction Fallback Endpoint for unstructured text
 app.post('/api/catalog/extract-ai', async (req, res) => {
   try {
@@ -2188,22 +2002,18 @@ async function initSupabaseWorker() {
         const credsFile = path.join(inst.authDir, 'creds.json');
         const hasCreds = fs.existsSync(credsFile);
 
-        if (org.wa_status === 'connected') {
-          if (!inst.isConnected) {
-            if (hasCreds) {
-              addLog(`[Supabase Worker] Organization ${org.name || org.id} has saved creds but socket disconnected. Auto-resuming...`);
-              await supabaseAdmin.from('organizations').update({ wa_status: 'initializing' }).eq('id', org.id);
-              inst.init(false);
-            } else {
-              addLog(`[Supabase Worker] Organization ${org.name || org.id} marked 'connected' in DB but has no credentials on disk. Resetting to disconnected.`);
-              await supabaseAdmin.from('organizations').update({
-                wa_status: 'disconnected',
-                wa_connected_number: null,
-                wa_qr_data_url: null,
-                wa_pairing_code: null
-              }).eq('id', org.id);
-            }
-          }
+        if (hasCreds && !inst.isConnected) {
+          addLog(`[Supabase Worker] Organization ${org.name || org.id} has saved creds on disk. Auto-resuming...`);
+          await supabaseAdmin.from('organizations').update({ wa_status: 'initializing' }).eq('id', org.id);
+          inst.init(false);
+        } else if (org.wa_status === 'connected' && !hasCreds) {
+          addLog(`[Supabase Worker] Organization ${org.name || org.id} marked 'connected' in DB but has no credentials on disk. Resetting to disconnected.`);
+          await supabaseAdmin.from('organizations').update({
+            wa_status: 'disconnected',
+            wa_connected_number: null,
+            wa_qr_data_url: null,
+            wa_pairing_code: null
+          }).eq('id', org.id);
         }
       }
     } catch (err) {}
