@@ -15,6 +15,7 @@ auth_info/
 catalogs/
 *.tmp
 *.log
+scripts/temp_*.js
 
 # Runtime Database State & Cache
 martflow_data.json

@@ -2573,14 +2573,9 @@
       } catch (e) {}
     }
 
-    // 0. API Base URL Configuration
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('api')) {
-      const qApi = urlParams.get('api').trim().replace(/\/+$/, '');
-      if (qApi) localStorage.setItem('mf_api_base', qApi);
-      else localStorage.removeItem('mf_api_base');
-    }
-    let API_BASE = localStorage.getItem('mf_api_base') || '';
+    // 0. API Base URL Configuration (Secured: No query-string hijacking)
+    localStorage.removeItem('mf_api_base');
+    let API_BASE = '';
 
     let currentAuthToken = localStorage.getItem('mf_token') || '';
     let currentOrg = null;
@@ -2655,21 +2650,24 @@
       }
       const fullUrl = (url.startsWith('/api') && API_BASE) ? `${API_BASE}${url}` : url;
 
+      let res;
       try {
-        const res = await fetch(fullUrl, { ...options, headers });
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json')) {
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || data.message || `Request failed (${res.status})`);
-          return data;
-        }
-        return await res.text();
-      } catch (err) {
-        if (url.startsWith('/api')) {
+        res = await fetch(fullUrl, { ...options, headers });
+      } catch (networkErr) {
+        if (url.startsWith('/api') && window.location.hostname.includes('netlify.app') && !API_BASE) {
           return handleStaticDemoRequest(url, options);
         }
-        throw err;
+        throw networkErr;
       }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || data.message || `Request failed (${res.status})`);
+        return data;
+      }
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      return await res.text();
     }
 
     // Fallback handler stub for network boundaries / audit compatibility
@@ -2762,18 +2760,34 @@
           const pending = JSON.parse(pendingUtrRaw);
           if (pending && pending.utr) {
             localStorage.removeItem('mf_pending_utr');
-            if (sb) {
-              await sb.from('payments').insert({
-                org_id: currentOrg.id,
-                amount_inr: pending.amount || 999,
-                provider: 'upi_direct',
-                utr_reference: pending.utr,
-                status: 'pending'
+            try {
+              await fetch(`${API_BASE}/api/payments/upi-verify`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
+                },
+                body: JSON.stringify({ utrReference: pending.utr, amountInr: pending.amount || 999, plan: pending.plan })
               });
-              await sb.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', currentOrg.id);
-              currentOrg.plan_status = 'pending_verification';
+            } catch (apiErr) {
+              console.warn('API upi-verify sync error:', apiErr);
             }
-            showToast(`✅ Payment UTR ${pending.utr} linked! Our billing desk is activating your workspace.`, 'success');
+            if (sb) {
+              try {
+                await sb.from('payments').insert({
+                  org_id: currentOrg.id,
+                  amount_inr: pending.amount || 999,
+                  provider: 'upi_direct',
+                  utr_reference: pending.utr,
+                  status: 'pending_verification'
+                });
+                await sb.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', currentOrg.id);
+              } catch (sbErr) {
+                console.warn('Supabase pending payment insert:', sbErr);
+              }
+            }
+            currentOrg.plan_status = 'pending_verification';
+            showToast(`✅ Payment UTR ${escapeHtml(pending.utr)} linked! Payment is pending verification by finance desk.`, 'info');
             if (typeof loadMembershipData === 'function') loadMembershipData();
           }
         } catch (e) {
@@ -5192,7 +5206,7 @@
 
     async function submitUtrVerification() {
       const utr = (document.getElementById('utrRefInput')?.value || '').trim();
-      if (!utr || !/^\d{12}$/.test(utr)) return showToast('Please enter a valid 12-digit numeric UPI Transaction / UTR number', 'error');
+      if (!utr || !/^[0-9A-Za-z]{10,22}$/.test(utr)) return showToast('Please enter a valid 10-22 character alphanumeric UPI / UTR reference number', 'error');
 
       const amount = window.selectedCheckoutAmount || currentOrg?.custom_quote_inr || 999;
       const plan = window.selectedCheckoutPlan || 'MartFlow VIP License';
@@ -5200,24 +5214,42 @@
       if (!currentOrg) {
         localStorage.setItem('mf_pending_utr', JSON.stringify({ utr, amount, plan, timestamp: Date.now() }));
         closeActivationModal();
-        showToast('UTR saved! Create your workspace login below to link & activate immediately', 'info');
+        showToast('UTR saved! Create your workspace login below to link & submit', 'info');
         openAuthModal('signup');
         return;
       }
 
       try {
-        if (sb) {
-          await sb.from('payments').insert({
-            org_id: currentOrg.id,
-            amount_inr: amount,
-            provider: 'upi_direct',
-            utr_reference: utr,
-            status: 'pending'
-          });
-          await sb.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', currentOrg.id);
-          currentOrg.plan_status = 'pending_verification';
+        const res = await fetch(`${API_BASE}/api/payments/upi-verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
+          },
+          body: JSON.stringify({ utrReference: utr, amountInr: amount, plan })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to submit UTR reference');
         }
-        showToast('UTR received! Our billing desk is verifying your bank transfer (activates within 10 mins).', 'success');
+
+        if (sb) {
+          try {
+            await sb.from('payments').insert({
+              org_id: currentOrg.id,
+              amount_inr: amount,
+              provider: 'upi_direct',
+              utr_reference: utr,
+              status: 'pending_verification'
+            });
+            await sb.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', currentOrg.id);
+          } catch (sbErr) {
+            console.warn('Supabase direct insert skipped:', sbErr);
+          }
+        }
+        currentOrg.plan_status = 'pending_verification';
+        showToast('UTR submitted successfully! Payment is pending verification by finance desk. Your plan will activate upon bank reconciliation.', 'success');
+        closeActivationModal();
         updateAuthUI();
         loadMembershipData();
       } catch (err) {
