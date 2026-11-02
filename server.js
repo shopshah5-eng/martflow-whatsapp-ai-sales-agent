@@ -2662,9 +2662,9 @@ app.get('/demo', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'demo.html'));
 });
 
-// Dedicated Simple Client Portal (/client)
+// Legacy Client Portal Redirect (/client -> /)
 app.get('/client', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'client.html'));
+  res.redirect(301, '/');
 });
 
 // Client Upload Catalog Endpoint (Universal Multi-Format: PDF, Excel .xlsx/.xls, CSV .csv)

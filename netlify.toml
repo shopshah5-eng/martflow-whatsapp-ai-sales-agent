@@ -1,11 +1,6 @@
 [build]
   publish = "public"
 
-[[redirects]]
-  from = "/client"
-  to = "/client.html"
-  status = 200
-
 [[headers]]
   for = "/*"
   [headers.values]

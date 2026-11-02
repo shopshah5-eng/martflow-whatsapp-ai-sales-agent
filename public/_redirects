@@ -11,9 +11,6 @@
 # Interactive Client Preview mode using in-browser localStorage persistence.
 # ==============================================================================
 
-# Client Portal Routing
-/client  /client.html  200
-
 # Single Page Application (SPA) Fallback
 /*  /index.html  200
 
