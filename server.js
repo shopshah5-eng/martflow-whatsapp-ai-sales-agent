@@ -3009,7 +3009,8 @@ async function initSupabaseWorker() {
     addLog('[Supabase Worker] Supabase credentials not found in .env, worker running in local-only mode.');
     return;
   }
-  addLog('[Supabase Worker] Initializing Multi-Tenant Realtime & Command Engine...');
+  const WORKER_ID = process.env.WORKER_ID || `worker-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
+  addLog(`[Supabase Worker] Initializing Multi-Tenant Realtime & Command Engine (${WORKER_ID})...`);
   await runStartupDataCleanup();
 
   // 1. Worker Heartbeat Loop (every 20s)
@@ -3017,7 +3018,7 @@ async function initSupabaseWorker() {
     try {
       await supabaseAdmin
         .from('organizations')
-        .update({ wa_worker_heartbeat: new Date().toISOString() })
+        .update({ wa_worker_id: WORKER_ID, wa_worker_heartbeat: new Date().toISOString() })
         .neq('id', '00000000-0000-0000-0000-000000000000');
     } catch (e) {
       // silent heartbeat error
@@ -3083,13 +3084,19 @@ async function initSupabaseWorker() {
 
       for (const org of orgs) {
         const cmd = org.wa_command;
-        addLog(`[Supabase Worker] Executing command '${cmd}' for organization ${org.name || org.id}`);
-
-        // Acknowledge command first
-        await supabaseAdmin
+        // Atomically claim the command so other concurrent workers do not execute it simultaneously
+        const { data: claimed, error: claimErr } = await supabaseAdmin
           .from('organizations')
-          .update({ wa_command: null })
-          .eq('id', org.id);
+          .update({ wa_command: null, wa_worker_id: WORKER_ID })
+          .eq('id', org.id)
+          .eq('wa_command', cmd)
+          .select();
+
+        if (claimErr || !claimed || claimed.length === 0) {
+          continue; // Another worker claimed it first
+        }
+
+        addLog(`[Supabase Worker] Executing command '${cmd}' for organization ${org.name || org.id}`);
 
         if (cmd === 'start_qr') {
           await supabaseAdmin
@@ -3157,10 +3164,17 @@ async function initSupabaseWorker() {
       if (error || !queueItems || queueItems.length === 0) return;
 
       for (const item of queueItems) {
-        await supabaseAdmin
+        // Atomically claim the queue item: only transition if status is still pending
+        const { data: claimed, error: claimErr } = await supabaseAdmin
           .from('wa_outbound_queue')
           .update({ status: 'processing' })
-          .eq('id', item.id);
+          .eq('id', item.id)
+          .eq('status', 'pending')
+          .select();
+
+        if (claimErr || !claimed || claimed.length === 0) {
+          continue; // Another worker claimed this item first
+        }
 
         try {
           const targetPhone = normalizeIndianPhone(item.to_phone);

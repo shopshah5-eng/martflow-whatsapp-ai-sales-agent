@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
     wa_connected_number TEXT DEFAULT NULL,
     wa_qr_data_url TEXT DEFAULT NULL,
     wa_pairing_code TEXT DEFAULT NULL,
+    wa_worker_id TEXT DEFAULT NULL,
     wa_worker_heartbeat TIMESTAMPTZ DEFAULT NULL,
     wa_auto_reply BOOLEAN DEFAULT true,
     wa_auto_pdf BOOLEAN DEFAULT true,
@@ -125,6 +126,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
     provider TEXT NOT NULL CHECK (provider IN ('upi_direct', 'razorpay')),
     razorpay_order_id TEXT,
     razorpay_payment_id TEXT,
+    quote_code TEXT DEFAULT NULL,
     utr_reference TEXT,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'pending_verification', 'verified', 'failed')),
     created_at TIMESTAMPTZ DEFAULT now()
@@ -167,9 +169,12 @@ CREATE TABLE IF NOT EXISTS public.wa_outbound_queue (
 CREATE INDEX IF NOT EXISTS idx_profiles_org_id ON public.profiles(org_id);
 CREATE INDEX IF NOT EXISTS idx_products_org_id ON public.products(org_id);
 CREATE INDEX IF NOT EXISTS idx_leads_org_id ON public.leads(org_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_org_buyer_phone ON public.leads(org_id, buyer_phone);
 CREATE INDEX IF NOT EXISTS idx_conversations_org_id ON public.conversations(org_id);
 CREATE INDEX IF NOT EXISTS idx_messages_org_id ON public.messages(org_id);
 CREATE INDEX IF NOT EXISTS idx_payments_org_id ON public.payments(org_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay_payment_id ON public.payments(razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_payments_razorpay_order_id ON public.payments(razorpay_order_id);
 CREATE INDEX IF NOT EXISTS idx_call_requests_org_id ON public.call_requests(org_id);
 CREATE INDEX IF NOT EXISTS idx_wa_outbound_org ON public.wa_outbound_queue(org_id);
 CREATE INDEX IF NOT EXISTS idx_wa_outbound_status ON public.wa_outbound_queue(status);
@@ -440,6 +445,14 @@ ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS requirement TEXT;
 -- Apply in the Supabase SQL editor using an administrator, after taking a backup.
 -- Service-only transactional catalog and quota operations.
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS quota_admitted BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS requirement TEXT;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_id TEXT;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_heartbeat TIMESTAMPTZ;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS quote_code TEXT;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_org_buyer_phone ON public.leads (org_id, buyer_phone);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay_payment_id ON public.payments (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_payments_razorpay_order_id ON public.payments (razorpay_order_id);
 
 DROP FUNCTION IF EXISTS public.increment_leads_used(UUID);
 CREATE OR REPLACE FUNCTION public.reserve_lead_quota(p_org_id UUID)
@@ -449,8 +462,11 @@ BEGIN
   UPDATE public.organizations
      SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
    WHERE id = p_org_id
-     AND COALESCE(leads_used, 0) < COALESCE(monthly_lead_limit, 25)
-     AND NOT (plan_status = 'trial' AND trial_ends_at IS NOT NULL AND trial_ends_at < now())
+     AND (
+       (plan_status = 'active' AND COALESCE(leads_used, 0) < COALESCE(monthly_lead_limit, 999999))
+       OR
+       (plan_status = 'trial' AND (trial_ends_at IS NULL OR trial_ends_at > now()) AND COALESCE(leads_used, 0) < COALESCE(monthly_lead_limit, 25))
+     )
   RETURNING id INTO v_id;
   RETURN v_id IS NOT NULL;
 END $$;
@@ -499,7 +515,8 @@ BEGIN
         FOR UPDATE;
 
         IF FOUND THEN
-          IF v_plan_status = 'active' OR ((v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
+          IF (v_plan_status = 'active' AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 999999))
+             OR (v_plan_status = 'trial' AND (v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
             UPDATE public.organizations
             SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
             WHERE id = p_org_id;
@@ -528,7 +545,8 @@ BEGIN
       RAISE EXCEPTION 'Organization not found';
     END IF;
 
-    IF v_plan_status = 'active' OR ((v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
+    IF (v_plan_status = 'active' AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 999999))
+       OR (v_plan_status = 'trial' AND (v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
       UPDATE public.organizations
       SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
       WHERE id = p_org_id;
@@ -538,7 +556,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- 3. Insert new lead
+  -- 3. Insert new lead with conflict resolution
   INSERT INTO public.leads (
     org_id, buyer_name, buyer_phone, query_message, requirement, status, quota_admitted
   ) VALUES (
@@ -550,7 +568,9 @@ BEGIN
     'Hot Lead',
     v_admitted
   )
-  RETURNING id INTO v_lead_id;
+  ON CONFLICT (org_id, buyer_phone) DO UPDATE
+    SET updated_at = now()
+  RETURNING id, quota_admitted INTO v_lead_id, v_admitted;
 
   RETURN QUERY SELECT v_lead_id, v_admitted, TRUE;
 END $$;
@@ -571,10 +591,27 @@ BEGIN
     FROM jsonb_to_recordset(p_products) AS p(sku text, name text, category text, model_specs text, price_raw text, image_url text, brochure_url text, brochure_filename text, is_active boolean);
   END IF;
   UPDATE public.organizations SET
-    name = COALESCE(p_org_updates->>'name', name),
-    business_type = COALESCE(p_org_updates->>'business_type', business_type),
-    website_knowledge = COALESCE(p_org_updates->>'website_knowledge', website_knowledge),
-    catalog_pdf_name = COALESCE(p_org_updates->>'catalog_pdf_name', catalog_pdf_name), updated_at = now()
+    name = CASE
+      WHEN p_org_updates ? 'name' AND NULLIF(trim(p_org_updates->>'name'), '') IS NOT NULL
+      THEN p_org_updates->>'name'
+      ELSE name
+    END,
+    business_type = CASE
+      WHEN p_org_updates ? 'business_type' AND NULLIF(trim(p_org_updates->>'business_type'), '') IS NOT NULL
+      THEN p_org_updates->>'business_type'
+      ELSE business_type
+    END,
+    website_knowledge = CASE
+      WHEN p_org_updates ? 'website_knowledge' AND NULLIF(trim(p_org_updates->>'website_knowledge'), '') IS NOT NULL
+      THEN p_org_updates->>'website_knowledge'
+      ELSE website_knowledge
+    END,
+    catalog_pdf_name = CASE
+      WHEN p_org_updates ? 'catalog_pdf_name' AND NULLIF(trim(p_org_updates->>'catalog_pdf_name'), '') IS NOT NULL
+      THEN p_org_updates->>'catalog_pdf_name'
+      ELSE catalog_pdf_name
+    END,
+    updated_at = now()
   WHERE id = p_org_id;
 END $$;
 REVOKE ALL ON FUNCTION public.replace_tenant_catalog(UUID, JSONB, JSONB) FROM PUBLIC, anon, authenticated;

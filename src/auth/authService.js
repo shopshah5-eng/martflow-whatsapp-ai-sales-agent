@@ -60,13 +60,93 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  const existingUser = db.findOne('profiles', (p) => p.email === cleanEmail);
-  if (existingUser) {
-    throw new Error('An account with this email already exists. Please log in.');
-  }
 
   if (password.length < 8) {
     throw new Error('Password must be at least 8 characters long.');
+  }
+
+  // Production Authoritative Supabase Path
+  if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
+    const sb = repository.getSupabase();
+    if (!sb) {
+      throw new Error('Primary authentication database is unavailable.');
+    }
+
+    const existing = await repository.getProfileByEmail(cleanEmail);
+    if (existing) {
+      throw new Error('An account with this email already exists. Please log in.');
+    }
+
+    const { data: createData, error: createErr } = await sb.auth.admin.createUser({
+      email: cleanEmail,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName.trim(),
+        company_name: companyName.trim(),
+        phone: phone ? phone.trim() : null
+      }
+    });
+
+    if (createErr) {
+      throw new Error(createErr.message || 'Failed to create user account in authentication service.');
+    }
+    const authUser = createData.user;
+
+    const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.random().toString(36).slice(2, 6);
+    const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
+    const { data: organization, error: orgErr } = await sb.from('organizations').insert({
+      name: companyName.trim(),
+      slug,
+      webhook_key: webhookKey,
+      industry: 'Machinery & Manufacturing',
+      plan_status: 'trial',
+      trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+      monthly_lead_limit: 25,
+      leads_used: 0
+    }).select().single();
+
+    if (orgErr) {
+      throw new Error(orgErr.message || 'Failed to create organization in database.');
+    }
+
+    const { data: profile, error: profErr } = await sb.from('profiles').insert({
+      id: authUser.id,
+      org_id: organization.id,
+      email: cleanEmail,
+      full_name: fullName.trim(),
+      phone: phone ? phone.trim() : null,
+      role: 'owner',
+      is_email_verified: true,
+      is_phone_verified: false
+    }).select().single();
+
+    if (profErr) {
+      throw new Error(profErr.message || 'Failed to provision user profile.');
+    }
+
+    const token = createSessionToken(profile.id, organization.id, 'owner');
+
+    return {
+      user: {
+        id: profile.id,
+        email: profile.email,
+        fullName: profile.full_name,
+        phone: profile.phone
+      },
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug
+      },
+      role: 'owner',
+      token
+    };
+  }
+
+  const existingUser = db.findOne('profiles', (p) => p.email === cleanEmail);
+  if (existingUser) {
+    throw new Error('An account with this email already exists. Please log in.');
   }
 
   // 1. Create Profile
@@ -137,6 +217,61 @@ export async function login({ email, password }) {
   }
 
   const cleanEmail = email.trim().toLowerCase();
+
+  // Production Authoritative Supabase Path
+  if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
+    const sb = repository.getSupabase();
+    if (!sb) {
+      throw new Error('Primary authentication database is unavailable.');
+    }
+
+    const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
+      email: cleanEmail,
+      password
+    });
+
+    if (authErr || !authData?.user) {
+      throw new Error('Invalid email or password.');
+    }
+
+    const profile = await repository.getProfileById(authData.user.id);
+    if (!profile) {
+      throw new Error('User profile not found.');
+    }
+
+    const orgId = profile.org_id || profile.organization_id;
+    if (!orgId) {
+      throw new Error('No active organization found for this user account.');
+    }
+
+    const organization = await repository.getOrganizationById(orgId);
+    const membership = await repository.getMembership(authData.user.id, orgId);
+    if (!organization || !membership) {
+      throw new Error('No active organization or membership found for this user account.');
+    }
+
+    const token = createSessionToken(authData.user.id, organization.id, membership.role || 'member');
+
+    return {
+      user: {
+        id: profile.id,
+        email: profile.email,
+        fullName: profile.full_name,
+        phone: profile.phone
+      },
+      organization: {
+        id: organization.id,
+        name: organization.name,
+        slug: organization.slug,
+        plan: organization.plan || 'starter',
+        webhook_key: organization.webhook_key
+      },
+      role: membership.role || 'member',
+      token,
+      supabaseToken: authData.session?.access_token || null
+    };
+  }
+
   const profile = db.findOne('profiles', (p) => p.email === cleanEmail);
   if (!profile || !verifyPassword(password, profile.password_hash)) {
     throw new Error('Invalid email or password.');

@@ -18,6 +18,7 @@ import { WhatsAppAdapter } from '../integrations/whatsapp/whatsappAdapter.js';
 import { B2BWebhook } from '../integrations/b2b/b2bWebhook.js';
 import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
 import db from '../db/index.js';
+import { repository } from '../db/repository.js';
 
 const router = express.Router();
 
@@ -382,7 +383,9 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
     const updates = {};
     if (companyName) updates.name = String(companyName).slice(0, 500);
     if (businessType && businessType !== 'auto') updates.business_type = businessType;
-    if (websiteKnowledge !== undefined) updates.website_knowledge = String(websiteKnowledge).slice(0, 50000);
+    if (websiteKnowledge !== undefined && websiteKnowledge !== null && String(websiteKnowledge).trim().length > 0) {
+      updates.website_knowledge = String(websiteKnowledge).slice(0, 50000);
+    }
     if (catalogPdfName) updates.catalog_pdf_name = String(catalogPdfName).slice(0, 500);
 
     const admin = getSupabaseAdmin();
@@ -849,7 +852,7 @@ router.post('/payments/razorpay/create-order', authenticate, async (req, res) =>
       });
     }
 
-    const org = db.findById('organizations', req.organizationId);
+    const org = await repository.getOrganizationById(req.organizationId);
     if (!org) return res.status(404).json({ ok: false, error: 'Organization not found.' });
     // Only the server-side quote may determine the amount.
     const amountInr = Number(org.custom_quote_inr || process.env.RAZORPAY_DEFAULT_AMOUNT_INR || 9999);
@@ -882,8 +885,7 @@ router.post('/payments/razorpay/create-order', authenticate, async (req, res) =>
     }
 
     if (!orderId) return res.status(503).json({ ok: false, error: 'Razorpay is not configured.' });
-    const payment = db.insert('payments', {
-      organization_id: req.organizationId,
+    const payment = await repository.createPayment(req.organizationId, {
       amount_inr: amountInr,
       provider: 'razorpay',
       razorpay_order_id: orderId,
@@ -918,7 +920,7 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
     }
 
     // Verify order exists and belongs to caller's authenticated organization
-    const payment = db.findOne('payments', (p) => p.razorpay_order_id === razorpay_order_id && p.organization_id === req.organizationId);
+    const payment = await repository.getPaymentByOrderId(razorpay_order_id, req.organizationId);
     if (!payment) {
       return res.status(404).json({ ok: false, error: 'Order not found or does not belong to this organization.' });
     }
@@ -976,12 +978,12 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
     }
 
     // Check for replay attacks: payment_id must not already be verified
-    const existing = db.findOne('payments', (p) => p.razorpay_payment_id === razorpay_payment_id && p.status === 'verified');
-    if (existing) {
+    const existing = await repository.getPaymentByRazorpayPaymentId(razorpay_payment_id);
+    if (existing && existing.status === 'verified') {
       return res.status(409).json({ ok: false, error: 'Payment ID already credited (replay attack prevented).' });
     }
 
-    db.update('payments', payment.id, {
+    await repository.updatePayment(payment.id, {
       razorpay_payment_id,
       status: 'verified'
     });
@@ -994,7 +996,7 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
       : defaultPrice >= 7499 && payment.amount_inr === defaultPrice;
     if (isFullPlan) {
       const quota = payment.quote_code === 'PRO12K' ? 1500 : payment.quote_code === 'START75' ? 400 : 500;
-      db.update('organizations', req.organizationId, { plan_status: 'active', monthly_lead_limit: quota });
+      await repository.updateOrganizationScoped(req.organizationId, { plan_status: 'active', monthly_lead_limit: quota });
     }
     res.json({ ok: true, activated: isFullPlan,
       message: isFullPlan ? 'Payment verified and workspace activated.' : 'Payment verified; deposit/setup does not activate a subscription.' });

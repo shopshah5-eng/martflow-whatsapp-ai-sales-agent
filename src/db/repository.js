@@ -91,20 +91,10 @@ class TenantRepository {
     if (!orgId) throw new Error('orgId is required');
     const sb = this.getSupabase();
     if (sb) {
-      // Execute parameterized RPC or conditional update
-      const { data, error } = await sb
-        .from('organizations')
-        .update({ leads_used: sb.raw('leads_used + 1') })
-        .eq('id', orgId)
-        .lt('leads_used', monthlyLimit || 999999)
-        .select('leads_used, monthly_lead_limit')
-        .single();
-
-      if (error) {
-        // Limit exceeded or update error
-        return { success: false, leadsUsed: null };
-      }
-      return { success: true, leadsUsed: data?.leads_used };
+      // Execute parameterized RPC
+      const { data, error } = await sb.rpc('reserve_lead_quota', { p_org_id: orgId });
+      if (error) throw new DatabaseUnavailableError(error.message);
+      return { success: Boolean(data), quotaExceeded: !data };
     }
 
     // Local DB atomic check
@@ -112,6 +102,13 @@ class TenantRepository {
     if (!org) return { success: false, leadsUsed: null };
     const current = org.leads_used || 0;
     const limit = monthlyLimit || org.monthly_lead_limit || 25;
+    const status = org.plan_status || (org.plan === 'starter' ? 'active' : 'trial');
+    if (status === 'expired') {
+      return { success: false, leadsUsed: current, quotaExceeded: true };
+    }
+    if (status === 'trial' && org.trial_ends_at && new Date(org.trial_ends_at) < new Date()) {
+      return { success: false, leadsUsed: current, quotaExceeded: true };
+    }
     if (current >= limit) {
       return { success: false, leadsUsed: current, quotaExceeded: true };
     }
@@ -238,6 +235,7 @@ class TenantRepository {
         provider: paymentData.provider,
         razorpay_order_id: paymentData.razorpay_order_id,
         razorpay_payment_id: paymentData.razorpay_payment_id,
+        quote_code: paymentData.quote_code || paymentData.quoteCode || null,
         utr_reference: paymentData.utr_reference || paymentData.utr,
         status: paymentData.status || 'pending'
       }).select().single();
@@ -245,6 +243,33 @@ class TenantRepository {
       return data;
     }
     return db.insert('payments', record);
+  }
+
+  async getPaymentByOrderId(orderId, orgId) {
+    if (!orderId) return null;
+    const cleanOrderId = orderId.trim();
+    const sb = this.getSupabase();
+    if (sb) {
+      let query = sb.from('payments').select('*').eq('razorpay_order_id', cleanOrderId);
+      if (orgId && isUuid(orgId)) {
+        query = query.eq('org_id', orgId);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false }).limit(1).maybeSingle();
+      if (error && error.code !== 'PGRST116') throw new DatabaseUnavailableError(error.message);
+      return data || null;
+    }
+    return db.findOne('payments', p => p.razorpay_order_id === cleanOrderId && (!orgId || p.organization_id === orgId || p.org_id === orgId));
+  }
+
+  async updatePayment(paymentId, updates) {
+    if (!paymentId) throw new Error('paymentId is required');
+    const sb = isUuid(paymentId) ? this.getSupabase() : null;
+    if (sb) {
+      const { data, error } = await sb.from('payments').update(updates).eq('id', paymentId).select().single();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      return data;
+    }
+    return db.update('payments', paymentId, updates);
   }
 
   async getPaymentByUtr(utr) {

@@ -31,7 +31,33 @@ export async function authenticate(req, res, next) {
     }
 
     const payload = verifySessionToken(token);
-    if (!payload) {
+    let resolvedUserId = null;
+    let resolvedOrgId = null;
+    let resolvedRole = null;
+
+    if (payload) {
+      resolvedUserId = payload.userId;
+      resolvedOrgId = payload.organizationId;
+      resolvedRole = payload.role;
+    } else {
+      // Compatibility: Verify Supabase Auth JWT server-side
+      const sb = repository.getSupabase();
+      if (sb) {
+        try {
+          const { data, error } = await sb.auth.getUser(token);
+          if (!error && data?.user?.id) {
+            resolvedUserId = data.user.id;
+            const profile = await repository.getProfileById(resolvedUserId);
+            if (profile && (profile.org_id || profile.organization_id)) {
+              resolvedOrgId = profile.org_id || profile.organization_id;
+              resolvedRole = profile.role || 'owner';
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (!resolvedUserId || !resolvedOrgId) {
       return res.status(401).json({
         ok: false,
         error: 'Invalid or expired session. Please log in again.'
@@ -39,11 +65,11 @@ export async function authenticate(req, res, next) {
     }
 
     // No fallback to stale local membership when the authoritative database fails.
-    const organization = await repository.getOrganizationById(payload.organizationId);
+    const organization = await repository.getOrganizationById(resolvedOrgId);
     if (!organization) {
       return res.status(403).json({ ok: false, error: 'Organization no longer exists or access was revoked.' });
     }
-    const membership = await repository.getMembership(payload.userId, payload.organizationId);
+    const membership = await repository.getMembership(resolvedUserId, resolvedOrgId);
 
     if (!membership) {
       return res.status(403).json({
@@ -53,9 +79,9 @@ export async function authenticate(req, res, next) {
     }
 
     // Inject verified tenant and user context from authoritative membership
-    req.userId = payload.userId;
-    req.organizationId = payload.organizationId;
-    req.role = membership.role || payload.role;
+    req.userId = resolvedUserId;
+    req.organizationId = resolvedOrgId;
+    req.role = membership.role || resolvedRole || 'member';
     req.organization = organization;
 
     next();

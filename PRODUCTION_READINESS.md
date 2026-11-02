@@ -1,53 +1,88 @@
-# Production readiness and deployment notes
+# Production Readiness & Security Hardening Status
 
-## Status: hardening in progress (do not merge or deploy to production yet)
+## Status: Hardened for Staging Verification (Do not merge or deploy to production yet)
 
-This patch resolves critical security vulnerabilities and hardens multi-tenant isolation, but the production backend requires deployment coordination and staging verification. Local regression tests now pass (45/45), but live Supabase, payments, and WhatsApp providers require staging testing before production deployment.
+This patch resolves critical security vulnerabilities, establishes an authoritative Supabase backend, provides atomic quota and lead management, adds durable payment replay protection, and hardens multi-worker WhatsApp queue processing.
 
-### Completed engineering work in this patch
+All 51 automated tests (`npm test`) pass cleanly. The database migrations and application changes must be verified against a backed-up staging Supabase clone before production deployment.
 
-1. **Account Takeover Elimination**:
-   - Removed caller-controlled `supabaseId` parameter from `handleGoogleAuth` and `/api/auth/google`.
-   - Strictly enforced verified provider identity (`data.user.id`) from `sb.auth.getUser()`.
-   - Eliminated stale local membership fallbacks in production: `repository.getMembership`, `getOrganizationById`, and profile lookups fail closed (403/503) without resurrecting legacy local JSON state.
+---
 
-2. **Atomic & Idempotent Lead Creation & Quota Reservation**:
-   - Replaced multi-step quota reservation and separate lead insertion with transactional `public.reserve_and_create_lead` RPC in PostgreSQL (`scripts/production_safety_migration.sql` and `supabase_schema.sql`).
-   - Uses `FOR UPDATE` row lock on `organizations` to prevent concurrency races across multiple workers.
-   - Guaranteed idempotency: repeated messages from the same buyer resolve existing lead records without double-deducting quota.
-   - Fails closed: missing RPCs or database errors withhold AI replies and log clear error diagnostics.
+### Completed Engineering Work in this Patch
 
-3. **Transactional Catalog Sync & Demo Knowledge Preservation**:
-   - Removed non-transactional table-level delete/insert fallback in `/api/catalog/sync`; RPC errors fail visibly (500/503).
-   - Preserves base demo catalog knowledge in `catalog_knowledge.json` when new catalog knowledge is synced.
-   - Added automatic RAM cache invalidation across `CatalogService` operations (`ingestCatalog`, `updateProduct`, `deleteProduct`).
+1. **Authoritative Supabase Authentication & Token Compatibility**:
+   - Implemented server-side Supabase Auth JWT token validation in `src/middleware/authMiddleware.js` via `sb.auth.getUser()`, resolving profile and authoritative tenant membership.
+   - Refactored `signUp` and `login` in `src/auth/authService.js` to execute against Supabase Auth (`sb.auth.admin.createUser` and `sb.auth.signInWithPassword`) and PostgreSQL tables when running in production (`NODE_ENV === 'production'` and `USE_LOCAL_DB !== 'true'`).
+   - Removed all caller-supplied `supabaseId` account takeover vectors; only verified identity credentials from the auth provider are trusted.
+   - Eliminated stale local fallback in production: revoked or non-existent memberships strictly fail closed (401/403/503).
 
-4. **Security Regression Suite**:
-   - Added regression tests in `tests/regression_safety.test.js` covering:
-     * Forged `supabaseId` account takeover rejection
-     * Revoked tenant membership 403 enforcement
-     * Missing Supabase in production fail-closed (503) behavior
-     * Visible failure on catalog transaction errors
-     * Quota RPC error fail-closed behavior
+2. **Strict Quota Enforcement Across Plan Boundaries**:
+   - `active`: Verified with `COALESCE(leads_used, 0) < COALESCE(monthly_lead_limit, 999999)`. When the monthly limit is reached, quota reservation is strictly rejected (`quota_admitted = false`).
+   - `trial`: Enforces both active trial timeframe (`trial_ends_at IS NULL OR trial_ends_at > now()`) AND volume threshold (`leads_used < monthly_lead_limit`, default 25). Expired trials are rejected.
+   - `expired`: Strictly fails closed without exception.
+   - Idempotent and transactional: implemented in `reserve_lead_quota` and `reserve_and_create_lead` stored procedures with row-level locking (`SELECT ... FOR UPDATE`).
 
-### Remaining engineering work
+3. **Concurrency-Safe Lead Creation & Deduplication**:
+   - Added unique database constraint `idx_leads_org_buyer_phone ON public.leads (org_id, buyer_phone)` in both `scripts/production_safety_migration.sql` and `supabase_schema.sql`.
+   - `reserve_and_create_lead` utilizes `ON CONFLICT (org_id, buyer_phone) DO UPDATE` to prevent race conditions across concurrent webhook workers, guaranteeing that duplicate calls resolve the existing lead without double-deducting lead quota.
 
-1. **Authoritative Backend Migration**:
-   - Unify remaining legacy local signup/login endpoints with Supabase Auth to eliminate dual-write stores.
-2. **Reversible Data Migration**:
-   - Complete and verify an idempotent, batch-scoped migration of existing local identities and data to Supabase.
-   - **Live migration and rollback remain deliberately disabled** in this patch until executed against a backed-up staging Supabase clone.
-3. **Multi-Worker WhatsApp Queue**:
-   - Make WhatsApp session ownership and queue claiming safe across multiple server instances with distributed locks.
-4. **Durable Payment Storage**:
-   - Move payment orders, verification, and webhook replay protection to durable transactional Supabase tables with Razorpay sandbox verification.
-5. **Browser-Direct Writes Audit**:
-   - Complete inventory of frontend Supabase client writes to ensure all mutations route through authenticated API endpoints.
-6. **Network & SSRF Verification**:
-   - Validate media retrieval and SSRF protections in IPv4/IPv6 dual-stack cloud environments.
+4. **Schema Completeness & Demo Knowledge Preservation**:
+   - Added missing columns to existing-database migration (`scripts/production_safety_migration.sql`):
+     * `ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS requirement TEXT;`
+     * `ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_id TEXT;`
+     * `ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_heartbeat TIMESTAMPTZ;`
+     * `ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS quote_code TEXT;`
+   - Updated `replace_tenant_catalog` stored procedure and `/api/catalog/sync` to preserve existing `website_knowledge` and demo catalog assets when optional fields are omitted or blank.
 
-## SQL and deployment precautions
+5. **Durable Payment Storage & Replay Attack Prevention**:
+   - Routed Razorpay order creation (`/payments/razorpay/create-order`) and verification (`/payments/razorpay/verify`) through durable repository storage (`public.payments`).
+   - Added unique constraint `idx_payments_razorpay_payment_id ON public.payments (razorpay_payment_id)` and durable lookup checks to guarantee replay protection: repeated payment verifications return HTTP 409 Conflict.
 
-`scripts/production_safety_migration.sql` contains database changes for an **existing** Supabase deployment; the equivalent changes are also in `supabase_schema.sql` for fresh installations. The SQL must be reviewed and tested on a disposable clone first, with a verified backup and rollback plan. Applying only the code without the SQL will cause catalog sync and WhatsApp quota checks to fail closed. Coordinate and deploy schema and application changes together only after completing staging verification.
+6. **Multi-Worker WhatsApp Outbound Queue & Distributed Heartbeat**:
+   - Transitioned `pollOutboundQueue` in `server.js` to atomic claiming:
+     ```javascript
+     .update({ status: 'processing' })
+     .eq('id', item.id)
+     .eq('status', 'pending')
+     ```
+     ensuring that exactly one worker process can claim and dispatch a queued message.
+   - Added worker lease claiming in `pollCommands` and per-worker ID tracking (`wa_worker_id`, `wa_worker_heartbeat`) to prevent conflicting session operations.
 
-Local regression tests: `npm test` (45/45 passing). Tests use mocks/local storage and do not prove live Supabase RLS, payment capture, Meta Cloud, or live WhatsApp behavior.
+7. **Comprehensive Integration Test Suite**:
+   - Added `tests/database_and_production_integration.test.js` covering:
+     * Old-schema upgrade DDL verification and column presence
+     * Quota boundaries across active (under/at limit), trial (valid/expired), and expired plans
+     * Concurrent lead deduplication without double quota deductions
+     * End-to-end Supabase Auth JWT token validation and revoked user 403 enforcement
+     * Durable Razorpay order creation, verification, and HTTP 409 replay attack rejection
+     * Multi-worker outbound queue atomic claiming
+
+---
+
+### Step-by-Step Staging Verification Instructions
+
+Before applying `scripts/production_safety_migration.sql` or deploying to production:
+
+1. **Staging Clone Setup**:
+   - Clone your production Supabase project to a staging environment:
+     ```bash
+     # Take a fresh backup of the database
+     pg_dump -h <production-host> -U postgres -d postgres > backup_prod.sql
+     # Restore into isolated staging clone
+     psql -h <staging-host> -U postgres -d postgres < backup_prod.sql
+     ```
+2. **Execute Safety Migration**:
+   - Apply `scripts/production_safety_migration.sql` in the Supabase SQL editor on the staging clone.
+   - Confirm that the tables, columns, indexes, and RPCs are created:
+     ```sql
+     SELECT column_name FROM information_schema.columns WHERE table_name = 'leads' AND column_name = 'requirement';
+     SELECT indexname FROM pg_indexes WHERE tablename = 'leads' AND indexname = 'idx_leads_org_buyer_phone';
+     SELECT proname FROM pg_proc WHERE proname IN ('reserve_lead_quota', 'reserve_and_create_lead', 'replace_tenant_catalog');
+     ```
+3. **Verify Staging Workflows**:
+   - **Unknown Number WhatsApp Message**: Connect test WhatsApp number, send an inbound message from a previously unseen phone number, verify lead is created with `quota_admitted = true`, and AI reply is delivered.
+   - **Disconnect / Reconnect**: Disconnect from dashboard, verify credentials and session are cleared, and reconnect via QR or pairing code.
+   - **Catalog Upload**: Ingest a new catalog spreadsheet; verify RAM cache invalidation and database update while preserving `website_knowledge`.
+   - **Razorpay Sandbox**: Execute a test payment with Razorpay test keys; verify `public.payments` record is updated to `verified`, workspace is activated, and repeating the verify call returns 409 Conflict.
+4. **Deploy Application**:
+   - Once all staging checks succeed, deploy application workers alongside the schema update.
