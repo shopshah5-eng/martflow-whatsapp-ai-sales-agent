@@ -361,20 +361,14 @@ export class AIService {
     const didAskCity = /city|location|kaha|kahan|state|district|area/i.test(lastBotText);
     const didAskCall = /call|phone|baat|slot|afternoon|evening/i.test(lastBotText);
 
+    const allProducts = (products && products.length > 0) ? products : [];
     const numMatch = qTrim.match(/^(\d+)(?:\s*(bottles?|pouches?|units?|pieces?|pcs?|kg|gm|gram|ltr|liter|ml|per\s*day|daily))?$/i);
     let numberAdvice = '';
-    if (numMatch) {
+    if (numMatch && allProducts.length > 0) {
       const qty = parseInt(numMatch[1], 10);
-      if (qty < 50) {
-        numberAdvice = `${qty} daily output ke hisaab se heavy industrial machine lene ki zaroorat nahi hai—hamara compact tabletop / semi-automatic model aapke liye sabse economical aur easy-to-use rahega.`;
-      } else if (qty <= 1000) {
-        numberAdvice = `${qty} daily requirement ke hisaab se hamara standard automatic pneumatic model bilkul suitable hai. Isme digital batch counter aur speed regulator milta hai.`;
-      } else {
-        numberAdvice = `${qty} daily production ke liye hamara high-speed automatic servo line model best rahega jo continuous 24×7 shift bina rukawat chalta hai.`;
-      }
+      const topProd = allProducts[0];
+      numberAdvice = `Aapki ${qty} requirement ke hisaab se hamara "${topProd.name}" (${topProd.price_raw || 'Price on request'}) bilkul suitable rahega.`;
     }
-
-    const allProducts = (products && products.length > 0) ? products : [];
     const isShortCatalog = allProducts.length <= 5;
     const catalogCategories = [...new Set(allProducts.map(p => p.category).filter(Boolean))];
     const websiteUrl = org.website_url || '';
@@ -458,6 +452,10 @@ export class AIService {
 Industry Domain: ${playbook.niche}.
 Official Website: ${websiteUrl || 'Available on request'}.
 You are texting directly with a customer on WhatsApp. You know every product, price, category, and specification inside out.
+
+CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
+You represent "${orgName}". Your ONLY active products and services are in "VERIFIED CATALOG KNOWLEDGE" and "BUSINESS & SERVICE KNOWLEDGE BASE" below.
+If previous conversation messages mentioned ANY items NOT in the active catalog (such as industrial machinery, packaging, previous business inquiries), you MUST recognize that the catalog has changed: apologize briefly for the confusion, state what you currently offer from the active catalog, and answer the customer's question directly from the active catalog! NEVER continue pitching items that do not exist in the active catalog!
 
 CONVERSATION LIFECYCLE STAGE: ${lifecycleStage}
 ${lifecycleStage === 'NEW_FIRST_TIME' ? '- First message from customer: greet warmly in 1 short line.' : '- Conversation already in progress: DO NOT say "Namaste", "Hello", or greet again! Answer the buyer directly in natural context.'}

@@ -5817,9 +5817,6 @@
                   uploadedPdfName = file.name;
                   currentOrg.catalog_pdf_url = pubUrlData.publicUrl;
                   currentOrg.catalog_pdf_name = file.name;
-                  try {
-                    await sb.from('organizations').update({ catalog_pdf_url: pubUrlData.publicUrl, catalog_pdf_name: file.name }).eq('id', currentOrg.id);
-                  } catch (e) {}
                 }
               }
             }
@@ -5830,9 +5827,17 @@
             if (rawText && rawText.trim().length > 20) {
               const truncatedKnowledge = rawText.slice(0, 50000);
               currentOrg.website_knowledge = truncatedKnowledge;
+
+              // Infer clean brand name from file name if current name is generic
+              const cleanBrand = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').replace(/\bcatalog\b|\bbrochure\b|\bpdf\b/gi, '').trim();
+              if (cleanBrand && cleanBrand.length >= 3 && (!currentOrg.name || /martflow|my enterprise/i.test(currentOrg.name))) {
+                currentOrg.name = cleanBrand;
+              }
+
               if (sb) {
                 try {
                   await sb.from('organizations').update({
+                    name: currentOrg.name,
                     website_knowledge: truncatedKnowledge,
                     updated_at: new Date().toISOString()
                   }).eq('id', currentOrg.id);
@@ -5915,11 +5920,17 @@
               const demoRows = rowsToInsert.map(r => ({ ...r, org_id: demoOrgId }));
               await sb.from('products').insert(demoRows);
               await sb.from('organizations').update({
+                name: currentOrg.name || 'Our Company',
                 website_knowledge: currentOrg.website_knowledge || '',
-                catalog_pdf_url: uploadedPdfUrl || '',
-                catalog_pdf_name: uploadedPdfName || '',
                 updated_at: new Date().toISOString()
               }).eq('id', demoOrgId);
+
+              // Clear outdated conversation messages so previous discussion topics don't pollute the new catalog
+              const { data: convsToReset } = await sb.from('conversations').select('id').in('org_id', [currentOrg.id, demoOrgId]);
+              if (convsToReset && convsToReset.length) {
+                const cIds = convsToReset.map(c => c.id);
+                await sb.from('messages').delete().in('conversation_id', cIds);
+              }
             } catch (syncErr) {
               console.warn('Demo org sync note:', syncErr.message);
             }

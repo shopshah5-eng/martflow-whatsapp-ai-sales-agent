@@ -1083,14 +1083,45 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       } catch (e) {}
     }
 
+    // Remote Reset / New Inquiry command
+    const isResetCmd = /^\s*(?:\/reset|reset|clear|restart|new\s*chat|start\s*again)\b/i.test((incomingText || '').trim());
+    if (isResetCmd) {
+      if (supabaseAdmin && sbConvId) {
+        try {
+          await supabaseAdmin.from('messages').delete().eq('conversation_id', sbConvId);
+        } catch (e) {}
+      }
+      const resetGreeting = `🔄 *Chat & Memory Reset!*\n\nNamaste! Welcome to *${freshOrg.name || 'our sales desk'}*.\n\nBatayein, main aaj aapki kis requirement ya catalog details mein madad kar sakta hoon?`;
+      const sentMsg = await activeSock.sendMessage(rawRemote, { text: resetGreeting });
+      if (sentMsg?.key?.id) botSentMsgIds.add(sentMsg.key.id);
+      addLog(`[Reset] Reset conversation ${sbConvId} for +${senderPhone}`);
+      return;
+    }
+
     // Fetch conversation history
     let convHistory = [];
     if (supabaseAdmin && sbConvId) {
       try {
-        const { data: hist } = await supabaseAdmin
+        let msgQuery = supabaseAdmin
           .from('messages')
           .select('sender, text, created_at')
-          .eq('conversation_id', sbConvId)
+          .eq('conversation_id', sbConvId);
+
+        // Find when products were last uploaded/updated for this org
+        const { data: latestProd } = await supabaseAdmin
+          .from('products')
+          .select('created_at')
+          .eq('org_id', orgId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestProd?.created_at) {
+          const catalogEpoch = new Date(latestProd.created_at).getTime() - 120000;
+          msgQuery = msgQuery.gte('created_at', new Date(catalogEpoch).toISOString());
+        }
+
+        const { data: hist } = await msgQuery
           .order('created_at', { ascending: true })
           .limit(15);
         if (hist) {
@@ -1641,6 +1672,10 @@ Catalog & Pricing Knowledge:
 ${catalogContext || 'Standard verified offerings apply.'}
 ${extraKnowledge}
 
+CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
+1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.
+2. If earlier chat history mentions unrelated products (such as packaging machinery, industrial equipment, etc. from a previous catalog), DISREGARD THEM COMPLETELY! Acknowledge the current business offerings and answer strictly from your active catalog above. NEVER invent or offer products that do not exist in the active catalog!
+
 STRICT LENGTH RULE:
 1. Reply like a real busy human founder/manager on WhatsApp — 1 to 2 short sentences ONLY (strictly 18 to 38 words max) unless the customer explicitly asks to compare multiple plans/items.
 2. NEVER write 2–3 long paragraphs.
@@ -1653,7 +1688,7 @@ STRICT LENGTH RULE:
       .map(m => `${m.role === 'ai' || m.sender === 'ai' ? 'You' : 'Customer'}: ${m.text || m.content || ''}`)
       .join('\n');
 
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
+    const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.8-flash'];
     for (const model of modelsToTry) {
       try {
         const resp = await fetch(
