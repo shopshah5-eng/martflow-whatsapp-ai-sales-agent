@@ -175,6 +175,57 @@
       animation: softPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
+    /* 8. Hand-Crafted Enterprise SaaS Micro-Physics & Hover States */
+    .nav-glide-link {
+      position: relative;
+      padding-bottom: 2px;
+      transition: color 0.18s ease;
+    }
+    .nav-glide-link::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: #4f46e5;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .nav-glide-link:hover::after {
+      transform: scaleX(1);
+    }
+
+    .card-hover-elevate {
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+      will-change: transform, box-shadow;
+    }
+    .card-hover-elevate:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 18px 36px -12px rgba(79, 70, 229, 0.14);
+      border-color: rgba(165, 180, 252, 0.9);
+    }
+
+    @keyframes floatGentle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-float {
+      animation: floatGentle 5s ease-in-out infinite;
+    }
+
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 450ms cubic-bezier(0.16, 1, 0.3, 1), transform 450ms cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: opacity, transform;
+    }
+    .reveal-on-scroll.is-revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, ::before, ::after {
         animation-duration: 0.01ms !important;
@@ -197,8 +248,13 @@
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
 
-      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm">
-        <span class="wl-brand-icon">M</span>
+      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-base shadow-sm shrink-0">
+        <span class="wl-brand-icon flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            <path d="M13 8l-4 5h3l-1 4 4-5h-3l1-4z" fill="currentColor" stroke="none"/>
+          </svg>
+        </span>
       </div>
       <span class="font-extrabold text-base lg:text-lg text-slate-900 tracking-tight"><span class="wl-brand-name">MartFlow</span> <span class="text-indigo-600">AI</span></span>
       <span class="hidden sm:inline text-[11px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-semibold border border-indigo-200">24/7 Sales Engine</span>
@@ -206,10 +262,10 @@
 
     <!-- Middle Public Nav Links (visible when logged out) -->
     <nav id="publicNavLinks" class="hidden md:flex items-center space-x-6 text-xs font-semibold text-slate-600">
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-features')" class="hover:text-indigo-600 transition">Features</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-industries')" class="hover:text-indigo-600 transition">Industries</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-pricing')" class="hover:text-indigo-600 transition">Pricing</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-agency')" class="hover:text-indigo-600 transition">Agency White-Label</a>
+      <a href="javascript:void(0)" onclick="scrollToSection('pl-features')" class="nav-glide-link hover:text-indigo-600 transition">Features</a>
+      <a href="javascript:void(0)" onclick="scrollToSection('pl-industries')" class="nav-glide-link hover:text-indigo-600 transition">Industries</a>
+      <a href="javascript:void(0)" onclick="scrollToSection('pl-pricing')" class="nav-glide-link hover:text-indigo-600 transition">Pricing</a>
+      <a href="javascript:void(0)" onclick="scrollToSection('pl-agency')" class="nav-glide-link hover:text-indigo-600 transition">Agency White-Label</a>
     </nav>
 
     <!-- Active Workspace & User Profile -->
@@ -223,21 +279,25 @@
       <!-- 1-Click AI Mode Toggle Badge -->
       <button id="btnHeaderAiMode" onclick="toggleHeaderAiMode()" class="hidden items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-sm">
         <span id="headerAiModeDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span id="headerAiModeText">🟢 AI Mode: Automatic</span>
+        <span id="headerAiModeText">AI Mode: Automatic</span>
       </button>
 
       <!-- Language Toggle (EN | Hinglish) -->
-      <button onclick="toggleLanguage()" id="langToggleBtn" class="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 transition flex items-center space-x-1">
-        <span>🌐</span>
+      <button onclick="toggleLanguage()" id="langToggleBtn" class="text-xs font-bold px-2.5 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/70 text-indigo-700 hover:bg-indigo-100 transition flex items-center space-x-1.5">
+        <svg class="w-3.5 h-3.5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
         <span id="langToggleText">EN | हिंग्लिश</span>
       </button>
 
       <div id="authActions" class="flex items-center space-x-2">
-        <button onclick="openDemoBotChat()" class="hidden md:inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition items-center space-x-1">
-          <span>⚡ Live Demo</span>
+        <button onclick="openDemoBotChat()" class="hidden md:inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition items-center space-x-1.5">
+          <svg class="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <span>Live Demo</span>
         </button>
         <button onclick="openAuthModal('login')" class="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</button>
-        <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="hidden sm:inline text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition">🔥 Start VIP Pilot</button>
+        <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="hidden sm:inline-flex text-xs font-semibold px-3.5 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm transition items-center space-x-1.5">
+          <svg class="w-3.5 h-3.5 text-white/90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          <span>Start VIP Pilot</span>
+        </button>
       </div>
 
       <div id="userProfileBadge" class="hidden items-center space-x-3">
@@ -257,51 +317,172 @@
     <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-50/70 via-white to-transparent pointer-events-none"></div>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16 space-y-20 w-full relative z-10">
 
-      <!-- HERO SECTION -->
-      <section class="text-center space-y-6 pt-4 lg:pt-8 max-w-4xl mx-auto">
-        <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold shadow-sm">
-          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span>⚡ 24/7 AUTONOMOUS WHATSAPP AI SALES CLOSER • ZERO-CODE SETUP</span>
-        </div>
+      <!-- HERO SECTION: 2-COLUMN SPLIT WITH LIVE DEAL-CLOSING WHATSAPP PREVIEW -->
+      <section class="pt-4 lg:pt-8">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+          
+          <!-- LEFT COLUMN: VALUE PROPOSITION & CONVERSION CTAS (lg:col-span-7) -->
+          <div class="lg:col-span-7 space-y-6 text-left">
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold shadow-xs">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span class="tracking-wide">Autonomous WhatsApp Sales Infrastructure</span>
+            </div>
 
-        <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight">
-          Turn Every WhatsApp Inquiry into a <span class="text-indigo-600">Paying Customer in 15 Seconds</span>
-        </h1>
+            <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.12]">
+              Turn Every WhatsApp Inquiry Into a <span class="text-indigo-600">Paying Customer</span> in 3 Seconds
+            </h1>
 
-        <p class="text-base sm:text-lg text-slate-600 max-w-3xl mx-auto font-normal leading-relaxed">
-          24/7 AI Sales Closer trained on your real catalog & prices. Auto-qualifies buyers, sends matching photos & PDFs, books high-value calls, and closes deals while you sleep.
-        </p>
+            <p class="text-base sm:text-lg text-slate-600 font-normal leading-relaxed max-w-xl">
+              Autonomous B2B sales intelligence trained on your live catalog, pricing, and MOQ tiers. Instantly qualifies inbound buyers, dispatches brochures & photos, books high-ticket consultations, and notifies the owner on high-intent signals.
+            </p>
 
-        <!-- DUAL CTAs -->
-        <div class="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
-          <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/20 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2">
-            <span>🔥 Start 48-Hour VIP Pilot (₹999 — 100% Adjusted in Plan)</span>
-          </button>
+            <!-- DUAL CTAs -->
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 pt-2">
+              <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="group px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/20 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2">
+                <span>Start 48-Hour VIP Pilot (₹999 — 100% Adjusted)</span>
+                <svg class="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
 
-          <button onclick="openDemoBotChat()" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-sm border border-emerald-300 shadow-sm transition flex items-center justify-center space-x-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            <span>⚡ Test Live AI Demo Bot</span>
-          </button>
-        </div>
+              <button onclick="openDemoBotChat()" class="group px-5 py-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-sm border border-emerald-300 shadow-xs transition flex items-center justify-center space-x-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                <span>Test Live AI Sales Bot Now</span>
+                <svg class="w-4 h-4 text-emerald-700 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </button>
+            </div>
 
-        <!-- TRUST METRICS BAR -->
-        <div class="pt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center border-t border-slate-200">
-          <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-            <div class="text-lg sm:text-xl font-extrabold text-slate-900">⏱️ &lt; 15s</div>
-            <div class="text-[11px] text-slate-500 font-medium">Median Response Time</div>
+            <!-- TRUST METRICS BAR -->
+            <div class="pt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left border-t border-slate-200">
+              <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-xs card-hover-elevate">
+                <div class="flex items-center space-x-1.5 text-slate-900 font-extrabold text-base">
+                  <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>2.4s</span>
+                </div>
+                <div class="text-[11px] text-slate-500 font-medium mt-0.5">Avg Response Time</div>
+              </div>
+              <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-xs card-hover-elevate">
+                <div class="flex items-center space-x-1.5 text-slate-900 font-extrabold text-base">
+                  <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                  <span>Hinglish + Voice</span>
+                </div>
+                <div class="text-[11px] text-slate-500 font-medium mt-0.5">Voice Note Closer</div>
+              </div>
+              <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-xs card-hover-elevate">
+                <div class="flex items-center space-x-1.5 text-slate-900 font-extrabold text-base">
+                  <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  <span>Auto PDF</span>
+                </div>
+                <div class="text-[11px] text-slate-500 font-medium mt-0.5">Brochure & Photos</div>
+              </div>
+              <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-xs card-hover-elevate">
+                <div class="flex items-center space-x-1.5 text-slate-900 font-extrabold text-base">
+                  <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <span>₹0 Setup Fee</span>
+                </div>
+                <div class="text-[11px] text-slate-500 font-medium mt-0.5">100% Adjusted</div>
+              </div>
+            </div>
           </div>
-          <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-            <div class="text-lg sm:text-xl font-extrabold text-slate-900">🎯 98.4%</div>
-            <div class="text-[11px] text-slate-500 font-medium">Lead Qualification Rate</div>
+
+          <!-- RIGHT COLUMN: ANIMATED LIVE WHATSAPP DEAL-CLOSING SIMULATION (lg:col-span-5) -->
+          <div class="lg:col-span-5 relative">
+            <div class="animate-float rounded-3xl bg-slate-900/95 border border-slate-800 shadow-2xl p-4 sm:p-5 text-white backdrop-blur-xl relative overflow-hidden">
+              <!-- Glow backdrop behind preview -->
+              <div class="absolute -top-16 -right-16 w-48 h-48 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
+              <div class="absolute -bottom-16 -left-16 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+              <!-- Header Bar of WhatsApp Mockup -->
+              <div class="flex items-center justify-between pb-3 border-b border-slate-800/80 relative z-10">
+                <div class="flex items-center space-x-2.5">
+                  <div class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white shadow-sm ring-2 ring-emerald-400/40">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><polyline points="9 11 12 14 22 4"/></svg>
+                  </div>
+                  <div>
+                    <div class="font-bold text-xs text-white flex items-center space-x-1.5">
+                      <span>MartFlow AI Sales Closer</span>
+                      <svg class="w-3.5 h-3.5 text-emerald-400 inline" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    </div>
+                    <div class="text-[10px] text-emerald-400 flex items-center space-x-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span>Active • Responding in &lt; 3s</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="px-2 py-0.5 rounded-full bg-slate-800 text-[10px] text-slate-300 border border-slate-700">
+                  Live Flow
+                </div>
+              </div>
+
+              <!-- Chat Message Sequence -->
+              <div class="py-4 space-y-3 relative z-10 text-xs">
+                
+                <!-- 1. Buyer Inbound Query with Audio Waveform -->
+                <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl rounded-tl-sm p-3 max-w-[92%] space-y-2 shadow-sm">
+                  <div class="text-[10px] font-bold text-indigo-300 flex items-center justify-between">
+                    <span>Prospective Buyer (Verified Lead)</span>
+                    <span class="text-slate-400 font-normal">10:42 AM</span>
+                  </div>
+                  <!-- Audio Waveform Player -->
+                  <div class="flex items-center space-x-2.5 bg-slate-900/80 rounded-xl px-2.5 py-1.5 border border-slate-700">
+                    <button class="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center shrink-0">
+                      <svg class="w-3 h-3 fill-current ml-0.5" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    </button>
+                    <!-- Audio Waveform Bars -->
+                    <div class="flex items-center space-x-0.5 flex-1 h-4">
+                      <span class="w-1 bg-indigo-400 rounded-full h-2"></span>
+                      <span class="w-1 bg-indigo-400 rounded-full h-3"></span>
+                      <span class="w-1 bg-indigo-400 rounded-full h-4"></span>
+                      <span class="w-1 bg-indigo-400 rounded-full h-2.5"></span>
+                      <span class="w-1 bg-indigo-400 rounded-full h-3.5"></span>
+                      <span class="w-1 bg-indigo-400 rounded-full h-1.5"></span>
+                      <span class="w-1 bg-indigo-400 rounded-full h-4"></span>
+                      <span class="w-1 bg-indigo-300 rounded-full h-2"></span>
+                      <span class="w-1 bg-indigo-300 rounded-full h-3"></span>
+                      <span class="w-1 bg-indigo-300 rounded-full h-1"></span>
+                    </div>
+                    <span class="text-[10px] text-slate-300 font-mono">0:05</span>
+                  </div>
+                  <p class="text-slate-200 text-[11px] leading-relaxed">
+                    "Bhaiya 5kW solar system ka latest rate aur technical brochure bhejna. Factory rooftop ke liye chahiye."
+                  </p>
+                </div>
+
+                <!-- 2. AI Sales Closer Autonomous Reply in < 2.4s -->
+                <div class="bg-indigo-600 text-white rounded-2xl rounded-tr-sm p-3.5 max-w-[94%] ml-auto space-y-2.5 shadow-lg shadow-indigo-600/30">
+                  <div class="flex items-center justify-between text-[10px] text-indigo-200">
+                    <span class="font-bold">MartFlow AI Closer</span>
+                    <span class="font-mono text-emerald-300">Reply in 2.4s ✓✓</span>
+                  </div>
+                  <p class="text-white text-[11px] leading-relaxed">
+                    Namaste ji! Hamare paas 5kW On-Grid Solar EPC system with Tier-1 bifacial panels & 5-year replacement warranty available hai. Subsidy paperwork support bhi included hai.
+                  </p>
+                  <!-- Dispatched Catalog Dossier Card -->
+                  <div class="bg-indigo-950/60 rounded-xl p-2.5 border border-indigo-400/30 flex items-center justify-between gap-2">
+                    <div class="flex items-center space-x-2 truncate">
+                      <div class="w-7 h-7 rounded-lg bg-rose-500/20 border border-rose-400/30 flex items-center justify-center text-rose-300 shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      </div>
+                      <div class="truncate text-left">
+                        <div class="font-bold text-[10px] text-white truncate">Commercial_Solar_5kW_Specsheet.pdf</div>
+                        <div class="text-[9px] text-indigo-300">1.8 MB • Official Specsheet</div>
+                      </div>
+                    </div>
+                    <span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 font-semibold shrink-0">Dispatched</span>
+                  </div>
+                </div>
+
+                <!-- 3. Real-Time High-Intent Lead Notification Pill -->
+                <div class="p-2.5 rounded-xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 text-xs font-semibold flex items-center justify-between shadow-lg shadow-emerald-900/30">
+                  <div class="flex items-center space-x-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span class="text-[11px]">Hot Buyer Qualified — Instant Alert Sent to Owner</span>
+                  </div>
+                  <span class="text-[10px] text-emerald-400 font-mono">&lt; 2.4s</span>
+                </div>
+
+              </div>
+            </div>
           </div>
-          <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-            <div class="text-lg sm:text-xl font-extrabold text-slate-900">📑 31+ Niches</div>
-            <div class="text-[11px] text-slate-500 font-medium">Multi-Industry Intelligence</div>
-          </div>
-          <div class="p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
-            <div class="text-lg sm:text-xl font-extrabold text-slate-900">💰 ₹0 Fee</div>
-            <div class="text-[11px] text-slate-500 font-medium">Zero Setup Fee on Full Plans</div>
-          </div>
+
         </div>
       </section>
 
@@ -315,8 +496,10 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           <!-- 1. Solar & Renewable -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">☀️</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">Clean Energy</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Solar & Renewable Energy</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Rooftop solar, hybrid inverters, commercial EPC plants. Auto-calculates monthly unit savings, government subsidy ROI, and schedules roof feasibility audits.</p>
@@ -327,8 +510,10 @@
           </div>
 
           <!-- 2. Clothing, Apparel & Boutiques -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">👗</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">Fashion & D2C</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Clothing, Apparel & Boutiques</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Oversized hoodies, co-ord sets, ethnic wear, bridal lehengas. Instant size guides, fabric GSM replies, lookbook photo dispatch, and UPI payment links.</p>
@@ -339,8 +524,10 @@
           </div>
 
           <!-- 3. Tours & Travel Packages -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">✈️</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">Travel & Hospitality</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Tours & Travel Packages</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Himachal, Goa, Dubai, Bali, and honeymoon itineraries. Day-wise PDF itinerary dispatch, per-person hotel inclusions, and travel agent call scheduling.</p>
@@ -351,8 +538,10 @@
           </div>
 
           <!-- 4. Wholesale Textiles & Fabrics -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">🧵</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">B2B Wholesale</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Wholesale Textiles & Fabrics</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Cotton rolls, viscose, rayon, suiting & shirting. MOQ tier pricing, weave GSM counts, sample swatch card dispatch, and transport delivery terms.</p>
@@ -363,8 +552,10 @@
           </div>
 
           <!-- 5. Pre-Owned Cars & Dealerships -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">🚗</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">Automotive</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Pre-Owned Cars & Dealerships</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Certified used cars, luxury sedans, commercial pickups. Kilometer odometer verification, inspection report PDFs, and weekend test-drive bookings.</p>
@@ -375,8 +566,10 @@
           </div>
 
           <!-- 6. Hotels, Resorts & Wedding Banquets -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">🏨</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">Banquets & Venues</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Hotels, Resorts & Wedding Banquets</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Luxury room suites, destination wedding lawns, corporate banquets. Checks date availability, shares per-plate menu options, and books venue recce tours.</p>
@@ -387,8 +580,10 @@
           </div>
 
           <!-- 7. Modular Kitchens & Interior Decor -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">🛋️</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">Home & Interiors</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Modular Kitchens & Interior Decor</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Acrylic finishes, wardrobe layouts, false ceiling packages. Per-sqft estimate calculations, 3D design catalogs, and on-site designer measurement visits.</p>
@@ -399,8 +594,10 @@
           </div>
 
           <!-- 8. Study Visa & IELTS Coaching -->
-          <div class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-indigo-400 rounded-2xl shadow-sm hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center text-xl mb-3">🎓</div>
+          <div class="p-5 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition group">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-110">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
             <div class="text-[11px] uppercase tracking-wider font-bold text-indigo-600">Global Education</div>
             <h3 class="text-base font-bold text-slate-900 mt-1 group-hover:text-indigo-600 transition">Study Visa & IELTS Coaching</h3>
             <p class="text-xs text-slate-600 mt-2 leading-relaxed">Canada, UK, Australia, Europe study visas, IELTS & PTE batches. Instant eligibility check, tuition fee brackets, and senior counselor slot booking.</p>
@@ -421,20 +618,26 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-6 rounded-2xl bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition space-y-3">
-            <div class="text-2xl">📸</div>
+          <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition space-y-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
             <h3 class="text-base font-bold text-slate-900">Visual Photo & PDF Dispatch</h3>
             <p class="text-xs text-slate-600 leading-relaxed">Instantly matches the buyer's requested SKU or niche and sends up to 1 crisp product photo and 1 official PDF brochure per inquiry. Zero duplicate spam.</p>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition space-y-3">
-            <div class="text-2xl">🗣️</div>
+          <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition space-y-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
             <h3 class="text-base font-bold text-slate-900">Smart Human Takeover</h3>
             <p class="text-xs text-slate-600 leading-relaxed">Reply from your own phone or text "manual" to pause AI instantly. The bot detects when you are talking and stays silent until you send "automatic".</p>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition space-y-3">
-            <div class="text-2xl">🚨</div>
+          <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm card-hover-elevate reveal-on-scroll transition space-y-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
             <h3 class="text-base font-bold text-slate-900">Instant Hot Lead Alerts</h3>
             <p class="text-xs text-slate-600 leading-relaxed">Sends an immediate WhatsApp alert directly to the business owner's WhatsApp whenever a high-intent buyer asks for pricing, payment, or a phone call.</p>
           </div>
@@ -451,7 +654,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
           <!-- Plan 1: VIP Pilot -->
-          <div class="p-6 rounded-2xl bg-white border-2 border-indigo-600 rounded-2xl shadow-md flex flex-col justify-between space-y-5 relative">
+          <div class="p-6 rounded-2xl bg-white border-2 border-indigo-600 shadow-md flex flex-col justify-between space-y-5 relative card-hover-elevate reveal-on-scroll">
             <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-black uppercase tracking-wider">
               100% Adjusted
             </div>
@@ -464,12 +667,12 @@
               </div>
               <p class="text-[11px] text-slate-500">Live on YOUR business WhatsApp. Testing our demo bot is always free.</p>
               <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-slate-100">
-                <li class="flex items-start space-x-2"><span>✓</span><span><strong>48 Hours Live</strong> on your number</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Up to <strong>25 Real Inquiries</strong></span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>White-Glove Setup in 15 mins</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>AI trained on PDF/Excel/Website</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Live Hot-Lead Owner Alerts</span></li>
-                <li class="flex items-start space-x-2 text-indigo-700 font-semibold"><span>★</span><span><strong>100% Adjusted</strong> in any full plan!</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><strong>48 Hours Live</strong> on your number</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Up to <strong>25 Real Inquiries</strong></span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>White-Glove Setup in 15 mins</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>AI trained on PDF/Excel/Website</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Live Hot-Lead Owner Alerts</span></li>
+                <li class="flex items-start space-x-2 text-indigo-700 font-semibold"><svg class="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg><span><strong>100% Adjusted</strong> in any full plan!</span></li>
               </ul>
             </div>
             <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition">
@@ -477,10 +680,10 @@
             </button>
           </div>
 
-          <!-- Plan 2: Standard Growth -->
-          <div class="p-6 rounded-2xl bg-indigo-50/50 border border-indigo-200 rounded-2xl shadow-md flex flex-col justify-between space-y-5 relative">
-            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 px-3 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider">
-              ₹0 Setup Fee • Popular
+          <!-- Plan 2: Standard Growth (CENTERPIECE ELEVATED) -->
+          <div class="p-6 rounded-2xl bg-white ring-2 ring-indigo-600 shadow-xl lg:-translate-y-2 border border-indigo-600 flex flex-col justify-between space-y-5 relative card-hover-elevate reveal-on-scroll">
+            <div class="absolute -top-3.5 left-1/2 transform -translate-x-1/2 px-3.5 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
+              Most Popular • ₹0 Setup Fee
             </div>
             <div class="space-y-3">
               <div class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Standard Growth</div>
@@ -491,12 +694,12 @@
               </div>
               <p class="text-[11px] text-emerald-700 font-semibold">3 Full Months Maintenance FREE! (Zero Setup Fee)</p>
               <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-slate-100">
-                <li class="flex items-start space-x-2"><span>✓</span><span>Up to <strong>500 inquiries / month</strong></span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span><strong>3 Full Months</strong> engineering support</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Full AI Sales Closer & Photo Dispatch</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Smart Hinglish / English Persona</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Human Takeover WhatsApp Control</span></li>
-                <li class="flex items-start space-x-2 text-indigo-700 font-semibold"><span>★</span><span>Paid Pilot? Pay only <strong>₹9,000 balance</strong></span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Up to <strong>500 inquiries / month</strong></span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><strong>3 Full Months</strong> engineering support</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Full AI Sales Closer & Photo Dispatch</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Smart Hinglish / English Persona</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Human Takeover WhatsApp Control</span></li>
+                <li class="flex items-start space-x-2 text-indigo-700 font-semibold"><svg class="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg><span>Paid Pilot? Pay only <strong>₹9,000 balance</strong></span></li>
               </ul>
             </div>
             <button onclick="openActivationModal('Standard Growth Plan - 3-Month Launch Offer', '₹9,999 One-Time - 3 Months FREE!', '500 Monthly Leads • Paid ₹999 Pilot? Apply code ADJUST999 to pay ₹9,000 balance!', 9999)" class="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md transition">
@@ -505,7 +708,7 @@
           </div>
 
           <!-- Plan 3: Pro Business Closer -->
-          <div class="p-6 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-between space-y-5 transition">
+          <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between space-y-5 transition card-hover-elevate reveal-on-scroll">
             <div class="space-y-3">
               <div class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Pro Business</div>
               <h3 class="text-lg font-bold text-slate-900">6-Month High Volume</h3>
@@ -515,12 +718,12 @@
               </div>
               <p class="text-[11px] text-emerald-700 font-semibold">6 Full Months Engineering Support Included</p>
               <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-slate-100">
-                <li class="flex items-start space-x-2"><span>✓</span><span>Up to <strong>2,000 inquiries / month</strong></span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span><strong>6 Full Months</strong> dedicated support</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Google Sheets & CRM Webhook Sync</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Voice Note (Audio) Speech Closer</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Multi-Catalog Smart Routing</span></li>
-                <li class="flex items-start space-x-2 text-indigo-700 font-semibold"><span>★</span><span>Paid Pilot? Pay only <strong>₹14,000 balance</strong></span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Up to <strong>2,000 inquiries / month</strong></span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><strong>6 Full Months</strong> dedicated support</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Google Sheets & CRM Webhook Sync</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Voice Note (Audio) Speech Closer</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Multi-Catalog Smart Routing</span></li>
+                <li class="flex items-start space-x-2 text-indigo-700 font-semibold"><svg class="w-3.5 h-3.5 text-indigo-600 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg><span>Paid Pilot? Pay only <strong>₹14,000 balance</strong></span></li>
               </ul>
             </div>
             <button onclick="openActivationModal('Pro Business Closer - 6-Month Package', '₹14,999 One-Time - 6 Months Support', '2,000 Monthly Leads • Paid ₹999 Pilot? Apply code UPGRADE14K to pay ₹14,000 balance!', 14999)" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
@@ -529,7 +732,7 @@
           </div>
 
           <!-- Plan 4: Enterprise Scale -->
-          <div class="p-6 rounded-2xl bg-white border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-sm hover:shadow-md flex flex-col justify-between space-y-5 transition">
+          <div class="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm flex flex-col justify-between space-y-5 transition card-hover-elevate reveal-on-scroll">
             <div class="space-y-3">
               <div class="text-xs font-bold text-indigo-600 uppercase tracking-wider">Enterprise Scale</div>
               <h3 class="text-lg font-bold text-slate-900">12-Month Priority SLA</h3>
@@ -539,11 +742,11 @@
               </div>
               <p class="text-[11px] text-emerald-700 font-semibold">Full 1-Year Priority Engineering SLA</p>
               <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-slate-100">
-                <li class="flex items-start space-x-2"><span>✓</span><span>Up to <strong>10,000 inquiries / month</strong></span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span><strong>12 Full Months</strong> priority engineering</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Dedicated Cloud Instance (zero queue)</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Custom ERP / Database API Integration</span></li>
-                <li class="flex items-start space-x-2"><span>✓</span><span>Unlimited Catalog Items & Documents</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Up to <strong>10,000 inquiries / month</strong></span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span><strong>12 Full Months</strong> priority engineering</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Dedicated Cloud Instance (zero queue)</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Custom ERP / Database API Integration</span></li>
+                <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span>Unlimited Catalog Items & Documents</span></li>
               </ul>
             </div>
             <button onclick="openActivationModal('Enterprise Scale - 1-Year Commercial License', '₹25,000 One-Time - 1 Full Year Support', '10,000 Monthly Leads • Dedicated Cloud Server & Custom ERP Sync', 25000)" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
@@ -555,12 +758,13 @@
 
       <!-- AGENCY WHITE-LABEL PARTNER PROGRAM (₹35,000 / $420) -->
       <section id="pl-agency" class="space-y-8 scroll-mt-20">
-        <div class="p-6 sm:p-10 rounded-3xl bg-white border border-indigo-200 shadow-xl relative overflow-hidden">
+        <div class="p-6 sm:p-10 rounded-3xl bg-white border border-indigo-200 shadow-xl relative overflow-hidden card-hover-elevate reveal-on-scroll">
           <div class="absolute -right-16 -top-16 w-64 h-64 bg-indigo-50 rounded-full blur-3xl pointer-events-none"></div>
 
           <div class="max-w-4xl space-y-6 relative z-10">
             <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-200">
-              <span>🚀 AGENCY WHITE-LABEL PARTNER PROGRAM • 5 CLIENT ACCOUNTS INCLUDED</span>
+              <svg class="w-3.5 h-3.5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              <span>AGENCY WHITE-LABEL PARTNER PROGRAM • 5 CLIENT ACCOUNTS INCLUDED</span>
             </div>
 
             <div class="space-y-2">
@@ -571,20 +775,32 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-600 pt-2">
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center space-x-2"><span>🏷️</span><span>100% Brand Rebrand</span></div>
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 card-hover-elevate">
+                <div class="font-bold text-slate-900 flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                  <span>100% Brand Rebrand</span>
+                </div>
                 <p class="text-slate-500">Your logo, agency name, favicon, custom subdomain, and WhatsApp support. Zero MartFlow branding anywhere.</p>
               </div>
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center space-x-2"><span>🔑</span><span>5 Isolated Client Accounts</span></div>
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 card-hover-elevate">
+                <div class="font-bold text-slate-900 flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <span>5 Isolated Client Accounts</span>
+                </div>
                 <p class="text-slate-500">5 independent client workspaces included with full multi-tenant isolation. Add extra client slots anytime at ₹4,000/slot.</p>
               </div>
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center space-x-2"><span>💰</span><span>You Set the Price</span></div>
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 card-hover-elevate">
+                <div class="font-bold text-slate-900 flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  <span>You Set the Price</span>
+                </div>
                 <p class="text-slate-500">Charge whatever you want — ₹12,000 one-time, monthly retainers, or performance fees. You keep 100% of your client revenue.</p>
               </div>
-              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
-                <div class="font-bold text-slate-900 flex items-center space-x-2"><span>📦</span><span>Agency Pitch & Client Kit</span></div>
+              <div class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 card-hover-elevate">
+                <div class="font-bold text-slate-900 flex items-center space-x-2">
+                  <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                  <span>Agency Pitch & Client Kit</span>
+                </div>
                 <p class="text-slate-500">We provide you with customizable client pitch decks, proposal templates, and client onboarding brochures ready to sign deals.</p>
               </div>
             </div>
@@ -593,7 +809,7 @@
             <div class="mt-8 p-5 sm:p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
                 <div class="font-bold text-sm text-slate-900 flex items-center space-x-2">
-                  <span>⚡</span>
+                  <svg class="w-4 h-4 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                   <span>Interactive White-Label Portal Previewer</span>
                 </div>
                 <span class="text-[11px] text-indigo-600 font-semibold">Test how your branded client portal looks live</span>
@@ -633,7 +849,8 @@
                     <div id="wlPreviewSupport" class="font-bold text-emerald-700 font-mono">WhatsApp Desk Active</div>
                   </div>
                   <button onclick="copyWhiteLabelLink()" class="px-3.5 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold border border-indigo-200 transition flex items-center space-x-1.5 whitespace-nowrap">
-                    <span>📋 Copy Branded URL</span>
+                    <svg class="w-3.5 h-3.5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                    <span>Copy Branded URL</span>
                   </button>
                 </div>
               </div>
@@ -642,7 +859,8 @@
             <!-- CTA BUTTON -->
             <div class="pt-4 flex flex-col sm:flex-row items-center gap-4">
               <button onclick="openActivationModal('Agency White-Label Partner License', '₹35,000 One-Time', '5 Client Workspace Accounts Included • Extra slots at ₹4,000 • 100% Rebrand', 35000)" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/20 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2">
-                <span>🚀 Get Agency License (₹35,000 One-Time / $420)</span>
+                <svg class="w-4 h-4 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                <span>Get Agency License (₹35,000 One-Time / $420)</span>
               </button>
               <span class="text-xs text-slate-500">Includes 5 Client Accounts + Full Rebrand + Extra Slots ₹4,000/ea</span>
             </div>
@@ -660,7 +878,11 @@
           <div>
             <div class="font-bold text-slate-900 mb-2">Live Demo</div>
             <ul class="space-y-1.5 text-[11px]">
-              <li><a href="javascript:void(0)" onclick="openDemoBotChat()" class="text-slate-600 hover:text-indigo-600 transition">⚡ Test Live AI Demo Bot</a></li>
+              <li><a href="javascript:void(0)" onclick="openDemoBotChat()" class="text-slate-600 hover:text-indigo-600 transition flex items-center space-x-1.5"><svg class="w-3 h-3 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Test Live AI Demo Bot</span></a></li>
+              <li><a href="javascript:void(0)" onclick="scrollToSection('pl-industries')" class="text-slate-600 hover:text-indigo-600 transition">8 Industry Bento Grid</a></li>
+              <li><a href="javascript:void(0)" onclick="scrollToSection('pl-features')" class="text-slate-600 hover:text-indigo-600 transition">Catalog Photo & PDF Dispatch</a></li>
+            </ul>
+          </div>
               <li><a href="javascript:void(0)" onclick="scrollToSection('pl-industries')" class="text-slate-600 hover:text-indigo-600 transition">8 Industry Bento Grid</a></li>
               <li><a href="javascript:void(0)" onclick="scrollToSection('pl-features')" class="text-slate-600 hover:text-indigo-600 transition">Catalog Photo & PDF Dispatch</a></li>
             </ul>
@@ -5062,9 +5284,38 @@
     }
 
     // =========================================================================
+    // 🎭 SCROLL-REVEAL OBSERVER FOR ENTERPRISE LANDING PAGE
+    // =========================================================================
+    function initScrollReveal() {
+      const targets = document.querySelectorAll('.reveal-on-scroll');
+      if (!targets.length) return;
+      if (!('IntersectionObserver' in window)) {
+        targets.forEach(el => el.classList.add('is-revealed'));
+        return;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '0px 0px -40px 0px', threshold: 0.1 });
+      targets.forEach((el, index) => {
+        el.style.transitionDelay = `${(index % 4) * 60}ms`;
+        observer.observe(el);
+      });
+      // Safety fallback to ensure all elements are visible after 1.2s
+      setTimeout(() => {
+        targets.forEach(el => el.classList.add('is-revealed'));
+      }, 1200);
+    }
+
+    // =========================================================================
     // 🚀 INITIALIZATION ON PAGE LOAD
     // =========================================================================
     window.addEventListener('DOMContentLoaded', async () => {
+      initScrollReveal();
       checkWhiteLabelUrlParams();
       refreshPaymentAndSupportLinks();
       fetchPublicConfig();
