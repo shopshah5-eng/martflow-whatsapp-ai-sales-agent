@@ -940,14 +940,21 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
           if (!existingLead) {
             isBrandNewLead = true;
-            const { data: newLead, error: leadErr } = await supabaseAdmin.from('leads').insert({
+            const insertPayload = {
               org_id: orgId,
               buyer_name: pushName,
               buyer_phone: senderPhone,
               query_message: incomingText,
               requirement: incomingText,
               status: 'Hot Lead'
-            }).select().single();
+            };
+            let { data: newLead, error: leadErr } = await supabaseAdmin.from('leads').insert(insertPayload).select().single();
+            if (leadErr && (leadErr.message?.includes('requirement') || leadErr.code === '42703')) {
+              delete insertPayload.requirement;
+              const retryRes = await supabaseAdmin.from('leads').insert(insertPayload).select().single();
+              newLead = retryRes.data;
+              leadErr = retryRes.error;
+            }
             if (leadErr) {
               addLog(`[Supabase Lead Insert Notice]: ${leadErr.message}`);
             }
@@ -1014,9 +1021,10 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
               return;
             }
             if (supabaseAdmin) {
-              await supabaseAdmin.rpc('increment_leads_used', { org_id: orgId }).catch(async () => {
+              const { error: rpcErr } = await supabaseAdmin.rpc('increment_leads_used', { org_id: orgId });
+              if (rpcErr) {
                 await supabaseAdmin.from('organizations').update({ leads_used: used + 1 }).eq('id', orgId);
-              });
+              }
             } else {
               db.incrementLeadsUsed(orgId);
             }
@@ -1238,19 +1246,20 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     // Exactly 1 product photo per turn
     if (aiReplyObj.matchedImageUrl || aiReplyObj.matchedImagePath) {
       try {
-        let imgSource = null;
+        let imgBuffer = null;
         if (aiReplyObj.matchedImagePath && fs.existsSync(aiReplyObj.matchedImagePath)) {
-          imgSource = fs.readFileSync(aiReplyObj.matchedImagePath);
+          imgBuffer = fs.readFileSync(aiReplyObj.matchedImagePath);
         } else if (aiReplyObj.matchedImageUrl && aiReplyObj.matchedImageUrl.startsWith('data:image')) {
           const b64 = aiReplyObj.matchedImageUrl.split(',')[1] || aiReplyObj.matchedImageUrl;
-          imgSource = Buffer.from(b64, 'base64');
+          imgBuffer = Buffer.from(b64, 'base64');
         } else if (aiReplyObj.matchedImageUrl && aiReplyObj.matchedImageUrl.startsWith('http')) {
-          imgSource = { url: aiReplyObj.matchedImageUrl };
+          const { getSafeAttachmentBuffer } = await import('./src/services/storageSecurity.js');
+          imgBuffer = await getSafeAttachmentBuffer(orgId, aiReplyObj.matchedImageUrl);
         }
-        if (imgSource) {
+        if (imgBuffer) {
           const imgCaption = aiReplyObj.matchedImageCaption ? `📸 ${aiReplyObj.matchedImageCaption}` : 'Live Product Photo';
           const imgSent = await activeSock.sendMessage(rawRemote, {
-            image: imgSource,
+            image: imgBuffer,
             caption: imgCaption
           });
           if (imgSent?.key?.id) botSentMsgIds.add(imgSent.key.id);
@@ -1265,15 +1274,19 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     const pdfKey = `${orgId}:${senderPhone}`;
     if (aiReplyObj.matchedBrochureUrl && !sentPdfs.has(pdfKey)) {
       try {
-        const brochureSent = await activeSock.sendMessage(rawRemote, {
-          document: { url: aiReplyObj.matchedBrochureUrl },
-          mimetype: 'application/pdf',
-          fileName: aiReplyObj.matchedBrochureName || 'MartFlow_Catalog.pdf',
-          caption: `Aapka official technical brochure & price catalog! 📄`
-        });
-        if (brochureSent?.key?.id) botSentMsgIds.add(brochureSent.key.id);
-        sentPdfs.add(pdfKey);
-        addLog(`[Brochure] Sent PDF brochure to +${senderPhone}`);
+        const { getSafeAttachmentBuffer } = await import('./src/services/storageSecurity.js');
+        const pdfBuffer = await getSafeAttachmentBuffer(orgId, aiReplyObj.matchedBrochureUrl);
+        if (pdfBuffer) {
+          const brochureSent = await activeSock.sendMessage(rawRemote, {
+            document: pdfBuffer,
+            mimetype: 'application/pdf',
+            fileName: aiReplyObj.matchedBrochureName || 'MartFlow_Catalog.pdf',
+            caption: `Aapka official technical brochure & price catalog! 📄`
+          });
+          if (brochureSent?.key?.id) botSentMsgIds.add(brochureSent.key.id);
+          sentPdfs.add(pdfKey);
+          addLog(`[Brochure] Sent PDF brochure to +${senderPhone}`);
+        }
       } catch (pdfErr) {
         addLog(`[Brochure] Error: ${pdfErr.message}`);
       }
@@ -1489,16 +1502,38 @@ async function startWhatsApp() {
 const originalGetInstance = baileysManager.getInstance.bind(baileysManager);
 baileysManager.getInstance = function(orgId) {
   const inst = originalGetInstance(orgId);
+
+  // Define dynamic reactive getters so isConnected, sock, and state are never stale
+  Object.defineProperty(inst, 'sock', {
+    get() {
+      return orgSessions.get(orgId)?.sock || null;
+    },
+    configurable: true
+  });
+  Object.defineProperty(inst, 'isConnected', {
+    get() {
+      const session = orgSessions.get(orgId);
+      return Boolean(session && session.state && session.state.status === 'connected' && session.sock);
+    },
+    configurable: true
+  });
+  Object.defineProperty(inst, 'state', {
+    get() {
+      return orgSessions.get(orgId)?.state || { status: 'disconnected', qrDataUrl: null, logs: [] };
+    },
+    configurable: true
+  });
+
   inst.init = async function(forceNew = false) {
     await startOrgWhatsApp(orgId, forceNew);
-    const session = orgSessions.get(orgId);
-    if (session) {
-      inst.sock = session.sock;
-      inst.isConnected = session.state.status === 'connected';
-      inst.state = session.state;
-    }
     return inst;
   };
+
+  const rawDisconnect = inst._origDisconnect || inst.disconnect;
+  if (!inst._origDisconnect && typeof rawDisconnect === 'function') {
+    inst._origDisconnect = rawDisconnect;
+  }
+
   inst.disconnect = async function() {
     if (orgSessions.has(orgId)) {
       const s = orgSessions.get(orgId);
@@ -1511,9 +1546,8 @@ baileysManager.getInstance = function(orgId) {
       if (s.reconnectTimer) clearTimeout(s.reconnectTimer);
       orgSessions.delete(orgId);
     }
-    const origInst = originalGetInstance(orgId);
-    if (origInst && typeof origInst.disconnect === 'function') {
-      try { await origInst.disconnect(); } catch (e) {}
+    if (typeof inst._origDisconnect === 'function' && inst._origDisconnect !== inst.disconnect) {
+      try { await inst._origDisconnect.call(inst); } catch (e) {}
     }
   };
   return inst;
@@ -2765,102 +2799,6 @@ app.post('/api/upload-catalog', authenticate, async (req, res) => {
   }
 });
 
-// Real-Time Catalog Cache Invalidation & Instant AI Sync Endpoint
-app.post('/api/catalog/sync', async (req, res) => {
-  try {
-    const {
-      orgId,
-      products = [],
-      websiteKnowledge = '',
-      companyName = '',
-      businessType = 'auto',
-      catalogPdfUrl = '',
-      catalogPdfName = '',
-      resetConversations = true
-    } = req.body || {};
-
-    const targetOrgId = orgId || '6fd354d9-3437-412d-856e-28bc19d44268';
-    const demoOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
-    const orgsToUpdate = Array.from(new Set([targetOrgId, demoOrgId]));
-
-    if (supabaseAdmin && Array.isArray(products) && products.length > 0) {
-      for (const oid of orgsToUpdate) {
-        try {
-          // 1. Atomically delete existing products for this org
-          await supabaseAdmin.from('products').delete().eq('org_id', oid);
-
-          // 2. Insert new products
-          const rows = products.map((item, idx) => ({
-            org_id: oid,
-            sku: item.sku_code || item.sku || `ITEM-${101 + idx}`,
-            name: item.name,
-            category: item.category || 'Commercial Products',
-            model_specs: String(item.model_specs || '').substring(0, 600),
-            price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
-            image_url: item.image_url || '',
-            brochure_url: catalogPdfUrl || item.brochure_url || '',
-            brochure_filename: catalogPdfName || item.brochure_filename || '',
-            is_active: true
-          }));
-          await supabaseAdmin.from('products').insert(rows);
-
-          // 3. Update organization metadata
-          const orgUpdate = { updated_at: new Date().toISOString() };
-          if (companyName) orgUpdate.name = companyName;
-          if (websiteKnowledge) orgUpdate.website_knowledge = String(websiteKnowledge).slice(0, 50000);
-          if (catalogPdfUrl) orgUpdate.catalog_pdf_url = catalogPdfUrl;
-          if (catalogPdfName) orgUpdate.catalog_pdf_name = catalogPdfName;
-          if (businessType && businessType !== 'auto') orgUpdate.business_type = businessType;
-
-          await supabaseAdmin.from('organizations').update(orgUpdate).eq('id', oid);
-
-          // 4. Wipe outdated conversation messages so previous discussion topics don't pollute the new catalog
-          if (resetConversations) {
-            const { data: convs } = await supabaseAdmin.from('conversations').select('id').eq('org_id', oid);
-            if (convs && convs.length > 0) {
-              const cIds = convs.map(c => c.id);
-              await supabaseAdmin.from('messages').delete().in('conversation_id', cIds);
-              await supabaseAdmin.from('conversations').update({ mode: 'auto', updated_at: new Date().toISOString() }).in('id', cIds);
-            }
-          }
-        } catch (orgSyncErr) {
-          addLog(`[Catalog Sync Error] Failed syncing org ${oid}: ${orgSyncErr.message}`);
-        }
-      }
-    }
-
-    // Update in-memory local state & config
-    if (Array.isArray(products) && products.length > 0) {
-      config.products = products.map((p, idx) => ({
-        id: p.sku || `prod_${idx}`,
-        name: p.name,
-        keywords: (p.name || '').toLowerCase().split(/\s+/).filter(w => w.length > 2),
-        catalogFile: catalogPdfName || 'Brochure.pdf',
-        priceRange: p.price_raw || 'Ask for Price',
-        model_specs: p.model_specs || ''
-      }));
-    }
-    if (companyName) config.companyName = companyName;
-    if (businessType && businessType !== 'auto') config.businessType = businessType;
-    try { saveConfig(config); } catch (e) {}
-
-    if (websiteKnowledge) {
-      try {
-        let catK = loadCatalogKnowledge();
-        catK.textKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${websiteKnowledge.slice(0, 30000)}`;
-        saveCatalogKnowledge(catK);
-      } catch (e) {}
-    }
-
-    // Invalidate RAM caches across all organizations
-    invalidateCache(null);
-    addLog(`[Catalog Sync] Flushed RAM cache and updated catalog for org: ${targetOrgId} (${products.length} products)`);
-    res.json({ ok: true, count: products.length, message: 'Catalog cache and database refreshed successfully' });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
 // AI Catalog Extraction Fallback Endpoint for unstructured text
 app.post('/api/catalog/extract-ai', async (req, res) => {
   try {
@@ -3109,7 +3047,10 @@ async function initSupabaseWorker() {
           } catch (e) {}
         }
 
-        if (hasCreds && !inst.isConnected) {
+        const session = orgSessions.get(org.id);
+        const isConnecting = session && (session.isConnecting || session.state?.status === 'connecting');
+
+        if (hasCreds && !inst.isConnected && !isConnecting) {
           addLog(`[Supabase Worker] Organization ${org.name || org.id} has saved creds (local/cloud). Auto-resuming...`);
           await supabaseAdmin.from('organizations').update({ wa_status: 'initializing' }).eq('id', org.id);
           inst.init(false);

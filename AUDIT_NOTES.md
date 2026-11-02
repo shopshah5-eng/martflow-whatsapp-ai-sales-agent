@@ -35,7 +35,18 @@
 - Razorpay payments verify orders server-side, validate HMAC SHA256 signatures with constant-time equality checks (`crypto.timingSafeEqual`), and prevent replay attacks.
 
 ## 6. Deterministic Data Migration & Rollback
-- Comprehensive data migration script (`scripts/migrate_local_to_supabase.js`) migrates organizations, profiles, products, leads, conversations, messages, and payments with deterministic UUID mapping and pre-migration backups.
-- Rollback script (`scripts/rollback_migration.js`) respects foreign key dependency order: `messages` -> `conversations` -> `payments` -> `leads` -> `products` -> `profiles` -> `organizations`.
+- Comprehensive data migration script (`scripts/migrate_local_to_supabase.js`) migrates organizations, profiles, products, leads, conversations, messages, and payments with deterministic UUID mapping and pre-migration backups. Only successful inserts are tallied in report counts; errors are tracked without breaking batches.
+- Migrated records are tagged with `is_new_insert: true` and `batch_id` in `legacy_id_mapping`.
+- Rollback script (`scripts/rollback_migration.js`) selectively deletes only `is_new_insert: true` records, ensuring pre-existing Supabase production data is preserved.
+
+## 7. Review Finding Remediations (PR #1 Verification)
+- **Catalog Sync Authentication & Persistence**: Secured `/api/catalog/sync` behind `authenticate` middleware, preventing cross-tenant mutations. Implemented `MultiTenantDB.deleteScoped`, integrated `getSupabaseAdmin`, and ensured catalog and knowledge updates persist to both Supabase and local DB stores.
+- **Baileys Lifecycle & Reconnect Loop**: Refactored `baileysManager.getInstance` to use dynamic property getters for `sock`, `isConnected`, and `state`, eliminating stale status reads. Prevented self-calling recursion on `disconnect`. Guarded `syncConnectedStatus` against triggering reconnects while already connecting.
+- **Razorpay Order Capture Verification**: Added server-side verification against the Razorpay REST API (`/v1/payments/{id}`) when live keys are configured to verify `status === 'captured'`, order ID match, amount in paise, and currency (`INR`).
+- **Media Attachment SSRF Defense**: Corrected `isPrivateOrReservedIP` to check `net.isIP` so valid domain names proceed to DNS pin checks rather than being falsely rejected as invalid IP literals. Routed all outbound media attachments through `getSafeAttachmentBuffer`.
+- **Truthful Outbound Status**: Prevented fake `delivery_status: 'sent'` records in `WhatsAppAdapter`. Dispatches fail truthfully with clear error reporting if no provider or socket is active.
+- **Call Scheduler Dossier**: Implemented `CallSchedulerService.generateLeadDossier` formatting buyer name, phone, location, product requirement, and confirmed appointment slot.
+- **Schema & Quota Accounting**: Added idempotent `increment_leads_used` stored procedure to `supabase_schema.sql` and handled Supabase RPC `{ error }` objects without failing silently. Added fallback retry for `leads.requirement` column.
+- **Frontend Initialization Integrity**: Declared `let sb` prior to `fetchPublicConfig()` to prevent JavaScript temporal dead zone errors.
 
 

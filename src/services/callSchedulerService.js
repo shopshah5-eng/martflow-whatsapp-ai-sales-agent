@@ -43,6 +43,31 @@ export class CallSchedulerService {
     return callReq;
   }
 
+  // Generate structured buyer dossier for factory owner review
+  static generateLeadDossier(organizationId, callRequestId) {
+    if (!organizationId) throw new Error('organization_id is required');
+    const callReq = db.findById('call_requests', callRequestId);
+    if (!callReq || callReq.organization_id !== organizationId) {
+      throw new Error('Call request not found or unauthorized');
+    }
+    const lead = db.findById('leads', callReq.lead_id);
+    const org = db.findById('organizations', organizationId) || {};
+    const buyerName = lead?.buyer_name || 'Prospective Buyer';
+    const buyerPhone = lead?.buyer_phone || 'N/A';
+    const product = lead?.product_inquired || lead?.requirement || 'General Inquiry';
+    const city = lead?.buyer_city || 'Not specified';
+    const timeSlot = callReq.proposed_time_raw || 'Pending Confirmation';
+
+    return [
+      `👤 *Buyer Name:* ${buyerName}`,
+      `📞 *Phone:* +${buyerPhone}`,
+      `📍 *Location:* ${city}`,
+      `📦 *Requirement:* ${product}`,
+      `⏰ *Confirmed Slot:* ${timeSlot}`,
+      `🏢 *Workspace:* ${org.name || 'MartFlow'}`
+    ].join('\n');
+  }
+
   // Owner or Agent confirms call time slot
   static async confirmCallSlot(organizationId, { callRequestId, confirmedTime, confirmedBy = 'owner' }) {
     if (!organizationId) throw new Error('organization_id is required');

@@ -2522,6 +2522,11 @@
       return cleanSetting || localStorage.getItem('mf_support_whatsapp') || window.SUPPORT_WHATSAPP_LIVE || SUPPORT_WHATSAPP;
     }
 
+    // Central Supabase Client (declared with let so dynamic config update does not throw)
+    let sb = (window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined')
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
     async function fetchPublicConfig() {
       try {
         const res = await apiFetch('/api/public-config');
@@ -2591,9 +2596,11 @@
     let leadsSearchDebounceTimer = null;
 
     // =========================================================================
-    // ⚡ CENTRAL SUPABASE CLIENT
+    // ⚡ CENTRAL SUPABASE CLIENT (Initialized above, refreshed dynamically)
     // =========================================================================
-    const sb = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    if (!sb && window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined') {
+      try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) {}
+    }
 
     // 1. Toast Notification System (Zero alerts)
     function showToast(message, type = 'info') {
@@ -5470,7 +5477,10 @@
         }
         fetch(`${API_BASE}/api/catalog/sync`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
+          },
           body: JSON.stringify({ orgId: currentOrg?.id, products: [], resetConversations: true })
         }).catch(() => {});
         catalogProductsCache = [];
@@ -5965,7 +5975,10 @@
         try {
           await fetch(`${API_BASE}/api/catalog/sync`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
+            },
             body: JSON.stringify({
               orgId: currentOrg?.id,
               products: rowsToInsert,

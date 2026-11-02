@@ -6,6 +6,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import net from 'net';
 import dns from 'dns/promises';
 import { URL } from 'url';
 
@@ -87,13 +88,19 @@ export function isPrivateOrReservedIP(ip) {
   if (!ip) return true;
 
   // Normalize IPv4-mapped IPv6
-  let cleanIp = ip;
+  let cleanIp = String(ip).trim();
   if (cleanIp.startsWith('::ffff:')) {
     cleanIp = cleanIp.slice(7);
   }
 
+  const ipFamily = net.isIP(cleanIp);
+  // If not an IP literal (e.g. domain name), it's not a private IP literal
+  if (ipFamily === 0) {
+    return false;
+  }
+
   // IPv4 Checks
-  if (cleanIp.includes('.')) {
+  if (ipFamily === 4) {
     const parts = cleanIp.split('.').map(Number);
     if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) return true;
 
@@ -110,12 +117,15 @@ export function isPrivateOrReservedIP(ip) {
   }
 
   // IPv6 Checks
-  const lower = cleanIp.toLowerCase();
-  if (lower === '::1' || lower === '::') return true; // Loopback / Unspecified
-  if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // Unique Local Address
-  if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true; // Link-local
+  if (ipFamily === 6) {
+    const lower = cleanIp.toLowerCase();
+    if (lower === '::1' || lower === '::') return true; // Loopback / Unspecified
+    if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // Unique Local Address
+    if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true; // Link-local
+    return false;
+  }
 
-  return false;
+  return true;
 }
 
 // 5. Safe Media Attachment Fetcher

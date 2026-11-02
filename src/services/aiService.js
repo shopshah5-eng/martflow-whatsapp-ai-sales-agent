@@ -13,7 +13,7 @@ import { createClient } from '@supabase/supabase-js';
 import db from '../db/index.js';
 
 let _sbAdmin = null;
-function getSupabaseAdmin() {
+export function getSupabaseAdmin() {
   if (_sbAdmin) return _sbAdmin;
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;

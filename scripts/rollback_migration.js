@@ -40,13 +40,14 @@ async function runRollback() {
     return;
   }
 
-  console.log(`Found ${mappings.length} migrated records to rollback.`);
+  const newInsertMappings = mappings.filter(m => m.is_new_insert !== false);
+  console.log(`Found ${newInsertMappings.length} newly inserted records to rollback (preserving pre-existing records).`);
 
   // Rollback order respecting foreign keys: messages -> conversations -> payments -> leads -> products -> profiles -> organizations
   const order = ['messages', 'conversations', 'payments', 'leads', 'products', 'profiles', 'organizations'];
 
   for (const entityType of order) {
-    const ids = mappings.filter(m => m.entity_type === entityType).map(m => m.supabase_uuid);
+    const ids = newInsertMappings.filter(m => m.entity_type === entityType).map(m => m.supabase_uuid);
     if (ids.length > 0) {
       console.log(`Deleting ${ids.length} records from ${entityType}...`);
       const { error: delErr } = await supabase.from(entityType).delete().in('id', ids);
@@ -56,8 +57,11 @@ async function runRollback() {
     }
   }
 
-  // Clear legacy_id_mapping entries
-  await supabase.from('legacy_id_mapping').delete().neq('legacy_id', '');
+  // Clear legacy_id_mapping entries for rolled back records
+  const rolledBackLegacyIds = newInsertMappings.map(m => m.legacy_id);
+  if (rolledBackLegacyIds.length > 0) {
+    await supabase.from('legacy_id_mapping').delete().in('legacy_id', rolledBackLegacyIds);
+  }
   console.log('Rollback completed successfully.');
 }
 

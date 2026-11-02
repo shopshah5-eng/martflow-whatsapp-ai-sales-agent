@@ -319,7 +319,7 @@ test('SECURITY SUITE: Cross-tenant negative access, SSRF, path traversal, and we
     }, 'server.js must have zero JavaScript syntax errors');
   });
 
-  await t.test('13. Catalog sync: dynamically syncs multi-industry catalog and invalidates cache', async () => {
+  await t.test('13. Catalog sync: authenticated, tenant-isolated, and verifies database updates', async () => {
     const testProducts = [
       {
         sku: 'ASTRO-01',
@@ -337,11 +337,39 @@ test('SECURITY SUITE: Cross-tenant negative access, SSRF, path traversal, and we
       }
     ];
 
-    const syncRes = await fetch(`${baseUrl}/api/catalog/sync`, {
+    // 13a. Unauthenticated request must be rejected with 401
+    const unauthRes = await fetch(`${baseUrl}/api/catalog/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         orgId: user1.organization.id,
+        products: testProducts
+      })
+    });
+    assert.equal(unauthRes.status, 401, 'Unauthenticated catalog sync must be rejected with 401');
+
+    // 13b. Cross-tenant mutation by User 2 on User 1 must be rejected with 403
+    const crossTenantRes = await fetch(`${baseUrl}/api/catalog/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${user2.token}`
+      },
+      body: JSON.stringify({
+        orgId: user1.organization.id,
+        products: testProducts
+      })
+    });
+    assert.equal(crossTenantRes.status, 403, 'Cross-tenant catalog mutation must be rejected with 403');
+
+    // 13c. Authenticated tenant updates own catalog
+    const syncRes = await fetch(`${baseUrl}/api/catalog/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${user1.token}`
+      },
+      body: JSON.stringify({
         products: testProducts,
         websiteKnowledge: 'Sri Vedic Astrology Center. We offer Kundli matching, horoscope reading, and gemstone advice.',
         companyName: 'Sri Vedic Astrology Center',
@@ -353,6 +381,11 @@ test('SECURITY SUITE: Cross-tenant negative access, SSRF, path traversal, and we
     const syncData = await syncRes.json();
     assert.equal(syncData.ok, true);
     assert.equal(syncData.count, 2);
+
+    // Verify products were actually inserted into the database for user1
+    const syncedProds = db.findScoped('products', user1.organization.id);
+    assert.equal(syncedProds.length, 2, 'Products must be persisted in database');
+    assert.ok(syncedProds.some(p => p.name.includes('Kundli')), 'Must find Kundli product in database');
   });
 
   server.close();

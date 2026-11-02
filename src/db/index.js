@@ -153,6 +153,25 @@ class MultiTenantDB {
     return res;
   }
 
+  // Delete records scoped to tenant
+  deleteScoped(tableName, organizationId, predicate = null) {
+    if (!organizationId) {
+      throw new Error(`Tenant Isolation Security Violation: Missing organization_id on delete to ${tableName}`);
+    }
+    const table = this.tables[tableName];
+    if (!table) return 0;
+    let count = 0;
+    for (const [id, record] of Array.from(table.entries())) {
+      const matchesOrg = (record.organization_id === organizationId || record.org_id === organizationId);
+      if (matchesOrg && (!predicate || predicate(record))) {
+        table.delete(id);
+        count++;
+      }
+    }
+    if (count > 0) this.persist();
+    return count;
+  }
+
   // Clear table (testing utility)
   clear(tableName) {
     if (this.tables[tableName]) {

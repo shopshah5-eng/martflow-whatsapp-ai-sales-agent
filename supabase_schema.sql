@@ -424,9 +424,30 @@ CREATE TABLE IF NOT EXISTS public.legacy_id_mapping (
     legacy_id TEXT PRIMARY KEY,
     supabase_uuid UUID NOT NULL DEFAULT gen_random_uuid(),
     entity_type TEXT NOT NULL,
+    is_new_insert BOOLEAN DEFAULT true,
+    batch_id TEXT,
     migrated_at TIMESTAMPTZ DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_legacy_mapping_uuid ON public.legacy_id_mapping(supabase_uuid);
+ALTER TABLE public.legacy_id_mapping ADD COLUMN IF NOT EXISTS is_new_insert BOOLEAN DEFAULT true;
+ALTER TABLE public.legacy_id_mapping ADD COLUMN IF NOT EXISTS batch_id TEXT;
+
+-- Migration idempotency helper for requirement column
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS requirement TEXT;
+
+-- Atomic Quota Increment RPC
+CREATE OR REPLACE FUNCTION public.increment_leads_used(org_id UUID)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.organizations
+  SET leads_used = COALESCE(leads_used, 0) + 1,
+      updated_at = NOW()
+  WHERE id = org_id;
+END;
+$$;
 
 -- 17. Enable Supabase Realtime for Multi-Tenant Dashboard & WhatsApp Worker
 DO $$

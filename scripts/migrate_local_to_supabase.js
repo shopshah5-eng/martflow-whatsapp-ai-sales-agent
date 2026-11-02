@@ -90,11 +90,14 @@ async function runMigration() {
     return idMap.get(legacyId);
   }
 
+  const batchId = 'batch_' + Date.now();
+
   try {
     // 2. Migrate Organizations
     const orgs = rawData.organizations || [];
     report.sourceCounts.organizations = orgs.length;
     console.log(`[1/5] Migrating ${orgs.length} Organizations...`);
+    let orgsMigrated = 0;
 
     for (const org of orgs) {
       const uuid = getOrMapId(org.id, 'organizations');
@@ -111,15 +114,21 @@ async function runMigration() {
 
       if (!isDryRun) {
         const { error } = await supabase.from('organizations').upsert(payload, { onConflict: 'id' });
-        if (error) throw new Error(`Failed to upsert org ${org.id}: ${error.message}`);
+        if (error) {
+          report.errors.push(`Failed to upsert org ${org.id}: ${error.message}`);
+          continue;
+        }
         await supabase.from('legacy_id_mapping').upsert({
           legacy_id: org.id,
           supabase_uuid: uuid,
-          entity_type: 'organizations'
+          entity_type: 'organizations',
+          is_new_insert: true,
+          batch_id: batchId
         }, { onConflict: 'legacy_id' });
       }
+      orgsMigrated++;
     }
-    report.migratedCounts.organizations = orgs.length;
+    report.migratedCounts.organizations = orgsMigrated;
 
     // 3. Migrate Profiles & Auth Identities
     const profiles = rawData.profiles || [];
@@ -173,20 +182,27 @@ async function runMigration() {
 
       if (!isDryRun) {
         const { error } = await supabase.from('profiles').upsert(profilePayload, { onConflict: 'id' });
-        if (error) throw new Error(`Failed to upsert profile ${profile.id}: ${error.message}`);
+        if (error) {
+          report.errors.push(`Failed to upsert profile ${profile.id}: ${error.message}`);
+          continue;
+        }
         await supabase.from('legacy_id_mapping').upsert({
           legacy_id: profile.id,
           supabase_uuid: authUserId,
-          entity_type: 'profiles'
+          entity_type: 'profiles',
+          is_new_insert: true,
+          batch_id: batchId
         }, { onConflict: 'legacy_id' });
       }
+      profilesMigrated++;
     }
-    report.migratedCounts.profiles = profiles.length;
+    report.migratedCounts.profiles = profilesMigrated;
 
     // 4. Migrate Products
     const products = rawData.products || [];
     report.sourceCounts.products = products.length;
     console.log(`[3/5] Migrating ${products.length} Products...`);
+    let productsMigrated = 0;
 
     for (const prod of products) {
       const prodUuid = getOrMapId(prod.id, 'products');
@@ -209,20 +225,27 @@ async function runMigration() {
 
       if (!isDryRun) {
         const { error } = await supabase.from('products').upsert(prodPayload, { onConflict: 'id' });
-        if (error) throw new Error(`Failed to upsert product ${prod.id}: ${error.message}`);
+        if (error) {
+          report.errors.push(`Failed to upsert product ${prod.id}: ${error.message}`);
+          continue;
+        }
         await supabase.from('legacy_id_mapping').upsert({
           legacy_id: prod.id,
           supabase_uuid: prodUuid,
-          entity_type: 'products'
+          entity_type: 'products',
+          is_new_insert: true,
+          batch_id: batchId
         }, { onConflict: 'legacy_id' });
       }
+      productsMigrated++;
     }
-    report.migratedCounts.products = products.length;
+    report.migratedCounts.products = productsMigrated;
 
     // 5. Migrate Leads
     const leads = rawData.leads || [];
     report.sourceCounts.leads = leads.length;
     console.log(`[4/5] Migrating ${leads.length} Leads...`);
+    let leadsMigrated = 0;
 
     for (const lead of leads) {
       const leadUuid = getOrMapId(lead.id, 'leads');
@@ -246,20 +269,27 @@ async function runMigration() {
 
       if (!isDryRun) {
         const { error } = await supabase.from('leads').upsert(leadPayload, { onConflict: 'id' });
-        if (error) throw new Error(`Failed to upsert lead ${lead.id}: ${error.message}`);
+        if (error) {
+          report.errors.push(`Failed to upsert lead ${lead.id}: ${error.message}`);
+          continue;
+        }
         await supabase.from('legacy_id_mapping').upsert({
           legacy_id: lead.id,
           supabase_uuid: leadUuid,
-          entity_type: 'leads'
+          entity_type: 'leads',
+          is_new_insert: true,
+          batch_id: batchId
         }, { onConflict: 'legacy_id' });
       }
+      leadsMigrated++;
     }
-    report.migratedCounts.leads = leads.length;
+    report.migratedCounts.leads = leadsMigrated;
 
     // 6. Migrate Conversations
     const convs = rawData.conversations || [];
     report.sourceCounts.conversations = convs.length;
     console.log(`[5/7] Migrating ${convs.length} Conversations...`);
+    let convsMigrated = 0;
 
     for (const conv of convs) {
       const convUuid = getOrMapId(conv.id, 'conversations');
@@ -278,21 +308,27 @@ async function runMigration() {
 
       if (!isDryRun) {
         const { error } = await supabase.from('conversations').upsert(convPayload, { onConflict: 'id' });
-        if (!error) {
-          await supabase.from('legacy_id_mapping').upsert({
-            legacy_id: conv.id,
-            supabase_uuid: convUuid,
-            entity_type: 'conversations'
-          }, { onConflict: 'legacy_id' });
+        if (error) {
+          report.errors.push(`Failed to upsert conversation ${conv.id}: ${error.message}`);
+          continue;
         }
+        await supabase.from('legacy_id_mapping').upsert({
+          legacy_id: conv.id,
+          supabase_uuid: convUuid,
+          entity_type: 'conversations',
+          is_new_insert: true,
+          batch_id: batchId
+        }, { onConflict: 'legacy_id' });
       }
+      convsMigrated++;
     }
-    report.migratedCounts.conversations = convs.length;
+    report.migratedCounts.conversations = convsMigrated;
 
     // 7. Migrate Messages
     const msgs = rawData.messages || [];
     report.sourceCounts.messages = msgs.length;
     console.log(`[6/7] Migrating ${msgs.length} Messages...`);
+    let msgsMigrated = 0;
 
     for (const msg of msgs) {
       const msgUuid = getOrMapId(msg.id, 'messages');
@@ -311,21 +347,27 @@ async function runMigration() {
 
       if (!isDryRun) {
         const { error } = await supabase.from('messages').upsert(msgPayload, { onConflict: 'id' });
-        if (!error) {
-          await supabase.from('legacy_id_mapping').upsert({
-            legacy_id: msg.id,
-            supabase_uuid: msgUuid,
-            entity_type: 'messages'
-          }, { onConflict: 'legacy_id' });
+        if (error) {
+          report.errors.push(`Failed to upsert message ${msg.id}: ${error.message}`);
+          continue;
         }
+        await supabase.from('legacy_id_mapping').upsert({
+          legacy_id: msg.id,
+          supabase_uuid: msgUuid,
+          entity_type: 'messages',
+          is_new_insert: true,
+          batch_id: batchId
+        }, { onConflict: 'legacy_id' });
       }
+      msgsMigrated++;
     }
-    report.migratedCounts.messages = msgs.length;
+    report.migratedCounts.messages = msgsMigrated;
 
     // 8. Migrate Payments
     const payments = rawData.payments || [];
     report.sourceCounts.payments = payments.length;
     console.log(`[7/7] Migrating ${payments.length} Payments...`);
+    let paymentsMigrated = 0;
 
     for (const pay of payments) {
       const payUuid = getOrMapId(pay.id, 'payments');
@@ -346,14 +388,21 @@ async function runMigration() {
 
       if (!isDryRun) {
         const { error } = await supabase.from('payments').upsert(payPayload, { onConflict: 'id' });
-        if (!error) {
-          await supabase.from('legacy_id_mapping').upsert({
-            legacy_id: pay.id,
-            supabase_uuid: payUuid,
-            entity_type: 'payments'
-          }, { onConflict: 'legacy_id' });
+        if (error) {
+          report.errors.push(`Failed to upsert payment ${pay.id}: ${error.message}`);
+          continue;
         }
+        await supabase.from('legacy_id_mapping').upsert({
+          legacy_id: pay.id,
+          supabase_uuid: payUuid,
+          entity_type: 'payments',
+          is_new_insert: true,
+          batch_id: batchId
+        }, { onConflict: 'legacy_id' });
       }
+      paymentsMigrated++;
+    }
+    report.migratedCounts.payments = paymentsMigrated;
     }
     report.migratedCounts.payments = payments.length;
 

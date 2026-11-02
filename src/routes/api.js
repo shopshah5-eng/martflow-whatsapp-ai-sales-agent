@@ -5,13 +5,15 @@
 
 import express from 'express';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
 import { authenticate, requireRole } from '../middleware/authMiddleware.js';
 import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
 import { CallSchedulerService } from '../services/callSchedulerService.js';
 import { AnalyticsService } from '../services/analyticsService.js';
-import { AIService, invalidateCache } from '../services/aiService.js';
+import { AIService, invalidateCache, getSupabaseAdmin } from '../services/aiService.js';
 import { WhatsAppAdapter } from '../integrations/whatsapp/whatsappAdapter.js';
 import { B2BWebhook } from '../integrations/b2b/b2bWebhook.js';
 import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
@@ -358,7 +360,7 @@ router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admi
 });
 
 // Real-Time Catalog Cache Invalidation & Instant AI Sync Endpoint
-router.post('/catalog/sync', async (req, res) => {
+router.post('/catalog/sync', authenticate, async (req, res) => {
   try {
     const {
       orgId,
@@ -371,28 +373,33 @@ router.post('/catalog/sync', async (req, res) => {
       resetConversations = true
     } = req.body || {};
 
-    const targetOrgId = orgId || req.organizationId || '6fd354d9-3437-412d-856e-28bc19d44268';
-    const demoOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
-    const orgsToUpdate = Array.from(new Set([targetOrgId, demoOrgId]));
+    const targetOrgId = (req.role === 'superadmin' && orgId) ? orgId : req.organizationId;
+    if (orgId && orgId !== targetOrgId && req.role !== 'superadmin') {
+      return res.status(403).json({ ok: false, error: 'Cannot modify catalog of another organization' });
+    }
 
-    const admin = db.getSupabaseAdmin ? db.getSupabaseAdmin() : null;
-    if (admin && Array.isArray(products) && products.length > 0) {
+    const orgsToUpdate = [targetOrgId];
+
+    const admin = getSupabaseAdmin();
+    if (admin) {
       for (const oid of orgsToUpdate) {
         try {
           await admin.from('products').delete().eq('org_id', oid);
-          const rows = products.map((item, idx) => ({
-            org_id: oid,
-            sku: item.sku_code || item.sku || `ITEM-${101 + idx}`,
-            name: item.name,
-            category: item.category || 'Commercial Products',
-            model_specs: String(item.model_specs || '').substring(0, 600),
-            price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
-            image_url: item.image_url || '',
-            brochure_url: catalogPdfUrl || item.brochure_url || '',
-            brochure_filename: catalogPdfName || item.brochure_filename || '',
-            is_active: true
-          }));
-          await admin.from('products').insert(rows);
+          if (Array.isArray(products) && products.length > 0) {
+            const rows = products.map((item, idx) => ({
+              org_id: oid,
+              sku: item.sku_code || item.sku || `ITEM-${101 + idx}`,
+              name: item.name,
+              category: item.category || 'Commercial Products',
+              model_specs: String(item.model_specs || '').substring(0, 600),
+              price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
+              image_url: item.image_url || '',
+              brochure_url: catalogPdfUrl || item.brochure_url || '',
+              brochure_filename: catalogPdfName || item.brochure_filename || '',
+              is_active: true
+            }));
+            await admin.from('products').insert(rows);
+          }
 
           const orgUpdate = { updated_at: new Date().toISOString() };
           if (companyName) orgUpdate.name = companyName;
@@ -411,30 +418,83 @@ router.post('/catalog/sync', async (req, res) => {
               await admin.from('conversations').update({ mode: 'auto', updated_at: new Date().toISOString() }).in('id', cIds);
             }
           }
-        } catch (orgSyncErr) {}
+        } catch (orgSyncErr) {
+          console.warn(`[Catalog Sync] Supabase sync notice for org ${oid}:`, orgSyncErr.message);
+        }
       }
     }
 
-    try {
-      if (Array.isArray(products) && products.length > 0) {
-        db.deleteScoped('products', targetOrgId);
-        products.forEach(p => {
-          db.insert('products', {
-            organization_id: targetOrgId,
-            name: p.name,
-            sku: p.sku || p.sku_code || 'ITEM',
-            price_raw: p.price_raw || 'Ask for Price',
-            model_specs: p.model_specs || '',
-            category: p.category || 'Commercial Products'
-          });
+    // Local DB atomic update
+    db.deleteScoped('products', targetOrgId);
+    if (Array.isArray(products) && products.length > 0) {
+      products.forEach((p, idx) => {
+        db.insert('products', {
+          organization_id: targetOrgId,
+          name: p.name,
+          sku: p.sku || p.sku_code || `ITEM-${101 + idx}`,
+          price_raw: p.price_raw || 'Ask for Price',
+          model_specs: p.model_specs || '',
+          category: p.category || 'Commercial Products',
+          image_url: p.image_url || '',
+          brochure_url: catalogPdfUrl || p.brochure_url || '',
+          brochure_filename: catalogPdfName || p.brochure_filename || '',
+          is_active: true
         });
-      }
-      if (companyName) {
-        db.update('organizations', targetOrgId, { name: companyName });
-      }
-    } catch (e) {}
+      });
+    }
 
+    const localOrgUpdates = {};
+    if (companyName) localOrgUpdates.name = companyName;
+    if (businessType && businessType !== 'auto') localOrgUpdates.business_type = businessType;
+    if (websiteKnowledge) localOrgUpdates.website_knowledge = String(websiteKnowledge).slice(0, 50000);
+    if (Object.keys(localOrgUpdates).length > 0) {
+      db.update('organizations', targetOrgId, localOrgUpdates);
+    }
+
+    if (resetConversations) {
+      const convs = db.findScoped('conversations', targetOrgId);
+      convs.forEach(c => {
+        db.deleteScoped('messages', targetOrgId, m => m.conversation_id === c.id);
+      });
+    }
+
+    // Invalidate RAM cache
+    invalidateCache(targetOrgId);
     invalidateCache(null);
+
+    // Sync to local catalog_knowledge.json and config.json if this is the main demo org
+    const isMainDemoOrg = targetOrgId === '6fd354d9-3437-412d-856e-28bc19d44268';
+    if (isMainDemoOrg) {
+      try {
+        const KNOWLEDGE_FILE = path.join(process.cwd(), 'catalog_knowledge.json');
+        if (fs.existsSync(KNOWLEDGE_FILE)) {
+          const catK = JSON.parse(fs.readFileSync(KNOWLEDGE_FILE, 'utf8'));
+          catK.textKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${(websiteKnowledge || '').slice(0, 30000)}`;
+          fs.writeFileSync(KNOWLEDGE_FILE, JSON.stringify(catK, null, 2), 'utf8');
+        }
+      } catch (e) {}
+
+      try {
+        const CONFIG_FILE = path.join(process.cwd(), 'config.json');
+        if (fs.existsSync(CONFIG_FILE)) {
+          const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+          if (companyName) cfg.companyName = companyName;
+          if (businessType && businessType !== 'auto') cfg.businessType = businessType;
+          if (Array.isArray(products) && products.length > 0) {
+            cfg.products = products.map((p, idx) => ({
+              id: p.sku || `prod_${idx}`,
+              name: p.name,
+              priceRange: p.price_raw || 'Ask for Price',
+              keywords: (p.name || '').toLowerCase().split(/\s+/).filter(w => w.length > 2),
+              catalogFile: catalogPdfName || 'Brochure.pdf',
+              model_specs: p.model_specs || ''
+            }));
+          }
+          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
+        }
+      } catch (e) {}
+    }
+
     res.json({ ok: true, count: products.length, message: 'Catalog cache and database refreshed successfully' });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -940,6 +1000,37 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
     } else {
       // Secret is mandatory even in test mode if verifying signatures
       return res.status(400).json({ ok: false, error: 'Cannot verify payment without RAZORPAY_KEY_SECRET.' });
+    }
+
+    // Verify against Razorpay Payments API if live credentials exist
+    const hasLiveKeys = Boolean(
+      process.env.RAZORPAY_KEY_ID &&
+      process.env.RAZORPAY_KEY_SECRET &&
+      !process.env.RAZORPAY_KEY_ID.includes('placeholder')
+    );
+    if (hasLiveKeys) {
+      try {
+        const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
+        const payResp = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(razorpay_payment_id)}`, {
+          headers: { Authorization: authHeader }
+        });
+        if (!payResp.ok) {
+          return res.status(400).json({ ok: false, error: 'Could not fetch payment verification from Razorpay gateway.' });
+        }
+        const payData = await payResp.json();
+        if (payData.status !== 'captured') {
+          return res.status(400).json({ ok: false, error: `Payment not captured. Current gateway status: ${payData.status}` });
+        }
+        if (payData.order_id && payData.order_id !== razorpay_order_id) {
+          return res.status(400).json({ ok: false, error: 'Payment order_id does not match the active checkout session.' });
+        }
+        const expectedPaise = payment.amount_inr * 100;
+        if (Number(payData.amount) !== expectedPaise) {
+          return res.status(400).json({ ok: false, error: `Payment amount mismatch: expected ₹${payment.amount_inr}, received ₹${payData.amount / 100}` });
+        }
+      } catch (gatewayErr) {
+        return res.status(502).json({ ok: false, error: `Payment gateway verification failed: ${gatewayErr.message}` });
+      }
     }
 
     // Check for replay attacks: payment_id must not already be verified

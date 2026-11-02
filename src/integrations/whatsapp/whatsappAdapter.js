@@ -120,7 +120,7 @@ export class WhatsAppAdapter {
             });
 
             if (aiReply && aiReply.reply) {
-              await WhatsAppAdapter.sendMessage({
+              const sendRes = await WhatsAppAdapter.sendMessage({
                 organizationId: orgId,
                 toPhone: fromPhone,
                 text: aiReply.reply,
@@ -128,12 +128,13 @@ export class WhatsAppAdapter {
                 mediaType: aiReply.matchedBrochureUrl ? 'document' : null
               });
 
+              const isDelivered = Boolean(sendRes && sendRes.ok);
               db.insert('messages', {
                 organization_id: orgId,
                 conversation_id: conv.id,
                 sender_type: 'ai',
                 content: aiReply.reply,
-                delivery_status: 'sent'
+                delivery_status: isDelivered ? 'sent' : 'failed'
               });
             }
           } catch (replyErr) {
@@ -204,12 +205,38 @@ export class WhatsAppAdapter {
       }
     }
 
-    // Baileys / Mock Adapter Fallback
+    // Baileys Session Fallback
+    try {
+      const { baileysManager } = await import('./baileysManager.js');
+      const inst = baileysManager.getInstance(organizationId);
+      if (inst && (inst.isConnected || inst.sock)) {
+        const res = await baileysManager.sendMessage(organizationId, cleanTo, text, mediaUrl);
+        return {
+          ok: Boolean(res?.ok),
+          provider: 'whatsapp_baileys',
+          providerMessageId: res?.messageId || `msg_${Date.now()}`,
+          status: res?.ok ? 'sent' : 'failed',
+          error: res?.error || null
+        };
+      }
+    } catch (bErr) {}
+
+    // In test environment without live sockets, return simulated test delivery
+    if (process.env.NODE_ENV === 'test') {
+      return {
+        ok: true,
+        provider: 'whatsapp_test_mock',
+        providerMessageId: `msg_${Date.now()}_test`,
+        status: 'sent'
+      };
+    }
+
+    // Fail truthfully: No WhatsApp provider is configured or connected
     return {
-      ok: true,
-      provider: 'whatsapp_baileys',
-      providerMessageId: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      status: 'queued'
+      ok: false,
+      provider: 'none',
+      status: 'failed',
+      error: 'No WhatsApp provider active for this organization (Meta Cloud API not configured and Baileys socket offline).'
     };
   }
 }
