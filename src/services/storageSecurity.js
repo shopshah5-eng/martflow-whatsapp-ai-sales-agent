@@ -7,6 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import net from 'net';
+import https from 'https';
 import dns from 'dns/promises';
 import { URL } from 'url';
 
@@ -66,6 +67,13 @@ export function getSafeTenantCatalogPath(orgId, filename) {
 
   if (!tenantDir.startsWith(baseCatalogsDir + path.sep)) {
     throw new Error('Security Violation: Tenant catalog directory escapes authorized root.');
+  }
+
+  if (fs.existsSync(tenantDir) && fs.lstatSync(tenantDir).isSymbolicLink()) {
+    throw new Error('Security Violation: Symbolic links are forbidden in tenant catalog directories.');
+  }
+  if (fs.existsSync(baseCatalogsDir) && fs.lstatSync(baseCatalogsDir).isSymbolicLink()) {
+    throw new Error('Security Violation: Symbolic links are forbidden in catalog storage.');
   }
 
   const targetFile = path.resolve(tenantDir, safeFile);
@@ -160,56 +168,51 @@ export async function getSafeAttachmentBuffer(orgId, attachmentRef) {
     throw new Error('Only secure HTTPS URLs are permitted for remote attachments.');
   }
 
-  const hostname = parsedUrl.hostname;
-  if (!hostname) throw new Error('Missing hostname in attachment URL.');
-
-  // Direct IP Literal Check (blocks 127.0.0.1, 169.254.169.254, etc.)
-  if (isPrivateOrReservedIP(hostname)) {
-    throw new Error(`SSRF Blocked: Destination ${hostname} is a protected/internal IP address.`);
+  const hostname = parsedUrl.hostname.replace(/^\[|\]$/g, '');
+  if (!hostname || parsedUrl.username || parsedUrl.password) throw new Error('Invalid attachment host.');
+  if (net.isIP(hostname) && isPrivateOrReservedIP(hostname)) {
+    throw new Error(`SSRF Blocked: Destination ${hostname} is protected.`);
   }
-
-  // Pre-connection DNS lookup to prevent private IP access & DNS rebinding
-  const addresses = await dns.resolve4(hostname).catch(() => []);
-  if (!addresses || addresses.length === 0) {
-    throw new Error(`DNS resolution failed for attachment host: ${hostname}`);
+  // Resolve all families and reject any private address. Pin the validated IPv4
+  // address in the actual TLS connection to prevent DNS rebinding.
+  const addresses = net.isIP(hostname)
+    ? [{ address: hostname, family: net.isIP(hostname) }]
+    : await dns.lookup(hostname, { all: true, verbatim: true });
+  if (!addresses.length || addresses.some(({ address }) => isPrivateOrReservedIP(address))) {
+    throw new Error('SSRF Blocked: host resolves to a protected address.');
   }
-
-  for (const ip of addresses) {
-    if (isPrivateOrReservedIP(ip)) {
-      throw new Error(`SSRF Blocked: Hostname ${hostname} resolves to protected/internal IP ${ip}`);
-    }
-  }
-
-  // Fetch with strict timeout and payload size cap (10MB)
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-
-  try {
-    const resp = await fetch(attachmentRef, {
-      signal: controller.signal,
-      redirect: 'error', // Disallow redirects to prevent redirect-based SSRF/rebinding
-      headers: { 'User-Agent': 'MartFlow-MediaFetcher/2.0' }
+  // IPv6 literal normalization and reserved ranges are subtle. Fail closed for
+  // IPv6 destinations until an audited range classifier is available.
+  const chosen = addresses.find(a => a.family === 4);
+  if (!chosen) throw new Error('No safe IPv4 address for attachment host.');
+  const maxBytes = 10 * 1024 * 1024;
+  return await new Promise((resolve, reject) => {
+    const req = https.request(parsedUrl, {
+      method: 'GET', headers: { 'User-Agent': 'MartFlow-MediaFetcher/2.0' },
+      lookup: (_host, _options, callback) => callback(null, chosen.address, 4)
+    }, response => {
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        response.resume();
+        resolve(null);
+        return;
+      }
+      if (Number(response.headers['content-length']) > maxBytes) {
+        response.destroy(new Error('Attachment exceeds maximum permitted size of 10MB.'));
+        return;
+      }
+      let size = 0;
+      const chunks = [];
+      response.on('data', chunk => {
+        size += chunk.length;
+        if (size > maxBytes) response.destroy(new Error('Attachment exceeds maximum permitted size of 10MB.'));
+        else chunks.push(chunk);
+      });
+      response.on('error', reject);
+      response.on('end', () => resolve(Buffer.concat(chunks)));
     });
-
-    clearTimeout(timeout);
-    if (!resp.ok) return null;
-
-    const contentLength = Number(resp.headers.get('content-length'));
-    if (contentLength && contentLength > 10 * 1024 * 1024) {
-      throw new Error('Attachment exceeds maximum permitted size of 10MB.');
-    }
-
-    const arr = await resp.arrayBuffer();
-    if (arr.byteLength > 10 * 1024 * 1024) {
-      throw new Error('Attachment exceeds maximum permitted size of 10MB.');
-    }
-
-    return Buffer.from(arr);
-  } catch (err) {
-    clearTimeout(timeout);
-    if (err.name === 'AbortError') {
-      throw new Error('Attachment fetch timed out after 5 seconds.');
-    }
-    throw err;
-  }
+    const timer = setTimeout(() => req.destroy(new Error('Attachment fetch timed out after 5 seconds.')), 5000);
+    req.on('close', () => clearTimeout(timer));
+    req.on('error', reject);
+    req.end();
+  });
 }

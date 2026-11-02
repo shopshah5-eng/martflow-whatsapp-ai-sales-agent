@@ -35,7 +35,8 @@ import {
   backupSessionToSupabase,
   debouncedBackupSession,
   restoreSessionFromSupabase,
-  deleteRemoteSession
+  deleteRemoteSession,
+  enableSessionBackups
 } from './src/integrations/whatsapp/sessionSync.js';
 import db from './src/db/index.js';
 import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook, invalidateCache } from './src/services/aiService.js';
@@ -654,6 +655,10 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       freshOrg = data;
     } catch (e) {}
   }
+  if (!freshOrg && supabaseAdmin) {
+    addLog(`[Org: ${orgId.slice(0, 8)}] Organization unavailable; inbound reply withheld.`);
+    return;
+  }
   if (!freshOrg) {
     freshOrg = {
       id: orgId,
@@ -931,16 +936,24 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
       if (supabaseAdmin) {
         try {
-          const { data: existingLead } = await supabaseAdmin
+          const { data: existingLead, error: existingLeadErr } = await supabaseAdmin
             .from('leads')
-            .select('id, buyer_name, buyer_phone, pdf_brochure_sent')
+            .select('id, buyer_name, buyer_phone, pdf_brochure_sent, quota_admitted')
             .eq('org_id', orgId)
             .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
             .maybeSingle();
+          if (existingLeadErr) throw new Error(`Lead lookup failed: ${existingLeadErr.message}`);
 
           if (!existingLead) {
             isBrandNewLead = true;
+            let quotaAdmitted = true;
+            if (!isFromOwner && !isSelfChat) {
+              const { data: admitted, error: quotaError } = await supabaseAdmin.rpc('reserve_lead_quota', { p_org_id: orgId });
+              if (quotaError || typeof admitted !== 'boolean') throw new Error(`Quota check failed: ${quotaError?.message || 'invalid response'}`);
+              quotaAdmitted = admitted;
+            }
             const insertPayload = {
+              quota_admitted: quotaAdmitted,
               org_id: orgId,
               buyer_name: pushName,
               buyer_phone: senderPhone,
@@ -956,7 +969,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
               leadErr = retryRes.error;
             }
             if (leadErr) {
-              addLog(`[Supabase Lead Insert Notice]: ${leadErr.message}`);
+              throw new Error(`Lead insert failed: ${leadErr.message}`);
             }
             sLead = newLead || { id: null, buyer_name: pushName, buyer_phone: senderPhone };
           } else {
@@ -1011,26 +1024,26 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             return;
           }
 
-          // Check lead quota for unpaid signups (only count on brand new lead)
-          if (isBrandNewLead && !isFromOwner && !isSelfChat) {
-            const limit = freshOrg.monthly_lead_limit || (freshOrg.plan_status === 'active' ? 500 : 25);
-            const used = freshOrg.leads_used || 0;
-            const trialExpired = freshOrg.trial_ends_at && new Date(freshOrg.trial_ends_at) < new Date();
-            if (used >= limit || (freshOrg.plan_status === 'trial' && trialExpired)) {
-              addLog(`[Quota Reached] Organization ${freshOrg.name || orgId} reached limit (${used}/${limit}). AI reply withheld.`);
+          // Denied leads remain denied on subsequent messages, rather than bypassing the gate.
+          if (!isFromOwner && !isSelfChat && sLead?.quota_admitted === false) {
+            if (!isBrandNewLead) {
+              const { data: admitted, error } = await supabaseAdmin.rpc('reserve_lead_quota', { p_org_id: orgId });
+              if (error) throw new Error(`Quota check failed: ${error.message}`);
+              if (admitted === true) {
+                const update = await supabaseAdmin.from('leads').update({ quota_admitted: true }).eq('org_id', orgId).eq('id', sLead.id);
+                if (update.error) throw new Error(`Lead quota update failed: ${update.error.message}`);
+                sLead.quota_admitted = true;
+              }
+            }
+            if (sLead.quota_admitted === false) {
+              addLog(`[Quota Reached] AI reply withheld for organization ${orgId}.`);
               return;
             }
-            if (supabaseAdmin) {
-              const { error: rpcErr } = await supabaseAdmin.rpc('increment_leads_used', { org_id: orgId });
-              if (rpcErr) {
-                await supabaseAdmin.from('organizations').update({ leads_used: used + 1 }).eq('id', orgId);
-              }
-            } else {
-              db.incrementLeadsUsed(orgId);
-            }
           }
+
         } catch (dbErr) {
           addLog(`Database sync error: ${dbErr.message}`);
+          return;
         }
       }
 
@@ -1248,7 +1261,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       try {
         let imgBuffer = null;
         if (aiReplyObj.matchedImagePath && fs.existsSync(aiReplyObj.matchedImagePath)) {
-          imgBuffer = fs.readFileSync(aiReplyObj.matchedImagePath);
+          const { getSafeAttachmentBuffer } = await import('./src/services/storageSecurity.js');
+          imgBuffer = await getSafeAttachmentBuffer(orgId, aiReplyObj.matchedImagePath);
         } else if (aiReplyObj.matchedImageUrl && aiReplyObj.matchedImageUrl.startsWith('data:image')) {
           const b64 = aiReplyObj.matchedImageUrl.split(',')[1] || aiReplyObj.matchedImageUrl;
           imgBuffer = Buffer.from(b64, 'base64');
@@ -1357,6 +1371,7 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
       fs.mkdirSync(sessionDir, { recursive: true });
     }
 
+    enableSessionBackups(orgId);
     const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     let version = [2, 3000, 1043857760];
     try {
@@ -1529,26 +1544,26 @@ baileysManager.getInstance = function(orgId) {
     return inst;
   };
 
-  const rawDisconnect = inst._origDisconnect || inst.disconnect;
-  if (!inst._origDisconnect && typeof rawDisconnect === 'function') {
-    inst._origDisconnect = rawDisconnect;
-  }
-
   inst.disconnect = async function() {
-    if (orgSessions.has(orgId)) {
-      const s = orgSessions.get(orgId);
-      try {
-        if (s.sock) {
-          s.sock.ev.removeAllListeners();
-          s.sock.end();
-        }
-      } catch (e) {}
-      if (s.reconnectTimer) clearTimeout(s.reconnectTimer);
-      orgSessions.delete(orgId);
+    const session = orgSessions.get(orgId);
+    if (session?.reconnectTimer) clearTimeout(session.reconnectTimer);
+    // Remove the session before ending it, so no subsequent worker observes it as connected.
+    orgSessions.delete(orgId);
+    if (session?.sock) {
+      session.sock.ev.removeAllListeners();
+      try { await session.sock.logout(); } catch (err) { session.sock.end(); }
     }
-    if (typeof inst._origDisconnect === 'function' && inst._origDisconnect !== inst.disconnect) {
-      try { await inst._origDisconnect.call(inst); } catch (e) {}
+    fs.rmSync(inst.authDir, { recursive: true, force: true });
+    const remoteRemoved = await deleteRemoteSession(orgId);
+    if (supabaseAdmin && !remoteRemoved) throw new Error('Failed to remove remote WhatsApp session.');
+    if (supabaseAdmin) {
+      const { error } = await supabaseAdmin.from('organizations').update({
+        wa_status: 'disconnected', wa_connected_number: null,
+        wa_qr_data_url: null, wa_pairing_code: null, wa_command: null
+      }).eq('id', orgId);
+      if (error) throw new Error(`Failed to update WhatsApp status: ${error.message}`);
     }
+    return { ok: true };
   };
   return inst;
 };
@@ -3167,7 +3182,7 @@ async function initSupabaseWorker() {
             targetPhone,
             item.message_text || '',
             item.pdf_url || null,
-            item.message_text || ''
+            null
           );
 
           if (res.ok) {

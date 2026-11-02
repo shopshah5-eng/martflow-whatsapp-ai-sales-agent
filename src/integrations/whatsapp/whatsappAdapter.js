@@ -109,7 +109,7 @@ export class WhatsAppAdapter {
         });
 
         // Generate and dispatch automated AI reply if mode is 'ai' and auto reply is active
-        if ((conv.mode === 'ai' || !conv.mode) && org.wa_auto_reply !== false) {
+        if ((conv.mode === 'ai' || conv.mode === 'auto' || !conv.mode) && org.wa_auto_reply !== false) {
           try {
             const { AIService } = await import('../../services/aiService.js');
             const aiReply = await AIService.generateSalesReply({

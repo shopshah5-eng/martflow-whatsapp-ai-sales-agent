@@ -360,142 +360,48 @@ router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admi
 });
 
 // Real-Time Catalog Cache Invalidation & Instant AI Sync Endpoint
-router.post('/catalog/sync', authenticate, async (req, res) => {
+router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'superadmin']), async (req, res) => {
   try {
-    const {
-      orgId,
-      products = [],
-      websiteKnowledge = '',
-      companyName = '',
-      businessType = 'auto',
-      catalogPdfUrl = '',
-      catalogPdfName = '',
-      resetConversations = true
-    } = req.body || {};
-
-    const targetOrgId = (req.role === 'superadmin' && orgId) ? orgId : req.organizationId;
+    const { orgId, products, companyName, businessType, websiteKnowledge, catalogPdfName } = req.body || {};
+    const targetOrgId = req.role === 'superadmin' && orgId ? orgId : req.organizationId;
     if (orgId && orgId !== targetOrgId && req.role !== 'superadmin') {
-      return res.status(403).json({ ok: false, error: 'Cannot modify catalog of another organization' });
+      return res.status(403).json({ ok: false, error: 'Cannot modify another organization' });
     }
-
-    const orgsToUpdate = [targetOrgId];
+    if (products !== undefined && (!Array.isArray(products) || products.length > 10000 || products.some(p => !p || typeof p.name !== 'string' || !p.name.trim()))) {
+      return res.status(400).json({ ok: false, error: 'Products must be an array of named products (maximum 10000).' });
+    }
+    const rows = products?.map((p, idx) => ({
+      sku: String(p.sku || p.sku_code || `ITEM-${101 + idx}`).slice(0, 200),
+      name: p.name.trim().slice(0, 500), category: p.category || 'Commercial Products',
+      model_specs: String(p.model_specs || '').slice(0, 600),
+      price_raw: String(p.price_raw || 'Ask for Price').slice(0, 80),
+      image_url: p.image_url || '', brochure_url: p.brochure_url || '',
+      brochure_filename: p.brochure_filename || catalogPdfName || '', is_active: true
+    }));
+    const updates = {};
+    if (companyName) updates.name = String(companyName).slice(0, 500);
+    if (businessType && businessType !== 'auto') updates.business_type = businessType;
+    if (websiteKnowledge !== undefined) updates.website_knowledge = String(websiteKnowledge).slice(0, 50000);
+    if (catalogPdfName) updates.catalog_pdf_name = String(catalogPdfName).slice(0, 500);
 
     const admin = getSupabaseAdmin();
     if (admin) {
-      for (const oid of orgsToUpdate) {
-        try {
-          await admin.from('products').delete().eq('org_id', oid);
-          if (Array.isArray(products) && products.length > 0) {
-            const rows = products.map((item, idx) => ({
-              org_id: oid,
-              sku: item.sku_code || item.sku || `ITEM-${101 + idx}`,
-              name: item.name,
-              category: item.category || 'Commercial Products',
-              model_specs: String(item.model_specs || '').substring(0, 600),
-              price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
-              image_url: item.image_url || '',
-              brochure_url: catalogPdfUrl || item.brochure_url || '',
-              brochure_filename: catalogPdfName || item.brochure_filename || '',
-              is_active: true
-            }));
-            await admin.from('products').insert(rows);
-          }
-
-          const orgUpdate = { updated_at: new Date().toISOString() };
-          if (companyName) orgUpdate.name = companyName;
-          if (websiteKnowledge) orgUpdate.website_knowledge = String(websiteKnowledge).slice(0, 50000);
-          if (catalogPdfUrl) orgUpdate.catalog_pdf_url = catalogPdfUrl;
-          if (catalogPdfName) orgUpdate.catalog_pdf_name = catalogPdfName;
-          if (businessType && businessType !== 'auto') orgUpdate.business_type = businessType;
-
-          await admin.from('organizations').update(orgUpdate).eq('id', oid);
-
-          if (resetConversations) {
-            const { data: convs } = await admin.from('conversations').select('id').eq('org_id', oid);
-            if (convs && convs.length > 0) {
-              const cIds = convs.map(c => c.id);
-              await admin.from('messages').delete().in('conversation_id', cIds);
-              await admin.from('conversations').update({ mode: 'auto', updated_at: new Date().toISOString() }).in('id', cIds);
-            }
-          }
-        } catch (orgSyncErr) {
-          console.warn(`[Catalog Sync] Supabase sync notice for org ${oid}:`, orgSyncErr.message);
-        }
-      }
-    }
-
-    // Local DB atomic update
-    db.deleteScoped('products', targetOrgId);
-    if (Array.isArray(products) && products.length > 0) {
-      products.forEach((p, idx) => {
-        db.insert('products', {
-          organization_id: targetOrgId,
-          name: p.name,
-          sku: p.sku || p.sku_code || `ITEM-${101 + idx}`,
-          price_raw: p.price_raw || 'Ask for Price',
-          model_specs: p.model_specs || '',
-          category: p.category || 'Commercial Products',
-          image_url: p.image_url || '',
-          brochure_url: catalogPdfUrl || p.brochure_url || '',
-          brochure_filename: catalogPdfName || p.brochure_filename || '',
-          is_active: true
-        });
+      // RPC runs delete, insert, and organization update as a single transaction.
+      const { error } = await admin.rpc('replace_tenant_catalog', {
+        p_org_id: targetOrgId, p_products: rows ?? null, p_org_updates: updates
       });
+      if (error) throw new Error(`Catalog transaction failed: ${error.message}`);
+    } else if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
+      return res.status(503).json({ ok: false, error: 'Catalog database unavailable.' });
     }
-
-    const localOrgUpdates = {};
-    if (companyName) localOrgUpdates.name = companyName;
-    if (businessType && businessType !== 'auto') localOrgUpdates.business_type = businessType;
-    if (websiteKnowledge) localOrgUpdates.website_knowledge = String(websiteKnowledge).slice(0, 50000);
-    if (Object.keys(localOrgUpdates).length > 0) {
-      db.update('organizations', targetOrgId, localOrgUpdates);
+    // Legacy local mirror. No conversation history or takeover state is touched.
+    if (rows) {
+      db.deleteScoped('products', targetOrgId);
+      rows.forEach(p => db.insert('products', { ...p, organization_id: targetOrgId }));
     }
-
-    if (resetConversations) {
-      const convs = db.findScoped('conversations', targetOrgId);
-      convs.forEach(c => {
-        db.deleteScoped('messages', targetOrgId, m => m.conversation_id === c.id);
-      });
-    }
-
-    // Invalidate RAM cache
+    if (Object.keys(updates).length) db.update('organizations', targetOrgId, updates);
     invalidateCache(targetOrgId);
-    invalidateCache(null);
-
-    // Sync to local catalog_knowledge.json and config.json if this is the main demo org
-    const isMainDemoOrg = targetOrgId === '6fd354d9-3437-412d-856e-28bc19d44268';
-    if (isMainDemoOrg) {
-      try {
-        const KNOWLEDGE_FILE = path.join(process.cwd(), 'catalog_knowledge.json');
-        if (fs.existsSync(KNOWLEDGE_FILE)) {
-          const catK = JSON.parse(fs.readFileSync(KNOWLEDGE_FILE, 'utf8'));
-          catK.textKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${(websiteKnowledge || '').slice(0, 30000)}`;
-          fs.writeFileSync(KNOWLEDGE_FILE, JSON.stringify(catK, null, 2), 'utf8');
-        }
-      } catch (e) {}
-
-      try {
-        const CONFIG_FILE = path.join(process.cwd(), 'config.json');
-        if (fs.existsSync(CONFIG_FILE)) {
-          const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-          if (companyName) cfg.companyName = companyName;
-          if (businessType && businessType !== 'auto') cfg.businessType = businessType;
-          if (Array.isArray(products) && products.length > 0) {
-            cfg.products = products.map((p, idx) => ({
-              id: p.sku || `prod_${idx}`,
-              name: p.name,
-              priceRange: p.price_raw || 'Ask for Price',
-              keywords: (p.name || '').toLowerCase().split(/\s+/).filter(w => w.length > 2),
-              catalogFile: catalogPdfName || 'Brochure.pdf',
-              model_specs: p.model_specs || ''
-            }));
-          }
-          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
-        }
-      } catch (e) {}
-    }
-
-    res.json({ ok: true, count: products.length, message: 'Catalog cache and database refreshed successfully' });
+    return res.json({ ok: true, count: rows?.length ?? null, message: 'Catalog synced; conversation history preserved.' });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -771,27 +677,11 @@ router.post('/membership/unlock-code', authenticate, (req, res) => {
     };
 
     let coupon = COUPONS[code];
-    if (!coupon) {
-      if (code.startsWith('PILOT') || code.startsWith('VIP')) {
-        coupon = { amount: 999, description: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' };
-      } else if (code.startsWith('SETUP')) {
-        coupon = { amount: 5000, description: 'One-Time Factory Setup & Catalog AI Training' };
-      } else if (code.startsWith('START')) {
-        coupon = { amount: 7499, description: '₹5,000 Setup + ₹2,499 First Month — 400 Leads/mo' };
-      } else if (code.startsWith('PRO')) {
-        coupon = { amount: 12499, description: '₹7,500 Setup + ₹4,999 First Month — 1,500 Leads/mo' };
-      } else if (code.startsWith('ANNUAL')) {
-        coupon = { amount: 18000, description: 'Full 1-Year Factory License — ₹5,000 Setup Waived FREE!' };
-      } else {
-        return res.status(400).json({
-          ok: false,
-          error: 'Invalid activation code. Valid codes: PILOT999, VIP999, SETUP5K, START75, PRO12K, ANNUAL18K'
-        });
-      }
-    }
+    if (!coupon) return res.status(400).json({ ok: false, error: 'Invalid activation code.' });
 
     db.update('organizations', req.organizationId, {
-      custom_quote_inr: coupon.amount
+      custom_quote_inr: coupon.amount,
+      quote_code: code
     });
 
     res.json({
@@ -877,7 +767,8 @@ router.post('/admin/payments/reconcile', authenticate, (req, res) => {
       reconciliation_notes: notes
     });
 
-    if (status === 'verified') {
+    const activated = status === 'verified' && payment.amount_inr >= 7499;
+    if (activated) {
       const quota = payment.amount_inr >= 9999 ? 2500 : 500;
       db.update('organizations', payment.organization_id, {
         plan_status: 'active',
@@ -895,8 +786,8 @@ router.post('/admin/payments/reconcile', authenticate, (req, res) => {
 
     res.json({
       ok: true,
-      message: `Payment ${paymentId} reconciled as ${status}. Organization activated.`,
-      status
+      message: `Payment ${paymentId} reconciled as ${status}. ${activated ? 'Organization activated.' : 'No subscription activated.'}`,
+      activated, status
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -914,9 +805,13 @@ router.post('/payments/razorpay/create-order', authenticate, async (req, res) =>
       });
     }
 
-    const amountInr = parseInt(req.body.amountInr || 3499, 10);
+    const org = db.findById('organizations', req.organizationId);
+    if (!org) return res.status(404).json({ ok: false, error: 'Organization not found.' });
+    // Only the server-side quote may determine the amount.
+    const amountInr = Number(org.custom_quote_inr || process.env.RAZORPAY_DEFAULT_AMOUNT_INR || 9999);
+    if (!Number.isSafeInteger(amountInr) || amountInr <= 0) return res.status(503).json({ ok: false, error: 'Invalid configured plan price.' });
     const amountPaise = amountInr * 100;
-    let orderId = 'order_' + crypto.randomBytes(8).toString('hex');
+    let orderId = null;
 
     // If live keys exist, call real Razorpay Orders API
     if (hasKeys && !process.env.RAZORPAY_KEY_ID.includes('placeholder')) {
@@ -935,19 +830,20 @@ router.post('/payments/razorpay/create-order', authenticate, async (req, res) =>
           })
         });
         const rzpData = await rzpResp.json();
-        if (rzpData?.id) {
-          orderId = rzpData.id;
-        }
+        if (!rzpResp.ok || !rzpData?.id) return res.status(502).json({ ok: false, error: 'Razorpay order creation failed.' });
+        orderId = rzpData.id;
       } catch (e) {
-        console.warn('[Razorpay API] Orders API call failed:', e.message);
+        return res.status(502).json({ ok: false, error: 'Razorpay order creation failed.' });
       }
     }
 
+    if (!orderId) return res.status(503).json({ ok: false, error: 'Razorpay is not configured.' });
     const payment = db.insert('payments', {
       organization_id: req.organizationId,
       amount_inr: amountInr,
       provider: 'razorpay',
       razorpay_order_id: orderId,
+      quote_code: org.quote_code || null,
       status: 'pending'
     });
 
@@ -1008,6 +904,7 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
       process.env.RAZORPAY_KEY_SECRET &&
       !process.env.RAZORPAY_KEY_ID.includes('placeholder')
     );
+    if (!hasLiveKeys) return res.status(503).json({ ok: false, error: 'Razorpay verification is not configured.' });
     if (hasLiveKeys) {
       try {
         const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
@@ -1021,10 +918,11 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
         if (payData.status !== 'captured') {
           return res.status(400).json({ ok: false, error: `Payment not captured. Current gateway status: ${payData.status}` });
         }
-        if (payData.order_id && payData.order_id !== razorpay_order_id) {
+        if (payData.order_id !== razorpay_order_id) {
           return res.status(400).json({ ok: false, error: 'Payment order_id does not match the active checkout session.' });
         }
         const expectedPaise = payment.amount_inr * 100;
+        if (payData.currency !== 'INR') return res.status(400).json({ ok: false, error: 'Payment currency mismatch.' });
         if (Number(payData.amount) !== expectedPaise) {
           return res.status(400).json({ ok: false, error: `Payment amount mismatch: expected ₹${payment.amount_inr}, received ₹${payData.amount / 100}` });
         }
@@ -1044,15 +942,18 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
       status: 'verified'
     });
 
-    db.update('organizations', req.organizationId, {
-      plan_status: 'active',
-      monthly_lead_limit: 500
-    });
-
-    res.json({
-      ok: true,
-      message: 'Razorpay payment verified & workspace activated!'
-    });
+    // A setup/deposit payment is not a full subscription purchase.
+    const planPrices = { START75: 7499, PRO12K: 12499, ANNUAL18K: 18000 };
+    const defaultPrice = Number(process.env.RAZORPAY_DEFAULT_AMOUNT_INR || 9999);
+    const isFullPlan = payment.quote_code
+      ? planPrices[payment.quote_code] === payment.amount_inr
+      : defaultPrice >= 7499 && payment.amount_inr === defaultPrice;
+    if (isFullPlan) {
+      const quota = payment.quote_code === 'PRO12K' ? 1500 : payment.quote_code === 'START75' ? 400 : 500;
+      db.update('organizations', req.organizationId, { plan_status: 'active', monthly_lead_limit: quota });
+    }
+    res.json({ ok: true, activated: isFullPlan,
+      message: isFullPlan ? 'Payment verified and workspace activated.' : 'Payment verified; deposit/setup does not activate a subscription.' });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

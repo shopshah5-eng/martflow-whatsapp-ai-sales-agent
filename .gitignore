@@ -23,3 +23,6 @@ martflow_data.json
 .DS_Store
 Thumbs.db
 
+
+# Local migration backups can contain customer and account data
+backups/

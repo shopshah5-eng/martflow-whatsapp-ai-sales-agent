@@ -21,11 +21,15 @@ function getSupabaseAdmin() {
 }
 
 const backupTimers = new Map();
+const pendingBackups = new Map();
+const disabledBackups = new Set();
+export function enableSessionBackups(orgId) { disabledBackups.delete(orgId); }
+
 
 /**
  * Backup an organization's auth_info directory to Supabase Storage (compressed gzip).
  */
-export async function backupSessionToSupabase(orgId) {
+async function performBackup(orgId) {
   if (!orgId) return false;
   const supabase = getSupabaseAdmin();
   if (!supabase) return false;
@@ -71,11 +75,23 @@ export async function backupSessionToSupabase(orgId) {
   }
 }
 
+// Serialize backup completion with deletion so an in-flight upload cannot recreate
+// a session immediately after this process has intentionally disconnected it.
+export async function backupSessionToSupabase(orgId) {
+  if (!orgId || disabledBackups.has(orgId)) return false;
+  const previous = pendingBackups.get(orgId) || Promise.resolve();
+  const current = previous.catch(() => {}).then(() => disabledBackups.has(orgId) ? false : performBackup(orgId));
+  pendingBackups.set(orgId, current);
+  try { return await current; } finally {
+    if (pendingBackups.get(orgId) === current) pendingBackups.delete(orgId);
+  }
+}
+
 /**
  * Debounced backup to prevent excessive storage writes during rapid key exchanges.
  */
 export function debouncedBackupSession(orgId, delayMs = 4000) {
-  if (!orgId) return;
+  if (!orgId || disabledBackups.has(orgId)) return;
   if (backupTimers.has(orgId)) {
     clearTimeout(backupTimers.get(orgId));
   }
@@ -144,12 +160,17 @@ export async function restoreSessionFromSupabase(orgId, force = false) {
  */
 export async function deleteRemoteSession(orgId) {
   if (!orgId) return false;
+  disabledBackups.add(orgId);
+  if (backupTimers.has(orgId)) clearTimeout(backupTimers.get(orgId));
+  backupTimers.delete(orgId);
+  if (pendingBackups.has(orgId)) await pendingBackups.get(orgId).catch(() => {});
   const supabase = getSupabaseAdmin();
   if (!supabase) return false;
 
   try {
     const filePath = `${orgId}/session.json.gz`;
-    await supabase.storage.from(BUCKET_NAME).remove([filePath]);
+    const { error } = await supabase.storage.from(BUCKET_NAME).remove([filePath]);
+    if (error) throw error;
     console.log(`[SessionSync] Remote cloud session removed for org ${orgId}`);
     return true;
   } catch (err) {

@@ -25,14 +25,18 @@ const backupDir = path.join(__dirname, '..', 'backups');
 const url = process.env.SUPABASE_URL;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!url || !serviceKey) {
+if (!isDryRun) {
+  console.error('Live migration is disabled: a verified, reversible migration is required. Use --dry-run only.');
+  process.exit(1);
+}
+if (!isDryRun && (!url || !serviceKey)) {
   console.error('Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env');
   process.exit(1);
 }
 
-const supabase = createClient(url, serviceKey, {
+const supabase = url && serviceKey ? createClient(url, serviceKey, {
   auth: { persistSession: false, autoRefreshToken: false }
-});
+}) : null;
 
 function generateDeterministicUUID(legacyId, entityType) {
   // UUID v5-style deterministic generation using SHA-1 over namespace + entity + legacyId
@@ -135,6 +139,7 @@ async function runMigration() {
     report.sourceCounts.profiles = profiles.length;
     console.log(`[2/5] Migrating ${profiles.length} Profiles & Auth Identities...`);
 
+    let profilesMigrated = 0;
     for (const profile of profiles) {
       const email = profile.email ? profile.email.toLowerCase().trim() : null;
       if (!email) continue;
@@ -302,7 +307,7 @@ async function runMigration() {
         org_id: orgUuid,
         lead_id: leadUuid,
         buyer_phone: conv.buyer_phone || '0000000000',
-        mode: conv.mode || 'auto',
+        mode: conv.mode === 'ai' ? 'auto' : (conv.mode || 'auto'),
         created_at: conv.created_at || new Date().toISOString()
       };
 
@@ -378,10 +383,8 @@ async function runMigration() {
         id: payUuid,
         org_id: orgUuid,
         amount_inr: pay.amount_inr || pay.amount || 0,
-        currency: pay.currency || 'INR',
-        provider: pay.provider || 'direct_upi',
+        provider: pay.provider === 'direct_upi' ? 'upi_direct' : (pay.provider || 'upi_direct'),
         status: pay.status || 'pending_verification',
-        plan: pay.plan || 'Standard Growth Plan',
         utr_reference: pay.utr_reference || pay.utr || null,
         created_at: pay.created_at || new Date().toISOString()
       };
@@ -403,12 +406,11 @@ async function runMigration() {
       paymentsMigrated++;
     }
     report.migratedCounts.payments = paymentsMigrated;
-    }
-    report.migratedCounts.payments = payments.length;
 
     // 6. Complete Reconciliation Report
     report.endTime = new Date().toISOString();
-    report.status = report.errors.length === 0 ? 'SUCCESS' : 'COMPLETED_WITH_WARNINGS';
+    report.status = report.errors.length === 0 ? 'DRY_RUN_UNVALIDATED' : 'DRY_RUN_WITH_WARNINGS';
+    console.warn('Dry run does not validate live schema, permissions, conflicts, or rollback safety.');
 
     const reportPath = path.join(backupDir, `reconciliation_report_${timestamp}.json`);
     fs.writeFileSync(reportPath, JSON.stringify(report, null, 2), 'utf8');

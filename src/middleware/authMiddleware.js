@@ -5,7 +5,6 @@
 
 import { verifySessionToken } from '../auth/authService.js';
 import { repository } from '../db/repository.js';
-import db from '../db/index.js';
 
 export async function authenticate(req, res, next) {
   try {
@@ -39,28 +38,12 @@ export async function authenticate(req, res, next) {
       });
     }
 
-    // Authoritative lookup via repository
-    let organization = null;
-    try {
-      organization = await repository.getOrganizationById(payload.organizationId);
-    } catch (e) {
-      organization = db.findById('organizations', payload.organizationId);
-    }
-
+    // No fallback to stale local membership when the authoritative database fails.
+    const organization = await repository.getOrganizationById(payload.organizationId);
     if (!organization) {
-      return res.status(403).json({
-        ok: false,
-        error: 'Organization no longer exists or access was revoked.'
-      });
+      return res.status(403).json({ ok: false, error: 'Organization no longer exists or access was revoked.' });
     }
-
-    // Check current user membership and role (including membership removal and role changes)
-    let membership = null;
-    try {
-      membership = await repository.getMembership(payload.userId, payload.organizationId);
-    } catch (e) {
-      membership = db.findOne('organization_members', (m) => m.organization_id === payload.organizationId && m.user_id === payload.userId);
-    }
+    const membership = await repository.getMembership(payload.userId, payload.organizationId);
 
     if (!membership) {
       return res.status(403).json({
@@ -77,7 +60,7 @@ export async function authenticate(req, res, next) {
 
     next();
   } catch (err) {
-    return res.status(500).json({ ok: false, error: 'Authentication internal error: ' + err.message });
+    return res.status(err.statusCode || 503).json({ ok: false, error: 'Authentication database unavailable.' });
   }
 }
 

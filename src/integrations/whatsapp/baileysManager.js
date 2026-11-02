@@ -879,5 +879,5 @@ export async function sendTenantWhatsApp(orgId, { toPhone, text, pdfBuffer = nul
   }
 
   // 2. Default to isolated Baileys socket for this tenant
-  return baileysManager.sendMessage(cleanOrgId, toPhone, text, attachmentPath, text);
+  return baileysManager.sendMessage(cleanOrgId, toPhone, text, attachmentPath);
 }

@@ -5471,18 +5471,13 @@
       if (!currentOrg) return showToast('Please sign in first', 'warning');
       if (!confirm('Are you sure you want to delete ALL products from your catalog? This cannot be undone.')) return;
       try {
-        if (sb) {
-          const { error } = await sb.from('products').delete().eq('org_id', currentOrg.id);
-          if (error) throw error;
-        }
-        fetch(`${API_BASE}/api/catalog/sync`, {
+        const response = await fetch(`${API_BASE}/api/catalog/sync`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
-          },
-          body: JSON.stringify({ orgId: currentOrg?.id, products: [], resetConversations: true })
-        }).catch(() => {});
+          headers: { 'Content-Type': 'application/json', ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {}) },
+          body: JSON.stringify({ orgId: currentOrg.id, products: [] })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || 'Catalog sync failed.');
         catalogProductsCache = [];
         showToast('All products deleted from catalog.', 'info');
         fetchCatalogProducts();
@@ -5960,38 +5955,19 @@
           is_active: true
         }));
 
-        if (sb && currentOrg?.id) {
-          try {
-            await sb.from('products').delete().eq('org_id', currentOrg.id);
-            const userRows = rowsToInsert.map(r => ({ ...r, org_id: currentOrg.id }));
-            await sb.from('products').insert(userRows);
-          } catch (e) {
-            console.warn('Client-side direct insert note:', e.message);
-          }
-        }
-
-        // Always sync through backend API (using service role) to bypass client RLS limits,
-        // instantly mirror to the live WhatsApp demo bot, and wipe outdated chat memories!
-        try {
-          await fetch(`${API_BASE}/api/catalog/sync`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
-            },
-            body: JSON.stringify({
-              orgId: currentOrg?.id,
-              products: rowsToInsert,
-              websiteKnowledge: currentOrg?.website_knowledge || '',
-              companyName: currentOrg?.name || 'Our Company',
-              catalogPdfUrl: uploadedPdfUrl || '',
-              catalogPdfName: uploadedPdfName || '',
-              resetConversations: true
-            })
-          });
-        } catch (syncApiErr) {
-          console.warn('Backend catalog sync note:', syncApiErr.message);
-        }
+        // One authorized transactional write; never clear chat history.
+        const syncResponse = await fetch(`${API_BASE}/api/catalog/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {}) },
+          body: JSON.stringify({
+            orgId: currentOrg?.id, products: rowsToInsert,
+            websiteKnowledge: currentOrg?.website_knowledge || '',
+            companyName: currentOrg?.name || 'Our Company',
+            catalogPdfName: uploadedPdfName || ''
+          })
+        });
+        const syncResult = await syncResponse.json();
+        if (!syncResponse.ok || !syncResult.ok) throw new Error(syncResult.error || 'Catalog sync failed.');
 
         await fetchCatalogProducts();
         if (typeof updateCatalogBannerUI === 'function') updateCatalogBannerUI();
