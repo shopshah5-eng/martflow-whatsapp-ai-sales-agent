@@ -46,6 +46,8 @@ const processedMsgIds = new Set();
 const inFlightSenders = new Set();
 const recentInboundFingerprints = new Map(); // `${orgId}:${senderPhone}:${normText}` -> timestamp
 const recentAlertsMap = new Map(); // `${orgId}:${senderPhone}:${alertType}` -> timestamp
+const alertedNewLeads = new Set(); // `${orgId}:${senderPhone}`
+const alertedHotLeads = new Set(); // `${orgId}:${senderPhone}`
 const sentPdfs = new Set(); // `${orgId}:${senderPhone}`
 const orgSessions = new Map(); // orgId -> { sock, isConnecting, reconnectTimer, state, authDir }
 
@@ -580,17 +582,33 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     };
   }
 
-  const ownerPhone = normalizeIndianPhone(freshOrg.owner_alert_number || '919781018975');
+  const rawJid = rawRemote || '';
+  const ownerTarget = normalizeIndianPhone(freshOrg.owner_alert_number || process.env.OWNER_ALERT_PHONE || '919781018975');
   const botPhone = normalizeIndianPhone(activeSock?.user?.id?.split(':')[0] || freshOrg.wa_connected_number || '919115748457');
+  const botPhoneDigits = botPhone.slice(-10);
+  const botLidUser = (activeSock?.user?.lid || '').split(':')[0].split('@')[0];
   const recipientPhone = normalizeIndianPhone(rawRemote.split('@')[0]);
 
-  // 1-Word WhatsApp Remote Control (automatic / manual / mannual)
-  const cmd = (incomingText || '').trim().toLowerCase();
-  const isSelfChat = msg.key.fromMe && (recipientPhone === botPhone);
-  const isFromOwner = (senderPhone === ownerPhone);
-  const isFounderControl = isSelfChat || isFromOwner;
+  // Bulletproof @lid & Typo-Tolerant WhatsApp Remote Control:
+  // 1. Detect Bot Self-Chat reliably even with @lid JIDs:
+  const isSelfChat = Boolean(msg.key.fromMe && (
+    (botPhoneDigits && rawJid.includes(botPhoneDigits)) ||
+    (botLidUser && rawJid.split('@')[0] === botLidUser) ||
+    (recipientPhone === botPhone)
+  ));
 
-  if (isFounderControl && (cmd === 'manual' || cmd === 'mannual')) {
+  // 2. Detect Owner Main Phone:
+  const isFromOwner = Boolean(
+    (senderPhone && normalizeIndianPhone(senderPhone) === ownerTarget) ||
+    rawJid.split('@')[0] === '148004724064491' ||
+    (altJid && altJid.split('@')[0] === '148004724064491')
+  );
+
+  const isFounderControl = isSelfChat || isFromOwner;
+  const cmd = (incomingText || '').trim().toLowerCase();
+
+  // Typo-Tolerant Pause Command: manual / mannual / manul / pause / stop / off
+  if (isFounderControl && /^(manual|mannual|manul|pause|stop|off)$/.test(cmd)) {
     try {
       if (supabaseAdmin) {
         await supabaseAdmin.from('organizations').update({
@@ -601,7 +619,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       freshOrg.wa_auto_reply = false;
       freshOrg.auto_reply_enabled = false;
       config.autoReplyEnabled = false;
-      const replyText = "⏸️ MANUAL MODE ON — Automatic AI replies are now PAUSED. You can message clients freely without interruption. Send 'automatic' anytime to turn AI back ON.";
+      const replyText = "⏸️ Manual Mode ON — AI paused. Send 'automatic' to resume.";
       const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
       if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
       addLog(`[Remote Control] Manual mode activated by founder for org ${orgId}`);
@@ -611,7 +629,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     return;
   }
 
-  if (isFounderControl && cmd === 'automatic') {
+  // Typo-Tolerant Resume Command: automatic / automoatic / automtic / auto / start / resume / on
+  if (isFounderControl && /^(automatic|automoatic|automtic|auto|start|resume|on)$/.test(cmd)) {
     try {
       if (supabaseAdmin) {
         await supabaseAdmin.from('organizations').update({
@@ -625,7 +644,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       freshOrg.wa_auto_reply = true;
       freshOrg.auto_reply_enabled = true;
       config.autoReplyEnabled = true;
-      const replyText = "✅ AUTOMATIC MODE ON — 24/7 AI Sales Closer is now ACTIVE for all chats. Send 'manual' anytime to pause.";
+      const replyText = "✅ Automatic Mode ON — AI active 24/7. Send 'manual' to pause.";
       const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
       if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
       addLog(`[Remote Control] Automatic mode activated by founder for org ${orgId}`);
@@ -640,7 +659,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     if (botSentMsgIds.has(msg.key.id)) {
       return; // Ignore bot's own outbound dispatched message
     }
-    if (!rawRemote.includes('@g.us') && !rawRemote.includes('broadcast') && recipientPhone !== botPhone) {
+    if (!rawRemote.includes('@g.us') && !rawRemote.includes('broadcast') && recipientPhone !== botPhone && !isSelfChat) {
       try {
         if (supabaseAdmin) {
           await supabaseAdmin.from('conversations').update({
@@ -654,7 +673,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     return;
   }
 
-  // Ignore non-command messages from owner_alert_number so bot never loops replying to owner
+  // Ignore non-command messages from owner so bot never loops replying to owner
   if (isFromOwner) {
     return;
   }
@@ -767,22 +786,34 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       }
     }
 
-    // Owner WhatsApp Alerts (+91 97810 18975)
+    // Clean, Non-Spammy Private Owner Alerts (Zero Customer Visibility):
+    // Alerts are sent ONLY to the owner's WhatsApp JID, NEVER into customer's chat.
+    // Track alertedNewLeads and alertedHotLeads per org so owner receives AT MOST ONE 3-line alert
+    // when a brand-new buyer texts for the first time, and AT MOST ONE hot-intent alert when buyer asks to pay/buy/call.
+    const leadKey = `${orgId}:${senderPhone}`;
     const isHighIntent = HIGH_INTENT_REGEX.test(incomingText);
-    const alertFp = `${orgId}:${senderPhone}:${isBrandNewLead ? 'new' : 'intent'}`;
-    const lastAlert = recentAlertsMap.get(alertFp) || 0;
-    const shouldAlert = (isBrandNewLead && (now - lastAlert > 300000)) || (isHighIntent && (now - lastAlert > 900000));
+    const shouldAlertNew = isBrandNewLead && !alertedNewLeads.has(leadKey);
+    const shouldAlertHot = isHighIntent && !alertedHotLeads.has(leadKey);
 
-    if (shouldAlert && ownerPhone && ownerPhone !== senderPhone) {
-      recentAlertsMap.set(alertFp, now);
-      const alertText = `🔔 *MartFlow AI — Hot Lead Alert!*\n\n👤 *Customer:* ${pushName}\n📱 *Phone:* +${senderPhone}\n💬 *Message:* "${incomingText.slice(0, 150)}"\n⚡ *Action:* https://wa.me/${senderPhone}`;
-      try {
-        const ownerJid = `${ownerPhone}@s.whatsapp.net`;
-        const alertSent = await activeSock.sendMessage(ownerJid, { text: alertText });
-        if (alertSent?.key?.id) botSentMsgIds.add(alertSent.key.id);
-        addLog(`[Owner Alert] Sent alert to owner (+${ownerPhone}) for lead +${senderPhone}`);
-      } catch (e) {
-        addLog(`[Owner Alert] Error: ${e.message}`);
+    if ((shouldAlertNew || shouldAlertHot) && ownerTarget && ownerTarget !== senderPhone) {
+      let alertText = '';
+      if (shouldAlertHot) {
+        alertedHotLeads.add(leadKey);
+        alertText = `🔥 *MartFlow AI — Hot Lead Alert!*\n👤 *Customer:* ${pushName} (+${senderPhone})\n💬 *Intent:* "${incomingText.slice(0, 100)}"\n⚡ *Action:* https://wa.me/${senderPhone}`;
+      } else if (shouldAlertNew) {
+        alertedNewLeads.add(leadKey);
+        alertText = `🔔 *MartFlow AI — New Inbound Lead*\n👤 *Customer:* ${pushName} (+${senderPhone})\n💬 *Message:* "${incomingText.slice(0, 100)}"`;
+      }
+
+      if (alertText) {
+        try {
+          const ownerJid = `${ownerTarget}@s.whatsapp.net`;
+          const alertSent = await activeSock.sendMessage(ownerJid, { text: alertText });
+          if (alertSent?.key?.id) botSentMsgIds.add(alertSent.key.id);
+          addLog(`[Owner Alert] Sent private alert to owner (+${ownerTarget}) for lead +${senderPhone}`);
+        } catch (e) {
+          addLog(`[Owner Alert] Error: ${e.message}`);
+        }
       }
     }
 
@@ -825,11 +856,34 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       } catch (e) {}
     }
 
+    // Fast check BEFORE calling Gemini: if buyerText is a short closing/acknowledgment
+    const SHORT_ACK_REGEX = /^(ok|okay|okk|k|theek hai|thik hai|thek hai|accha|acha|thanks|thank you|shukriya|kuch nhi|kuch nahi|nhi|nahi|no need|bye|hmm|hm)[.!?\s]*$/i;
+    if (SHORT_ACK_REGEX.test((incomingText || '').trim())) {
+      const ackReply = "Ji zaroor! Jab bhi zaroorat ho, yahin message drop kar dena 👍";
+      const sentMsg = await activeSock.sendMessage(rawRemote, { text: ackReply });
+      if (sentMsg?.key?.id) botSentMsgIds.add(sentMsg.key.id);
+      addLog(`[Fast Ack] Sent short 1-line acknowledgment to +${senderPhone}`);
+
+      if (supabaseAdmin && sbConvId) {
+        try {
+          await supabaseAdmin.from('messages').insert({
+            org_id: orgId,
+            conversation_id: sbConvId,
+            sender: 'ai',
+            text: ackReply
+          });
+          await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
+        } catch (e) {}
+      }
+      return; // ZERO sales pitch and ZERO PDF/photo!
+    }
+
     await activeSock.sendPresenceUpdate('composing', rawRemote);
 
-    // Call AI Sales Engine
-    const aiReplyObj = await AIService.generateSalesReply({
+    // Call AI Sales Engine with rewritten concise prompt & generationConfig
+    const aiReplyObj = await generateShortSalesReply({
       organizationId: orgId,
+      org: freshOrg,
       lead: sLead || { name: pushName, phone: senderPhone },
       incomingText,
       conversationHistory: convHistory
@@ -1198,7 +1252,7 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
   }
 
   if (/catalog\s*nahi|pdf\s*nahi|brochure\s*nahi|rate\s*list\s*nahi/i.test(qLower)) {
-    return `${prefix}Koi tension nahi sir! Bas 1 minute ka voice note ya rate list ki photo WhatsApp (+91 97810 18975) pe bhej dijiye, hamare engineers setup ke dauraan aapke liye photo-rich PDF brochure FREE design kar denge!`;
+    return `${prefix}Koi tension nahi sir! Bas 1 minute ka voice note ya rate list ki photo WhatsApp pe bhej dijiye, hamare engineers setup ke dauraan aapke liye photo-rich PDF brochure FREE design kar denge!`;
   }
 
   const isCall = /call|phone|baat|milna|meeting|director|owner|appointment|visiting/i.test(qLower);
@@ -1225,6 +1279,138 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
   }
 }
 
+// ============================================================================
+// CONCISE WHATSAPP AI SALES CLOSER (MAX 18–38 WORDS, BUSY FOUNDER PERSONA)
+// ============================================================================
+async function generateShortSalesReply({ organizationId, org, lead, incomingText, conversationHistory }) {
+  const geminiKey = (process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
+  const orgName = org?.name || config.companyName || 'MartFlow AI';
+  const cityBase = org?.city_base || org?.company_city || config.cityBase || 'Delhi NCR / Ludhiana';
+
+  // Get catalog products from DB or config
+  let products = [];
+  if (supabaseAdmin && organizationId) {
+    try {
+      const { data: dbProds } = await supabaseAdmin.from('products').select('*').eq('org_id', organizationId).neq('is_active', false);
+      if (dbProds && dbProds.length > 0) products = dbProds;
+    } catch (e) {}
+  }
+  if (!products.length) {
+    products = config.products || [];
+  }
+
+  const catalogContext = products.map((p, idx) => {
+    const price = p.price_raw || p.priceRange || 'Price on request';
+    return `${idx + 1}. "${p.name}" | Price: ${price} | Specs: ${p.model_specs || p.description || 'Standard'}`;
+  }).join('\n');
+
+  // Match brochure or image if requested
+  const qLower = (incomingText || '').toLowerCase();
+  const isCatalogRequest = /catalog|catalogue|brochure|pdf|price\s*list|rate\s*list|details/i.test(qLower);
+  const isImageRequest = /photo|image|pic|dikhao|bhejo|dekhna/i.test(qLower);
+
+  let matchedBrochureUrl = null;
+  let matchedBrochureName = null;
+  const prodWithPdf = products.find(p => p.brochure_url && p.brochure_url.startsWith('http'));
+  if (prodWithPdf && isCatalogRequest) {
+    matchedBrochureUrl = prodWithPdf.brochure_url;
+    matchedBrochureName = (prodWithPdf.name || 'Catalog').replace(/[^a-zA-Z0-9_-]/g, '_') + '.pdf';
+  }
+
+  let matchedImageUrl = null;
+  let matchedImagePath = null;
+  let matchedImageCaption = null;
+  if (isImageRequest) {
+    const prodWithImg = products.find(p => p.image_url || p.imageUrl);
+    if (prodWithImg) {
+      matchedImageUrl = prodWithImg.image_url || prodWithImg.imageUrl;
+      matchedImageCaption = `${prodWithImg.name} (${prodWithImg.price_raw || prodWithImg.priceRange || ''})`;
+    }
+  }
+
+  if (geminiKey && geminiKey.length > 10) {
+    const systemInstruction = `You are a real, busy business founder/manager on WhatsApp for "${orgName}" (${cityBase}).
+Catalog & Pricing Knowledge:
+${catalogContext || 'Standard verified offerings apply.'}
+
+STRICT LENGTH RULE:
+1. Reply like a real busy human founder/manager on WhatsApp — 1 to 2 short sentences ONLY (strictly 18 to 38 words max) unless the customer explicitly asks to compare multiple plans/items.
+2. NEVER write 2–3 long paragraphs.
+3. NEVER start every message with fake-enthusiastic AI clichés like "Arre bilkul sir! Bahut badiya decision! 🚀" or "Namaste sir, hum aapki kya madad kar sakte hain".
+4. Answer their exact question directly first, give the exact price/fact, and end with AT MOST 1 short 5–8 word question when relevant.
+5. Speak natural, conversational Indian Hinglish (or English if the customer wrote in English). Ground strictly to verified catalog.`;
+
+    const historyText = (conversationHistory || [])
+      .slice(-10)
+      .map(m => `${m.role === 'ai' || m.sender === 'ai' ? 'You' : 'Customer'}: ${m.text || m.content || ''}`)
+      .join('\n');
+
+    const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+    for (const model of modelsToTry) {
+      try {
+        const resp = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(15000),
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{ text: systemInstruction }]
+              },
+              contents: [
+                {
+                  role: 'user',
+                  parts: [{ text: `Customer: "${incomingText}"\n\nRecent chat context:\n${historyText || '(New inquiry)'}` }]
+                }
+              ],
+              generationConfig: {
+                maxOutputTokens: 160,
+                temperature: 0.45
+              }
+            })
+          }
+        );
+
+        if (resp.ok) {
+          const data = await resp.json();
+          let reply = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+          if (reply) {
+            reply = reply.replace(/^["']|["']$/g, '').trim();
+            return {
+              reply,
+              matchedBrochureUrl,
+              matchedBrochureName,
+              matchedImageUrl,
+              matchedImagePath,
+              matchedImageCaption
+            };
+          }
+        }
+      } catch (err) {
+        // Fallback to next model
+      }
+    }
+  }
+
+  // Graceful rule-based fallback
+  const fallbackObj = await AIService.generateSalesReply({
+    organizationId,
+    lead,
+    incomingText,
+    conversationHistory
+  });
+
+  return {
+    reply: fallbackObj?.reply || `Ji Namaste! ${orgName} mein aapka swagat hai. Batayein aapko kis model ki requirement hai?`,
+    matchedBrochureUrl: matchedBrochureUrl || fallbackObj?.matchedBrochureUrl,
+    matchedBrochureName: matchedBrochureName || fallbackObj?.matchedBrochureName,
+    matchedImageUrl: matchedImageUrl || fallbackObj?.matchedImageUrl,
+    matchedImagePath: matchedImagePath || fallbackObj?.matchedImagePath,
+    matchedImageCaption: matchedImageCaption || fallbackObj?.matchedImageCaption
+  };
+}
+
 async function generateSalesReply({ lead, incomingText, audioBuffer, audioMime }) {
   const org = db.findOne('organizations', () => true) || { id: '6fd354d9-3437-412d-856e-28bc19d44268' };
   const convHistory = (lead.history || []).map(h => ({
@@ -1233,8 +1419,9 @@ async function generateSalesReply({ lead, incomingText, audioBuffer, audioMime }
   }));
 
   try {
-    const aiResult = await AIService.generateSalesReply({
+    const aiResult = await generateShortSalesReply({
       organizationId: org.id,
+      org,
       lead: {
         buyer_name: lead.name,
         buyer_phone: lead.phone,
