@@ -196,6 +196,15 @@ export class LeadService {
     return db.updateScoped('leads', leadId, organizationId, { notes: newNotes });
   }
 
+  // Sanitize CSV cell against formula injection (Item 27)
+  static sanitizeCsvCell(value) {
+    let str = String(value ?? '');
+    if (/^[=+@-]/i.test(str)) {
+      return "'" + str;
+    }
+    return str;
+  }
+
   // Export leads to CSV
   static exportLeadsCsv(organizationId) {
     const leads = db.findScoped('leads', organizationId);
@@ -213,11 +222,8 @@ export class LeadService {
     ];
 
     const esc = (v) => {
-      let str = String(v ?? '');
-      if (/^[=+@-]/i.test(str)) {
-        str = "'" + str; // Mitigate CSV formula injection (Item 27)
-      }
-      return `"${str.replace(/"/g, '""')}"`;
+      const clean = LeadService.sanitizeCsvCell(v);
+      return `"${clean.replace(/"/g, '""')}"`;
     };
     const rows = leads.map((l) => [
       l.id,

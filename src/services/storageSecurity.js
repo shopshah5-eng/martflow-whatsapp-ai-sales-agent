@@ -53,7 +53,13 @@ export function getSafeTenantAuthDir(orgId) {
 // 3. Tenant Catalog File Containment & Symlink Check
 export function getSafeTenantCatalogPath(orgId, filename) {
   validateSafeIdentifier(orgId, 'Organization ID');
-  const safeFile = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+  if (!filename || typeof filename !== 'string') {
+    throw new Error('Invalid filename: must be a non-empty string.');
+  }
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    throw new Error('Invalid filename: path traversal sequences are forbidden.');
+  }
+  const safeFile = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
   const baseCatalogsDir = path.resolve(process.cwd(), 'catalogs');
   const tenantDir = path.resolve(baseCatalogsDir, orgId);
 
@@ -116,6 +122,11 @@ export function isPrivateOrReservedIP(ip) {
 export async function getSafeAttachmentBuffer(orgId, attachmentRef) {
   if (!attachmentRef) return null;
 
+  // Reject non-HTTP URL schemes (e.g. file:, ftp:, etc.)
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(attachmentRef) && !/^https?:\/\//i.test(attachmentRef)) {
+    throw new Error(`Prohibited attachment URL protocol: ${attachmentRef}`);
+  }
+
   // Case A: Local tenant storage path or filename
   if (!/^https?:\/\//i.test(attachmentRef)) {
     if (!orgId) throw new Error('Tenant organization ID required to access local attachment.');
@@ -141,6 +152,11 @@ export async function getSafeAttachmentBuffer(orgId, attachmentRef) {
 
   const hostname = parsedUrl.hostname;
   if (!hostname) throw new Error('Missing hostname in attachment URL.');
+
+  // Direct IP Literal Check (blocks 127.0.0.1, 169.254.169.254, etc.)
+  if (isPrivateOrReservedIP(hostname)) {
+    throw new Error(`SSRF Blocked: Destination ${hostname} is a protected/internal IP address.`);
+  }
 
   // Pre-connection DNS lookup to prevent private IP access & DNS rebinding
   const addresses = await dns.resolve4(hostname).catch(() => []);

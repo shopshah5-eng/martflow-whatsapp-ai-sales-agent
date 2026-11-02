@@ -7,6 +7,16 @@ import { verifySessionToken } from '../auth/authService.js';
 import db from '../db/index.js';
 
 export function authenticate(req, res, next) {
+  // Allow platform finance / superadmin key for administrative operations
+  const platformAdminKey = req.headers['x-platform-admin-key'];
+  const expectedAdminKey = process.env.PLATFORM_ADMIN_SECRET;
+  if (platformAdminKey && expectedAdminKey && platformAdminKey === expectedAdminKey) {
+    req.userId = 'platform_admin';
+    req.organizationId = 'platform';
+    req.role = 'superadmin';
+    return next();
+  }
+
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ')
     ? authHeader.slice(7).trim()
