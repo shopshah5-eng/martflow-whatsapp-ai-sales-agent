@@ -10,12 +10,12 @@ export function authenticate(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ')
     ? authHeader.slice(7).trim()
-    : (req.query.token || req.headers['x-session-token']);
+    : req.headers['x-session-token'];
 
   if (!token) {
     return res.status(401).json({
       ok: false,
-      error: 'Authentication required. Please log in or provide a valid session token.'
+      error: 'Authentication required. Please provide a valid Bearer token in the Authorization header.'
     });
   }
 
@@ -35,10 +35,19 @@ export function authenticate(req, res, next) {
     });
   }
 
-  // Inject authenticated tenant context
+  // Check current user membership and role (including membership removal and role changes)
+  const membership = db.findOne('organization_members', (m) => m.organization_id === payload.organizationId && m.user_id === payload.userId);
+  if (!membership) {
+    return res.status(403).json({
+      ok: false,
+      error: 'Access denied: user is no longer a member of this organization.'
+    });
+  }
+
+  // Inject verified tenant and user context from authoritative membership
   req.userId = payload.userId;
   req.organizationId = payload.organizationId;
-  req.role = payload.role;
+  req.role = membership.role || payload.role;
   req.organization = organization;
 
   next();

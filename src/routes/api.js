@@ -42,11 +42,17 @@ router.post('/auth/login', async (req, res) => {
 
 // 1-Click Demo / Local Admin Workspace Auto-Login
 router.post('/auth/demo-login', async (req, res) => {
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEMO_LOGIN !== 'true') {
+    return res.status(403).json({
+      ok: false,
+      error: 'Demo auto-login is disabled. Please sign in with valid credentials.'
+    });
+  }
   try {
     const result = await demoLogin();
     res.json({ ok: true, ...result });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 });
 

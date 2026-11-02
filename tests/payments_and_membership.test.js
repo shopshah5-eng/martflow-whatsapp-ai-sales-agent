@@ -1,3 +1,7 @@
+process.env.NODE_ENV = 'test';
+process.env.ALLOW_DEMO_LOGIN = 'true';
+process.env.USE_LOCAL_DB = 'true';
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';

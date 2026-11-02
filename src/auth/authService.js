@@ -180,28 +180,53 @@ export async function login({ email, password }) {
   };
 }
 
-// 1-Click Demo / Local Admin Workspace Auto-Login
+// 1-Click Demo / Local Admin Workspace Auto-Login (Isolated Sandbox Only)
 export async function demoLogin() {
-  let profile = db.findOne('profiles', () => true);
-  let org = db.findOne('organizations', () => true);
+  const isAllowed = process.env.ALLOW_DEMO_LOGIN === 'true' || process.env.NODE_ENV === 'test' || !process.env.NODE_ENV;
+  if (process.env.NODE_ENV === 'production' || !isAllowed) {
+    const err = new Error('Demo login is strictly disabled. Please sign in with registered credentials.');
+    err.statusCode = 403;
+    throw err;
+  }
 
-  if (!profile || !org) {
-    return signUp({
-      email: 'demo.admin@martflow.ai',
-      password: 'DemoAdmin2026!',
-      fullName: 'Sandeep Sharma (Director)',
-      companyName: 'Bharat PackTech Machinery',
-      phone: '919876543210'
+  // Isolate strictly to demo sandbox workspace — NEVER touch real tenant accounts
+  const demoOrgId = 'org_demo_sandbox';
+  const demoUserId = 'usr_demo_sandbox';
+  let org = db.findById('organizations', demoOrgId);
+  let profile = db.findById('profiles', demoUserId);
+
+  if (!org) {
+    org = db.insert('organizations', {
+      id: demoOrgId,
+      name: 'MartFlow Sandbox Demo (Read-Only)',
+      slug: 'martflow-sandbox-demo',
+      webhook_key: 'whk_sandbox_demo_' + crypto.randomBytes(8).toString('hex'),
+      plan_status: 'trial',
+      monthly_lead_limit: 50,
+      leads_used: 0,
+      industry: 'Machinery & Manufacturing'
     });
   }
 
-  if (!org.webhook_key) {
-    const key = 'whk_' + crypto.randomBytes(12).toString('hex');
-    db.update('organizations', org.id, { webhook_key: key });
-    org.webhook_key = key;
+  if (!profile) {
+    profile = db.insert('profiles', {
+      id: demoUserId,
+      email: 'demo.sandbox@martflow.local',
+      password_hash: hashPassword('DemoSandbox2026!'),
+      full_name: 'Demo Reviewer (Sandbox)',
+      phone: '919800000000',
+      is_email_verified: true,
+      is_phone_verified: false
+    });
+
+    db.insert('organization_members', {
+      organization_id: demoOrgId,
+      user_id: demoUserId,
+      role: 'member'
+    });
   }
 
-  const membership = db.findOne('organization_members', (m) => m.organization_id === org.id) || { role: 'owner' };
+  const membership = db.findOne('organization_members', (m) => m.organization_id === demoOrgId && m.user_id === demoUserId) || { role: 'member' };
   const token = createSessionToken(profile.id, org.id, membership.role);
 
   return {
@@ -229,7 +254,15 @@ export function sendPhoneOtp(phone) {
     throw new Error('Valid phone number with country code is required.');
   }
   const cleanPhone = phone.replace(/[^0-9]/g, '');
-  const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit cryptographic-safe number
+
+  const hasSmsGateway = Boolean(process.env.FAST2SMS_API_KEY || process.env.TWILIO_AUTH_TOKEN || process.env.MSG91_AUTH_KEY);
+  if (!hasSmsGateway && process.env.NODE_ENV === 'production') {
+    const err = new Error('SMS provider is not configured on this instance. Live OTP delivery is unavailable.');
+    err.statusCode = 503;
+    throw err;
+  }
+
+  const otp = Math.floor(100000 + crypto.randomInt(0, 900000)).toString();
   OTP_STORE.set(cleanPhone, {
     otp,
     expiresAt: Date.now() + 10 * 60 * 1000, // 10 minutes
@@ -267,16 +300,55 @@ export function verifyPhoneOtp(phone, inputOtp) {
   return { verified: true, phone: cleanPhone };
 }
 
-// Google / Gmail OAuth Auto-Provisioning Handler
-export async function handleGoogleAuth({ email, fullName, supabaseId }) {
-  if (!email) throw new Error('Email is required for Google authentication.');
-  const cleanEmail = email.trim().toLowerCase();
+// Cryptographically Validated Google / Supabase Auth Handler
+export async function handleGoogleAuth({ token: inputToken, idToken, credential, email, fullName, supabaseId }) {
+  const authToken = inputToken || idToken || credential;
+  let verifiedEmail = null;
+  let verifiedName = fullName || null;
+
+  if (authToken) {
+    // Attempt Supabase Auth verification if configured
+    if (process.env.SUPABASE_URL && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY)) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false }
+        });
+        const { data, error } = await sb.auth.getUser(authToken);
+        if (!error && data?.user?.email) {
+          verifiedEmail = data.user.email.toLowerCase().trim();
+          verifiedName = data.user.user_metadata?.full_name || verifiedName || verifiedEmail.split('@')[0];
+        }
+      } catch (e) {
+        // Fall back to token decode in test mode
+      }
+    }
+
+    // In test environment, accept mock verified tokens
+    if (!verifiedEmail && process.env.NODE_ENV === 'test' && typeof authToken === 'string') {
+      if (authToken.startsWith('mock-google-token-') || authToken.includes('@')) {
+        verifiedEmail = authToken.replace('mock-google-token-', '').toLowerCase().trim();
+      }
+    }
+  }
+
+  // In test/dev environment, fallback to email if supplied
+  if (!verifiedEmail && process.env.NODE_ENV !== 'production' && email) {
+    verifiedEmail = email.trim().toLowerCase();
+  }
+
+  if (!verifiedEmail) {
+    throw new Error('Valid, cryptographically verified Google identity token is required.');
+  }
+
+  const cleanEmail = verifiedEmail;
   let profile = db.findOne('profiles', (p) => p.email === cleanEmail);
   let organization;
+  let role = 'owner';
 
   if (!profile) {
-    // Brand new user signing in via Google (Gmail)
-    const name = fullName ? fullName.trim() : cleanEmail.split('@')[0];
+    // Brand new user signing in via verified Google identity
+    const name = verifiedName ? verifiedName.trim() : cleanEmail.split('@')[0];
     const companyName = name + ' Manufacturing';
     profile = db.insert('profiles', {
       id: supabaseId || undefined,
@@ -317,17 +389,18 @@ export async function handleGoogleAuth({ email, fullName, supabaseId }) {
       send_voice_notes: true
     });
   } else {
-    // Existing user profile found
+    // Existing user profile found — preserve actual tenant and membership role
     const membership = db.findOne('organization_members', (m) => m.user_id === profile.id);
     if (membership) {
       organization = db.findById('organizations', membership.organization_id);
+      role = membership.role || 'member';
     }
     if (!organization) {
-      organization = db.findOne('organizations', () => true);
+      throw new Error('No active organization found for this authenticated user.');
     }
   }
 
-  const token = createSessionToken(profile.id, organization.id, 'owner');
+  const token = createSessionToken(profile.id, organization.id, role);
   return {
     user: {
       id: profile.id,
@@ -343,7 +416,7 @@ export async function handleGoogleAuth({ email, fullName, supabaseId }) {
       leadsUsed: organization.leads_used || 0,
       leadLimit: organization.monthly_lead_limit || 25
     },
-    role: 'owner',
+    role,
     token
   };
 }
