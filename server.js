@@ -29,13 +29,25 @@ import { createClient } from '@supabase/supabase-js';
 
 import apiRouter from './src/routes/api.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
-import { restoreSessionFromSupabase } from './src/integrations/whatsapp/sessionSync.js';
+import {
+  backupSessionToSupabase,
+  debouncedBackupSession,
+  restoreSessionFromSupabase,
+  deleteRemoteSession
+} from './src/integrations/whatsapp/sessionSync.js';
 import db from './src/db/index.js';
 import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook, invalidateCache } from './src/services/aiService.js';
 
 dotenv.config();
 
-const sentPdfs = new Set();
+// Global Anti-Duplicate, Anti-Loop & Tracking Sets
+const botSentMsgIds = new Set();
+const processedMsgIds = new Set();
+const inFlightSenders = new Set();
+const recentInboundFingerprints = new Map(); // `${orgId}:${senderPhone}:${normText}` -> timestamp
+const recentAlertsMap = new Map(); // `${orgId}:${senderPhone}:${alertType}` -> timestamp
+const sentPdfs = new Set(); // `${orgId}:${senderPhone}`
+const orgSessions = new Map(); // orgId -> { sock, isConnecting, reconnectTimer, state, authDir }
 
 // Global crash handlers to prevent server crashes
 process.on('uncaughtException', (err) => {
@@ -135,16 +147,18 @@ function saveLeads(list) {
 let leads = loadLeads();
 
 // Normalize Indian & International phone numbers -> digits only (e.g. 919876543210)
-function normalizePhone(raw) {
+function normalizeIndianPhone(raw) {
   if (!raw) return '';
   let digits = String(raw).replace(/\D/g, '');
-  if (digits.startsWith('0') && digits.length === 11) {
-    digits = '91' + digits.slice(1);
-  } else if (digits.length === 10) {
+  if (digits.length === 11 && digits.startsWith('0')) {
+    digits = digits.slice(1);
+  }
+  if (digits.length === 10) {
     digits = '91' + digits;
   }
   return digits;
 }
+const normalizePhone = normalizeIndianPhone;
 
 const LEARNINGS_FILE = path.join(__dirname, 'learnings_db.json');
 
@@ -463,14 +477,14 @@ async function generateTtsAudio(rawText) {
 }
 
 // ============================================================================
-// WHATSAPP BAILEYS SOCKET ENGINE
+// WHATSAPP BAILEYS SOCKET ENGINE & MULTI-TENANT DEDUPLICATED CONTROLLER
 // ============================================================================
 let sock = null;
 let waState = {
   status: 'disconnected', // disconnected | connecting | qr_ready | connected
   qrDataUrl: null,
   connectedNumber: null,
-  lastEvent: 'Click "Connect Spare WhatsApp SIM" to generate QR code.',
+  lastEvent: 'Click "Connect WhatsApp" to pair device.',
   logs: []
 };
 
@@ -485,36 +499,469 @@ let isConnecting = false;
 let reconnectTimer = null;
 let lidToPhoneMap = {}; // Maps WhatsApp @lid JIDs to normalized phone numbers
 
-async function startWhatsApp() {
-  if (isConnecting) return;
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+function resolvePhoneFromJid(remoteJid, altJid) {
+  let raw = (remoteJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+  const alt = (altJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+  if (alt && alt.length >= 10 && alt.length <= 13) {
+    if (raw) lidToPhoneMap[raw] = alt;
+    return normalizeIndianPhone(alt);
   }
-  isConnecting = true;
-  waState.status = 'connecting';
-  waState.lastEvent = 'Initializing WhatsApp multi-device session...';
-  addLog('Starting WhatsApp WebSocket engine...');
+  if (lidToPhoneMap[raw]) {
+    return normalizeIndianPhone(lidToPhoneMap[raw]);
+  }
+  return normalizeIndianPhone(raw);
+}
+
+const HIGH_INTENT_REGEX = /\b(price|pricing|cost|rate|kitna|kitne|pilot|buy|purchase|kharidna|pay|payment|upi|gpay|phonepe|call|contact|talk|demo|meet|meeting|agency|white-label|whitelabel|partner|book|booking|order)\b/i;
+
+async function handleOrgIncomingMessage(orgId, msg, activeSock) {
+  if (!msg || !msg.message) return;
+
+  // 1. Processed message ID deduplication
+  if (msg.key && msg.key.id) {
+    if (processedMsgIds.has(msg.key.id)) return;
+    processedMsgIds.add(msg.key.id);
+    if (processedMsgIds.size > 10000) {
+      const it = processedMsgIds.values();
+      for (let i = 0; i < 2000; i++) processedMsgIds.delete(it.next().value);
+    }
+  }
+
+  const rawRemote = msg.key.remoteJid || '';
+  if (rawRemote.endsWith('@g.us') || rawRemote === 'status@broadcast' || rawRemote.endsWith('@newsletter')) {
+    return; // Never reply in groups, broadcasts, or channels
+  }
+
+  // Unwrap content from ephemeral / view-once
+  const content = msg.message?.ephemeralMessage?.message || msg.message;
+  let incomingText =
+    content?.conversation ||
+    content?.extendedTextMessage?.text ||
+    content?.imageMessage?.caption ||
+    content?.documentMessage?.caption ||
+    '';
+
+  const isAudio = Boolean(content?.audioMessage);
+  const isImage = Boolean(content?.imageMessage);
+  const isLocation = Boolean(content?.locationMessage);
+
+  if (!incomingText) {
+    if (isImage) incomingText = '[Buyer sent photo / product sample]';
+    else if (isLocation) {
+      const loc = content.locationMessage;
+      incomingText = `[Buyer shared location: ${loc.name || loc.address || 'GPS Location'}]`;
+    }
+  }
+
+  if (!incomingText && !isAudio) return;
+
+  const altJid = msg.key.remoteJidAlt || msg.key.participant || '';
+  const senderPhone = normalizeIndianPhone(resolvePhoneFromJid(rawRemote, altJid));
+  const rawPushName = (msg.pushName || '').trim();
+  const pushName = rawPushName && !/^(buyer|unknown|\.|\+?\d+|user|iphone|android|customer|sir|whatsapp|demo|admin)$/i.test(rawPushName) ? rawPushName : 'Customer';
+
+  // Fetch fresh organization configuration from Supabase
+  let freshOrg = null;
+  if (supabaseAdmin) {
+    try {
+      const { data } = await supabaseAdmin.from('organizations').select('*').eq('id', orgId).maybeSingle();
+      freshOrg = data;
+    } catch (e) {}
+  }
+  if (!freshOrg) {
+    freshOrg = {
+      id: orgId,
+      name: config.companyName || 'MartFlow AI',
+      owner_alert_number: config.ownerAlertPhone || '919781018975',
+      wa_connected_number: activeSock?.user?.id?.split(':')[0]?.split('@')[0] || '919115748457',
+      wa_auto_reply: config.autoReplyEnabled,
+      auto_reply_enabled: config.autoReplyEnabled,
+      plan_status: 'active'
+    };
+  }
+
+  const ownerPhone = normalizeIndianPhone(freshOrg.owner_alert_number || '919781018975');
+  const botPhone = normalizeIndianPhone(activeSock?.user?.id?.split(':')[0] || freshOrg.wa_connected_number || '919115748457');
+  const recipientPhone = normalizeIndianPhone(rawRemote.split('@')[0]);
+
+  // 1-Word WhatsApp Remote Control (automatic / manual / mannual)
+  const cmd = (incomingText || '').trim().toLowerCase();
+  const isSelfChat = msg.key.fromMe && (recipientPhone === botPhone);
+  const isFromOwner = (senderPhone === ownerPhone);
+  const isFounderControl = isSelfChat || isFromOwner;
+
+  if (isFounderControl && (cmd === 'manual' || cmd === 'mannual')) {
+    try {
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('organizations').update({
+          wa_auto_reply: false,
+          auto_reply_enabled: false
+        }).eq('id', orgId);
+      }
+      freshOrg.wa_auto_reply = false;
+      freshOrg.auto_reply_enabled = false;
+      config.autoReplyEnabled = false;
+      const replyText = "⏸️ MANUAL MODE ON — Automatic AI replies are now PAUSED. You can message clients freely without interruption. Send 'automatic' anytime to turn AI back ON.";
+      const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      addLog(`[Remote Control] Manual mode activated by founder for org ${orgId}`);
+    } catch (e) {
+      addLog(`[Remote Control] Error enabling manual mode: ${e.message}`);
+    }
+    return;
+  }
+
+  if (isFounderControl && cmd === 'automatic') {
+    try {
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('organizations').update({
+          wa_auto_reply: true,
+          auto_reply_enabled: true
+        }).eq('id', orgId);
+        await supabaseAdmin.from('conversations').update({
+          mode: 'auto'
+        }).eq('org_id', orgId);
+      }
+      freshOrg.wa_auto_reply = true;
+      freshOrg.auto_reply_enabled = true;
+      config.autoReplyEnabled = true;
+      const replyText = "✅ AUTOMATIC MODE ON — 24/7 AI Sales Closer is now ACTIVE for all chats. Send 'manual' anytime to pause.";
+      const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      addLog(`[Remote Control] Automatic mode activated by founder for org ${orgId}`);
+    } catch (e) {
+      addLog(`[Remote Control] Error enabling automatic mode: ${e.message}`);
+    }
+    return;
+  }
+
+  // HUMAN TAKEOVER AUTO-PAUSE:
+  if (msg.key.fromMe) {
+    if (botSentMsgIds.has(msg.key.id)) {
+      return; // Ignore bot's own outbound dispatched message
+    }
+    if (!rawRemote.includes('@g.us') && !rawRemote.includes('broadcast') && recipientPhone !== botPhone) {
+      try {
+        if (supabaseAdmin) {
+          await supabaseAdmin.from('conversations').update({
+            mode: 'manual',
+            updated_at: new Date().toISOString()
+          }).eq('org_id', orgId).ilike('buyer_phone', `%${recipientPhone.slice(-10)}`);
+        }
+        addLog(`[Human Takeover] Owner typed manually to customer +${recipientPhone}. Conversation set to manual.`);
+      } catch (e) {}
+    }
+    return;
+  }
+
+  // Ignore non-command messages from owner_alert_number so bot never loops replying to owner
+  if (isFromOwner) {
+    return;
+  }
+
+  // Meta dual @lid + @s.whatsapp.net fingerprint cooldown (20 seconds)
+  const normText = (incomingText || '').trim().toLowerCase();
+  const fpKey = `${orgId}:${senderPhone}:${normText}`;
+  const now = Date.now();
+  if (recentInboundFingerprints.has(fpKey) && (now - recentInboundFingerprints.get(fpKey)) < 20000) {
+    addLog(`[Deduplication] Ignored duplicate Meta inbound event from +${senderPhone} within 20s.`);
+    return;
+  }
+  recentInboundFingerprints.set(fpKey, now);
+  if (recentInboundFingerprints.size > 2000) {
+    for (const [k, v] of recentInboundFingerprints.entries()) {
+      if (now - v > 60000) recentInboundFingerprints.delete(k);
+    }
+  }
+
+  // Per-sender async lock
+  if (inFlightSenders.has(senderPhone)) {
+    addLog(`[Deduplication] In-flight message already processing for +${senderPhone}. Skipping concurrent event.`);
+    return;
+  }
+  inFlightSenders.add(senderPhone);
 
   try {
-    fs.mkdirSync(AUTH_DIR, { recursive: true });
-    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    let sbConvId = null;
+    let isBrandNewLead = false;
+    let sLead = null;
+
+    if (supabaseAdmin) {
+      try {
+        const { data: existingLead } = await supabaseAdmin
+          .from('leads')
+          .select('id, buyer_name, buyer_phone, pdf_brochure_sent')
+          .eq('org_id', orgId)
+          .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
+          .maybeSingle();
+
+        if (!existingLead) {
+          isBrandNewLead = true;
+          const { data: newLead } = await supabaseAdmin.from('leads').insert({
+            org_id: orgId,
+            buyer_name: pushName,
+            buyer_phone: senderPhone,
+            requirement: incomingText,
+            status: 'Hot Lead'
+          }).select().single();
+          sLead = newLead;
+        } else {
+          sLead = existingLead;
+        }
+
+        let { data: existingConv } = await supabaseAdmin
+          .from('conversations')
+          .select('id, mode')
+          .eq('org_id', orgId)
+          .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
+          .maybeSingle();
+
+        if (!existingConv) {
+          const { data: nConv } = await supabaseAdmin.from('conversations').insert({
+            org_id: orgId,
+            lead_id: sLead?.id || null,
+            buyer_phone: senderPhone,
+            mode: 'auto'
+          }).select().single();
+          existingConv = nConv;
+        }
+
+        sbConvId = existingConv?.id;
+
+        if (sbConvId) {
+          await supabaseAdmin.from('messages').insert({
+            org_id: orgId,
+            conversation_id: sbConvId,
+            sender: 'buyer',
+            text: isAudio ? '[Voice Note Audio]' : incomingText
+          });
+          await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
+        }
+
+        // Check if organization auto-reply is disabled
+        const isOrgAutoReplyOff = freshOrg.wa_auto_reply === false || freshOrg.auto_reply_enabled === false;
+        if (isOrgAutoReplyOff) {
+          addLog(`[AI Muted] Auto reply is disabled for organization ${freshOrg.name || orgId}.`);
+          return;
+        }
+
+        if (existingConv?.mode === 'manual') {
+          addLog(`[Manual Mode] Conversation for +${senderPhone} is paused in manual mode.`);
+          return;
+        }
+
+        // Check lead quota for unpaid signups (main demo org is unlimited)
+        const isMainDemo = orgId === '6fd354d9-3437-412d-856e-28bc19d44268' || freshOrg.is_unlimited === true || freshOrg.plan_status === 'active';
+        if (!isMainDemo) {
+          const limit = freshOrg.monthly_lead_limit || 3;
+          const used = freshOrg.leads_used || 0;
+          const trialExpired = freshOrg.trial_ends_at && new Date(freshOrg.trial_ends_at) < new Date();
+          if (used >= limit || trialExpired) {
+            addLog(`[Quota Reached] Organization ${freshOrg.name || orgId} reached limit (${used}/${limit}). AI reply withheld.`);
+            return;
+          }
+          await supabaseAdmin.from('organizations').update({ leads_used: used + 1 }).eq('id', orgId);
+        }
+      } catch (dbErr) {
+        addLog(`Database sync error: ${dbErr.message}`);
+      }
+    }
+
+    // Owner WhatsApp Alerts (+91 97810 18975)
+    const isHighIntent = HIGH_INTENT_REGEX.test(incomingText);
+    const alertFp = `${orgId}:${senderPhone}:${isBrandNewLead ? 'new' : 'intent'}`;
+    const lastAlert = recentAlertsMap.get(alertFp) || 0;
+    const shouldAlert = (isBrandNewLead && (now - lastAlert > 300000)) || (isHighIntent && (now - lastAlert > 900000));
+
+    if (shouldAlert && ownerPhone && ownerPhone !== senderPhone) {
+      recentAlertsMap.set(alertFp, now);
+      const alertText = `🔔 *MartFlow AI — Hot Lead Alert!*\n\n👤 *Customer:* ${pushName}\n📱 *Phone:* +${senderPhone}\n💬 *Message:* "${incomingText.slice(0, 150)}"\n⚡ *Action:* https://wa.me/${senderPhone}`;
+      try {
+        const ownerJid = `${ownerPhone}@s.whatsapp.net`;
+        const alertSent = await activeSock.sendMessage(ownerJid, { text: alertText });
+        if (alertSent?.key?.id) botSentMsgIds.add(alertSent.key.id);
+        addLog(`[Owner Alert] Sent alert to owner (+${ownerPhone}) for lead +${senderPhone}`);
+      } catch (e) {
+        addLog(`[Owner Alert] Error: ${e.message}`);
+      }
+    }
+
+    // Double-reply prevention: check if an AI reply was inserted in Supabase in last 8s
+    if (supabaseAdmin && sbConvId) {
+      try {
+        const { data: recentAiMsgs } = await supabaseAdmin
+          .from('messages')
+          .select('created_at')
+          .eq('conversation_id', sbConvId)
+          .eq('sender', 'ai')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (recentAiMsgs && recentAiMsgs.length > 0) {
+          const diffMs = Date.now() - new Date(recentAiMsgs[0].created_at).getTime();
+          if (diffMs < 8000) {
+            addLog(`[Deduplication] AI reply already sent for conversation ${sbConvId} ${diffMs}ms ago. Skipping duplicate.`);
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Fetch conversation history
+    let convHistory = [];
+    if (supabaseAdmin && sbConvId) {
+      try {
+        const { data: hist } = await supabaseAdmin
+          .from('messages')
+          .select('sender, text, created_at')
+          .eq('conversation_id', sbConvId)
+          .order('created_at', { ascending: true })
+          .limit(15);
+        if (hist) {
+          convHistory = hist.map(m => ({
+            role: m.sender === 'ai' ? 'ai' : 'buyer',
+            text: m.text
+          }));
+        }
+      } catch (e) {}
+    }
+
+    await activeSock.sendPresenceUpdate('composing', rawRemote);
+
+    // Call AI Sales Engine
+    const aiReplyObj = await AIService.generateSalesReply({
+      organizationId: orgId,
+      lead: sLead || { name: pushName, phone: senderPhone },
+      incomingText,
+      conversationHistory: convHistory
+    });
+
+    if (!aiReplyObj || !aiReplyObj.reply) return;
+
+    // Send AI reply
+    const sentMsg = await activeSock.sendMessage(rawRemote, { text: aiReplyObj.reply });
+    if (sentMsg?.key?.id) botSentMsgIds.add(sentMsg.key.id);
+    await activeSock.sendPresenceUpdate('paused', rawRemote);
+
+    addLog(`AI reply sent to +${senderPhone}: "${aiReplyObj.reply.slice(0, 40)}..."`);
+
+    // Record AI reply in Supabase
+    if (supabaseAdmin && sbConvId) {
+      try {
+        await supabaseAdmin.from('messages').insert({
+          org_id: orgId,
+          conversation_id: sbConvId,
+          sender: 'ai',
+          text: aiReplyObj.reply
+        });
+        await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
+      } catch (e) {}
+    }
+
+    // Exactly 1 product photo per turn
+    if (aiReplyObj.matchedImageUrl || aiReplyObj.matchedImagePath) {
+      try {
+        let imgSource = null;
+        if (aiReplyObj.matchedImagePath && fs.existsSync(aiReplyObj.matchedImagePath)) {
+          imgSource = fs.readFileSync(aiReplyObj.matchedImagePath);
+        } else if (aiReplyObj.matchedImageUrl && aiReplyObj.matchedImageUrl.startsWith('data:image')) {
+          const b64 = aiReplyObj.matchedImageUrl.split(',')[1] || aiReplyObj.matchedImageUrl;
+          imgSource = Buffer.from(b64, 'base64');
+        } else if (aiReplyObj.matchedImageUrl && aiReplyObj.matchedImageUrl.startsWith('http')) {
+          imgSource = { url: aiReplyObj.matchedImageUrl };
+        }
+        if (imgSource) {
+          const imgCaption = aiReplyObj.matchedImageCaption ? `📸 ${aiReplyObj.matchedImageCaption}` : 'Live Product Photo';
+          const imgSent = await activeSock.sendMessage(rawRemote, {
+            image: imgSource,
+            caption: imgCaption
+          });
+          if (imgSent?.key?.id) botSentMsgIds.add(imgSent.key.id);
+          addLog(`[Product Photo] Dispatched photo to +${senderPhone}: "${imgCaption}"`);
+        }
+      } catch (imgErr) {
+        addLog(`[Product Photo] Error: ${imgErr.message}`);
+      }
+    }
+
+    // Exactly 1 PDF brochure per turn, deduplicated per sender
+    const pdfKey = `${orgId}:${senderPhone}`;
+    if (aiReplyObj.matchedBrochureUrl && !sentPdfs.has(pdfKey)) {
+      try {
+        const brochureSent = await activeSock.sendMessage(rawRemote, {
+          document: { url: aiReplyObj.matchedBrochureUrl },
+          mimetype: 'application/pdf',
+          fileName: aiReplyObj.matchedBrochureName || 'MartFlow_Catalog.pdf',
+          caption: `Aapka official technical brochure & price catalog! 📄`
+        });
+        if (brochureSent?.key?.id) botSentMsgIds.add(brochureSent.key.id);
+        sentPdfs.add(pdfKey);
+        addLog(`[Brochure] Sent PDF brochure to +${senderPhone}`);
+      } catch (pdfErr) {
+        addLog(`[Brochure] Error: ${pdfErr.message}`);
+      }
+    }
+  } finally {
+    inFlightSenders.delete(senderPhone);
+  }
+}
+
+async function startOrgWhatsApp(orgId, forceNew = false) {
+  if (!orgId) return;
+  const sessionDir = path.join(process.cwd(), 'auth_info', orgId);
+
+  // 1. Cleanly close and removeAllListeners() on any existing socket for orgId
+  if (orgSessions.has(orgId)) {
+    const existing = orgSessions.get(orgId);
+    try {
+      if (existing.sock) {
+        existing.sock.ev.removeAllListeners();
+        existing.sock.end();
+      }
+    } catch (e) {}
+    if (existing.reconnectTimer) clearTimeout(existing.reconnectTimer);
+    orgSessions.delete(orgId);
+  }
+
+  const sessionObj = {
+    sock: null,
+    isConnecting: true,
+    reconnectTimer: null,
+    authDir: sessionDir,
+    state: {
+      status: 'connecting',
+      qrDataUrl: null,
+      connectedNumber: null,
+      lastEvent: 'Initializing isolated WhatsApp socket...',
+      logs: []
+    }
+  };
+  orgSessions.set(orgId, sessionObj);
+
+  try {
+    if (forceNew) {
+      try {
+        fs.rmSync(sessionDir, { recursive: true, force: true });
+        await deleteRemoteSession(orgId);
+      } catch (e) {}
+    } else {
+      const credsFile = path.join(sessionDir, 'creds.json');
+      if (!fs.existsSync(credsFile)) {
+        await restoreSessionFromSupabase(orgId);
+      }
+    }
+
+    if (!fs.existsSync(sessionDir)) {
+      fs.mkdirSync(sessionDir, { recursive: true });
+    }
+
+    const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
     let version = [2, 3000, 1043857760];
     try {
       const latest = await fetchLatestBaileysVersion();
       if (latest?.version) version = latest.version;
-    } catch {
-      // Fallback version works fine if offline check times out
-    }
-
-    try {
-      if (sock) {
-        sock.ev.removeAllListeners();
-        sock.end();
-      }
     } catch {}
 
-    sock = makeWASocket({
+    const newSock = makeWASocket({
       version,
       auth: state,
       logger: pino({ level: 'silent' }),
@@ -523,82 +970,191 @@ async function startWhatsApp() {
       markOnlineOnConnect: false
     });
 
-    baileysManager.sock = sock;
-    baileysManager.state = waState;
+    sessionObj.sock = newSock;
+    sessionObj.isConnecting = false;
 
-    sock.ev.on('creds.update', saveCreds);
+    // Link default demo org to global sock and waState
+    if (orgId === '6fd354d9-3437-412d-856e-28bc19d44268') {
+      sock = newSock;
+      waState = sessionObj.state;
+      baileysManager.sock = newSock;
+      baileysManager.state = sessionObj.state;
+    }
 
-    sock.ev.on('connection.update', async (update) => {
+    newSock.ev.on('creds.update', async () => {
+      try {
+        await saveCreds();
+        debouncedBackupSession(orgId);
+      } catch (e) {}
+    });
+
+    newSock.ev.on('connection.update', async (update) => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        waState.qrDataUrl = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
-        waState.status = 'qr_ready';
-        waState.lastEvent = 'Scan QR Code with your Spare WhatsApp Business / WhatsApp App -> Linked Devices';
-        addLog('Fresh WhatsApp QR code generated! Open dashboard to scan.');
+        try {
+          sessionObj.state.qrDataUrl = await QRCode.toDataURL(qr, { width: 300, margin: 2 });
+          sessionObj.state.status = 'qr_ready';
+          sessionObj.state.lastEvent = 'Scan QR Code with WhatsApp (Linked Devices > Link a Device)';
+          addLog(`[Org: ${orgId.slice(0, 8)}] Fresh WhatsApp QR code generated.`);
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('organizations').update({
+              wa_status: 'qr_ready',
+              wa_qr_data_url: sessionObj.state.qrDataUrl,
+              wa_command: null
+            }).eq('id', orgId);
+          }
+        } catch (e) {}
       }
 
       if (connection === 'open') {
-        isConnecting = false;
-        if (reconnectTimer) {
-          clearTimeout(reconnectTimer);
-          reconnectTimer = null;
+        sessionObj.isConnecting = false;
+        if (sessionObj.reconnectTimer) clearTimeout(sessionObj.reconnectTimer);
+        sessionObj.state.status = 'connected';
+        sessionObj.state.qrDataUrl = null;
+        sessionObj.state.pairingCode = null;
+        const rawMe = newSock.user?.id || '';
+        sessionObj.state.connectedNumber = rawMe.split(':')[0].split('@')[0];
+        sessionObj.state.lastEvent = `Live & Connected as +${sessionObj.state.connectedNumber}`;
+        addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp CONNECTED successfully (+${sessionObj.state.connectedNumber})`);
+
+        if (supabaseAdmin) {
+          await supabaseAdmin.from('organizations').update({
+            wa_status: 'connected',
+            wa_connected_number: sessionObj.state.connectedNumber,
+            bot_whatsapp_number: sessionObj.state.connectedNumber,
+            wa_qr_data_url: null,
+            wa_pairing_code: null,
+            wa_command: null
+          }).eq('id', orgId);
         }
-        waState.status = 'connected';
-        waState.qrDataUrl = null;
-        const rawMe = sock.user?.id || '';
-        waState.connectedNumber = rawMe.split(':')[0].split('@')[0];
-        waState.lastEvent = `Live & Connected as +${waState.connectedNumber}`;
-        addLog(`WhatsApp CONNECTED successfully (+${waState.connectedNumber})`);
+
+        try {
+          await backupSessionToSupabase(orgId);
+        } catch (e) {}
       }
 
       if (connection === 'close') {
-        isConnecting = false;
+        sessionObj.isConnecting = false;
         const statusCode = lastDisconnect?.error?.output?.statusCode;
-        const loggedOut = statusCode === DisconnectReason.loggedOut;
-        waState.qrDataUrl = null;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        sessionObj.state.qrDataUrl = null;
 
-        if (loggedOut) {
-          waState.status = 'disconnected';
-          waState.connectedNumber = null;
-          waState.lastEvent = 'Logged out from phone. Click Reset & Connect to scan again.';
-          addLog('Session logged out. Clearing auth_info folder.');
+        if (isLoggedOut) {
+          sessionObj.state.status = 'disconnected';
+          sessionObj.state.connectedNumber = null;
+          sessionObj.state.lastEvent = 'Logged out from phone. Click Connect to scan again.';
+          addLog(`[Org: ${orgId.slice(0, 8)}] Session logged out.`);
           try {
-            fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-          } catch {}
+            fs.rmSync(sessionDir, { recursive: true, force: true });
+            await deleteRemoteSession(orgId);
+          } catch (e) {}
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('organizations').update({
+              wa_status: 'disconnected',
+              wa_connected_number: null,
+              wa_qr_data_url: null,
+              wa_pairing_code: null,
+              wa_command: null
+            }).eq('id', orgId);
+          }
         } else {
-          // In Baileys, code 515 (restartRequired) is standard after scanning QR code or updating session
-          const isRestart = statusCode === DisconnectReason.restartRequired;
-          waState.status = 'connecting';
-          waState.lastEvent = isRestart
-            ? 'Pairing handshake complete. Finalizing session connection...'
-            : `Connection interrupted (code: ${statusCode || 'net'}). Reconnecting...`;
-          addLog(`WhatsApp closed (code: ${statusCode || 'network'}). Auto-reconnecting in 1.5s...`);
-          if (reconnectTimer) clearTimeout(reconnectTimer);
-          reconnectTimer = setTimeout(() => {
-            startWhatsApp();
-          }, 1500);
+          sessionObj.state.status = 'connecting';
+          sessionObj.state.lastEvent = `Connection interrupted (code: ${statusCode || 'unknown'}). Reconnecting...`;
+          addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp closed (code: ${statusCode}). Auto-reconnecting in 2s...`);
+          if (sessionObj.reconnectTimer) clearTimeout(sessionObj.reconnectTimer);
+          sessionObj.reconnectTimer = setTimeout(() => {
+            startOrgWhatsApp(orgId, false);
+          }, 2000);
         }
       }
     });
 
-    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    newSock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return;
       for (const msg of messages) {
         try {
-          await handleIncomingWhatsAppMessage(msg);
+          await handleOrgIncomingMessage(orgId, msg, newSock);
         } catch (err) {
-          addLog(`Message handler error: ${err.message}`);
+          addLog(`[Org: ${orgId.slice(0, 8)}] Message handler error: ${err.message}`);
         }
       }
     });
+
   } catch (err) {
-    isConnecting = false;
-    waState.status = 'disconnected';
-    waState.lastEvent = `Startup error: ${err.message}`;
-    addLog(`WhatsApp init error: ${err.message}`);
+    sessionObj.isConnecting = false;
+    sessionObj.state.status = 'disconnected';
+    sessionObj.state.lastEvent = `Startup error: ${err.message}`;
+    addLog(`[Org: ${orgId.slice(0, 8)}] Startup error: ${err.message}`);
   }
 }
+
+// Global startWhatsApp delegates to main demo organization
+async function startWhatsApp() {
+  const mainOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
+  return startOrgWhatsApp(mainOrgId, false);
+}
+
+// Hook baileysManager to use the single deduplicated startOrgWhatsApp engine
+const originalGetInstance = baileysManager.getInstance.bind(baileysManager);
+baileysManager.getInstance = function(orgId) {
+  const inst = originalGetInstance(orgId);
+  inst.init = async function(forceNew = false) {
+    await startOrgWhatsApp(orgId, forceNew);
+    const session = orgSessions.get(orgId);
+    if (session) {
+      inst.sock = session.sock;
+      inst.isConnected = session.state.status === 'connected';
+      inst.state = session.state;
+    }
+    return inst;
+  };
+  inst.disconnect = async function() {
+    if (orgSessions.has(orgId)) {
+      const s = orgSessions.get(orgId);
+      try {
+        if (s.sock) {
+          s.sock.ev.removeAllListeners();
+          s.sock.end();
+        }
+      } catch (e) {}
+      if (s.reconnectTimer) clearTimeout(s.reconnectTimer);
+      orgSessions.delete(orgId);
+    }
+  };
+  return inst;
+};
+
+baileysManager.sendMessage = async function(orgId, toPhone, messageText, pdfPath, imagePath) {
+  const cleanPhone = normalizeIndianPhone(toPhone);
+  const jid = `${cleanPhone}@s.whatsapp.net`;
+  const session = orgSessions.get(orgId);
+  const activeSock = session?.sock || baileysManager.getInstance(orgId)?.sock;
+  if (!activeSock) return { ok: false, error: 'WhatsApp socket offline' };
+
+  try {
+    let sent;
+    if (pdfPath) {
+      sent = await activeSock.sendMessage(jid, {
+        document: pdfPath.startsWith('http') ? { url: pdfPath } : fs.readFileSync(pdfPath),
+        mimetype: 'application/pdf',
+        fileName: path.basename(pdfPath) || 'Brochure.pdf',
+        caption: messageText || ''
+      });
+    } else if (imagePath) {
+      sent = await activeSock.sendMessage(jid, {
+        image: imagePath.startsWith('http') ? { url: imagePath } : fs.readFileSync(imagePath),
+        caption: messageText || ''
+      });
+    } else {
+      sent = await activeSock.sendMessage(jid, { text: messageText || '' });
+    }
+    if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+    return { ok: true, messageId: sent?.key?.id };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+};
 
 async function resolveWhatsAppJid(phoneDigits) {
   if (!sock || waState.status !== 'connected') {
@@ -1969,12 +2525,47 @@ const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_
     })
   : null;
 
+// Auto-clean legacy demo strings from Supabase on boot
+async function runStartupDataCleanup() {
+  if (!supabaseAdmin) return;
+  try {
+    // 1. Clean legacy organization names and welcome messages
+    await supabaseAdmin
+      .from('organizations')
+      .update({
+        name: 'MartFlow AI',
+        wa_welcome_message: 'Namaste! Welcome to MartFlow AI 👋 How can we help automate your business WhatsApp today?'
+      })
+      .eq('name', 'Apex Packaging Demo');
+
+    // 2. Clean legacy product names containing 'Free Trial'
+    const { data: legacyProducts } = await supabaseAdmin
+      .from('products')
+      .select('id, name')
+      .eq('sku', 'MF-801A')
+      .ilike('name', '%Free Trial%');
+
+    if (legacyProducts && legacyProducts.length > 0) {
+      for (const p of legacyProducts) {
+        await supabaseAdmin
+          .from('products')
+          .update({ name: '48-Hour Live VIP Business Pilot (₹999 — 100% Adjusted in Plan)' })
+          .eq('id', p.id);
+      }
+    }
+    addLog('[Startup Cleanup] Verified & cleaned legacy demo strings from Supabase.');
+  } catch (err) {
+    addLog(`[Startup Cleanup] Note: ${err.message}`);
+  }
+}
+
 async function initSupabaseWorker() {
   if (!supabaseAdmin) {
     addLog('[Supabase Worker] Supabase credentials not found in .env, worker running in local-only mode.');
     return;
   }
   addLog('[Supabase Worker] Initializing Multi-Tenant Realtime & Command Engine...');
+  await runStartupDataCleanup();
 
   // 1. Worker Heartbeat Loop (every 20s)
   async function sendHeartbeat() {
@@ -2124,9 +2715,10 @@ async function initSupabaseWorker() {
           .eq('id', item.id);
 
         try {
+          const targetPhone = normalizeIndianPhone(item.to_phone);
           const res = await baileysManager.sendMessage(
             item.org_id,
-            item.to_phone,
+            targetPhone,
             item.message_text || '',
             item.pdf_url || null,
             item.message_text || ''
@@ -2137,26 +2729,28 @@ async function initSupabaseWorker() {
               .from('wa_outbound_queue')
               .update({ status: 'sent', error_text: null })
               .eq('id', item.id);
-            addLog(`[Supabase Worker] Outbound queue message delivered to +${item.to_phone}`);
+            addLog(`[Supabase Worker] Outbound queue message delivered to +${targetPhone}`);
           } else {
             // Also attempt fallback via primary socket if connected
             if (sock && waState.status === 'connected') {
-              const jid = `${String(item.to_phone).replace(/\D/g, '')}@s.whatsapp.net`;
+              const jid = `${targetPhone}@s.whatsapp.net`;
               if (item.pdf_url) {
-                await sock.sendMessage(jid, {
+                const sent = await sock.sendMessage(jid, {
                   document: { url: item.pdf_url },
                   mimetype: 'application/pdf',
                   fileName: item.pdf_name || 'Brochure.pdf',
                   caption: item.message_text || ''
                 });
+                if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
               } else {
-                await sock.sendMessage(jid, { text: item.message_text });
+                const sent = await sock.sendMessage(jid, { text: item.message_text });
+                if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
               }
               await supabaseAdmin
                 .from('wa_outbound_queue')
                 .update({ status: 'sent', error_text: null })
                 .eq('id', item.id);
-              addLog(`[Supabase Worker] Outbound queue message delivered via primary socket to +${item.to_phone}`);
+              addLog(`[Supabase Worker] Outbound queue message delivered via primary socket to +${targetPhone}`);
             } else {
               await supabaseAdmin
                 .from('wa_outbound_queue')
