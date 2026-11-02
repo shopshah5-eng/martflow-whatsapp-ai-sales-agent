@@ -22,6 +22,20 @@ export class LeadService {
     }
 
     const cleanPhone = String(leadData.buyer_phone).replace(/[^0-9]/g, '');
+
+    // Check organization plan and lead limits
+    const org = db.findById('organizations', organizationId);
+    let leadStatus = leadData.status || 'new';
+    if (org && leadStatus === 'new') {
+      const trialExpired = org.trial_ends_at && new Date(org.trial_ends_at) < new Date();
+      const quotaExceeded = (org.leads_used || 0) >= (org.monthly_lead_limit || 25);
+      if (trialExpired) {
+        leadStatus = 'trial_expired';
+      } else if (quotaExceeded) {
+        leadStatus = 'quota_exceeded';
+      }
+    }
+
     const newLead = db.insert('leads', {
       organization_id: organizationId,
       source_event_id: leadData.source_event_id || `lead_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
@@ -32,7 +46,7 @@ export class LeadService {
       product_inquired: leadData.product_inquired || 'General Machinery Inquiry',
       matched_product_id: leadData.matched_product_id || null,
       requirement: leadData.requirement || '',
-      status: 'new',
+      status: leadStatus,
       pdf_brochure_sent: false,
       first_response_ms: null,
       notes: leadData.notes || null
@@ -198,7 +212,13 @@ export class LeadService {
       'Source'
     ];
 
-    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const esc = (v) => {
+      let str = String(v ?? '');
+      if (/^[=+@-]/i.test(str)) {
+        str = "'" + str; // Mitigate CSV formula injection (Item 27)
+      }
+      return `"${str.replace(/"/g, '""')}"`;
+    };
     const rows = leads.map((l) => [
       l.id,
       new Date(l.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),

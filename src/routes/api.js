@@ -661,32 +661,97 @@ router.post('/membership/unlock-code', authenticate, (req, res) => {
   }
 });
 
-// Dual Payment: Tab 1 — Instant Direct UPI QR + UTR Verification
+// Dual Payment: Tab 1 — Instant Direct UPI QR + UTR Submission (Pending Reconciliation)
 router.post('/payments/upi-verify', authenticate, (req, res) => {
   try {
     const utr = String(req.body.utrReference || req.body.utr || '').trim();
     const amount = parseInt(req.body.amountInr || req.body.amount || 999, 10);
-    if (!utr || utr.length < 8) {
-      return res.status(400).json({ ok: false, error: 'Valid 12-digit UTR/Bank Reference number is required.' });
+    if (!utr || !/^[0-9A-Za-z]{10,22}$/.test(utr)) {
+      return res.status(400).json({ ok: false, error: 'Valid 10-22 character alphanumeric UTR/Bank Reference is required.' });
     }
 
+    // Check if UTR was already recorded
+    const existing = db.findOne('payments', (p) => p.utr_reference === utr);
+    if (existing) {
+      return res.status(409).json({ ok: false, error: 'This UTR reference has already been submitted.' });
+    }
+
+    // Save payment as 'pending_verification' — NEVER auto-activate plan on unverified UTR
     const payment = db.insert('payments', {
       organization_id: req.organizationId,
       amount_inr: amount,
       provider: 'upi_direct',
       utr_reference: utr,
-      status: 'verified'
-    });
-
-    db.update('organizations', req.organizationId, {
-      plan_status: 'active',
-      monthly_lead_limit: Math.max(500, amount >= 9999 ? 2500 : 500)
+      status: 'pending_verification',
+      submitted_by: req.userId
     });
 
     res.json({
       ok: true,
-      message: 'UPI payment verified! Factory workspace successfully activated.',
+      status: 'pending_verification',
+      message: 'UTR submitted successfully. Payment is pending verification by finance; plan will activate upon bank reconciliation.',
       paymentId: payment.id
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Platform Finance / Superadmin UPI Reconciliation Endpoint
+router.post('/admin/payments/reconcile', authenticate, (req, res) => {
+  try {
+    const adminKey = req.headers['x-platform-admin-key'];
+    const expectedKey = process.env.PLATFORM_ADMIN_SECRET || process.env.SESSION_SECRET;
+    const isPlatformAdmin = (req.role === 'superadmin') || (adminKey && adminKey === expectedKey);
+
+    if (!isPlatformAdmin) {
+      return res.status(403).json({
+        ok: false,
+        error: 'Forbidden: Platform finance or superadmin authorization is required to reconcile payments.'
+      });
+    }
+
+    const { paymentId, status = 'verified', notes = '' } = req.body;
+    if (!paymentId) {
+      return res.status(400).json({ ok: false, error: 'paymentId is required.' });
+    }
+
+    const payment = db.findById('payments', paymentId);
+    if (!payment) {
+      return res.status(404).json({ ok: false, error: 'Payment record not found.' });
+    }
+
+    if (payment.status === 'verified') {
+      return res.status(400).json({ ok: false, error: 'Payment is already verified.' });
+    }
+
+    db.update('payments', payment.id, {
+      status,
+      reconciled_by: req.userId || 'platform_admin',
+      reconciled_at: new Date().toISOString(),
+      reconciliation_notes: notes
+    });
+
+    if (status === 'verified') {
+      const quota = payment.amount_inr >= 9999 ? 2500 : 500;
+      db.update('organizations', payment.organization_id, {
+        plan_status: 'active',
+        monthly_lead_limit: quota
+      });
+
+      // Audit log entry
+      db.insert('audit_logs', {
+        organization_id: payment.organization_id,
+        operator_id: req.userId || 'platform_admin',
+        action: 'PAYMENT_RECONCILED',
+        details: { paymentId: payment.id, amountInr: payment.amount_inr, notes }
+      });
+    }
+
+    res.json({
+      ok: true,
+      message: `Payment ${paymentId} reconciled as ${status}. Organization activated.`,
+      status
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -696,9 +761,42 @@ router.post('/payments/upi-verify', authenticate, (req, res) => {
 // Dual Payment: Tab 2 — Razorpay Official Checkout SDK
 router.post('/payments/razorpay/create-order', authenticate, async (req, res) => {
   try {
+    const hasKeys = Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET);
+    if (!hasKeys && process.env.NODE_ENV !== 'test') {
+      return res.status(503).json({
+        ok: false,
+        error: 'Razorpay payment gateway is not configured on this instance. Please use Direct UPI.'
+      });
+    }
+
     const amountInr = parseInt(req.body.amountInr || 3499, 10);
     const amountPaise = amountInr * 100;
-    const orderId = 'order_' + crypto.randomBytes(8).toString('hex');
+    let orderId = 'order_' + crypto.randomBytes(8).toString('hex');
+
+    // If live keys exist, call real Razorpay Orders API
+    if (hasKeys && !process.env.RAZORPAY_KEY_ID.includes('placeholder')) {
+      try {
+        const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
+        const rzpResp = await fetch('https://api.razorpay.com/v1/orders', {
+          method: 'POST',
+          headers: {
+            Authorization: authHeader,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            amount: amountPaise,
+            currency: 'INR',
+            receipt: `rcpt_${req.organizationId.slice(0, 10)}_${Date.now()}`
+          })
+        });
+        const rzpData = await rzpResp.json();
+        if (rzpData?.id) {
+          orderId = rzpData.id;
+        }
+      } catch (e) {
+        console.warn('[Razorpay API] Orders API call failed:', e.message);
+      }
+    }
 
     const payment = db.insert('payments', {
       organization_id: req.organizationId,
@@ -721,12 +819,16 @@ router.post('/payments/razorpay/create-order', authenticate, async (req, res) =>
   }
 });
 
-router.post('/payments/razorpay/verify', authenticate, (req, res) => {
+router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     const secret = process.env.RAZORPAY_KEY_SECRET;
 
-    if (secret && razorpay_signature) {
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ ok: false, error: 'Missing razorpay_order_id, razorpay_payment_id, or razorpay_signature' });
+    }
+
+    if (secret) {
       const expectedSig = crypto
         .createHmac('sha256', secret)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -735,6 +837,12 @@ router.post('/payments/razorpay/verify', authenticate, (req, res) => {
       if (expectedSig !== razorpay_signature) {
         return res.status(400).json({ ok: false, error: 'Invalid Razorpay payment signature.' });
       }
+    }
+
+    // Check for replay attacks: payment_id must not already be verified
+    const existing = db.findOne('payments', (p) => p.razorpay_payment_id === razorpay_payment_id && p.status === 'verified');
+    if (existing) {
+      return res.status(409).json({ ok: false, error: 'Payment ID already credited (replay attack prevented).' });
     }
 
     const payment = db.findOne('payments', (p) => p.razorpay_order_id === razorpay_order_id);
