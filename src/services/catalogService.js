@@ -5,26 +5,47 @@
 
 import fs from 'fs';
 import path from 'path';
+import stream from 'stream';
 import { createRequire } from 'module';
+import ExcelJS from 'exceljs';
 import db from '../db/index.js';
 
 const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
-const XLSX = require('xlsx');
 
 export class CatalogService {
-  // Ingest a catalog file (PDF, XLSX, XLS, CSV)
+  // Ingest a catalog file (PDF, XLSX, CSV)
   static async ingestCatalog(organizationId, { filename, buffer, uploadedBy = null }) {
     if (!organizationId) throw new Error('organization_id is required');
+    if (!/^[a-zA-Z0-9_-]{8,64}$/.test(organizationId)) {
+      throw new Error('Invalid organization ID: must be safe alphanumeric identifier (8-64 characters)');
+    }
     if (!filename || !buffer) throw new Error('filename and buffer are required');
 
     const ext = path.extname(filename).toLowerCase();
-    const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storageDir = path.join(process.cwd(), 'catalogs', organizationId);
+    if (ext === '.xls') {
+      throw new Error('Legacy .xls (Excel 97-2003) format is unsupported for security compliance. Please upload .xlsx or .csv.');
+    }
+
+    const safeFilename = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const baseCatalogsDir = path.resolve(process.cwd(), 'catalogs');
+    const storageDir = path.resolve(baseCatalogsDir, organizationId);
+    if (!storageDir.startsWith(baseCatalogsDir + path.sep)) {
+      throw new Error('Tenant storage path traversal detected');
+    }
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
-    const storagePath = path.join(storageDir, safeFilename);
+    const storagePath = path.resolve(storageDir, safeFilename);
+    if (!storagePath.startsWith(storageDir + path.sep)) {
+      throw new Error('Catalog filename path traversal detected');
+    }
+    if (fs.existsSync(storagePath)) {
+      const stat = fs.lstatSync(storagePath);
+      if (stat.isSymbolicLink()) {
+        throw new Error('Symbolic links are forbidden in catalog storage');
+      }
+    }
     fs.writeFileSync(storagePath, buffer);
 
     // Create catalog file record
@@ -71,15 +92,39 @@ export class CatalogService {
         });
         createdProducts.push(product);
 
-      } else if (ext === '.xlsx' || ext === '.xls' || ext === '.csv') {
-        const wb = ext === '.csv'
-          ? XLSX.read(buffer.toString('utf8'), { type: 'string', raw: true })
-          : XLSX.read(buffer, { type: 'buffer' });
-        const textLines = [];
+      } else if (ext === '.xlsx' || ext === '.csv') {
+        const wb = new ExcelJS.Workbook();
+        if (ext === '.csv') {
+          const pass = new stream.PassThrough();
+          pass.end(buffer);
+          await wb.csv.read(pass);
+        } else {
+          await wb.xlsx.load(buffer);
+        }
 
-        for (const sheetName of wb.SheetNames) {
-          const sheet = wb.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json(sheet);
+        const textLines = [];
+        for (const worksheet of wb.worksheets) {
+          const sheetName = worksheet.name || 'Sheet1';
+          const headerRow = worksheet.getRow(1);
+          const headers = [];
+          headerRow.eachCell((cell, colNumber) => {
+            headers[colNumber] = String(cell.value || '').trim();
+          });
+
+          const rows = [];
+          for (let rowNum = 2; rowNum <= worksheet.rowCount; rowNum++) {
+            const row = worksheet.getRow(rowNum);
+            const rowObj = {};
+            let hasValue = false;
+            row.eachCell((cell, colNumber) => {
+              const key = headers[colNumber] || `col_${colNumber}`;
+              const val = typeof cell.value === 'object' && cell.value !== null && cell.value.text ? cell.value.text : String(cell.value || '');
+              rowObj[key] = val;
+              if (val) hasValue = true;
+            });
+            if (hasValue) rows.push(rowObj);
+          }
+
           if (rows.length) {
             textLines.push(`=== Sheet: ${sheetName} ===`);
             for (const r of rows) {
