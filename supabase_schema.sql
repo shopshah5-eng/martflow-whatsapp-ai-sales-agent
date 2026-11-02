@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.organizations (
     wa_owner_alerts BOOLEAN DEFAULT true,
     wa_welcome_message TEXT DEFAULT NULL,
     business_type TEXT DEFAULT 'auto',
+    catalog_pdf_name TEXT DEFAULT NULL,
     website_url TEXT DEFAULT NULL,
     website_knowledge TEXT DEFAULT NULL,
     website_synced_at TIMESTAMPTZ DEFAULT NULL,
@@ -200,6 +201,26 @@ DROP POLICY IF EXISTS org_isolation_update ON public.organizations;
 CREATE POLICY org_isolation_update ON public.organizations
     FOR UPDATE USING (id = public.current_user_org_id());
 
+-- Prevent privilege escalation / self-upgrading of plan and quotas by tenants
+CREATE OR REPLACE FUNCTION public.check_org_billing_fields_immutability()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (auth.jwt() ->> 'role') = 'authenticated' THEN
+        IF NEW.plan_status IS DISTINCT FROM OLD.plan_status OR
+           NEW.monthly_lead_limit IS DISTINCT FROM OLD.monthly_lead_limit OR
+           NEW.leads_used IS DISTINCT FROM OLD.leads_used THEN
+            RAISE EXCEPTION 'Unauthorized: Plan status and lead quotas can only be updated via verified billing reconciliation';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_org_billing_immutability ON public.organizations;
+CREATE TRIGGER trg_org_billing_immutability
+    BEFORE UPDATE ON public.organizations
+    FOR EACH ROW EXECUTE FUNCTION public.check_org_billing_fields_immutability();
+
 DROP POLICY IF EXISTS org_isolation_insert ON public.organizations;
 CREATE POLICY org_isolation_insert ON public.organizations
     FOR INSERT WITH CHECK (true);
@@ -208,6 +229,24 @@ CREATE POLICY org_isolation_insert ON public.organizations
 DROP POLICY IF EXISTS profile_isolation ON public.profiles;
 CREATE POLICY profile_isolation ON public.profiles
     FOR ALL USING (org_id = public.current_user_org_id() OR id = auth.uid());
+
+-- Prevent self-elevation of role or tenant switching in profiles
+CREATE OR REPLACE FUNCTION public.check_profile_role_immutability()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (auth.jwt() ->> 'role') = 'authenticated' THEN
+        IF NEW.role IS DISTINCT FROM OLD.role OR NEW.org_id IS DISTINCT FROM OLD.org_id THEN
+            RAISE EXCEPTION 'Unauthorized: User role and tenant organization cannot be altered directly';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_profile_immutability ON public.profiles;
+CREATE TRIGGER trg_profile_immutability
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.check_profile_role_immutability();
 
 DROP POLICY IF EXISTS profile_insert_own ON public.profiles;
 CREATE POLICY profile_insert_own ON public.profiles
@@ -309,8 +348,6 @@ BEGIN
 
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
-END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Bind trigger to Supabase auth.users
@@ -357,7 +394,29 @@ CREATE TABLE IF NOT EXISTS public.alert_dedup (
 CREATE INDEX IF NOT EXISTS idx_manual_takeovers_lookup ON public.manual_takeovers(org_id, buyer_phone);
 CREATE INDEX IF NOT EXISTS idx_alert_dedup_lookup ON public.alert_dedup(org_id, buyer_phone, kind);
 
--- 16. Enable Supabase Realtime for Multi-Tenant Dashboard & WhatsApp Worker
+-- Enable RLS on manual_takeovers and alert_dedup
+ALTER TABLE public.manual_takeovers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS manual_takeovers_isolation ON public.manual_takeovers;
+CREATE POLICY manual_takeovers_isolation ON public.manual_takeovers
+    FOR ALL USING (org_id = public.current_user_org_id())
+    WITH CHECK (org_id = public.current_user_org_id());
+
+ALTER TABLE public.alert_dedup ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS alert_dedup_isolation ON public.alert_dedup;
+CREATE POLICY alert_dedup_isolation ON public.alert_dedup
+    FOR ALL USING (org_id = public.current_user_org_id())
+    WITH CHECK (org_id = public.current_user_org_id());
+
+-- 16. Legacy ID Mapping for Deterministic UUID Migration
+CREATE TABLE IF NOT EXISTS public.legacy_id_mapping (
+    legacy_id TEXT PRIMARY KEY,
+    supabase_uuid UUID NOT NULL DEFAULT gen_random_uuid(),
+    entity_type TEXT NOT NULL,
+    migrated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_legacy_mapping_uuid ON public.legacy_id_mapping(supabase_uuid);
+
+-- 17. Enable Supabase Realtime for Multi-Tenant Dashboard & WhatsApp Worker
 DO $$
 BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations;
