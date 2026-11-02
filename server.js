@@ -37,6 +37,19 @@ import {
 } from './src/integrations/whatsapp/sessionSync.js';
 import db from './src/db/index.js';
 import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook, invalidateCache } from './src/services/aiService.js';
+import { HIGH_INTENT_REGEX, scorePurchaseIntent, describeInboundContent } from './src/services/intentService.js';
+import takeoverService, {
+  DEFAULT_MANUAL_MODE_MS,
+  DEFAULT_HOT_COOLDOWN_MS,
+  takeoverCustomer,
+  releaseCustomer,
+  isCustomerInManualMode,
+  getActiveTakeovers,
+  shouldSendAlert,
+  recordAlertSent,
+  parseOwnerCommand,
+  maskPhone
+} from './src/services/takeoverService.js';
 
 dotenv.config();
 
@@ -502,35 +515,83 @@ let reconnectTimer = null;
 let lidToPhoneMap = {}; // Maps WhatsApp @lid JIDs to normalized phone numbers
 
 function resolvePhoneFromJid(remoteJid, altJid) {
-  let raw = (remoteJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
-  const alt = (altJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
-  if (alt && alt.length >= 10 && alt.length <= 13) {
-    if (raw) lidToPhoneMap[raw] = alt;
-    return normalizeIndianPhone(alt);
+  // 1. Direct remoteJid if it is a standard @s.whatsapp.net phone number
+  if (remoteJid && remoteJid.includes('@s.whatsapp.net')) {
+    const raw = remoteJid.split('@')[0].split(':')[0].replace(/\D/g, '');
+    if (raw && raw.length >= 10) {
+      return normalizeIndianPhone(raw);
+    }
   }
-  if (lidToPhoneMap[raw]) {
-    return normalizeIndianPhone(lidToPhoneMap[raw]);
+
+  // 2. remoteJidAlt / participantAlt (Baileys v6.7+ format)
+  if (altJid && altJid.includes('@s.whatsapp.net')) {
+    const alt = altJid.split('@')[0].split(':')[0].replace(/\D/g, '');
+    if (alt && alt.length >= 10) {
+      if (remoteJid) lidToPhoneMap[remoteJid] = alt;
+      return normalizeIndianPhone(alt);
+    }
   }
-  return normalizeIndianPhone(raw);
+
+  // 3. Cached lidToPhoneMap lookup
+  if (remoteJid && lidToPhoneMap[remoteJid]) {
+    return normalizeIndianPhone(lidToPhoneMap[remoteJid]);
+  }
+
+  // 4. Raw digits fallback if length matches valid phone
+  const rawDigits = (remoteJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+  if (rawDigits && rawDigits.length >= 10 && rawDigits.length <= 13) {
+    return normalizeIndianPhone(rawDigits);
+  }
+
+  // Unresolved LID or invalid JID
+  return null;
 }
 
-const HIGH_INTENT_REGEX = /\b(price|pricing|cost|rate|kitna|kitne|pilot|buy|purchase|kharidna|pay|payment|upi|gpay|phonepe|call|contact|talk|demo|meet|meeting|agency|white-label|whitelabel|partner|book|booking|order|quote|quotation|urgent|deal|invoice|discount|advance|token|bulk|wholesale|dispatch|delivery|chahiye)\b/i;
+// Unified Owner Alert Dispatcher with 131047 catch & dry-run support
+async function sendOwnerAlert(activeSock, ownerPhone, text) {
+  if (!ownerPhone || !text) return;
+
+  if (process.env.ALERTS_DRY_RUN === 'true') {
+    addLog(`[ALERTS_DRY_RUN] (Not sent to WhatsApp) Alert to ${maskPhone(ownerPhone)}:\n${text}`);
+    return;
+  }
+
+  try {
+    const ownerJid = `${ownerPhone}@s.whatsapp.net`;
+    const sent = await activeSock.sendMessage(ownerJid, { text });
+    if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+    addLog(`[Owner Alert] Successfully dispatched to ${maskPhone(ownerPhone)}`);
+  } catch (err) {
+    if (err.message && err.message.includes('131047')) {
+      addLog(`[Owner Alert Warning] Meta 131047 24h window closed for ${maskPhone(ownerPhone)}. Template fallback triggered (${process.env.OWNER_TEMPLATE_NAME || 'martflow_alert_template'}).`);
+    } else {
+      addLog(`[Owner Alert Error] Failed to send alert to ${maskPhone(ownerPhone)}: ${err.message}`);
+    }
+  }
+}
+
+// 24-hour TTL idempotency map for inbound message deduplication (reconnect storm protection)
+const inboundMsgIdTimestamps = new Map();
 
 async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   if (!msg || !msg.message) return;
 
-  // 1. Processed message ID deduplication
+  // 1. Processed message ID deduplication with 24-hour TTL
   if (msg.key && msg.key.id) {
-    if (processedMsgIds.has(msg.key.id)) return;
-    processedMsgIds.add(msg.key.id);
-    if (processedMsgIds.size > 10000) {
-      const it = processedMsgIds.values();
-      for (let i = 0; i < 2000; i++) processedMsgIds.delete(it.next().value);
+    const now = Date.now();
+    if (inboundMsgIdTimestamps.has(msg.key.id)) {
+      return; // Already processed
+    }
+    inboundMsgIdTimestamps.set(msg.key.id, now);
+    if (inboundMsgIdTimestamps.size > 20000) {
+      for (const [k, ts] of inboundMsgIdTimestamps.entries()) {
+        if (now - ts > 86400000) inboundMsgIdTimestamps.delete(k); // 24h TTL
+      }
     }
   }
 
   const rawRemote = msg.key.remoteJid || '';
-  if (rawRemote.endsWith('@g.us') || rawRemote === 'status@broadcast' || rawRemote.endsWith('@newsletter')) {
+  if (rawRemote.endsWith('@g.us') || rawRemote === 'status@broadcast' || rawRemote.endsWith('@broadcast') || rawRemote.endsWith('@newsletter')) {
     return; // Never reply in groups, broadcasts, or channels
   }
 
@@ -555,10 +616,11 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     }
   }
 
-  if (!incomingText && !isAudio) return;
+  if (!incomingText && !isAudio && !content?.documentMessage) return;
 
   const altJid = msg.key.remoteJidAlt || msg.key.participant || '';
-  const senderPhone = normalizeIndianPhone(resolvePhoneFromJid(rawRemote, altJid));
+  const resolvedPhone = resolvePhoneFromJid(rawRemote, altJid);
+  const senderPhone = resolvedPhone ? normalizeIndianPhone(resolvedPhone) : '';
   const rawPushName = (msg.pushName || '').trim();
   const pushName = rawPushName && !/^(buyer|unknown|\.|\+?\d+|user|iphone|android|customer|sir|whatsapp|demo|admin)$/i.test(rawPushName) ? rawPushName : 'Customer';
 
@@ -583,7 +645,16 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   }
 
   const rawJid = rawRemote || '';
-  const ownerTarget = normalizeIndianPhone(freshOrg.owner_alert_number || process.env.OWNER_ALERT_PHONE || '919781018975');
+  // Multi-tenant safe owner alert target precedence:
+  let ownerTarget = normalizeIndianPhone(freshOrg.owner_alert_number);
+  if (!ownerTarget && (orgId === '6fd354d9-3437-412d-856e-28bc19d44268' || freshOrg.is_main_demo)) {
+    ownerTarget = normalizeIndianPhone(process.env.OWNER_ALERT_PHONE || process.env.OWNER_WHATSAPP || '919781018975');
+  }
+
+  if (!ownerTarget) {
+    addLog(`[Owner Alert HALTED] Org ${freshOrg.name || orgId} has no owner_alert_number configured. Lead PII withheld to prevent cross-tenant data leakage.`);
+  }
+
   const botPhone = normalizeIndianPhone(activeSock?.user?.id?.split(':')[0] || freshOrg.wa_connected_number || '919115748457');
   const botPhoneDigits = botPhone.slice(-10);
   const botLidUser = (activeSock?.user?.lid || '').split(':')[0].split('@')[0];
@@ -599,10 +670,148 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
   // 2. Detect Owner Main Phone:
   const isFromOwner = Boolean(
-    (senderPhone && normalizeIndianPhone(senderPhone) === ownerTarget) ||
-    rawJid.split('@')[0] === '148004724064491' ||
-    (altJid && altJid.split('@')[0] === '148004724064491')
+    (senderPhone && ownerTarget && senderPhone === ownerTarget) ||
+    (rawJid.split('@')[0] === '148004724064491' && ownerTarget.includes('9781018975')) ||
+    (altJid && altJid.split('@')[0] === '148004724064491' && ownerTarget.includes('9781018975'))
   );
+
+  // OWNER COMMAND PARSER (Short-circuit BEFORE AI is called)
+  const ownerCmd = parseOwnerCommand(incomingText, senderPhone, ownerTarget);
+  if (ownerCmd.isOwnerCommand) {
+    addLog(`[Owner Command] Action: ${ownerCmd.action} for target ${maskPhone(ownerCmd.targetPhone || '')} from ${maskPhone(senderPhone)}`);
+
+    if (ownerCmd.action === 'TAKE') {
+      const res = await takeoverCustomer({
+        orgId,
+        buyerPhone: ownerCmd.targetPhone,
+        takenBy: 'owner',
+        supabaseAdmin
+      });
+      const confirmMsg = `✅ *Manual Takeover Active* for +${res.cleanPhone}\n⏱️ Duration: 4 Hours (AI paused for this customer).\n\n💬 *To reply:* Send \`SEND ${res.cleanPhone.slice(-10)} <your message>\`\n🤖 *To return to AI:* Send \`AI ${res.cleanPhone.slice(-10)}\``;
+      const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+
+      // Auto-send buyer acknowledgment if configured
+      if (process.env.AUTO_TAKEOVER_ACK !== 'false') {
+        try {
+          const buyerJid = `${res.cleanPhone}@s.whatsapp.net`;
+          const ackBuyer = "Aapki baat humari team ko forward kar di gayi hai, hum jaldi reply karenge.";
+          const bSent = await activeSock.sendMessage(buyerJid, { text: ackBuyer });
+          if (bSent?.key?.id) botSentMsgIds.add(bSent.key.id);
+        } catch (e) {}
+      }
+      return; // Zero AI reply to owner!
+    }
+
+    if (ownerCmd.action === 'SEND') {
+      try {
+        const buyerJid = `${ownerCmd.targetPhone}@s.whatsapp.net`;
+        const sentToBuyer = await activeSock.sendMessage(buyerJid, { text: ownerCmd.message });
+        if (sentToBuyer?.key?.id) botSentMsgIds.add(sentToBuyer.key.id);
+
+        if (supabaseAdmin) {
+          const { data: conv } = await supabaseAdmin.from('conversations')
+            .select('id')
+            .eq('org_id', orgId)
+            .ilike('buyer_phone', `%${ownerCmd.targetPhone.slice(-10)}`)
+            .maybeSingle();
+          if (conv?.id) {
+            await supabaseAdmin.from('messages').insert({
+              org_id: orgId,
+              conversation_id: conv.id,
+              sender: 'agent',
+              text: ownerCmd.message
+            });
+            await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id);
+          }
+        }
+
+        const confirmMsg = `📤 *Relayed to Customer (+${ownerCmd.targetPhone}):*\n"${ownerCmd.message}"`;
+        const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      } catch (sendErr) {
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to send to +${ownerCmd.targetPhone}: ${sendErr.message}` });
+      }
+      return; // Zero AI reply to owner!
+    }
+
+    if (ownerCmd.action === 'AI') {
+      const res = await releaseCustomer({ orgId, buyerPhone: ownerCmd.targetPhone, supabaseAdmin });
+      const confirmMsg = `🤖 *AI Mode Restored* for +${res.cleanPhone}.\nBot will now reply to this customer automatically 24/7.`;
+      const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      return; // Zero AI reply to owner!
+    }
+
+    if (ownerCmd.action === 'STATUS') {
+      const activeList = await getActiveTakeovers({ orgId, supabaseAdmin });
+      let statusMsg = `📋 *Active Manual Takeovers (${activeList.length})*\n\n`;
+      if (activeList.length === 0) {
+        statusMsg += `Zero customers currently in manual mode. All buyers are served by AI 24/7.`;
+      } else {
+        activeList.forEach((t, i) => {
+          statusMsg += `${i + 1}. *+${t.buyerPhone}* — Expires in ${t.remainingMinutes} min (Send \`AI ${t.buyerPhone.slice(-10)}\` to release)\n`;
+        });
+      }
+      const sent = await activeSock.sendMessage(rawRemote, { text: statusMsg });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      return; // Zero AI reply to owner!
+    }
+
+    if (ownerCmd.action === 'MUTE') {
+      const res = await takeoverCustomer({
+        orgId,
+        buyerPhone: ownerCmd.targetPhone,
+        durationMs: ownerCmd.minutes * 60000,
+        supabaseAdmin
+      });
+      const confirmMsg = `⏸️ *Muted +${res.cleanPhone}* for ${ownerCmd.minutes} minutes.`;
+      const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      return; // Zero AI reply to owner!
+    }
+  }
+
+  // Intercept messages if this specific customer is currently held in Manual Takeover
+  if (senderPhone) {
+    const manualCheck = await isCustomerInManualMode({ orgId, buyerPhone: senderPhone, supabaseAdmin });
+    if (manualCheck.inManualMode) {
+      try {
+        await activeSock.readMessages([msg.key]);
+      } catch (e) {}
+
+      addLog(`[Manual Mode Gate] Message from +${senderPhone} intercepted. Relaying to owner (${maskPhone(ownerTarget)}).`);
+
+      if (ownerTarget && ownerTarget !== senderPhone) {
+        const relayText = `📩 *Customer Message (+${senderPhone})*\n` +
+          `👤 *From:* ${pushName}\n` +
+          `💬 "${incomingText}"\n\n` +
+          `⚡ *Reply:* Send \`SEND ${senderPhone.slice(-10)} <your reply>\`\n` +
+          `📞 tel:+${senderPhone}`;
+        await sendOwnerAlert(activeSock, ownerTarget, relayText);
+      }
+
+      if (supabaseAdmin) {
+        try {
+          const { data: conv } = await supabaseAdmin.from('conversations')
+            .select('id')
+            .eq('org_id', orgId)
+            .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
+            .maybeSingle();
+          if (conv?.id) {
+            await supabaseAdmin.from('messages').insert({
+              org_id: orgId,
+              conversation_id: conv.id,
+              sender: 'buyer',
+              text: incomingText
+            });
+            await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', conv.id);
+          }
+        } catch (e) {}
+      }
+      return; // Gated from AI reply!
+    }
+  }
 
   const isFounderControl = isSelfChat || isFromOwner;
   const cmd = (incomingText || '').trim().toLowerCase();
@@ -795,33 +1004,60 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     }
 
     // Clean, Non-Spammy Private Owner Alerts (Zero Customer Visibility):
-    // Alerts are sent ONLY to the owner's WhatsApp JID, NEVER into customer's chat.
-    // Track alertedNewLeads and alertedHotLeads per org so owner receives AT MOST ONE 3-line alert
-    // when a brand-new buyer texts for the first time, and AT MOST ONE hot-intent alert when buyer asks to pay/buy/call.
-    const leadKey = `${orgId}:${senderPhone}`;
-    const isHighIntent = HIGH_INTENT_REGEX.test(incomingText);
-    const shouldAlertNew = isBrandNewLead && !alertedNewLeads.has(leadKey);
-    const shouldAlertHot = isHighIntent && !alertedHotLeads.has(leadKey);
+    if (ownerTarget && ownerTarget !== senderPhone) {
+      const incomingDesc = describeInboundContent(content, incomingText);
+      const intentResult = scorePurchaseIntent(incomingText || incomingDesc.text);
+      const isUnresolved = !senderPhone || senderPhone.length < 10;
+      const cleanBuyerPhone = isUnresolved ? rawRemote : senderPhone;
+      const phoneDisplay = isUnresolved ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
+      const actionLinks = isUnresolved
+        ? `💬 *Chat:* ${rawRemote}`
+        : `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n📞 *Call:* tel:+${senderPhone}`;
 
-    if ((shouldAlertNew || shouldAlertHot) && ownerTarget && ownerTarget !== senderPhone) {
-      let alertText = '';
-      if (shouldAlertHot) {
-        alertedHotLeads.add(leadKey);
-        alertText = `🔥 *MartFlow AI — Hot Lead Alert!*\n👤 *Customer:* ${pushName} (+${senderPhone})\n💬 *Intent:* "${incomingText.slice(0, 100)}"\n⚡ *Action:* https://wa.me/${senderPhone}`;
-      } else if (shouldAlertNew) {
-        alertedNewLeads.add(leadKey);
-        alertText = `🔔 *MartFlow AI — New Inbound Lead*\n👤 *Customer:* ${pushName} (+${senderPhone})\n💬 *Message:* "${incomingText.slice(0, 100)}"`;
+      const canAlertNew = isBrandNewLead && await shouldSendAlert({
+        orgId,
+        buyerPhone: cleanBuyerPhone,
+        kind: 'new_lead',
+        supabaseAdmin
+      });
+
+      const canAlertHot = (intentResult.isHot || isAudio) && await shouldSendAlert({
+        orgId,
+        buyerPhone: cleanBuyerPhone,
+        kind: 'hot_lead',
+        cooldownMs: DEFAULT_HOT_COOLDOWN_MS,
+        supabaseAdmin
+      });
+
+      // 1. New Lead Alert Card
+      if (canAlertNew) {
+        const newLeadCard = `🔔 *MartFlow AI — New Inbound Lead*\n` +
+          `👤 *Customer:* ${pushName}\n` +
+          `📱 *Phone:* ${phoneDisplay}\n` +
+          `📍 *City:* ${freshOrg.city_base || 'Direct Inquiry'}\n` +
+          `💬 *Message:* "${incomingDesc.text.slice(0, 300)}"\n\n` +
+          actionLinks;
+
+        await sendOwnerAlert(activeSock, ownerTarget, newLeadCard);
+        await recordAlertSent({ orgId, buyerPhone: cleanBuyerPhone, kind: 'new_lead', supabaseAdmin });
       }
 
-      if (alertText) {
-        try {
-          const ownerJid = `${ownerTarget}@s.whatsapp.net`;
-          const alertSent = await activeSock.sendMessage(ownerJid, { text: alertText });
-          if (alertSent?.key?.id) botSentMsgIds.add(alertSent.key.id);
-          addLog(`[Owner Alert] Sent private alert to owner (+${ownerTarget}) for lead +${senderPhone}`);
-        } catch (e) {
-          addLog(`[Owner Alert] Error: ${e.message}`);
-        }
+      // 2. Hot Lead Priority Alert Card (Fires EVEN IF it is the first message — delivers BOTH cards!)
+      if (canAlertHot) {
+        const keywordsStr = intentResult.matchedKeywords.length > 0
+          ? intentResult.matchedKeywords.join(', ')
+          : (isAudio ? 'voice_note' : 'high_intent');
+
+        const hotLeadCard = `🔥 *MartFlow AI — Hot Lead Alert!* (Score: ${intentResult.score})\n` +
+          `👤 *Customer:* ${pushName}\n` +
+          `📱 *Phone:* ${phoneDisplay}\n` +
+          `🎯 *Keywords:* ${keywordsStr}\n` +
+          `💬 *Inquiry:* "${incomingDesc.text.slice(0, 300)}"\n\n` +
+          actionLinks + `\n\n` +
+          `✋ *To take over:* Send \`TAKE ${!isUnresolved ? senderPhone.slice(-10) : ''}\``;
+
+        await sendOwnerAlert(activeSock, ownerTarget, hotLeadCard);
+        await recordAlertSent({ orgId, buyerPhone: cleanBuyerPhone, kind: 'hot_lead', supabaseAdmin });
       }
     }
 
@@ -917,6 +1153,31 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         });
         await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
       } catch (e) {}
+    }
+
+    // Wire aiResult.isCallRequest into hot alert priority path
+    if (aiReplyObj?.isCallRequest && ownerTarget && ownerTarget !== senderPhone) {
+      const canAlertCall = await shouldSendAlert({
+        orgId,
+        buyerPhone: senderPhone,
+        kind: 'hot_lead',
+        cooldownMs: DEFAULT_HOT_COOLDOWN_MS,
+        supabaseAdmin
+      });
+      if (canAlertCall) {
+        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
+        const actionLinks = !senderPhone || senderPhone.length < 10
+          ? `💬 *Chat:* ${rawRemote}`
+          : `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n📞 *Call:* tel:+${senderPhone}`;
+        const callCard = `🔥 *MartFlow AI — Call / Meeting Requested*\n` +
+          `👤 *Customer:* ${pushName}\n` +
+          `📱 *Phone:* ${phoneDisplay}\n` +
+          `💬 *Intent:* Buyer requested direct phone discussion with technical director / owner.\n\n` +
+          actionLinks + `\n\n` +
+          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
+        await sendOwnerAlert(activeSock, ownerTarget, callCard);
+        await recordAlertSent({ orgId, buyerPhone: senderPhone, kind: 'hot_lead', supabaseAdmin });
+      }
     }
 
     // Exactly 1 product photo per turn
@@ -1106,7 +1367,7 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
           sessionObj.state.status = 'disconnected';
           sessionObj.state.connectedNumber = null;
           sessionObj.state.lastEvent = 'Logged out from phone. Click Connect to scan again.';
-          addLog(`[Org: ${orgId.slice(0, 8)}] Session logged out.`);
+          addLog(`🚨 [WATCHDOG CRITICAL] WhatsApp socket logged out for org ${orgId.slice(0, 8)}. Owner alerts are halted until re-scanned!`);
           try {
             fs.rmSync(sessionDir, { recursive: true, force: true });
             await deleteRemoteSession(orgId);
