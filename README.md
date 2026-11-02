@@ -169,5 +169,28 @@ Or 1-click deploy via included `render.yaml`.
 
 ---
 
+## ✋ Manual Human Takeover & WhatsApp Remote Control
+
+When a serious buyer inquiries on your connected WhatsApp bot number, you receive real-time alerts on your verified personal phone. You can immediately pause the AI for that specific customer, relay replies verbatim, and hand them back to AI whenever ready.
+
+### 📱 Owner WhatsApp Commands (Sent to your Bot number)
+
+| Command | Action | Example |
+| :--- | :--- | :--- |
+| `TAKE <phone>` | Pause AI for this customer for 4 hours (auto-expires). | `TAKE 9876543210` |
+| `SEND <phone> <message>` | Relay a verbatim reply to the customer from the bot number (no AI rewriting). | `SEND 9876543210 Haan kal 11 baje factory visit kar lijiye.` |
+| `AI <phone>` | Restore 24/7 AI Sales Closer for this customer immediately. | `AI 9876543210` |
+| `STATUS` | List all active takeovers and remaining expiry minutes. | `STATUS` |
+| `MUTE <phone> <mins>` | Temporarily pause AI for a customer for custom duration. | `MUTE 9876543210 120` |
+
+### 🔒 Security & Anti-Flood Rules
+1. **Verified Owner Only:** Commands are executed *strictly* when received from `freshOrg.owner_alert_number` or authorized `OWNER_WHATSAPP`. Buyers typing `TAKE` or `SEND` are rejected.
+2. **AI Short-Circuit:** Owner commands return immediately without invoking `aiService`, ensuring zero automated AI replies to the founder.
+3. **Dual Cards on First Hot Message:** If a buyer's first message contains high purchase intent, the owner receives **both** the New Lead Card and the Hot Lead Priority Card with 1-tap `wa.me` + `tel:` links.
+4. **Anti-Flood Deduplication:** At most 1 new-lead alert ever per buyer; 30-minute cooldown on hot alerts.
+5. **Supabase Persistence:** Takeover states and alert timestamps are persisted to Supabase (`manual_takeovers`, `alert_dedup`), surviving server reboots.
+
+---
+
 ## 📄 License
 MIT License. Built for modern high-intent B2B machinery and manufacturing suppliers.

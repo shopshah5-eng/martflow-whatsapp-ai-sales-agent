@@ -332,7 +332,32 @@ CREATE POLICY "Tenant Catalog Upload Isolation" ON storage.objects
         AND (storage.foldername(name))[1] = public.current_user_org_id()::text
     );
 
--- 15. Enable Supabase Realtime for Multi-Tenant Dashboard & WhatsApp Worker
+-- 15. Manual Takeovers & Alert Deduplication (Survives Server Restarts)
+CREATE TABLE IF NOT EXISTS public.manual_takeovers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    buyer_phone TEXT NOT NULL,
+    taken_at TIMESTAMPTZ DEFAULT now(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    taken_by TEXT DEFAULT 'owner',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_takeover_org_phone UNIQUE (org_id, buyer_phone)
+);
+
+CREATE TABLE IF NOT EXISTS public.alert_dedup (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    buyer_phone TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    last_sent_at TIMESTAMPTZ DEFAULT now(),
+    created_at TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT uq_alert_org_phone_kind UNIQUE (org_id, buyer_phone, kind)
+);
+
+CREATE INDEX IF NOT EXISTS idx_manual_takeovers_lookup ON public.manual_takeovers(org_id, buyer_phone);
+CREATE INDEX IF NOT EXISTS idx_alert_dedup_lookup ON public.alert_dedup(org_id, buyer_phone, kind);
+
+-- 16. Enable Supabase Realtime for Multi-Tenant Dashboard & WhatsApp Worker
 DO $$
 BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.organizations;
