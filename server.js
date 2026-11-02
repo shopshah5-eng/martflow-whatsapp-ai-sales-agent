@@ -775,7 +775,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   // Intercept messages if this specific customer is currently held in Manual Takeover
   if (senderPhone) {
     const manualCheck = await isCustomerInManualMode({ orgId, buyerPhone: senderPhone, supabaseAdmin });
-    if (manualCheck.inManualMode) {
+    if (manualCheck.inManualMode && !isFromOwner && !isSelfChat) {
       try {
         await activeSock.readMessages([msg.key]);
       } catch (e) {}
@@ -888,12 +888,13 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   // NOTE: If isFromOwner is true, the owner is testing the bot from their personal number.
   // Allow the message to flow into the AI sales engine so the owner receives real AI replies!
 
-  // Meta dual @lid + @s.whatsapp.net fingerprint cooldown (10 seconds)
+  // Meta dual @lid + @s.whatsapp.net fingerprint cooldown (2.5s for normal, 1.5s for owner/self-test)
   const normText = (incomingText || '').trim().toLowerCase();
   const fpKey = `${orgId}:${senderPhone}:${normText}`;
   const now = Date.now();
-  if (recentInboundFingerprints.has(fpKey) && (now - recentInboundFingerprints.get(fpKey)) < 10000) {
-    addLog(`[Deduplication] Ignored duplicate Meta inbound event from +${senderPhone} within 10s.`);
+  const fpCooldownMs = (isFromOwner || isSelfChat) ? 1500 : 2500;
+  if (recentInboundFingerprints.has(fpKey) && (now - recentInboundFingerprints.get(fpKey)) < fpCooldownMs) {
+    addLog(`[Deduplication] Ignored duplicate Meta inbound event from +${senderPhone} within ${fpCooldownMs}ms.`);
     return;
   }
   recentInboundFingerprints.set(fpKey, now);
@@ -981,7 +982,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
               await supabaseAdmin.from('conversations').update({ mode: 'auto' }).eq('id', sbConvId);
             }
           }
-        } else if (existingConv?.mode === 'manual') {
+        } else if (existingConv?.mode === 'manual' && !isFromOwner && !isSelfChat) {
           addLog(`[Manual Mode] Conversation for +${senderPhone} is paused in manual mode.`);
           return;
         }
@@ -989,7 +990,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         // Check lead quota for unpaid signups (main demo org is unlimited)
         const isMainDemo = orgId === '6fd354d9-3437-412d-856e-28bc19d44268' || freshOrg.is_unlimited === true || freshOrg.plan_status === 'active';
         if (!isMainDemo && !isFromOwner && !isSelfChat) {
-          const limit = freshOrg.monthly_lead_limit || 3;
+          const limit = freshOrg.monthly_lead_limit || 25;
           const used = freshOrg.leads_used || 0;
           const trialExpired = freshOrg.trial_ends_at && new Date(freshOrg.trial_ends_at) < new Date();
           if (used >= limit || trialExpired) {
@@ -1073,7 +1074,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           .limit(1);
         if (recentAiMsgs && recentAiMsgs.length > 0) {
           const diffMs = Date.now() - new Date(recentAiMsgs[0].created_at).getTime();
-          if (diffMs < 8000) {
+          const replyCooldownMs = (isFromOwner || isSelfChat) ? 1500 : 2500;
+          if (diffMs < replyCooldownMs) {
             addLog(`[Deduplication] AI reply already sent for conversation ${sbConvId} ${diffMs}ms ago. Skipping duplicate.`);
             return;
           }
@@ -1564,9 +1566,43 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
       if (dbProds && dbProds.length > 0) products = dbProds;
     } catch (e) {}
   }
+  if (!products.length && supabaseAdmin) {
+    try {
+      const { data: recentProds } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .neq('is_active', false)
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (recentProds && recentProds.length > 0) {
+        products = recentProds;
+      }
+    } catch (e) {}
+  }
   if (!products.length) {
     products = config.products || [];
   }
+
+  // Fetch or infer custom website/brochure knowledge
+  let orgKnowledge = org?.website_knowledge || '';
+  if (!orgKnowledge && supabaseAdmin) {
+    try {
+      const { data: latestOrg } = await supabaseAdmin
+        .from('organizations')
+        .select('website_knowledge, catalog_pdf_url, catalog_pdf_name')
+        .not('website_knowledge', 'is', null)
+        .neq('website_knowledge', '')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (latestOrg?.website_knowledge) {
+        orgKnowledge = latestOrg.website_knowledge;
+      }
+    } catch (e) {}
+  }
+  const extraKnowledge = orgKnowledge
+    ? `\nBusiness & Service Knowledge Base:\n${orgKnowledge.slice(0, 10000)}\n`
+    : '';
 
   const catalogContext = products.map((p, idx) => {
     const price = p.price_raw || p.priceRange || 'Price on request';
@@ -1581,9 +1617,11 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
   let matchedBrochureUrl = null;
   let matchedBrochureName = null;
   const prodWithPdf = products.find(p => p.brochure_url && p.brochure_url.startsWith('http'));
-  if (prodWithPdf && isCatalogRequest) {
-    matchedBrochureUrl = prodWithPdf.brochure_url;
-    matchedBrochureName = (prodWithPdf.name || 'Catalog').replace(/[^a-zA-Z0-9_-]/g, '_') + '.pdf';
+  const fallbackPdfUrl = org?.catalog_pdf_url || '';
+  const fallbackPdfName = org?.catalog_pdf_name || orgName;
+  if ((prodWithPdf || fallbackPdfUrl) && isCatalogRequest) {
+    matchedBrochureUrl = prodWithPdf?.brochure_url || fallbackPdfUrl;
+    matchedBrochureName = ((prodWithPdf?.name || fallbackPdfName || 'Catalog')).replace(/[^a-zA-Z0-9_-]/g, '_') + '.pdf';
   }
 
   let matchedImageUrl = null;
@@ -1601,13 +1639,14 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
     const systemInstruction = `You are a real, busy business founder/manager on WhatsApp for "${orgName}" (${cityBase}).
 Catalog & Pricing Knowledge:
 ${catalogContext || 'Standard verified offerings apply.'}
+${extraKnowledge}
 
 STRICT LENGTH RULE:
 1. Reply like a real busy human founder/manager on WhatsApp — 1 to 2 short sentences ONLY (strictly 18 to 38 words max) unless the customer explicitly asks to compare multiple plans/items.
 2. NEVER write 2–3 long paragraphs.
 3. NEVER start every message with fake-enthusiastic AI clichés like "Arre bilkul sir! Bahut badiya decision! 🚀" or "Namaste sir, hum aapki kya madad kar sakte hain".
 4. Answer their exact question directly first, give the exact price/fact, and end with AT MOST 1 short 5–8 word question when relevant.
-5. Speak natural, conversational Indian Hinglish (or English if the customer wrote in English). Ground strictly to verified catalog.`;
+5. Speak natural, conversational Indian Hinglish (or English if the customer wrote in English). Ground strictly to verified catalog and business knowledge base.`;
 
     const historyText = (conversationHistory || [])
       .slice(-10)

@@ -159,7 +159,6 @@ export function getIndustryPlaybook(businessType = 'auto') {
         promptGuidelines: 'Be consultative, highlight expertise and case studies, and offer an exploratory consultation call.'
       };
     case 'machinery':
-    default:
       return {
         niche: 'Packaging & Industrial Machinery',
         qualifications: [
@@ -169,6 +168,16 @@ export function getIndustryPlaybook(businessType = 'auto') {
           'Delivery destination city'
         ],
         promptGuidelines: 'Focus on machine automation grade (Pneumatic vs Mechanical vs Servo), stainless steel build, warranty, and dispatching catalog PDF.'
+      };
+    default:
+      return {
+        niche: 'Commercial Products & Enterprise Services',
+        qualifications: [
+          'Specific product or service required',
+          'Target quantity, scope, or timeline',
+          'Delivery destination or project location'
+        ],
+        promptGuidelines: 'Actively adapt to the business catalog, products, and service knowledge provided. Offer transparent pricing, highlight key specifications, and answer questions concisely.'
       };
   }
 }
@@ -199,8 +208,12 @@ export function buildAdaptiveWelcomeMessage(org = {}, products = []) {
     case 'services':
       return `Namaste! Welcome to ${orgName}${itemsText}. Thank you for connecting with us. How can our team assist you with your project requirements today?`;
     case 'machinery':
-    default:
       return `Namaste! Welcome to ${orgName}${itemsText}. We manufacture high-performance packaging and industrial machinery. Which machine model or daily capacity are you looking for?`;
+    default:
+      if (prodNames.length > 0) {
+        return `Namaste! Welcome to ${orgName}. We specialize in ${prodNames.join(', ')}. How can I assist you with pricing, models, or details today?`;
+      }
+      return `Namaste! Welcome to ${orgName}. How can our team assist you with our services, catalog, or pricing today?`;
   }
 }
 
@@ -282,11 +295,13 @@ export class AIService {
     let matchedBrochureUrl = null;
     let matchedBrochureName = null;
     const prodWithPdf = (products || []).find(p => p.brochure_url && p.brochure_url.startsWith('http'));
+    const pdfUrl = prodWithPdf?.brochure_url || (org.catalog_pdf_url && org.catalog_pdf_url.startsWith('http') ? org.catalog_pdf_url : null);
+    const pdfName = prodWithPdf?.name || org.catalog_pdf_name || org.name || 'Catalog';
 
-    if (prodWithPdf && (isExplicitResend || !brochureAlreadySent)) {
+    if (pdfUrl && (isExplicitResend || !brochureAlreadySent)) {
       if (isCatalogRequest || (isFirstTurn && !isClosing) || isExplicitResend) {
-        matchedBrochureUrl = prodWithPdf.brochure_url;
-        matchedBrochureName = (prodWithPdf.name || 'Catalog').replace(/[^a-zA-Z0-9_-]/g, '_') + '.pdf';
+        matchedBrochureUrl = pdfUrl;
+        matchedBrochureName = pdfName.replace(/[^a-zA-Z0-9_-]/g, '_') + '.pdf';
       }
     }
 
@@ -428,6 +443,8 @@ export class AIService {
 
     const catalogContext = this.getCatalogContext(products, `${lead.product_inquired || ''} ${incomingText}`);
 
+    const extraKnowledge = org.website_knowledge ? `\nBUSINESS & SERVICE KNOWLEDGE BASE:\n${org.website_knowledge.slice(0, 10000)}\n` : '';
+
     // 6. CALL GEMINI (WITH STATEFUL LIFECYCLE & PERSONA)
     const geminiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();
     if (geminiKey && geminiKey.length > 10) {
@@ -479,6 +496,7 @@ ${isShortCatalog
 
 VERIFIED CATALOG KNOWLEDGE:
 ${catalogContext || 'Standard verified company offerings apply.'}
+${extraKnowledge}
 
 CONVERSATION HISTORY:
 ${historyText || '(New conversation)'}

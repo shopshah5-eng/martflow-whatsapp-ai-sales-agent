@@ -2815,7 +2815,7 @@
             const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
               name: companyName,
               plan_status: 'pending_pilot',
-              monthly_lead_limit: 3,
+              monthly_lead_limit: 25,
               leads_used: 0,
               trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
               wa_status: 'disconnected'
@@ -5613,13 +5613,39 @@
           }
         });
 
+        // Universal heuristic for non-machinery brochures (Solar, Services, Clinic, Coaching, Real Estate, Fashion, etc.)
+        if (cardIndices.length === 0) {
+          lines.forEach((ln, idx) => {
+            const hasPrice = /(?:Rs\.?|₹|INR)\s*[\d,]+/i.test(ln.text);
+            const isBulletOrNum = /^\s*(?:\d+[\.\)]|[•\-\*])\s+[A-Za-z]/.test(ln.text);
+            const isGoodLength = ln.text.length >= 4 && ln.text.length <= 80;
+            const notMeta = !/^(page\s*\d+|copyright|all rights|contact|phone|email|website|address|call|http)/i.test(ln.text);
+            if (notMeta && (hasPrice || (isBulletOrNum && isGoodLength))) {
+              cardIndices.push(idx);
+            }
+          });
+        }
+        if (cardIndices.length === 0 && lines.length > 0) {
+          const contentLines = lines.filter(l => l.text.length >= 6 && l.text.length <= 80 && !/^(page\s*\d+|www\.|http|email|phone|contact)/i.test(l.text));
+          if (contentLines.length > 0) {
+            const step = Math.max(1, Math.floor(contentLines.length / 6));
+            for (let i = 0; i < contentLines.length; i += step) {
+              const lineIdx = lines.indexOf(contentLines[i]);
+              if (lineIdx !== -1 && !cardIndices.includes(lineIdx)) {
+                cardIndices.push(lineIdx);
+              }
+              if (cardIndices.length >= 6) break;
+            }
+          }
+        }
+
         for (let cIdx = 0; cIdx < cardIndices.length; cIdx++) {
           const startIdx = cardIndices[cIdx];
           const nextIdx = cIdx + 1 < cardIndices.length ? cardIndices[cIdx + 1] : lines.length;
           const headerLine = lines[startIdx];
 
           let sku = `ITEM-${pageNum}${cIdx + 1}`;
-          let name = headerLine.text;
+          let name = headerLine.text.replace(/^\s*(?:\d+[\.\)]|[•\-\*])\s*/, '').trim();
           let price = 'Ask for Price';
 
           const m = headerLine.text.match(skuLineRegex);
@@ -5638,6 +5664,12 @@
                 rest = rest.replace(pm[0], '').trim();
               }
               name = rest || sku;
+            } else {
+              const pm = headerLine.text.match(priceFallbackRegex);
+              if (pm) {
+                price = pm[1].trim();
+                name = headerLine.text.replace(pm[0], '').replace(/^\s*(?:\d+[\.\)]|[•\-\*])\s*/, '').trim() || `Service Option ${cIdx + 1}`;
+              }
             }
           }
 
@@ -5677,6 +5709,20 @@
             moq: 'Standard',
             stock_status: 'Available',
             image_url: thumbDataUrl
+          });
+        }
+      }
+      if (extractedItems.length === 0 && fullTextChunks.length > 0) {
+        const fullClean = fullTextChunks.join('\n\n').trim();
+        if (fullClean.length > 10) {
+          extractedItems.push({
+            sku_code: 'CATALOG-01',
+            name: 'Official Services & Offerings',
+            model_specs: fullClean.slice(0, 500).replace(/\n+/g, ' '),
+            price_raw: 'Ask for Price',
+            moq: 'Standard',
+            stock_status: 'Available',
+            image_url: ''
           });
         }
       }
@@ -5781,6 +5827,19 @@
             const { items, rawText } = await renderAndParsePdfWithImages(arrayBuf);
             fileItems = items;
 
+            if (rawText && rawText.trim().length > 20) {
+              const truncatedKnowledge = rawText.slice(0, 50000);
+              currentOrg.website_knowledge = truncatedKnowledge;
+              if (sb) {
+                try {
+                  await sb.from('organizations').update({
+                    website_knowledge: truncatedKnowledge,
+                    updated_at: new Date().toISOString()
+                  }).eq('id', currentOrg.id);
+                } catch (e) {}
+              }
+            }
+
             if (fileItems.length === 0 && rawText.trim().length > 20) {
               setStatus(`Extracting items from ${file.name} with AI...`);
               const resp = await fetch(`${API_BASE}/api/catalog/extract-ai`, {
@@ -5848,11 +5907,34 @@
           const { error: insErr } = await sb.from('products').insert(rowsToInsert);
           if (insErr) throw insErr;
 
-          // Instantly sync backend AI cache
+          // Mirror catalog and knowledge to main demo org so live WhatsApp bot answers immediately
+          const demoOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
+          if (currentOrg.id !== demoOrgId) {
+            try {
+              await sb.from('products').delete().eq('org_id', demoOrgId);
+              const demoRows = rowsToInsert.map(r => ({ ...r, org_id: demoOrgId }));
+              await sb.from('products').insert(demoRows);
+              await sb.from('organizations').update({
+                website_knowledge: currentOrg.website_knowledge || '',
+                catalog_pdf_url: uploadedPdfUrl || '',
+                catalog_pdf_name: uploadedPdfName || '',
+                updated_at: new Date().toISOString()
+              }).eq('id', demoOrgId);
+            } catch (syncErr) {
+              console.warn('Demo org sync note:', syncErr.message);
+            }
+          }
+
+          // Instantly sync backend AI cache for both orgs
           fetch(`${API_BASE}/api/catalog/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ orgId: currentOrg.id })
+          }).catch(() => {});
+          fetch(`${API_BASE}/api/catalog/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orgId: demoOrgId })
           }).catch(() => {});
         }
 
