@@ -501,12 +501,18 @@ router.post(['/webhook/b2b/:webhookKey', '/webhook/indiamart/:webhookKey', '/web
 
 router.post(['/webhook/b2b', '/webhook/indiamart'], async (req, res) => {
   try {
-    let orgId = req.query.orgId || req.headers['x-tenant-id'];
-    if (!orgId) {
-      const defaultOrg = db.findOne('organizations', () => true);
-      orgId = defaultOrg ? defaultOrg.id : null;
+    const token = req.headers['x-b2b-token'] || req.headers['x-indiamart-token'] || req.headers['x-webhook-key'];
+    let orgId = req.headers['x-tenant-id'];
+
+    if (token) {
+      const org = db.findByWebhookKey(token) || db.findById('organizations', token);
+      if (org) orgId = org.id;
     }
-    const token = req.headers['x-b2b-token'] || req.headers['x-indiamart-token'] || req.query.token;
+
+    if (!orgId) {
+      return res.status(401).json({ status: 'unauthorized', error: 'Authentication required: Missing valid tenant webhook key or token.' });
+    }
+
     const result = await B2BWebhook.handleIncomingWebhook(orgId, req.body, token);
     res.json(result);
   } catch (err) {
@@ -527,6 +533,25 @@ router.get('/webhook/whatsapp', (req, res) => {
 });
 
 router.post('/webhook/whatsapp', async (req, res) => {
+  // Validate Meta raw body signature if META_APP_SECRET is set
+  const appSecret = process.env.META_APP_SECRET;
+  if (appSecret) {
+    const signature = req.headers['x-hub-signature-256'];
+    if (!signature) {
+      return res.status(401).json({ ok: false, error: 'Missing X-Hub-Signature-256 header' });
+    }
+    const rawBody = req.rawBody || JSON.stringify(req.body);
+    const expectedSig = 'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+    try {
+      const isSigValid = crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig));
+      if (!isSigValid) {
+        return res.status(401).json({ ok: false, error: 'Invalid Meta webhook signature' });
+      }
+    } catch (e) {
+      return res.status(401).json({ ok: false, error: 'Malformed signature header' });
+    }
+  }
+
   const result = await WhatsAppAdapter.handleCloudWebhook(req.body);
   res.json(result);
 });

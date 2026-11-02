@@ -14,7 +14,8 @@ import QRCode from 'qrcode';
 
 const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
-const XLSX = require('xlsx');
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import pino from 'pino';
 import dotenv from 'dotenv';
 import {
@@ -28,6 +29,7 @@ import {
 import { createClient } from '@supabase/supabase-js';
 
 import apiRouter from './src/routes/api.js';
+import { authenticate, requireRole } from './src/middleware/authMiddleware.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
 import {
   backupSessionToSupabase,
@@ -76,8 +78,29 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
+}));
+
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many requests. Please slow down.' }
+});
+app.use('/api/', apiLimiter);
+
 app.use('/catalogs', express.static(path.join(__dirname, 'catalogs')));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -2590,7 +2613,7 @@ app.post('/api/whatsapp/connect', async (req, res) => {
   res.json({ ok: true, message: 'WhatsApp connection started.' });
 });
 
-app.post('/api/config', (req, res) => {
+app.post('/api/config', authenticate, requireRole(['owner', 'admin']), (req, res) => {
   const { companyName, cityBase, geminiApiKey, ownerAlertPhone, replyDelaySec, autoReplyEnabled, replyWithVoiceNotes } = req.body;
   if (typeof companyName === 'string' && companyName.trim()) config.companyName = companyName.trim();
   if (typeof cityBase === 'string') config.cityBase = cityBase.trim();
@@ -2607,7 +2630,7 @@ app.post('/api/config', (req, res) => {
 });
 
 // 1. Operator Live Demo Trigger + Public Simulator Form Endpoint
-app.post('/api/simulate-lead', async (req, res) => {
+app.post('/api/simulate-lead', authenticate, async (req, res) => {
   try {
     const { name, phone, productQuery, city, message, delaySec } = req.body;
     const lead = await processNewB2BLead({
@@ -2703,32 +2726,40 @@ app.post('/api/dry-run-chat', async (req, res) => {
   res.json({ ok: true, reply: result.reply, dryRunLead, isHotLead: result.isHotLead });
 });
 
-// 4. Export Qualified Leads as Excel-Ready CSV
-app.get('/api/leads.csv', (req, res) => {
-  const headers = ['Lead ID', 'Time', 'Buyer Name', 'WhatsApp Mobile', 'Machine Interested', 'PDF Sent', 'Buyer City', 'Requirement', 'Status', 'Source'];
-  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-  const rows = leads.map((l) => [
+// 4. Export Qualified Leads as Excel-Ready CSV (Tenant-Scoped with Formula Injection Protection)
+app.get('/api/leads.csv', authenticate, (req, res) => {
+  const headers = ['Lead ID', 'Time', 'Buyer Name', 'WhatsApp Mobile', 'Machine Interested', 'Buyer City', 'Requirement', 'Status', 'Source'];
+  const sanitizeCell = (v) => {
+    let s = String(v ?? '');
+    if (/^[=+@-]/i.test(s)) {
+      s = "'" + s; // Prevent CSV Formula Injection (Item 27)
+    }
+    return `"${s.replace(/"/g, '""')}"`;
+  };
+  const tenantLeads = db.findScoped('leads', req.organizationId);
+  const rows = tenantLeads.map((l) => [
     l.id,
-    new Date(l.createdAt).toLocaleString('en-IN'),
-    l.name,
-    l.phone,
-    l.productName,
-    l.pdfSent ? 'YES' : 'NO',
-    l.city,
-    l.requirement,
+    new Date(l.created_at || l.createdAt || Date.now()).toLocaleString('en-IN'),
+    l.buyer_name || l.name,
+    l.buyer_phone || l.phone,
+    l.product_inquired || l.productName,
+    l.buyer_city || l.city,
+    l.query_message || l.requirement,
     l.status,
     l.source
-  ].map(esc).join(','));
+  ].map(sanitizeCell).join(','));
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="MartFlow_B2B_Qualified_Leads.csv"');
   res.send([headers.join(','), ...rows].join('\n'));
 });
 
-app.post('/api/leads/clear', (req, res) => {
-  leads = [];
-  saveLeads(leads);
-  res.json({ ok: true });
+app.post('/api/leads/clear', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+  const tenantLeads = db.findScoped('leads', req.organizationId);
+  for (const l of tenantLeads) {
+    db.delete('leads', l.id);
+  }
+  res.json({ ok: true, clearedCount: tenantLeads.length });
 });
 
 // Public Buyer Enquiry Page (/demo) — Looks like an instant B2B Quote Form
@@ -2741,18 +2772,27 @@ app.get('/client', (req, res) => {
   res.redirect(301, '/');
 });
 
-// Client Upload Catalog Endpoint (Universal Multi-Format: PDF, Excel .xlsx/.xls, CSV .csv)
-app.post('/api/upload-catalog', async (req, res) => {
+// Client Upload Catalog Endpoint (Authenticated Tenant-Scoped)
+app.post('/api/upload-catalog', authenticate, async (req, res) => {
   try {
     const { filename, fileBase64, productName, priceRange, keywords } = req.body;
     if (!filename || !fileBase64) {
       return res.status(400).json({ ok: false, error: 'Filename and file data required.' });
     }
 
-    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const catalogPath = path.join(__dirname, 'catalogs', safeName);
     const cleanBase64 = fileBase64.replace(/^data:[^;]+;base64,/, '');
     const buffer = Buffer.from(cleanBase64, 'base64');
+    const { CatalogService } = await import('./src/services/catalogService.js');
+    const result = await CatalogService.ingestCatalog(req.organizationId, {
+      filename,
+      buffer,
+      uploadedBy: req.userId
+    });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
     fs.writeFileSync(catalogPath, buffer);
 
     const ext = path.extname(safeName).toLowerCase();
@@ -3350,24 +3390,32 @@ async function initSupabaseWorker() {
   }
 }
 
-// Direct local/cloud WhatsApp endpoints for instant responses
-app.get('/api/wa/status/:orgId', (req, res) => {
-  const orgId = req.params.orgId;
+// Authenticated local/cloud WhatsApp endpoints scoped to verified tenant
+app.get('/api/wa/status', authenticate, (req, res) => {
+  const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   res.json({ ok: true, state: inst.getState() });
 });
 
-app.post('/api/wa/start-qr', async (req, res) => {
-  const { orgId } = req.body;
-  if (!orgId) return res.status(400).json({ ok: false, error: 'orgId required' });
+app.get('/api/wa/status/:orgId', authenticate, (req, res) => {
+  if (req.params.orgId !== req.organizationId && req.role !== 'superadmin') {
+    return res.status(403).json({ ok: false, error: 'Unauthorized to view WhatsApp status for another organization.' });
+  }
+  const inst = baileysManager.getInstance(req.organizationId);
+  res.json({ ok: true, state: inst.getState() });
+});
+
+app.post('/api/wa/start-qr', authenticate, async (req, res) => {
+  const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   await inst.init(true);
   res.json({ ok: true, message: 'QR initialization started' });
 });
 
-app.post('/api/wa/pair-code', async (req, res) => {
-  const { orgId, phone } = req.body;
-  if (!orgId || !phone) return res.status(400).json({ ok: false, error: 'orgId and phone required' });
+app.post('/api/wa/pair-code', authenticate, async (req, res) => {
+  const orgId = req.organizationId;
+  const { phone } = req.body;
+  if (!phone) return res.status(400).json({ ok: false, error: 'Phone number required' });
   const inst = baileysManager.getInstance(orgId);
   try {
     const code = await inst.requestPairing(phone);
@@ -3377,9 +3425,8 @@ app.post('/api/wa/pair-code', async (req, res) => {
   }
 });
 
-app.post('/api/wa/disconnect', async (req, res) => {
-  const { orgId } = req.body;
-  if (!orgId) return res.status(400).json({ ok: false, error: 'orgId required' });
+app.post('/api/wa/disconnect', authenticate, async (req, res) => {
+  const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   await inst.disconnect();
   res.json({ ok: true, message: 'Session disconnected' });

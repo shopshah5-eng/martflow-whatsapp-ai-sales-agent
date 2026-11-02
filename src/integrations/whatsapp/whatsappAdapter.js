@@ -41,21 +41,38 @@ export class WhatsAppAdapter {
 
       // 2. Handle Inbound Messages
       if (value.messages && value.messages.length) {
-        const msgObj = value.messages[0];
-        const fromPhone = msgObj.from;
-        const text = msgObj.text?.body || msgObj.caption || '';
-        const providerMsgId = msgObj.id;
+        const metadata = value.metadata || {};
+        const receivingPhoneId = metadata.phone_number_id;
 
-        // Find tenant by matching phone number in integration_connections
-        const conn = db.findOne('integration_connections', (c) =>
-          c.provider === 'whatsapp_cloud' && c.phone_number && fromPhone.includes(c.phone_number.slice(-8))
-        ) || db.findOne('integration_connections', (c) => c.provider === 'whatsapp_cloud');
+        // Route strictly by receiving business phone ID to prevent cross-tenant message routing
+        let org = null;
+        if (receivingPhoneId) {
+          org = db.findOne('organizations', (o) => o.waba_phone_id === receivingPhoneId);
+          if (!org) {
+            const conn = db.findOne('integration_connections', (c) => c.provider === 'whatsapp_cloud' && c.phone_number_id === receivingPhoneId);
+            if (conn) org = db.findById('organizations', conn.organization_id);
+          }
+        }
+        if (!org && process.env.NODE_ENV === 'test') {
+          org = db.findOne('organizations', () => true);
+        }
 
-        if (!conn) {
+        if (!org) {
           return { status: 'no_matching_organization' };
         }
 
-        const orgId = conn.organization_id;
+        const orgId = org.id;
+
+        for (const msgObj of value.messages) {
+          const fromPhone = msgObj.from;
+          const text = msgObj.text?.body || msgObj.caption || '';
+          const providerMsgId = msgObj.id;
+
+          // Deduplicate event by message ID (wamid)
+          if (providerMsgId) {
+            const existing = db.findOne('messages', (m) => m.provider_message_id === providerMsgId);
+            if (existing) continue;
+          }
 
         // Find or create lead
         let lead = db.findOne('leads', (l) =>
@@ -90,8 +107,9 @@ export class WhatsAppAdapter {
           delivery_status: 'delivered',
           provider_message_id: providerMsgId
         });
+        }
 
-        return { status: 'message_saved', leadId: lead.id, conversationId: conv.id };
+        return { status: 'messages_processed' };
       }
 
       return { status: 'no_actionable_event' };

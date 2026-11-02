@@ -53,10 +53,10 @@ export class B2BWebhook {
       c.organization_id === organizationId && (c.provider === 'b2b_push')
     );
 
-    if (conn && conn.webhook_secret && authToken && conn.webhook_secret !== authToken) {
+    if (conn && conn.webhook_secret && (!authToken || conn.webhook_secret !== authToken)) {
       return {
         status: 'unauthorized',
-        reason: 'Invalid B2B authentication token or signature.'
+        reason: 'Invalid or missing B2B authentication token or signature.'
       };
     }
 
