@@ -362,9 +362,11 @@ export class AIService {
     const didAskCall = /call|phone|baat|slot|afternoon|evening/i.test(lastBotText);
 
     const allProducts = (products && products.length > 0) ? products : [];
+    const isMachineryNiche = /machinery|packaging|manufacturing/i.test(org.business_type || '') ||
+      allProducts.some(p => /machine|packaging|sealer|filler/i.test(p.name || ''));
     const numMatch = qTrim.match(/^(\d+)(?:\s*(bottles?|pouches?|units?|pieces?|pcs?|kg|gm|gram|ltr|liter|ml|per\s*day|daily))?$/i);
     let numberAdvice = '';
-    if (numMatch && allProducts.length > 0) {
+    if (numMatch && allProducts.length > 0 && isMachineryNiche && didAskQuantity) {
       const qty = parseInt(numMatch[1], 10);
       const topProd = allProducts[0];
       numberAdvice = `Aapki ${qty} requirement ke hisaab se hamara "${topProd.name}" (${topProd.price_raw || 'Price on request'}) bilkul suitable rahega.`;

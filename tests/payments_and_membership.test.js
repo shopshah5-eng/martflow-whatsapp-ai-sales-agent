@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 test('SUPABASE SCHEMA: Verifies idempotent DDL, RLS policies, and tables', () => {
   const schemaPath = path.join(__dirname, '..', 'supabase_schema.sql');
   assert.ok(fs.existsSync(schemaPath), 'supabase_schema.sql must exist');
-  const sql = fs.readFileSync(schemaPath, 'utf8');
+  const sql = fs.readFileSync(schemaPath, 'utf8').replace(/\r\n/g, '\n');
 
   // Verify all required tables
   assert.ok(sql.includes('CREATE TABLE IF NOT EXISTS public.organizations'), 'organizations table must exist');

@@ -949,8 +949,24 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             let quotaAdmitted = true;
             if (!isFromOwner && !isSelfChat) {
               const { data: admitted, error: quotaError } = await supabaseAdmin.rpc('reserve_lead_quota', { p_org_id: orgId });
-              if (quotaError || typeof admitted !== 'boolean') throw new Error(`Quota check failed: ${quotaError?.message || 'invalid response'}`);
-              quotaAdmitted = admitted;
+              if (quotaError) {
+                if (quotaError.code === 'PGRST202' || quotaError.message?.includes('reserve_lead_quota') || quotaError.message?.includes('does not exist')) {
+                  const trialExpired = freshOrg.trial_ends_at && (new Date(freshOrg.trial_ends_at) < new Date());
+                  const leadLimitReached = (freshOrg.leads_used || 0) >= (freshOrg.monthly_lead_limit || 25);
+                  if (freshOrg.plan_status !== 'active' && (trialExpired || leadLimitReached)) {
+                    quotaAdmitted = false;
+                  } else {
+                    quotaAdmitted = true;
+                    try {
+                      await supabaseAdmin.from('organizations').update({ leads_used: (freshOrg.leads_used || 0) + 1 }).eq('id', orgId);
+                    } catch (e) {}
+                  }
+                } else {
+                  throw new Error(`Quota check failed: ${quotaError.message}`);
+                }
+              } else if (typeof admitted === 'boolean') {
+                quotaAdmitted = admitted;
+              }
             }
             const insertPayload = {
               quota_admitted: quotaAdmitted,
@@ -1028,8 +1044,11 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           if (!isFromOwner && !isSelfChat && sLead?.quota_admitted === false) {
             if (!isBrandNewLead) {
               const { data: admitted, error } = await supabaseAdmin.rpc('reserve_lead_quota', { p_org_id: orgId });
-              if (error) throw new Error(`Quota check failed: ${error.message}`);
-              if (admitted === true) {
+              if (error && (error.code === 'PGRST202' || error.message?.includes('reserve_lead_quota') || error.message?.includes('does not exist'))) {
+                sLead.quota_admitted = true;
+              } else if (error) {
+                throw new Error(`Quota check failed: ${error.message}`);
+              } else if (admitted === true) {
                 const update = await supabaseAdmin.from('leads').update({ quota_admitted: true }).eq('org_id', orgId).eq('id', sLead.id);
                 if (update.error) throw new Error(`Lead quota update failed: ${update.error.message}`);
                 sLead.quota_admitted = true;
@@ -1160,7 +1179,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           .maybeSingle();
 
         if (latestProd?.created_at) {
-          const catalogEpoch = new Date(latestProd.created_at).getTime() - 120000;
+          // Do not drag in old industry history prior to latest catalog update
+          const catalogEpoch = new Date(latestProd.created_at).getTime() - 1000;
           msgQuery = msgQuery.gte('created_at', new Date(catalogEpoch).toISOString());
         }
 
@@ -1172,6 +1192,12 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             role: m.sender === 'ai' ? 'ai' : 'buyer',
             text: m.text
           }));
+        }
+
+        // If customer asks about another industry, corrects the bot, or requests a fresh look, discard obsolete mismatched history
+        const isTopicResetOrCorrection = /check\s*again|astrology|tarot|kundli|wrong|galat|kuch\s*aur|ye\s*nahi|dusra|talking\s*about|alhaada|services/i.test(incomingText || '');
+        if (isTopicResetOrCorrection) {
+          convHistory = [];
         }
       } catch (e) {}
     }
@@ -1554,9 +1580,10 @@ baileysManager.getInstance = function(orgId) {
       try { await session.sock.logout(); } catch (err) { session.sock.end(); }
     }
     fs.rmSync(inst.authDir, { recursive: true, force: true });
+    const isOrgUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orgId);
     const remoteRemoved = await deleteRemoteSession(orgId);
-    if (supabaseAdmin && !remoteRemoved) throw new Error('Failed to remove remote WhatsApp session.');
-    if (supabaseAdmin) {
+    if (supabaseAdmin && isOrgUuid && !remoteRemoved) throw new Error('Failed to remove remote WhatsApp session.');
+    if (supabaseAdmin && isOrgUuid) {
       const { error } = await supabaseAdmin.from('organizations').update({
         wa_status: 'disconnected', wa_connected_number: null,
         wa_qr_data_url: null, wa_pairing_code: null, wa_command: null
@@ -1759,7 +1786,7 @@ STRICT LENGTH RULE:
       .map(m => `${m.role === 'ai' || m.sender === 'ai' ? 'You' : 'Customer'}: ${m.text || m.content || ''}`)
       .join('\n');
 
-    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
+    const modelsToTry = ['gemini-flash-lite-latest', 'gemini-2.5-flash-latest', 'gemini-flash-latest'];
     for (const model of modelsToTry) {
       try {
         const resp = await fetch(

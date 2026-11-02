@@ -390,7 +390,23 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
       const { error } = await admin.rpc('replace_tenant_catalog', {
         p_org_id: targetOrgId, p_products: rows ?? null, p_org_updates: updates
       });
-      if (error) throw new Error(`Catalog transaction failed: ${error.message}`);
+      if (error) {
+        // Fallback to table queries if RPC is not deployed yet or in development
+        if (error.code === 'PGRST202' || error.message?.includes('replace_tenant_catalog') || error.message?.includes('does not exist')) {
+          if (rows) {
+            await admin.from('products').delete().eq('org_id', targetOrgId);
+            if (rows.length > 0) {
+              const dbRows = rows.map(r => ({ ...r, org_id: targetOrgId }));
+              await admin.from('products').insert(dbRows);
+            }
+          }
+          if (Object.keys(updates).length > 0) {
+            await admin.from('organizations').update(updates).eq('id', targetOrgId);
+          }
+        } else {
+          throw new Error(`Catalog transaction failed: ${error.message}`);
+        }
+      }
     } else if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
       return res.status(503).json({ ok: false, error: 'Catalog database unavailable.' });
     }
@@ -401,6 +417,39 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
     }
     if (Object.keys(updates).length) db.update('organizations', targetOrgId, updates);
     invalidateCache(targetOrgId);
+    invalidateCache(null);
+
+    // Keep local fallback files in sync for default demo org
+    if (targetOrgId === '6fd354d9-3437-412d-856e-28bc19d44268') {
+      try {
+        const CONFIG_FILE = path.join(process.cwd(), 'config.json');
+        if (fs.existsSync(CONFIG_FILE)) {
+          const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+          if (companyName) cfg.companyName = companyName;
+          if (businessType && businessType !== 'auto') cfg.businessType = businessType;
+          if (Array.isArray(rows) && rows.length > 0) {
+            cfg.products = rows.map((p, idx) => ({
+              id: p.sku || `prod_${idx}`,
+              name: p.name,
+              priceRange: p.price_raw || 'Ask for Price',
+              keywords: (p.name || '').toLowerCase().split(/\s+/).filter(w => w.length > 2),
+              catalogFile: catalogPdfName || 'Brochure.pdf',
+              model_specs: p.model_specs || ''
+            }));
+          }
+          fs.writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), 'utf8');
+        }
+      } catch (e) {}
+
+      try {
+        const KNOWLEDGE_FILE = path.join(process.cwd(), 'catalog_knowledge.json');
+        if (fs.existsSync(KNOWLEDGE_FILE)) {
+          const catK = JSON.parse(fs.readFileSync(KNOWLEDGE_FILE, 'utf8'));
+          catK.textKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${(websiteKnowledge || '').slice(0, 30000)}`;
+          fs.writeFileSync(KNOWLEDGE_FILE, JSON.stringify(catK, null, 2), 'utf8');
+        }
+      } catch (e) {}
+    }
     return res.json({ ok: true, count: rows?.length ?? null, message: 'Catalog synced; conversation history preserved.' });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

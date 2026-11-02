@@ -8,6 +8,10 @@
 import { createClient } from '@supabase/supabase-js';
 import db from './index.js';
 
+function isUuid(val) {
+  return typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+}
+
 export class DatabaseUnavailableError extends Error {
   constructor(message = 'Primary database service is currently unavailable. Please try again later.') {
     super(message);
@@ -45,10 +49,10 @@ class TenantRepository {
   // --- Organizations ---
   async getOrganizationById(orgId) {
     if (!orgId) return null;
-    const sb = this.getSupabase();
+    const sb = isUuid(orgId) ? this.getSupabase() : null;
     if (sb) {
-      const { data, error } = await sb.from('organizations').select('*').eq('id', orgId).single();
-      if (error && error.code !== 'PGRST116') throw new DatabaseUnavailableError(error.message);
+      const { data, error } = await sb.from('organizations').select('*').eq('id', orgId).maybeSingle();
+      if (error) throw new DatabaseUnavailableError(error.message);
       return data || null;
     }
     return db.findById('organizations', orgId);
@@ -67,9 +71,9 @@ class TenantRepository {
 
   async updateOrganizationScoped(orgId, updates) {
     if (!orgId) throw new Error('orgId is required');
-    const sb = this.getSupabase();
+    const sb = isUuid(orgId) ? this.getSupabase() : null;
     if (sb) {
-      const { data, error } = await sb.from('organizations').update(updates).eq('id', orgId).select().single();
+      const { data, error } = await sb.from('organizations').update(updates).eq('id', orgId).select().maybeSingle();
       if (error) throw new DatabaseUnavailableError(error.message);
       return data;
     }
@@ -124,10 +128,10 @@ class TenantRepository {
 
   async getProfileById(userId) {
     if (!userId) return null;
-    const sb = this.getSupabase();
+    const sb = isUuid(userId) ? this.getSupabase() : null;
     if (sb) {
-      const { data, error } = await sb.from('profiles').select('*').eq('id', userId).single();
-      if (error && error.code !== 'PGRST116') throw new DatabaseUnavailableError(error.message);
+      const { data, error } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+      if (error) throw new DatabaseUnavailableError(error.message);
       return data || null;
     }
     return db.findById('profiles', userId);
@@ -135,13 +139,14 @@ class TenantRepository {
 
   async getMembership(userId, orgId) {
     if (!userId || !orgId) return null;
-    const sb = this.getSupabase();
+    const sb = (isUuid(userId) && isUuid(orgId)) ? this.getSupabase() : null;
     if (sb) {
-      const { data, error } = await sb.from('profiles').select('id, org_id, role').eq('id', userId).eq('org_id', orgId).single();
-      if (error && error.code !== 'PGRST116') throw new DatabaseUnavailableError(error.message);
-      return data ? { user_id: data.id, organization_id: data.org_id, role: data.role } : null;
+      const { data, error } = await sb.from('profiles').select('id, org_id, role').eq('id', userId).eq('org_id', orgId).maybeSingle();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      if (data) return { user_id: data.id, organization_id: data.org_id, role: data.role };
     }
-    return db.findOne('organization_members', m => m.user_id === userId && m.organization_id === orgId);
+    return db.findOne('organization_members', m => m.user_id === userId && m.organization_id === orgId) ||
+           db.findOne('profiles', p => (p.id === userId || p.user_id === userId) && (p.organization_id === orgId || p.org_id === orgId));
   }
 
   // --- Leads ---
