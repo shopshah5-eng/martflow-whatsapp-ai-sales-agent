@@ -26,6 +26,11 @@ import {
   restoreSessionFromSupabase,
   deleteRemoteSession
 } from './sessionSync.js';
+import {
+  getSafeTenantAuthDir,
+  getSafeAttachmentBuffer,
+  validateSafeIdentifier
+} from '../../services/storageSecurity.js';
 
 const BASE_AUTH_DIR = path.join(process.cwd(), 'auth_info');
 
@@ -85,9 +90,9 @@ function getSupabaseAdmin() {
 
 export class TenantBaileysInstance {
   constructor(orgId) {
-    this.orgId = orgId;
+    this.orgId = validateSafeIdentifier(orgId, 'Organization ID');
     this.sock = null;
-    this.authDir = path.join(BASE_AUTH_DIR, orgId);
+    this.authDir = getSafeTenantAuthDir(orgId);
     this.state = {
       status: 'disconnected', // 'disconnected' | 'connecting' | 'qr_ready' | 'connected'
       qrDataUrl: null,
@@ -650,31 +655,18 @@ export class TenantBaileysInstance {
 
       let sentMsg = null;
       if (attachmentPath) {
-        if (/^https?:\/\//i.test(attachmentPath)) {
-          const fileBuffer = await getPdfBuffer(attachmentPath);
-          if (fileBuffer) {
-            sentMsg = await this.sock.sendMessage(jid, {
-              document: fileBuffer,
-              mimetype: 'application/pdf',
-              fileName: path.basename(attachmentPath) || 'Brochure.pdf',
-              caption: caption || text
-            });
-          } else {
-            sentMsg = await this.sock.sendMessage(jid, { text: caption || text });
-          }
-        } else if (fs.existsSync(attachmentPath)) {
-          const fileBuffer = fs.readFileSync(attachmentPath);
-          const ext = path.extname(attachmentPath).toLowerCase();
-          const filename = path.basename(attachmentPath);
+        let fileBuffer = null;
+        try {
+          fileBuffer = await getSafeAttachmentBuffer(this.orgId, attachmentPath);
+        } catch (bufErr) {
+          console.warn(`[Attachment Security] Rejected attachment "${attachmentPath}":`, bufErr.message);
+        }
 
-          if (ext === '.pdf') {
-            sentMsg = await this.sock.sendMessage(jid, {
-              document: fileBuffer,
-              mimetype: 'application/pdf',
-              fileName: filename,
-              caption: caption || text
-            });
-          } else if (['.jpg', '.jpeg', '.png'].includes(ext)) {
+        if (fileBuffer) {
+          const ext = path.extname(attachmentPath).toLowerCase();
+          const filename = path.basename(attachmentPath) || 'Brochure.pdf';
+
+          if (['.jpg', '.jpeg', '.png'].includes(ext)) {
             sentMsg = await this.sock.sendMessage(jid, {
               image: fileBuffer,
               caption: caption || text
@@ -682,6 +674,7 @@ export class TenantBaileysInstance {
           } else {
             sentMsg = await this.sock.sendMessage(jid, {
               document: fileBuffer,
+              mimetype: ext === '.pdf' ? 'application/pdf' : 'application/octet-stream',
               fileName: filename,
               caption: caption || text
             });
@@ -790,20 +783,24 @@ export class MultiTenantBaileysManager {
     return !!this.getInstance(orgId).isConnected;
   }
 
-  async sendMessage(orgId = 'default_org', toPhone, text, attachmentPath = null, caption = '') {
-    // Handle overload where orgId is omitted: sendMessage(toPhone, text, attachmentPath, caption)
-    if (typeof orgId === 'string' && (orgId.startsWith('+') || orgId.length === 10 || /^\d+$/.test(orgId))) {
-      return this.getInstance('default_org').sendMessage(orgId, toPhone, text, attachmentPath);
+  async sendMessage(orgId, toPhone, text, attachmentPath = null, caption = '') {
+    if (!orgId || typeof orgId !== 'string') {
+      throw new Error('Tenant organization ID is strictly required to route WhatsApp messages.');
     }
-    return this.getInstance(orgId).sendMessage(toPhone, text, attachmentPath, caption);
+    const cleanOrgId = validateSafeIdentifier(orgId, 'Organization ID');
+    return this.getInstance(cleanOrgId).sendMessage(toPhone, text, attachmentPath, caption);
   }
 
-  async requestPairing(orgId = 'default_org', phoneDigits) {
-    return this.getInstance(orgId).requestPairing(phoneDigits);
+  async requestPairing(orgId, phoneDigits) {
+    if (!orgId) throw new Error('Tenant organization ID is required.');
+    const cleanOrgId = validateSafeIdentifier(orgId, 'Organization ID');
+    return this.getInstance(cleanOrgId).requestPairing(phoneDigits);
   }
 
-  async disconnect(orgId = 'default_org') {
-    return this.getInstance(orgId).disconnect();
+  async disconnect(orgId) {
+    if (!orgId) throw new Error('Tenant organization ID is required.');
+    const cleanOrgId = validateSafeIdentifier(orgId, 'Organization ID');
+    return this.getInstance(cleanOrgId).disconnect();
   }
 }
 
@@ -813,7 +810,8 @@ export default baileysManager;
 // Unified Tenant WhatsApp Sender (Meta Cloud API if configured, else isolated Baileys)
 export async function sendTenantWhatsApp(orgId, { toPhone, text, pdfBuffer = null, fileName = null, attachmentPath = null }) {
   if (!orgId) throw new Error('orgId is required to send tenant WhatsApp message');
-  const org = db.findById('organizations', orgId);
+  const cleanOrgId = validateSafeIdentifier(orgId, 'Organization ID');
+  const org = db.findById('organizations', cleanOrgId);
 
   // 1. Check for Meta WhatsApp Cloud API credentials
   const wabaPhoneId = org?.waba_phone_id;
@@ -823,15 +821,34 @@ export async function sendTenantWhatsApp(orgId, { toPhone, text, pdfBuffer = nul
     const cleanTo = String(toPhone).replace(/[^0-9]/g, '');
     try {
       let payload;
-      if (attachmentPath && fs.existsSync(attachmentPath)) {
-        // Upload/send document via Meta Graph API
+      let mediaId = null;
+
+      if (attachmentPath) {
+        const fileBuffer = await getSafeAttachmentBuffer(cleanOrgId, attachmentPath);
+        if (fileBuffer) {
+          const formData = new FormData();
+          formData.append('messaging_product', 'whatsapp');
+          formData.append('file', new Blob([fileBuffer], { type: 'application/pdf' }), fileName || path.basename(attachmentPath));
+          formData.append('type', 'application/pdf');
+
+          const uploadResp = await fetch(`https://graph.facebook.com/v21.0/${wabaPhoneId}/media`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${wabaToken}` },
+            body: formData
+          });
+          const uploadData = await uploadResp.json();
+          mediaId = uploadData?.id || null;
+        }
+      }
+
+      if (mediaId) {
         payload = {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
           to: cleanTo,
           type: 'document',
           document: {
-            link: `https://martflow.ai/api/catalog/download/${encodeURIComponent(path.basename(attachmentPath))}`,
+            id: mediaId,
             caption: text,
             filename: fileName || path.basename(attachmentPath)
           }
@@ -862,5 +879,5 @@ export async function sendTenantWhatsApp(orgId, { toPhone, text, pdfBuffer = nul
   }
 
   // 2. Default to isolated Baileys socket for this tenant
-  return baileysManager.sendMessage(orgId, toPhone, text, attachmentPath, text);
+  return baileysManager.sendMessage(cleanOrgId, toPhone, text, attachmentPath, text);
 }

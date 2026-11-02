@@ -3,9 +3,9 @@ import fs from 'fs';
 import path from 'path';
 import zlib from 'zlib';
 import { createClient } from '@supabase/supabase-js';
+import { getSafeTenantAuthDir } from '../../services/storageSecurity.js';
 
 const BUCKET_NAME = 'wa-sessions';
-const BASE_AUTH_DIR = path.join(process.cwd(), 'auth_info');
 
 let _supabaseAdmin = null;
 function getSupabaseAdmin() {
@@ -30,7 +30,7 @@ export async function backupSessionToSupabase(orgId) {
   const supabase = getSupabaseAdmin();
   if (!supabase) return false;
 
-  const sessionDir = path.join(BASE_AUTH_DIR, orgId);
+  const sessionDir = getSafeTenantAuthDir(orgId);
   const credsFile = path.join(sessionDir, 'creds.json');
   if (!fs.existsSync(credsFile)) {
     return false;
@@ -92,7 +92,7 @@ export function debouncedBackupSession(orgId, delayMs = 4000) {
  */
 export async function restoreSessionFromSupabase(orgId, force = false) {
   if (!orgId) return false;
-  const sessionDir = path.join(BASE_AUTH_DIR, orgId);
+  const sessionDir = getSafeTenantAuthDir(orgId);
   const credsFile = path.join(sessionDir, 'creds.json');
 
   if (!force && fs.existsSync(credsFile)) {
@@ -123,7 +123,12 @@ export async function restoreSessionFromSupabase(orgId, force = false) {
     }
 
     for (const [filename, content] of Object.entries(filesMap)) {
-      fs.writeFileSync(path.join(sessionDir, filename), content, 'utf8');
+      const safeFilename = path.basename(filename).replace(/[^a-zA-Z0-9._-]/g, '_');
+      const targetPath = path.resolve(sessionDir, safeFilename);
+      if (!targetPath.startsWith(sessionDir + path.sep)) {
+        throw new Error('Path traversal detected during session archive extraction.');
+      }
+      fs.writeFileSync(targetPath, content, 'utf8');
     }
 
     console.log(`[SessionSync] Cloud session restored successfully for org ${orgId} (${Object.keys(filesMap).length} files)`);

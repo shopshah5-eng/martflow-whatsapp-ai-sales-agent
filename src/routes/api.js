@@ -242,8 +242,8 @@ router.post('/conversations/:id/reply', authenticate, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'No phone number linked to this lead.' });
     }
 
-    // Send via live Baileys socket
-    const sendResult = await baileysManager.sendMessage(lead.buyer_phone, message.trim());
+    // Send strictly via live Baileys socket belonging to this tenant
+    const sendResult = await baileysManager.sendMessage(req.organizationId, lead.buyer_phone, message.trim());
     if (!sendResult.ok) {
       return res.status(500).json({ ok: false, error: sendResult.error || 'Failed to dispatch via WhatsApp.' });
     }
@@ -266,17 +266,17 @@ router.post('/conversations/:id/reply', authenticate, async (req, res) => {
 });
 
 // ==========================================
-// 4. WHATSAPP CONNECTION & QR MANAGEMENT (MULTI-TENANT ISOLATED)
+// 4. WHATSAPP CONNECTION & QR MANAGEMENT (AUTHENTICATED & TENANT ISOLATED)
 // ==========================================
-router.get('/whatsapp/status', (req, res) => {
-  const orgId = req.query.orgId || req.headers['x-tenant-id'] || 'default_org';
+router.get('/whatsapp/status', authenticate, (req, res) => {
+  const orgId = req.organizationId;
   const state = baileysManager.getState(orgId);
   res.json({ ok: true, status: state.status, phoneNumber: state.connectedNumber, waState: state });
 });
 
-router.post('/whatsapp/connect', async (req, res) => {
+router.post('/whatsapp/connect', authenticate, async (req, res) => {
   try {
-    const orgId = req.body?.orgId || req.query.orgId || req.headers['x-tenant-id'] || 'default_org';
+    const orgId = req.organizationId;
     await baileysManager.init(orgId);
     res.json({ ok: true, waState: baileysManager.getState(orgId) });
   } catch (err) {
@@ -284,9 +284,9 @@ router.post('/whatsapp/connect', async (req, res) => {
   }
 });
 
-router.post('/whatsapp/disconnect', async (req, res) => {
+router.post('/whatsapp/disconnect', authenticate, async (req, res) => {
   try {
-    const orgId = req.body?.orgId || req.query.orgId || req.headers['x-tenant-id'] || 'default_org';
+    const orgId = req.organizationId;
     await baileysManager.disconnect(orgId);
     res.json({ ok: true, waState: baileysManager.getState(orgId) });
   } catch (err) {
