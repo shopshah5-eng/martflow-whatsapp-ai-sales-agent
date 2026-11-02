@@ -9,6 +9,7 @@ import stream from 'stream';
 import { createRequire } from 'module';
 import ExcelJS from 'exceljs';
 import db from '../db/index.js';
+import { invalidateCache } from './aiService.js';
 
 const require = createRequire(import.meta.url);
 const pdf = require('pdf-parse');
@@ -172,6 +173,8 @@ export class CatalogService {
         products_count: createdProducts.length
       });
 
+      invalidateCache(organizationId);
+
       return {
         catalogFile: db.findById('catalog_files', catalogFile.id),
         productsCount: createdProducts.length,
@@ -206,7 +209,9 @@ export class CatalogService {
 
   // Update product
   static updateProduct(organizationId, productId, updates) {
-    return db.updateScoped('products', productId, organizationId, updates);
+    const res = db.updateScoped('products', productId, organizationId, updates);
+    invalidateCache(organizationId);
+    return res;
   }
 
   // Delete product
@@ -215,7 +220,9 @@ export class CatalogService {
     if (!existing || existing.organization_id !== organizationId) {
       throw new Error('Product not found or unauthorized');
     }
-    return db.delete('products', productId);
+    const res = db.delete('products', productId);
+    invalidateCache(organizationId);
+    return res;
   }
 }
 

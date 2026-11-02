@@ -457,6 +457,106 @@ END $$;
 REVOKE ALL ON FUNCTION public.reserve_lead_quota(UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reserve_lead_quota(UUID) TO service_role;
 
+CREATE OR REPLACE FUNCTION public.reserve_and_create_lead(
+  p_org_id UUID,
+  p_buyer_phone TEXT,
+  p_buyer_name TEXT,
+  p_query_message TEXT DEFAULT NULL,
+  p_requirement TEXT DEFAULT NULL,
+  p_bypass_quota BOOLEAN DEFAULT FALSE
+)
+RETURNS TABLE(lead_id UUID, quota_admitted BOOLEAN, is_new BOOLEAN)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
+DECLARE
+  v_lead_id UUID;
+  v_admitted BOOLEAN;
+  v_leads_used INT;
+  v_limit INT;
+  v_trial_ends TIMESTAMPTZ;
+  v_plan_status TEXT;
+  v_digits TEXT;
+BEGIN
+  v_digits := right(regexp_replace(COALESCE(p_buyer_phone, ''), '\D', '', 'g'), 10);
+
+  -- 1. Check if lead already exists for this org and phone (last 10 digits match)
+  SELECT id, leads.quota_admitted INTO v_lead_id, v_admitted
+  FROM public.leads
+  WHERE org_id = p_org_id
+    AND (buyer_phone = p_buyer_phone OR (length(v_digits) >= 10 AND right(regexp_replace(buyer_phone, '\D', '', 'g'), 10) = v_digits))
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF v_lead_id IS NOT NULL THEN
+    IF v_admitted = FALSE THEN
+      IF p_bypass_quota THEN
+        v_admitted := TRUE;
+        UPDATE public.leads SET quota_admitted = TRUE WHERE id = v_lead_id;
+      ELSE
+        SELECT o.leads_used, o.monthly_lead_limit, o.trial_ends_at, o.plan_status
+        INTO v_leads_used, v_limit, v_trial_ends, v_plan_status
+        FROM public.organizations o
+        WHERE o.id = p_org_id
+        FOR UPDATE;
+
+        IF FOUND THEN
+          IF v_plan_status = 'active' OR ((v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
+            UPDATE public.organizations
+            SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
+            WHERE id = p_org_id;
+            v_admitted := TRUE;
+            UPDATE public.leads SET quota_admitted = TRUE WHERE id = v_lead_id;
+          END IF;
+        END IF;
+      END IF;
+    END IF;
+
+    RETURN QUERY SELECT v_lead_id, v_admitted, FALSE;
+    RETURN;
+  END IF;
+
+  -- 2. Brand new lead: Check and reserve quota atomically
+  IF p_bypass_quota THEN
+    v_admitted := TRUE;
+  ELSE
+    SELECT o.leads_used, o.monthly_lead_limit, o.trial_ends_at, o.plan_status
+    INTO v_leads_used, v_limit, v_trial_ends, v_plan_status
+    FROM public.organizations o
+    WHERE o.id = p_org_id
+    FOR UPDATE;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Organization not found';
+    END IF;
+
+    IF v_plan_status = 'active' OR ((v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
+      UPDATE public.organizations
+      SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
+      WHERE id = p_org_id;
+      v_admitted := TRUE;
+    ELSE
+      v_admitted := FALSE;
+    END IF;
+  END IF;
+
+  -- 3. Insert new lead
+  INSERT INTO public.leads (
+    org_id, buyer_name, buyer_phone, query_message, requirement, status, quota_admitted
+  ) VALUES (
+    p_org_id,
+    COALESCE(p_buyer_name, 'Customer'),
+    p_buyer_phone,
+    p_query_message,
+    COALESCE(p_requirement, p_query_message),
+    'Hot Lead',
+    v_admitted
+  )
+  RETURNING id INTO v_lead_id;
+
+  RETURN QUERY SELECT v_lead_id, v_admitted, TRUE;
+END $$;
+REVOKE ALL ON FUNCTION public.reserve_and_create_lead(UUID, TEXT, TEXT, TEXT, TEXT, BOOLEAN) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reserve_and_create_lead(UUID, TEXT, TEXT, TEXT, TEXT, BOOLEAN) TO service_role;
+
 CREATE OR REPLACE FUNCTION public.replace_tenant_catalog(p_org_id UUID, p_products JSONB, p_org_updates JSONB)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 BEGIN

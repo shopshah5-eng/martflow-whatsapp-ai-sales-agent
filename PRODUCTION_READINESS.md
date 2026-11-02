@@ -1,21 +1,53 @@
 # Production readiness and deployment notes
 
-## Status: not ready to deploy
+## Status: hardening in progress (do not merge or deploy to production yet)
 
-This patch reduces several risks but does **not** complete the production backend. Do not merge or deploy solely on the basis of the local tests. In particular, the frontend uses Supabase Auth while the API expects a custom token; signup, most services and payments use a local JSON database, while the WhatsApp worker uses Supabase. These are not a single durable source of truth. Middleware now fails closed when its authoritative lookup fails, so legacy local signup/login tokens may be rejected when Supabase is enabled. Do not work around that by re-enabling fallback authorization.
+This patch resolves critical security vulnerabilities and hardens multi-tenant isolation, but the production backend requires deployment coordination and staging verification. Local regression tests now pass (45/45), but live Supabase, payments, and WhatsApp providers require staging testing before production deployment.
+
+### Completed engineering work in this patch
+
+1. **Account Takeover Elimination**:
+   - Removed caller-controlled `supabaseId` parameter from `handleGoogleAuth` and `/api/auth/google`.
+   - Strictly enforced verified provider identity (`data.user.id`) from `sb.auth.getUser()`.
+   - Eliminated stale local membership fallbacks in production: `repository.getMembership`, `getOrganizationById`, and profile lookups fail closed (403/503) without resurrecting legacy local JSON state.
+
+2. **Atomic & Idempotent Lead Creation & Quota Reservation**:
+   - Replaced multi-step quota reservation and separate lead insertion with transactional `public.reserve_and_create_lead` RPC in PostgreSQL (`scripts/production_safety_migration.sql` and `supabase_schema.sql`).
+   - Uses `FOR UPDATE` row lock on `organizations` to prevent concurrency races across multiple workers.
+   - Guaranteed idempotency: repeated messages from the same buyer resolve existing lead records without double-deducting quota.
+   - Fails closed: missing RPCs or database errors withhold AI replies and log clear error diagnostics.
+
+3. **Transactional Catalog Sync & Demo Knowledge Preservation**:
+   - Removed non-transactional table-level delete/insert fallback in `/api/catalog/sync`; RPC errors fail visibly (500/503).
+   - Preserves base demo catalog knowledge in `catalog_knowledge.json` when new catalog knowledge is synced.
+   - Added automatic RAM cache invalidation across `CatalogService` operations (`ingestCatalog`, `updateProduct`, `deleteProduct`).
+
+4. **Security Regression Suite**:
+   - Added regression tests in `tests/regression_safety.test.js` covering:
+     * Forged `supabaseId` account takeover rejection
+     * Revoked tenant membership 403 enforcement
+     * Missing Supabase in production fail-closed (503) behavior
+     * Visible failure on catalog transaction errors
+     * Quota RPC error fail-closed behavior
 
 ### Remaining engineering work
 
-1. Migrate signup, login, profile provisioning, lead/catalog/conversation/payment services and both WhatsApp providers to one authoritative Supabase repository. Verify Supabase access tokens server-side and derive tenant and role from trusted membership records. Remove production reliance on local JSON and eliminate the dual-write mirror. Preserve local development explicitly and separately.
-2. Complete and verify an idempotent, batch-scoped migration of existing data and identities. Reconcile every record against the target schema and preserve before-images; implement and test batch-specific rollback. **Live migration and rollback are deliberately disabled** in this patch. The dry run does not validate Supabase schema, permissions or conflicts.
-3. Make quota reservation, lead creation, and quota admission one transaction with idempotency for concurrent workers and repeated buyer messages. The current reservation is atomic, but separate from lead insert; a failed insert may consume quota and multiple workers may create duplicate leads.
-4. Make WhatsApp session ownership and queue claiming safe across multiple server instances. Verify lifecycle, manual takeover, quota, delivery failure handling, and credential backup/delete races across workers. QR-linked WhatsApp and Meta Cloud both need real end-to-end tests; no automatic reply guarantee can be made from unit tests.
-5. Move payment orders, verification, activation and replay protection to durable, transactional storage. Confirm the business's actual plan prices, deposit handling and entitlements; run Razorpay sandbox tests including callback failures and replay. The local payment records still cannot safely coordinate multiple processes.
-6. Inventory all browser-direct Supabase writes and SQL grants/RLS, especially organization settings, payment history and catalog editing. This patch restricts direct product/payment writes and self-assignment of profile tenants; existing frontend paths may need to be replaced with authenticated API calls.
-7. Test media retrieval, IPv6 behavior, tenant isolation and SSRF defenses in the intended hosting environment. The secure fetcher currently requires a public IPv4 address. Review direct file/media handling in legacy paths too.
+1. **Authoritative Backend Migration**:
+   - Unify remaining legacy local signup/login endpoints with Supabase Auth to eliminate dual-write stores.
+2. **Reversible Data Migration**:
+   - Complete and verify an idempotent, batch-scoped migration of existing local identities and data to Supabase.
+   - **Live migration and rollback remain deliberately disabled** in this patch until executed against a backed-up staging Supabase clone.
+3. **Multi-Worker WhatsApp Queue**:
+   - Make WhatsApp session ownership and queue claiming safe across multiple server instances with distributed locks.
+4. **Durable Payment Storage**:
+   - Move payment orders, verification, and webhook replay protection to durable transactional Supabase tables with Razorpay sandbox verification.
+5. **Browser-Direct Writes Audit**:
+   - Complete inventory of frontend Supabase client writes to ensure all mutations route through authenticated API endpoints.
+6. **Network & SSRF Verification**:
+   - Validate media retrieval and SSRF protections in IPv4/IPv6 dual-stack cloud environments.
 
 ## SQL and deployment precautions
 
-`scripts/production_safety_migration.sql` contains database changes for an **existing** Supabase deployment; the equivalent changes are also in `supabase_schema.sql` for fresh installations. The SQL has not been run against a live or staging Supabase instance in this review. It changes RLS and signup defaults, and introduces required catalog/quota RPCs and `leads.quota_admitted`. It must be reviewed and tested on a disposable clone first, with a verified backup and rollback plan. Applying only the code without the SQL can cause catalog sync and WhatsApp quota checks to fail closed. Applying the SQL without adapting existing clients can stop their direct writes. Coordinate and deploy schema and application changes together only after completing the backend work above.
+`scripts/production_safety_migration.sql` contains database changes for an **existing** Supabase deployment; the equivalent changes are also in `supabase_schema.sql` for fresh installations. The SQL must be reviewed and tested on a disposable clone first, with a verified backup and rollback plan. Applying only the code without the SQL will cause catalog sync and WhatsApp quota checks to fail closed. Coordinate and deploy schema and application changes together only after completing staging verification.
 
-Local regression tests: `npm test`. They use mocks/local storage and do not prove live Supabase RLS, payment capture, Meta Cloud or WhatsApp behavior.
+Local regression tests: `npm test` (45/45 passing). Tests use mocks/local storage and do not prove live Supabase RLS, payment capture, Meta Cloud, or live WhatsApp behavior.

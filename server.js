@@ -936,61 +936,35 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
       if (supabaseAdmin) {
         try {
-          const { data: existingLead, error: existingLeadErr } = await supabaseAdmin
-            .from('leads')
-            .select('id, buyer_name, buyer_phone, pdf_brochure_sent, quota_admitted')
-            .eq('org_id', orgId)
-            .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
-            .maybeSingle();
-          if (existingLeadErr) throw new Error(`Lead lookup failed: ${existingLeadErr.message}`);
+          // Atomic & Idempotent Quota Reservation + Lead Upsert
+          const { data: leadRows, error: leadRpcErr } = await supabaseAdmin.rpc('reserve_and_create_lead', {
+            p_org_id: orgId,
+            p_buyer_phone: senderPhone,
+            p_buyer_name: pushName,
+            p_query_message: incomingText,
+            p_requirement: incomingText,
+            p_bypass_quota: Boolean(isFromOwner || isSelfChat)
+          });
 
-          if (!existingLead) {
-            isBrandNewLead = true;
-            let quotaAdmitted = true;
-            if (!isFromOwner && !isSelfChat) {
-              const { data: admitted, error: quotaError } = await supabaseAdmin.rpc('reserve_lead_quota', { p_org_id: orgId });
-              if (quotaError) {
-                if (quotaError.code === 'PGRST202' || quotaError.message?.includes('reserve_lead_quota') || quotaError.message?.includes('does not exist')) {
-                  const trialExpired = freshOrg.trial_ends_at && (new Date(freshOrg.trial_ends_at) < new Date());
-                  const leadLimitReached = (freshOrg.leads_used || 0) >= (freshOrg.monthly_lead_limit || 25);
-                  if (freshOrg.plan_status !== 'active' && (trialExpired || leadLimitReached)) {
-                    quotaAdmitted = false;
-                  } else {
-                    quotaAdmitted = true;
-                    try {
-                      await supabaseAdmin.from('organizations').update({ leads_used: (freshOrg.leads_used || 0) + 1 }).eq('id', orgId);
-                    } catch (e) {}
-                  }
-                } else {
-                  throw new Error(`Quota check failed: ${quotaError.message}`);
-                }
-              } else if (typeof admitted === 'boolean') {
-                quotaAdmitted = admitted;
-              }
-            }
-            const insertPayload = {
-              quota_admitted: quotaAdmitted,
-              org_id: orgId,
-              buyer_name: pushName,
-              buyer_phone: senderPhone,
-              query_message: incomingText,
-              requirement: incomingText,
-              status: 'Hot Lead'
-            };
-            let { data: newLead, error: leadErr } = await supabaseAdmin.from('leads').insert(insertPayload).select().single();
-            if (leadErr && (leadErr.message?.includes('requirement') || leadErr.code === '42703')) {
-              delete insertPayload.requirement;
-              const retryRes = await supabaseAdmin.from('leads').insert(insertPayload).select().single();
-              newLead = retryRes.data;
-              leadErr = retryRes.error;
-            }
-            if (leadErr) {
-              throw new Error(`Lead insert failed: ${leadErr.message}`);
-            }
-            sLead = newLead || { id: null, buyer_name: pushName, buyer_phone: senderPhone };
-          } else {
-            sLead = existingLead;
+          if (leadRpcErr) {
+            // Missing schema or RPC failure must FAIL CLOSED
+            addLog(`[Quota/Lead Error] Atomic lead reservation failed: ${leadRpcErr.message}`);
+            return;
           }
+
+          const res = Array.isArray(leadRows) ? leadRows[0] : leadRows;
+          if (!res || !res.lead_id) {
+            addLog(`[Quota/Lead Error] No lead returned from atomic reservation`);
+            return;
+          }
+
+          isBrandNewLead = Boolean(res.is_new);
+          sLead = {
+            id: res.lead_id,
+            buyer_name: pushName,
+            buyer_phone: senderPhone,
+            quota_admitted: Boolean(res.quota_admitted)
+          };
 
           let { data: existingConv } = await supabaseAdmin
             .from('conversations')
@@ -1002,7 +976,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           if (!existingConv) {
             const { data: nConv } = await supabaseAdmin.from('conversations').insert({
               org_id: orgId,
-              lead_id: sLead?.id || null,
+              lead_id: sLead.id,
               buyer_phone: senderPhone,
               mode: 'auto'
             }).select().single();
@@ -1040,24 +1014,10 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             return;
           }
 
-          // Denied leads remain denied on subsequent messages, rather than bypassing the gate.
-          if (!isFromOwner && !isSelfChat && sLead?.quota_admitted === false) {
-            if (!isBrandNewLead) {
-              const { data: admitted, error } = await supabaseAdmin.rpc('reserve_lead_quota', { p_org_id: orgId });
-              if (error && (error.code === 'PGRST202' || error.message?.includes('reserve_lead_quota') || error.message?.includes('does not exist'))) {
-                sLead.quota_admitted = true;
-              } else if (error) {
-                throw new Error(`Quota check failed: ${error.message}`);
-              } else if (admitted === true) {
-                const update = await supabaseAdmin.from('leads').update({ quota_admitted: true }).eq('org_id', orgId).eq('id', sLead.id);
-                if (update.error) throw new Error(`Lead quota update failed: ${update.error.message}`);
-                sLead.quota_admitted = true;
-              }
-            }
-            if (sLead.quota_admitted === false) {
-              addLog(`[Quota Reached] AI reply withheld for organization ${orgId}.`);
-              return;
-            }
+          // Quota gate: if quota was not admitted, withhold AI reply
+          if (!isFromOwner && !isSelfChat && sLead.quota_admitted === false) {
+            addLog(`[Quota Reached] AI reply withheld for organization ${orgId}.`);
+            return;
           }
 
         } catch (dbErr) {

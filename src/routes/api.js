@@ -61,7 +61,8 @@ router.post('/auth/demo-login', async (req, res) => {
 // Google / Gmail OAuth Auto-Provisioning
 router.post('/auth/google', async (req, res) => {
   try {
-    const result = await handleGoogleAuth(req.body);
+    const { token, idToken, credential, email, fullName } = req.body || {};
+    const result = await handleGoogleAuth({ token, idToken, credential, email, fullName });
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
@@ -391,21 +392,7 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
         p_org_id: targetOrgId, p_products: rows ?? null, p_org_updates: updates
       });
       if (error) {
-        // Fallback to table queries if RPC is not deployed yet or in development
-        if (error.code === 'PGRST202' || error.message?.includes('replace_tenant_catalog') || error.message?.includes('does not exist')) {
-          if (rows) {
-            await admin.from('products').delete().eq('org_id', targetOrgId);
-            if (rows.length > 0) {
-              const dbRows = rows.map(r => ({ ...r, org_id: targetOrgId }));
-              await admin.from('products').insert(dbRows);
-            }
-          }
-          if (Object.keys(updates).length > 0) {
-            await admin.from('organizations').update(updates).eq('id', targetOrgId);
-          }
-        } else {
-          throw new Error(`Catalog transaction failed: ${error.message}`);
-        }
+        throw new Error(`Catalog transaction failed: ${error.message}`);
       }
     } else if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
       return res.status(503).json({ ok: false, error: 'Catalog database unavailable.' });
@@ -427,7 +414,7 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
           const cfg = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
           if (companyName) cfg.companyName = companyName;
           if (businessType && businessType !== 'auto') cfg.businessType = businessType;
-          if (Array.isArray(rows) && rows.length > 0) {
+          if (Array.isArray(rows)) {
             cfg.products = rows.map((p, idx) => ({
               id: p.sku || `prod_${idx}`,
               name: p.name,
@@ -445,7 +432,15 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
         const KNOWLEDGE_FILE = path.join(process.cwd(), 'catalog_knowledge.json');
         if (fs.existsSync(KNOWLEDGE_FILE)) {
           const catK = JSON.parse(fs.readFileSync(KNOWLEDGE_FILE, 'utf8'));
-          catK.textKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${(websiteKnowledge || '').slice(0, 30000)}`;
+          if (!catK.demoKnowledge && catK.textKnowledge && catK.textKnowledge.includes('BHARAT PACKTECH')) {
+            catK.demoKnowledge = catK.textKnowledge;
+          }
+          if (websiteKnowledge !== undefined && String(websiteKnowledge).trim()) {
+            catK.uploadedKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${String(websiteKnowledge).slice(0, 30000)}`;
+            catK.textKnowledge = `${catK.demoKnowledge || ''}\n\n${catK.uploadedKnowledge}`.trim();
+          } else if (catK.demoKnowledge) {
+            catK.textKnowledge = catK.demoKnowledge;
+          }
           fs.writeFileSync(KNOWLEDGE_FILE, JSON.stringify(catK, null, 2), 'utf8');
         }
       } catch (e) {}

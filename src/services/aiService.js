@@ -15,12 +15,17 @@ import db from '../db/index.js';
 let _sbAdmin = null;
 export function getSupabaseAdmin() {
   if (_sbAdmin) return _sbAdmin;
+  if (process.env.USE_LOCAL_DB === 'true') return null;
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
   if (url && key) {
     _sbAdmin = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   }
   return _sbAdmin;
+}
+
+export function setSupabaseAdmin(client) {
+  _sbAdmin = client;
 }
 
 // 15-second RAM cache for org and product catalog to eliminate redundant DB roundtrips
@@ -71,7 +76,7 @@ async function getCachedOrgData(organizationId) {
       const { data: dbOrg } = await admin.from('organizations').select('*').eq('id', organizationId).maybeSingle();
       if (dbOrg) org = { ...org, ...dbOrg };
       const { data: dbProds } = await admin.from('products').select('*').eq('org_id', organizationId).neq('is_active', false);
-      if (dbProds && dbProds.length > 0) {
+      if (dbProds) {
         products = dbProds;
       }
     } catch (e) {

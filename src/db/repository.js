@@ -24,8 +24,11 @@ export class DatabaseUnavailableError extends Error {
 class TenantRepository {
   constructor() {
     this.supabase = null;
-    this.isProduction = process.env.NODE_ENV === 'production';
     this.initClient();
+  }
+
+  get isProduction() {
+    return process.env.NODE_ENV === 'production';
   }
 
   initClient() {
@@ -54,6 +57,9 @@ class TenantRepository {
       const { data, error } = await sb.from('organizations').select('*').eq('id', orgId).maybeSingle();
       if (error) throw new DatabaseUnavailableError(error.message);
       return data || null;
+    }
+    if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      return null;
     }
     return db.findById('organizations', orgId);
   }
@@ -123,6 +129,9 @@ class TenantRepository {
       if (error && error.code !== 'PGRST116') throw new DatabaseUnavailableError(error.message);
       return data || null;
     }
+    if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      return null;
+    }
     return db.findOne('profiles', p => p.email === cleanEmail);
   }
 
@@ -134,6 +143,9 @@ class TenantRepository {
       if (error) throw new DatabaseUnavailableError(error.message);
       return data || null;
     }
+    if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      return null;
+    }
     return db.findById('profiles', userId);
   }
 
@@ -144,6 +156,12 @@ class TenantRepository {
       const { data, error } = await sb.from('profiles').select('id, org_id, role').eq('id', userId).eq('org_id', orgId).maybeSingle();
       if (error) throw new DatabaseUnavailableError(error.message);
       if (data) return { user_id: data.id, organization_id: data.org_id, role: data.role };
+      if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+        return null;
+      }
+    }
+    if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      return null;
     }
     return db.findOne('organization_members', m => m.user_id === userId && m.organization_id === orgId) ||
            db.findOne('profiles', p => (p.id === userId || p.user_id === userId) && (p.organization_id === orgId || p.org_id === orgId));

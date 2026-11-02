@@ -5,6 +5,7 @@
 
 import crypto from 'crypto';
 import db from '../db/index.js';
+import { repository } from '../db/repository.js';
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'martflow_sec_' + crypto.randomBytes(16).toString('hex');
 const OTP_STORE = new Map(); // phone -> { otp, expiresAt, attempts }
@@ -351,10 +352,11 @@ export function verifyPhoneOtp(phone, inputOtp) {
 }
 
 // Cryptographically Validated Google / Supabase Auth Handler
-export async function handleGoogleAuth({ token: inputToken, idToken, credential, email, fullName, supabaseId }) {
+export async function handleGoogleAuth({ token: inputToken, idToken, credential, email, fullName }) {
   const authToken = inputToken || idToken || credential;
   let verifiedEmail = null;
   let verifiedName = fullName || null;
+  let verifiedUserId = null;
 
   if (authToken) {
     // Attempt Supabase Auth verification if configured
@@ -368,6 +370,7 @@ export async function handleGoogleAuth({ token: inputToken, idToken, credential,
         if (!error && data?.user?.email) {
           verifiedEmail = data.user.email.toLowerCase().trim();
           verifiedName = data.user.user_metadata?.full_name || verifiedName || verifiedEmail.split('@')[0];
+          verifiedUserId = data.user.id;
         }
       } catch (e) {
         // Fall back to token decode in test mode
@@ -392,16 +395,24 @@ export async function handleGoogleAuth({ token: inputToken, idToken, credential,
   }
 
   const cleanEmail = verifiedEmail;
-  let profile = db.findOne('profiles', (p) => p.email === cleanEmail);
+  let profile = null;
+
+  if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
+    profile = await repository.getProfileByEmail(cleanEmail);
+  } else {
+    profile = db.findOne('profiles', (p) => p.email === cleanEmail);
+  }
+
   let organization;
   let role = 'owner';
 
   if (!profile) {
     // Brand new user signing in via verified Google identity
+    // Security: Caller-controlled user IDs (e.g. forged supabaseId) are strictly ignored.
     const name = verifiedName ? verifiedName.trim() : cleanEmail.split('@')[0];
     const companyName = name + ' Manufacturing';
     profile = db.insert('profiles', {
-      id: supabaseId || undefined,
+      id: verifiedUserId || undefined,
       email: cleanEmail,
       full_name: name,
       auth_provider: 'google',
@@ -439,14 +450,27 @@ export async function handleGoogleAuth({ token: inputToken, idToken, credential,
       send_voice_notes: true
     });
   } else {
-    // Existing user profile found — preserve actual tenant and membership role
-    const membership = db.findOne('organization_members', (m) => m.user_id === profile.id);
-    if (membership) {
-      organization = db.findById('organizations', membership.organization_id);
+    // Existing user profile found — preserve actual tenant and membership role authoritatively
+    if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
+      const orgId = profile.org_id || profile.organization_id;
+      if (!orgId) {
+        throw new Error('No active organization found for this authenticated user.');
+      }
+      organization = await repository.getOrganizationById(orgId);
+      const membership = await repository.getMembership(profile.id, orgId);
+      if (!membership || !organization) {
+        throw new Error('No active organization or membership found for this authenticated user.');
+      }
       role = membership.role || 'member';
-    }
-    if (!organization) {
-      throw new Error('No active organization found for this authenticated user.');
+    } else {
+      const membership = db.findOne('organization_members', (m) => m.user_id === profile.id);
+      if (membership) {
+        organization = db.findById('organizations', membership.organization_id);
+        role = membership.role || 'member';
+      }
+      if (!organization) {
+        throw new Error('No active organization found for this authenticated user.');
+      }
     }
   }
 

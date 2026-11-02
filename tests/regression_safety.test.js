@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import express from 'express';
 import apiRouter from '../src/routes/api.js';
 import db from '../src/db/index.js';
-import { signUp, createSessionToken } from '../src/auth/authService.js';
+import { signUp, createSessionToken, handleGoogleAuth } from '../src/auth/authService.js';
 import { repository } from '../src/db/repository.js';
 
 async function setup() {
@@ -104,4 +104,112 @@ test('server disconnect removes session credentials', () => {
     if (fs.existsSync(inst.authDir)) process.exit(1);
     process.exit(0);`;
   execFileSync(process.execPath, ['--input-type=module', '-e', script], { env: { ...process.env, NODE_ENV: 'test', USE_LOCAL_DB: 'true', PORT: '0' }, timeout: 10000 });
+});
+
+test('regression: account takeover via forged supabaseId is rejected', async () => {
+  const forgedId = '11111111-2222-3333-4444-555555555555';
+  const testEmail = `attacker_${crypto.randomUUID()}@example.test`;
+  const result = await handleGoogleAuth({
+    email: testEmail,
+    fullName: 'Attacker',
+    supabaseId: forgedId
+  });
+  assert.notEqual(result.user.id, forgedId, 'Caller-supplied supabaseId must not be used as user ID');
+});
+
+test('regression: revoked membership returns 403 on protected routes', async () => {
+  const { server, owner, url } = await setup();
+  const originalGetMembership = repository.getMembership;
+  try {
+    repository.getMembership = async () => null;
+    const response = await fetch(`${url}/auth/me`, { headers: headers(owner.token) });
+    assert.equal(response.status, 403);
+    const data = await response.json();
+    assert.equal(data.ok, false);
+    assert.match(data.error, /Access denied/);
+  } finally {
+    repository.getMembership = originalGetMembership;
+    server.close();
+  }
+});
+
+test('regression: missing Supabase in production fails closed', async () => {
+  const origEnv = process.env.NODE_ENV;
+  const origLocal = process.env.USE_LOCAL_DB;
+  const origUrl = process.env.SUPABASE_URL;
+  const origKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  try {
+    process.env.NODE_ENV = 'production';
+    delete process.env.USE_LOCAL_DB;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    await assert.rejects(
+      async () => repository.getOrganizationById('00000000-0000-0000-0000-000000000001'),
+      (err) => err.statusCode === 503 || err.name === 'DatabaseUnavailableError',
+      'Must fail closed with DatabaseUnavailableError in production when Supabase is missing'
+    );
+
+    await assert.rejects(
+      async () => repository.getMembership('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000001'),
+      (err) => err.statusCode === 503 || err.name === 'DatabaseUnavailableError',
+      'Must fail closed with DatabaseUnavailableError in production when Supabase is missing'
+    );
+  } finally {
+    process.env.NODE_ENV = origEnv;
+    if (origLocal !== undefined) process.env.USE_LOCAL_DB = origLocal; else delete process.env.USE_LOCAL_DB;
+    if (origUrl !== undefined) process.env.SUPABASE_URL = origUrl; else delete process.env.SUPABASE_URL;
+    if (origKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = origKey; else delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+});
+
+test('regression: failed catalog inserts fail visibly without non-transactional fallback', async () => {
+  const { server, owner, url } = await setup();
+  const { setSupabaseAdmin } = await import('../src/services/aiService.js');
+  try {
+    setSupabaseAdmin({
+      rpc: async (fnName) => {
+        if (fnName === 'replace_tenant_catalog') {
+          return { error: { message: 'RPC execution failed: disk full' } };
+        }
+        return { data: null, error: null };
+      }
+    });
+
+    const response = await fetch(`${url}/catalog/sync`, {
+      method: 'POST',
+      headers: headers(owner.token),
+      body: JSON.stringify({
+        products: [{ name: 'Test Machine', price_raw: '1000' }]
+      })
+    });
+
+    assert.equal(response.status, 500);
+    const data = await response.json();
+    assert.equal(data.ok, false);
+    assert.match(data.error, /Catalog transaction failed/);
+  } finally {
+    setSupabaseAdmin(null);
+    server.close();
+  }
+});
+
+test('regression: quota RPC failure fails closed', async () => {
+  const fakeAdmin = {
+    rpc: async (fnName) => {
+      if (fnName === 'reserve_and_create_lead') {
+        return { data: null, error: { message: 'Quota service unreachable' } };
+      }
+      return { data: null, error: null };
+    }
+  };
+
+  const { data, error } = await fakeAdmin.rpc('reserve_and_create_lead', {
+    p_org_id: '00000000-0000-0000-0000-000000000001',
+    p_buyer_phone: '919876543210',
+    p_buyer_name: 'Test Buyer'
+  });
+
+  assert.ok(error, 'RPC error must be detected');
+  assert.equal(data, null, 'No lead should be returned on RPC error');
 });
