@@ -514,7 +514,7 @@ function resolvePhoneFromJid(remoteJid, altJid) {
   return normalizeIndianPhone(raw);
 }
 
-const HIGH_INTENT_REGEX = /\b(price|pricing|cost|rate|kitna|kitne|pilot|buy|purchase|kharidna|pay|payment|upi|gpay|phonepe|call|contact|talk|demo|meet|meeting|agency|white-label|whitelabel|partner|book|booking|order)\b/i;
+const HIGH_INTENT_REGEX = /\b(price|pricing|cost|rate|kitna|kitne|pilot|buy|purchase|kharidna|pay|payment|upi|gpay|phonepe|call|contact|talk|demo|meet|meeting|agency|white-label|whitelabel|partner|book|booking|order|quote|quotation|urgent|deal|invoice|discount|advance|token|bulk|wholesale|dispatch|delivery|chahiye)\b/i;
 
 async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   if (!msg || !msg.message) return;
