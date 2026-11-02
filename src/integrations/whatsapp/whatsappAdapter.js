@@ -107,6 +107,39 @@ export class WhatsAppAdapter {
           delivery_status: 'delivered',
           provider_message_id: providerMsgId
         });
+
+        // Generate and dispatch automated AI reply if mode is 'ai' and auto reply is active
+        if ((conv.mode === 'ai' || !conv.mode) && org.wa_auto_reply !== false) {
+          try {
+            const { AIService } = await import('../../services/aiService.js');
+            const aiReply = await AIService.generateSalesReply({
+              organizationId: orgId,
+              lead,
+              incomingText: text,
+              conversationHistory: [{ sender_type: 'buyer', content: text }]
+            });
+
+            if (aiReply && aiReply.reply) {
+              await WhatsAppAdapter.sendMessage({
+                organizationId: orgId,
+                toPhone: fromPhone,
+                text: aiReply.reply,
+                mediaUrl: aiReply.matchedBrochureUrl || null,
+                mediaType: aiReply.matchedBrochureUrl ? 'document' : null
+              });
+
+              db.insert('messages', {
+                organization_id: orgId,
+                conversation_id: conv.id,
+                sender_type: 'ai',
+                content: aiReply.reply,
+                delivery_status: 'sent'
+              });
+            }
+          } catch (replyErr) {
+            console.error('Failed to dispatch automated Cloud API reply:', replyErr.message);
+          }
+        }
         }
 
         return { status: 'messages_processed' };

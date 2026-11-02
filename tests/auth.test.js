@@ -48,9 +48,9 @@ test('AUTH: Login succeeds with correct credentials and fails with invalid passw
   );
 });
 
-test('AUTH: Phone OTP generates 6-digit code, verifies successfully, and rejects invalid code', () => {
+test('AUTH: Phone OTP generates 6-digit code, verifies successfully, and rejects invalid code', async () => {
   const phone = '919876500000';
-  const sent = sendPhoneOtp(phone);
+  const sent = await sendPhoneOtp(phone);
   assert.equal(sent.sent, true);
 
   // Rejects invalid code

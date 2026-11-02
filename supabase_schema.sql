@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS public.leads (
     buyer_city TEXT,
     product_inquired TEXT,
     query_message TEXT,
+    requirement TEXT,
     status TEXT DEFAULT 'new',
     pdf_brochure_sent BOOLEAN DEFAULT false,
     response_ms INT DEFAULT 0,
@@ -100,7 +101,7 @@ CREATE TABLE IF NOT EXISTS public.conversations (
     org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
     lead_id UUID REFERENCES public.leads(id) ON DELETE SET NULL,
     buyer_phone TEXT NOT NULL,
-    mode TEXT DEFAULT 'auto' CHECK (mode IN ('auto', 'human')),
+    mode TEXT DEFAULT 'auto' CHECK (mode IN ('auto', 'human', 'manual')),
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -125,7 +126,7 @@ CREATE TABLE IF NOT EXISTS public.payments (
     razorpay_order_id TEXT,
     razorpay_payment_id TEXT,
     utr_reference TEXT,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'failed')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'pending_verification', 'verified', 'failed')),
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -225,18 +226,33 @@ DROP POLICY IF EXISTS org_isolation_insert ON public.organizations;
 CREATE POLICY org_isolation_insert ON public.organizations
     FOR INSERT WITH CHECK (true);
 
--- Profiles Policy: Users see profiles in their own tenant
+-- Profiles Policies: Users see profiles in their own tenant, update own record, no direct deletion
 DROP POLICY IF EXISTS profile_isolation ON public.profiles;
-CREATE POLICY profile_isolation ON public.profiles
-    FOR ALL USING (org_id = public.current_user_org_id() OR id = auth.uid());
+DROP POLICY IF EXISTS profile_select_isolation ON public.profiles;
+CREATE POLICY profile_select_isolation ON public.profiles
+    FOR SELECT USING (org_id = public.current_user_org_id() OR id = auth.uid());
 
--- Prevent self-elevation of role or tenant switching in profiles
+DROP POLICY IF EXISTS profile_update_isolation ON public.profiles;
+CREATE POLICY profile_update_isolation ON public.profiles
+    FOR UPDATE USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+
+DROP POLICY IF EXISTS profile_insert_own ON public.profiles;
+CREATE POLICY profile_insert_own ON public.profiles
+    FOR INSERT WITH CHECK (id = auth.uid());
+
+-- Prevent self-elevation of role or tenant switching in profiles on INSERT and UPDATE
 CREATE OR REPLACE FUNCTION public.check_profile_role_immutability()
 RETURNS TRIGGER AS $$
 BEGIN
     IF (auth.jwt() ->> 'role') = 'authenticated' THEN
-        IF NEW.role IS DISTINCT FROM OLD.role OR NEW.org_id IS DISTINCT FROM OLD.org_id THEN
-            RAISE EXCEPTION 'Unauthorized: User role and tenant organization cannot be altered directly';
+        IF TG_OP = 'UPDATE' THEN
+            IF NEW.role IS DISTINCT FROM OLD.role OR NEW.org_id IS DISTINCT FROM OLD.org_id THEN
+                RAISE EXCEPTION 'Unauthorized: User role and tenant organization cannot be altered directly';
+            END IF;
+        ELSIF TG_OP = 'INSERT' THEN
+            IF NEW.role NOT IN ('member', 'agent') AND NEW.role IS NOT NULL THEN
+                NEW.role := 'member';
+            END IF;
         END IF;
     END IF;
     RETURN NEW;
@@ -245,12 +261,8 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS trg_profile_immutability ON public.profiles;
 CREATE TRIGGER trg_profile_immutability
-    BEFORE UPDATE ON public.profiles
+    BEFORE INSERT OR UPDATE ON public.profiles
     FOR EACH ROW EXECUTE FUNCTION public.check_profile_role_immutability();
-
-DROP POLICY IF EXISTS profile_insert_own ON public.profiles;
-CREATE POLICY profile_insert_own ON public.profiles
-    FOR INSERT WITH CHECK (id = auth.uid());
 
 -- Products Policy: Tenant-scoped access only
 DROP POLICY IF EXISTS products_isolation ON public.products;

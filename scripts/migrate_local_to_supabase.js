@@ -256,6 +256,107 @@ async function runMigration() {
     }
     report.migratedCounts.leads = leads.length;
 
+    // 6. Migrate Conversations
+    const convs = rawData.conversations || [];
+    report.sourceCounts.conversations = convs.length;
+    console.log(`[5/7] Migrating ${convs.length} Conversations...`);
+
+    for (const conv of convs) {
+      const convUuid = getOrMapId(conv.id, 'conversations');
+      const orgUuid = getOrMapId(conv.organization_id || conv.org_id, 'organizations');
+      const leadUuid = conv.lead_id ? getOrMapId(conv.lead_id, 'leads') : null;
+      if (!orgUuid) continue;
+
+      const convPayload = {
+        id: convUuid,
+        org_id: orgUuid,
+        lead_id: leadUuid,
+        buyer_phone: conv.buyer_phone || '0000000000',
+        mode: conv.mode || 'auto',
+        created_at: conv.created_at || new Date().toISOString()
+      };
+
+      if (!isDryRun) {
+        const { error } = await supabase.from('conversations').upsert(convPayload, { onConflict: 'id' });
+        if (!error) {
+          await supabase.from('legacy_id_mapping').upsert({
+            legacy_id: conv.id,
+            supabase_uuid: convUuid,
+            entity_type: 'conversations'
+          }, { onConflict: 'legacy_id' });
+        }
+      }
+    }
+    report.migratedCounts.conversations = convs.length;
+
+    // 7. Migrate Messages
+    const msgs = rawData.messages || [];
+    report.sourceCounts.messages = msgs.length;
+    console.log(`[6/7] Migrating ${msgs.length} Messages...`);
+
+    for (const msg of msgs) {
+      const msgUuid = getOrMapId(msg.id, 'messages');
+      const orgUuid = getOrMapId(msg.organization_id || msg.org_id, 'organizations');
+      const convUuid = msg.conversation_id ? getOrMapId(msg.conversation_id, 'conversations') : null;
+      if (!orgUuid || !convUuid) continue;
+
+      const msgPayload = {
+        id: msgUuid,
+        org_id: orgUuid,
+        conversation_id: convUuid,
+        sender: msg.sender || (msg.sender_type === 'buyer' ? 'buyer' : 'ai'),
+        text: msg.text || msg.content || '',
+        created_at: msg.created_at || new Date().toISOString()
+      };
+
+      if (!isDryRun) {
+        const { error } = await supabase.from('messages').upsert(msgPayload, { onConflict: 'id' });
+        if (!error) {
+          await supabase.from('legacy_id_mapping').upsert({
+            legacy_id: msg.id,
+            supabase_uuid: msgUuid,
+            entity_type: 'messages'
+          }, { onConflict: 'legacy_id' });
+        }
+      }
+    }
+    report.migratedCounts.messages = msgs.length;
+
+    // 8. Migrate Payments
+    const payments = rawData.payments || [];
+    report.sourceCounts.payments = payments.length;
+    console.log(`[7/7] Migrating ${payments.length} Payments...`);
+
+    for (const pay of payments) {
+      const payUuid = getOrMapId(pay.id, 'payments');
+      const orgUuid = getOrMapId(pay.organization_id || pay.org_id, 'organizations');
+      if (!orgUuid) continue;
+
+      const payPayload = {
+        id: payUuid,
+        org_id: orgUuid,
+        amount_inr: pay.amount_inr || pay.amount || 0,
+        currency: pay.currency || 'INR',
+        provider: pay.provider || 'direct_upi',
+        status: pay.status || 'pending_verification',
+        plan: pay.plan || 'Standard Growth Plan',
+        utr_reference: pay.utr_reference || pay.utr || null,
+        created_at: pay.created_at || new Date().toISOString()
+      };
+
+      if (!isDryRun) {
+        const { error } = await supabase.from('payments').upsert(payPayload, { onConflict: 'id' });
+        if (!error) {
+          await supabase.from('legacy_id_mapping').upsert({
+            legacy_id: pay.id,
+            supabase_uuid: payUuid,
+            entity_type: 'payments'
+          }, { onConflict: 'legacy_id' });
+        }
+      }
+    }
+    report.migratedCounts.payments = payments.length;
+
     // 6. Complete Reconciliation Report
     report.endTime = new Date().toISOString();
     report.status = report.errors.length === 0 ? 'SUCCESS' : 'COMPLETED_WITH_WARNINGS';
@@ -286,3 +387,4 @@ async function runMigration() {
 }
 
 runMigration();
+

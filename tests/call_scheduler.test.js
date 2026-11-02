@@ -32,7 +32,7 @@ test('CALL SCHEDULER: 2-way call request, slot confirmation, status transition, 
   assert.equal(updatedLead1.status, 'awaiting_call');
 
   // 2. Factory Owner Confirms Slot (e.g. "Tomorrow at 4:30 PM")
-  const confirmed = CallSchedulerService.confirmCallSlot(org.organization.id, {
+  const confirmed = await CallSchedulerService.confirmCallSlot(org.organization.id, {
     callRequestId: callReq.id,
     confirmedTime: 'Tomorrow at 4:30 PM',
     confirmedBy: 'Owner via WhatsApp'

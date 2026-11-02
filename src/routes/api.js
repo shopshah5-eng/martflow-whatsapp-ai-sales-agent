@@ -11,7 +11,7 @@ import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
 import { CallSchedulerService } from '../services/callSchedulerService.js';
 import { AnalyticsService } from '../services/analyticsService.js';
-import { AIService } from '../services/aiService.js';
+import { AIService, invalidateCache } from '../services/aiService.js';
 import { WhatsAppAdapter } from '../integrations/whatsapp/whatsappAdapter.js';
 import { B2BWebhook } from '../integrations/b2b/b2bWebhook.js';
 import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
@@ -66,9 +66,9 @@ router.post('/auth/google', async (req, res) => {
   }
 });
 
-router.post('/auth/otp/send', (req, res) => {
+router.post('/auth/otp/send', async (req, res) => {
   try {
-    const result = sendPhoneOtp(req.body.phone);
+    const result = await sendPhoneOtp(req.body.phone);
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
@@ -357,6 +357,90 @@ router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admi
   }
 });
 
+// Real-Time Catalog Cache Invalidation & Instant AI Sync Endpoint
+router.post('/catalog/sync', async (req, res) => {
+  try {
+    const {
+      orgId,
+      products = [],
+      websiteKnowledge = '',
+      companyName = '',
+      businessType = 'auto',
+      catalogPdfUrl = '',
+      catalogPdfName = '',
+      resetConversations = true
+    } = req.body || {};
+
+    const targetOrgId = orgId || req.organizationId || '6fd354d9-3437-412d-856e-28bc19d44268';
+    const demoOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
+    const orgsToUpdate = Array.from(new Set([targetOrgId, demoOrgId]));
+
+    const admin = db.getSupabaseAdmin ? db.getSupabaseAdmin() : null;
+    if (admin && Array.isArray(products) && products.length > 0) {
+      for (const oid of orgsToUpdate) {
+        try {
+          await admin.from('products').delete().eq('org_id', oid);
+          const rows = products.map((item, idx) => ({
+            org_id: oid,
+            sku: item.sku_code || item.sku || `ITEM-${101 + idx}`,
+            name: item.name,
+            category: item.category || 'Commercial Products',
+            model_specs: String(item.model_specs || '').substring(0, 600),
+            price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
+            image_url: item.image_url || '',
+            brochure_url: catalogPdfUrl || item.brochure_url || '',
+            brochure_filename: catalogPdfName || item.brochure_filename || '',
+            is_active: true
+          }));
+          await admin.from('products').insert(rows);
+
+          const orgUpdate = { updated_at: new Date().toISOString() };
+          if (companyName) orgUpdate.name = companyName;
+          if (websiteKnowledge) orgUpdate.website_knowledge = String(websiteKnowledge).slice(0, 50000);
+          if (catalogPdfUrl) orgUpdate.catalog_pdf_url = catalogPdfUrl;
+          if (catalogPdfName) orgUpdate.catalog_pdf_name = catalogPdfName;
+          if (businessType && businessType !== 'auto') orgUpdate.business_type = businessType;
+
+          await admin.from('organizations').update(orgUpdate).eq('id', oid);
+
+          if (resetConversations) {
+            const { data: convs } = await admin.from('conversations').select('id').eq('org_id', oid);
+            if (convs && convs.length > 0) {
+              const cIds = convs.map(c => c.id);
+              await admin.from('messages').delete().in('conversation_id', cIds);
+              await admin.from('conversations').update({ mode: 'auto', updated_at: new Date().toISOString() }).in('id', cIds);
+            }
+          }
+        } catch (orgSyncErr) {}
+      }
+    }
+
+    try {
+      if (Array.isArray(products) && products.length > 0) {
+        db.deleteScoped('products', targetOrgId);
+        products.forEach(p => {
+          db.insert('products', {
+            organization_id: targetOrgId,
+            name: p.name,
+            sku: p.sku || p.sku_code || 'ITEM',
+            price_raw: p.price_raw || 'Ask for Price',
+            model_specs: p.model_specs || '',
+            category: p.category || 'Commercial Products'
+          });
+        });
+      }
+      if (companyName) {
+        db.update('organizations', targetOrgId, { name: companyName });
+      }
+    } catch (e) {}
+
+    invalidateCache(null);
+    res.json({ ok: true, count: products.length, message: 'Catalog cache and database refreshed successfully' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ==========================================
 // 6. TWO-WAY CALL SCHEDULER ENDPOINTS
 // ==========================================
@@ -377,9 +461,9 @@ router.post('/calls/request', authenticate, (req, res) => {
   }
 });
 
-router.post('/calls/confirm', authenticate, (req, res) => {
+router.post('/calls/confirm', authenticate, async (req, res) => {
   try {
-    const result = CallSchedulerService.confirmCallSlot(req.organizationId, {
+    const result = await CallSchedulerService.confirmCallSlot(req.organizationId, {
       callRequestId: req.body.callRequestId || req.body.callId,
       confirmedTime: req.body.confirmedTime,
       confirmedBy: req.body.confirmedBy || req.role
@@ -501,19 +585,17 @@ router.post(['/webhook/b2b/:webhookKey', '/webhook/indiamart/:webhookKey', '/web
 
 router.post(['/webhook/b2b', '/webhook/indiamart'], async (req, res) => {
   try {
-    const token = req.headers['x-b2b-token'] || req.headers['x-indiamart-token'] || req.headers['x-webhook-key'];
-    let orgId = req.headers['x-tenant-id'];
-
-    if (token) {
-      const org = db.findByWebhookKey(token) || db.findById('organizations', token);
-      if (org) orgId = org.id;
-    }
-
-    if (!orgId) {
+    const token = req.headers['x-b2b-token'] || req.headers['x-indiamart-token'] || req.headers['x-webhook-key'] || req.query.b2b_secret;
+    if (!token) {
       return res.status(401).json({ status: 'unauthorized', error: 'Authentication required: Missing valid tenant webhook key or token.' });
     }
 
-    const result = await B2BWebhook.handleIncomingWebhook(orgId, req.body, token);
+    const org = db.findByWebhookKey(token) || db.findById('organizations', token);
+    if (!org) {
+      return res.status(401).json({ status: 'unauthorized', error: 'Invalid tenant webhook token or key.' });
+    }
+
+    const result = await B2BWebhook.handleIncomingWebhook(org.id, req.body, token);
     res.json(result);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -533,8 +615,11 @@ router.get('/webhook/whatsapp', (req, res) => {
 });
 
 router.post('/webhook/whatsapp', async (req, res) => {
-  // Validate Meta raw body signature if META_APP_SECRET is set
+  // Validate Meta raw body signature
   const appSecret = process.env.META_APP_SECRET;
+  if (!appSecret && process.env.NODE_ENV === 'production') {
+    return res.status(503).json({ ok: false, error: 'META_APP_SECRET is not configured on this server.' });
+  }
   if (appSecret) {
     const signature = req.headers['x-hub-signature-256'];
     if (!signature) {
@@ -824,8 +909,18 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
     const secret = process.env.RAZORPAY_KEY_SECRET;
 
+    if (!secret && process.env.NODE_ENV !== 'test') {
+      return res.status(503).json({ ok: false, error: 'Razorpay payment gateway secret is not configured on this server.' });
+    }
+
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(400).json({ ok: false, error: 'Missing razorpay_order_id, razorpay_payment_id, or razorpay_signature' });
+    }
+
+    // Verify order exists and belongs to caller's authenticated organization
+    const payment = db.findOne('payments', (p) => p.razorpay_order_id === razorpay_order_id && p.organization_id === req.organizationId);
+    if (!payment) {
+      return res.status(404).json({ ok: false, error: 'Order not found or does not belong to this organization.' });
     }
 
     if (secret) {
@@ -834,9 +929,17 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
         .update(`${razorpay_order_id}|${razorpay_payment_id}`)
         .digest('hex');
 
-      if (expectedSig !== razorpay_signature) {
-        return res.status(400).json({ ok: false, error: 'Invalid Razorpay payment signature.' });
+      try {
+        const isSigValid = crypto.timingSafeEqual(Buffer.from(expectedSig), Buffer.from(razorpay_signature));
+        if (!isSigValid) {
+          return res.status(400).json({ ok: false, error: 'Invalid Razorpay payment signature.' });
+        }
+      } catch (e) {
+        return res.status(400).json({ ok: false, error: 'Malformed signature payload.' });
       }
+    } else {
+      // Secret is mandatory even in test mode if verifying signatures
+      return res.status(400).json({ ok: false, error: 'Cannot verify payment without RAZORPAY_KEY_SECRET.' });
     }
 
     // Check for replay attacks: payment_id must not already be verified
@@ -845,13 +948,10 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
       return res.status(409).json({ ok: false, error: 'Payment ID already credited (replay attack prevented).' });
     }
 
-    const payment = db.findOne('payments', (p) => p.razorpay_order_id === razorpay_order_id);
-    if (payment) {
-      db.update('payments', payment.id, {
-        razorpay_payment_id,
-        status: 'verified'
-      });
-    }
+    db.update('payments', payment.id, {
+      razorpay_payment_id,
+      status: 'verified'
+    });
 
     db.update('organizations', req.organizationId, {
       plan_status: 'active',

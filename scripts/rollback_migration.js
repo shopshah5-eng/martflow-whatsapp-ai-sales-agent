@@ -42,8 +42,8 @@ async function runRollback() {
 
   console.log(`Found ${mappings.length} migrated records to rollback.`);
 
-  // Rollback order respecting foreign keys: leads -> products -> profiles -> organizations
-  const order = ['leads', 'products', 'profiles', 'organizations'];
+  // Rollback order respecting foreign keys: messages -> conversations -> payments -> leads -> products -> profiles -> organizations
+  const order = ['messages', 'conversations', 'payments', 'leads', 'products', 'profiles', 'organizations'];
 
   for (const entityType of order) {
     const ids = mappings.filter(m => m.entity_type === entityType).map(m => m.supabase_uuid);
@@ -62,3 +62,4 @@ async function runRollback() {
 }
 
 runRollback();
+

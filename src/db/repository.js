@@ -288,3 +288,4 @@ class TenantRepository {
 
 export const repository = new TenantRepository();
 export default repository;
+

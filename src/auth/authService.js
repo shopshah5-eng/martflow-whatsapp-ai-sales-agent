@@ -249,18 +249,11 @@ export async function demoLogin() {
 }
 
 // Real Phone OTP Verification Service
-export function sendPhoneOtp(phone) {
+export async function sendPhoneOtp(phone) {
   if (!phone || phone.length < 10) {
     throw new Error('Valid phone number with country code is required.');
   }
   const cleanPhone = phone.replace(/[^0-9]/g, '');
-
-  const hasSmsGateway = Boolean(process.env.FAST2SMS_API_KEY || process.env.TWILIO_AUTH_TOKEN || process.env.MSG91_AUTH_KEY);
-  if (!hasSmsGateway && process.env.NODE_ENV === 'production') {
-    const err = new Error('SMS provider is not configured on this instance. Live OTP delivery is unavailable.');
-    err.statusCode = 503;
-    throw err;
-  }
 
   const otp = Math.floor(100000 + crypto.randomInt(0, 900000)).toString();
   OTP_STORE.set(cleanPhone, {
@@ -269,10 +262,67 @@ export function sendPhoneOtp(phone) {
     attempts: 0
   });
 
+  const fast2SmsKey = process.env.FAST2SMS_API_KEY;
+  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+
+  if (fast2SmsKey) {
+    try {
+      const resp = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+        method: 'POST',
+        headers: {
+          'authorization': fast2SmsKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          route: 'otp',
+          variables_values: otp,
+          numbers: cleanPhone.slice(-10)
+        })
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || data.return === false) {
+        throw new Error(data.message || 'Fast2SMS dispatch failed');
+      }
+      return { sent: true, phone: cleanPhone, message: 'OTP dispatched via Fast2SMS gateway.' };
+    } catch (e) {
+      if (process.env.NODE_ENV === 'production') throw e;
+    }
+  }
+
+  if (twilioSid && twilioToken) {
+    try {
+      const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
+      const resp = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Basic ' + Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64'),
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          To: `+${cleanPhone}`,
+          From: twilioFrom,
+          Body: `Your MartFlow verification code is: ${otp}`
+        })
+      });
+      if (!resp.ok) throw new Error('Twilio SMS dispatch failed');
+      return { sent: true, phone: cleanPhone, message: 'OTP dispatched via Twilio SMS.' };
+    } catch (e) {
+      if (process.env.NODE_ENV === 'production') throw e;
+    }
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    const err = new Error('SMS provider is not configured on this instance. Live OTP delivery is unavailable.');
+    err.statusCode = 503;
+    throw err;
+  }
+
   return {
     sent: true,
+    simulated: true,
     phone: cleanPhone,
-    message: 'OTP dispatched successfully. Valid for 10 minutes.'
+    message: 'OTP generated (test mode simulated dispatch). Valid for 10 minutes.'
   };
 }
 

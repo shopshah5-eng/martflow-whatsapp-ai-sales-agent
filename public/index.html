@@ -2531,6 +2531,13 @@
           if (res.merchantUpiId) window.MERCHANT_UPI_ID_LIVE = res.merchantUpiId;
           if (res.merchantName) window.MERCHANT_NAME_LIVE = res.merchantName;
           if (res.supportWhatsapp) window.SUPPORT_WHATSAPP_LIVE = res.supportWhatsapp;
+          if (res.supabaseUrl && res.supabaseAnonKey && window.supabase) {
+            try {
+              sb = window.supabase.createClient(res.supabaseUrl, res.supabaseAnonKey);
+            } catch (err) {
+              console.warn('Dynamic Supabase client initialization notice:', err);
+            }
+          }
           refreshPaymentAndSupportLinks();
         }
       } catch (e) {
@@ -5461,6 +5468,11 @@
           const { error } = await sb.from('products').delete().eq('org_id', currentOrg.id);
           if (error) throw error;
         }
+        fetch(`${API_BASE}/api/catalog/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId: currentOrg?.id, products: [], resetConversations: true })
+        }).catch(() => {});
         catalogProductsCache = [];
         showToast('All products deleted from catalog.', 'info');
         fetchCatalogProducts();
@@ -5926,59 +5938,46 @@
         if (!finalItems.length) throw new Error('Could not detect items in the selected file(s).');
 
         setStatus(`Saving ${finalItems.length} merged items & photos to live database...`);
-        if (sb) {
-          const { error: delErr } = await sb.from('products').delete().eq('org_id', currentOrg.id);
-          if (delErr) throw delErr;
-          const rowsToInsert = finalItems.map(item => ({
-            org_id: currentOrg.id,
-            sku: item.sku_code || item.sku || 'ITEM',
-            name: item.name,
-            category: item.category || inferCategory(item.name, item.sku_code || item.sku),
-            model_specs: String(item.model_specs || '').substring(0, 600),
-            price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
-            image_url: item.image_url || '',
-            brochure_url: uploadedPdfUrl || item.brochure_url || '',
-            brochure_filename: uploadedPdfName || item.brochure_filename || '',
-            is_active: true
-          }));
-          const { error: insErr } = await sb.from('products').insert(rowsToInsert);
-          if (insErr) throw insErr;
+        const rowsToInsert = finalItems.map(item => ({
+          sku: item.sku_code || item.sku || 'ITEM',
+          name: item.name,
+          category: item.category || inferCategory(item.name, item.sku_code || item.sku),
+          model_specs: String(item.model_specs || '').substring(0, 600),
+          price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
+          image_url: item.image_url || '',
+          brochure_url: uploadedPdfUrl || item.brochure_url || '',
+          brochure_filename: uploadedPdfName || item.brochure_filename || '',
+          is_active: true
+        }));
 
-          // Mirror catalog and knowledge to main demo org so live WhatsApp bot answers immediately
-          const demoOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
-          if (currentOrg.id !== demoOrgId) {
-            try {
-              await sb.from('products').delete().eq('org_id', demoOrgId);
-              const demoRows = rowsToInsert.map(r => ({ ...r, org_id: demoOrgId }));
-              await sb.from('products').insert(demoRows);
-              await sb.from('organizations').update({
-                name: currentOrg.name || 'Our Company',
-                website_knowledge: currentOrg.website_knowledge || '',
-                updated_at: new Date().toISOString()
-              }).eq('id', demoOrgId);
-
-              // Clear outdated conversation messages so previous discussion topics don't pollute the new catalog
-              const { data: convsToReset } = await sb.from('conversations').select('id').in('org_id', [currentOrg.id, demoOrgId]);
-              if (convsToReset && convsToReset.length) {
-                const cIds = convsToReset.map(c => c.id);
-                await sb.from('messages').delete().in('conversation_id', cIds);
-              }
-            } catch (syncErr) {
-              console.warn('Demo org sync note:', syncErr.message);
-            }
+        if (sb && currentOrg?.id) {
+          try {
+            await sb.from('products').delete().eq('org_id', currentOrg.id);
+            const userRows = rowsToInsert.map(r => ({ ...r, org_id: currentOrg.id }));
+            await sb.from('products').insert(userRows);
+          } catch (e) {
+            console.warn('Client-side direct insert note:', e.message);
           }
+        }
 
-          // Instantly sync backend AI cache for both orgs
-          fetch(`${API_BASE}/api/catalog/sync`, {
+        // Always sync through backend API (using service role) to bypass client RLS limits,
+        // instantly mirror to the live WhatsApp demo bot, and wipe outdated chat memories!
+        try {
+          await fetch(`${API_BASE}/api/catalog/sync`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orgId: currentOrg.id })
-          }).catch(() => {});
-          fetch(`${API_BASE}/api/catalog/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orgId: demoOrgId })
-          }).catch(() => {});
+            body: JSON.stringify({
+              orgId: currentOrg?.id,
+              products: rowsToInsert,
+              websiteKnowledge: currentOrg?.website_knowledge || '',
+              companyName: currentOrg?.name || 'Our Company',
+              catalogPdfUrl: uploadedPdfUrl || '',
+              catalogPdfName: uploadedPdfName || '',
+              resetConversations: true
+            })
+          });
+        } catch (syncApiErr) {
+          console.warn('Backend catalog sync note:', syncApiErr.message);
         }
 
         await fetchCatalogProducts();

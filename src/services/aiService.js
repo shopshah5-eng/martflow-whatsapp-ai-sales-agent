@@ -504,7 +504,7 @@ CUSTOMER'S NEW MESSAGE:
 
 Output: Exactly 1 to 3 natural lines of WhatsApp text.`;
 
-        const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.8-flash'];
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
         for (const modelName of modelsToTry) {
           try {
             const resp = await fetch(

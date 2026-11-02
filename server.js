@@ -58,7 +58,7 @@ dotenv.config();
 // Global Anti-Duplicate, Anti-Loop & Tracking Sets
 const botSentMsgIds = new Set();
 const processedMsgIds = new Set();
-const inFlightSenders = new Set();
+const senderQueues = new Map();
 const recentInboundFingerprints = new Map(); // `${orgId}:${senderPhone}:${normText}` -> timestamp
 const recentAlertsMap = new Map(); // `${orgId}:${senderPhone}:${alertType}` -> timestamp
 const alertedNewLeads = new Set(); // `${orgId}:${senderPhone}`
@@ -101,7 +101,6 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-app.use('/catalogs', express.static(path.join(__dirname, 'catalogs')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Mount MartFlow AI Multi-Tenant SaaS API
@@ -844,12 +843,10 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     try {
       if (supabaseAdmin) {
         await supabaseAdmin.from('organizations').update({
-          wa_auto_reply: false,
-          auto_reply_enabled: false
+          wa_auto_reply: false
         }).eq('id', orgId);
       }
       freshOrg.wa_auto_reply = false;
-      freshOrg.auto_reply_enabled = false;
       config.autoReplyEnabled = false;
       const replyText = "⏸️ Manual Mode ON — AI paused. Send 'automatic' to resume.";
       const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
@@ -866,15 +863,13 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     try {
       if (supabaseAdmin) {
         await supabaseAdmin.from('organizations').update({
-          wa_auto_reply: true,
-          auto_reply_enabled: true
+          wa_auto_reply: true
         }).eq('id', orgId);
         await supabaseAdmin.from('conversations').update({
           mode: 'auto'
         }).eq('org_id', orgId);
       }
       freshOrg.wa_auto_reply = true;
-      freshOrg.auto_reply_enabled = true;
       config.autoReplyEnabled = true;
       const replyText = "✅ Automatic Mode ON — AI active 24/7. Send 'manual' to pause.";
       const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
@@ -895,11 +890,11 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       try {
         if (supabaseAdmin) {
           await supabaseAdmin.from('conversations').update({
-            mode: 'manual',
+            mode: 'human',
             updated_at: new Date().toISOString()
           }).eq('org_id', orgId).ilike('buyer_phone', `%${recipientPhone.slice(-10)}`);
         }
-        addLog(`[Human Takeover] Owner typed manually to customer +${recipientPhone}. Conversation set to manual.`);
+        addLog(`[Human Takeover] Owner typed manually to customer +${recipientPhone}. Conversation set to human.`);
       } catch (e) {}
     }
     // Only return if not testing in bot self-chat
@@ -927,105 +922,109 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     }
   }
 
-  // Per-sender async lock
-  if (inFlightSenders.has(senderPhone)) {
-    addLog(`[Deduplication] In-flight message already processing for +${senderPhone}. Skipping concurrent event.`);
-    return;
-  }
-  inFlightSenders.add(senderPhone);
+  // Per-sender promise queue (processes rapid successive messages in order without dropping)
+  const task = async () => {
+    try {
+      let sbConvId = null;
+      let isBrandNewLead = false;
+      let sLead = null;
 
-  try {
-    let sbConvId = null;
-    let isBrandNewLead = false;
-    let sLead = null;
+      if (supabaseAdmin) {
+        try {
+          const { data: existingLead } = await supabaseAdmin
+            .from('leads')
+            .select('id, buyer_name, buyer_phone, pdf_brochure_sent')
+            .eq('org_id', orgId)
+            .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
+            .maybeSingle();
 
-    if (supabaseAdmin) {
-      try {
-        const { data: existingLead } = await supabaseAdmin
-          .from('leads')
-          .select('id, buyer_name, buyer_phone, pdf_brochure_sent')
-          .eq('org_id', orgId)
-          .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
-          .maybeSingle();
-
-        if (!existingLead) {
-          isBrandNewLead = true;
-          const { data: newLead } = await supabaseAdmin.from('leads').insert({
-            org_id: orgId,
-            buyer_name: pushName,
-            buyer_phone: senderPhone,
-            requirement: incomingText,
-            status: 'Hot Lead'
-          }).select().single();
-          sLead = newLead;
-        } else {
-          sLead = existingLead;
-        }
-
-        let { data: existingConv } = await supabaseAdmin
-          .from('conversations')
-          .select('id, mode')
-          .eq('org_id', orgId)
-          .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
-          .maybeSingle();
-
-        if (!existingConv) {
-          const { data: nConv } = await supabaseAdmin.from('conversations').insert({
-            org_id: orgId,
-            lead_id: sLead?.id || null,
-            buyer_phone: senderPhone,
-            mode: 'auto'
-          }).select().single();
-          existingConv = nConv;
-        }
-
-        sbConvId = existingConv?.id;
-
-        if (sbConvId) {
-          await supabaseAdmin.from('messages').insert({
-            org_id: orgId,
-            conversation_id: sbConvId,
-            sender: 'buyer',
-            text: isAudio ? '[Voice Note Audio]' : incomingText
-          });
-          await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
-        }
-
-        // Check if organization auto-reply is disabled
-        const isOrgAutoReplyOff = freshOrg.wa_auto_reply === false || freshOrg.auto_reply_enabled === false;
-        if (isOrgAutoReplyOff) {
-          addLog(`[AI Muted] Auto reply is disabled for organization ${freshOrg.name || orgId}.`);
-          return;
-        }
-
-        if (isFromOwner || isSelfChat) {
-          if (existingConv && existingConv.mode === 'manual') {
-            existingConv.mode = 'auto';
-            if (supabaseAdmin && sbConvId) {
-              await supabaseAdmin.from('conversations').update({ mode: 'auto' }).eq('id', sbConvId);
+          if (!existingLead) {
+            isBrandNewLead = true;
+            const { data: newLead, error: leadErr } = await supabaseAdmin.from('leads').insert({
+              org_id: orgId,
+              buyer_name: pushName,
+              buyer_phone: senderPhone,
+              query_message: incomingText,
+              requirement: incomingText,
+              status: 'Hot Lead'
+            }).select().single();
+            if (leadErr) {
+              addLog(`[Supabase Lead Insert Notice]: ${leadErr.message}`);
             }
+            sLead = newLead || { id: null, buyer_name: pushName, buyer_phone: senderPhone };
+          } else {
+            sLead = existingLead;
           }
-        } else if (existingConv?.mode === 'manual' && !isFromOwner && !isSelfChat) {
-          addLog(`[Manual Mode] Conversation for +${senderPhone} is paused in manual mode.`);
-          return;
-        }
 
-        // Check lead quota for unpaid signups (main demo org is unlimited)
-        const isMainDemo = orgId === '6fd354d9-3437-412d-856e-28bc19d44268' || freshOrg.is_unlimited === true || freshOrg.plan_status === 'active';
-        if (!isMainDemo && !isFromOwner && !isSelfChat) {
-          const limit = freshOrg.monthly_lead_limit || 25;
-          const used = freshOrg.leads_used || 0;
-          const trialExpired = freshOrg.trial_ends_at && new Date(freshOrg.trial_ends_at) < new Date();
-          if (used >= limit || trialExpired) {
-            addLog(`[Quota Reached] Organization ${freshOrg.name || orgId} reached limit (${used}/${limit}). AI reply withheld.`);
+          let { data: existingConv } = await supabaseAdmin
+            .from('conversations')
+            .select('id, mode')
+            .eq('org_id', orgId)
+            .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
+            .maybeSingle();
+
+          if (!existingConv) {
+            const { data: nConv } = await supabaseAdmin.from('conversations').insert({
+              org_id: orgId,
+              lead_id: sLead?.id || null,
+              buyer_phone: senderPhone,
+              mode: 'auto'
+            }).select().single();
+            existingConv = nConv;
+          }
+
+          sbConvId = existingConv?.id;
+
+          if (sbConvId) {
+            await supabaseAdmin.from('messages').insert({
+              org_id: orgId,
+              conversation_id: sbConvId,
+              sender: 'buyer',
+              text: isAudio ? '[Voice Note Audio]' : incomingText
+            });
+            await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
+          }
+
+          // Check if organization auto-reply is disabled
+          const isOrgAutoReplyOff = freshOrg.wa_auto_reply === false;
+          if (isOrgAutoReplyOff) {
+            addLog(`[AI Muted] Auto reply is disabled for organization ${freshOrg.name || orgId}.`);
             return;
           }
-          await supabaseAdmin.from('organizations').update({ leads_used: used + 1 }).eq('id', orgId);
+
+          if (isFromOwner || isSelfChat) {
+            if (existingConv && (existingConv.mode === 'manual' || existingConv.mode === 'human')) {
+              existingConv.mode = 'auto';
+              if (supabaseAdmin && sbConvId) {
+                await supabaseAdmin.from('conversations').update({ mode: 'auto' }).eq('id', sbConvId);
+              }
+            }
+          } else if ((existingConv?.mode === 'manual' || existingConv?.mode === 'human') && !isFromOwner && !isSelfChat) {
+            addLog(`[Manual Mode] Conversation for +${senderPhone} is paused in manual mode.`);
+            return;
+          }
+
+          // Check lead quota for unpaid signups (only count on brand new lead)
+          if (isBrandNewLead && !isFromOwner && !isSelfChat) {
+            const limit = freshOrg.monthly_lead_limit || (freshOrg.plan_status === 'active' ? 500 : 25);
+            const used = freshOrg.leads_used || 0;
+            const trialExpired = freshOrg.trial_ends_at && new Date(freshOrg.trial_ends_at) < new Date();
+            if (used >= limit || (freshOrg.plan_status === 'trial' && trialExpired)) {
+              addLog(`[Quota Reached] Organization ${freshOrg.name || orgId} reached limit (${used}/${limit}). AI reply withheld.`);
+              return;
+            }
+            if (supabaseAdmin) {
+              await supabaseAdmin.rpc('increment_leads_used', { org_id: orgId }).catch(async () => {
+                await supabaseAdmin.from('organizations').update({ leads_used: used + 1 }).eq('id', orgId);
+              });
+            } else {
+              db.incrementLeadsUsed(orgId);
+            }
+          }
+        } catch (dbErr) {
+          addLog(`Database sync error: ${dbErr.message}`);
         }
-      } catch (dbErr) {
-        addLog(`Database sync error: ${dbErr.message}`);
       }
-    }
 
     // Clean, Non-Spammy Private Owner Alerts (Zero Customer Visibility):
     if (ownerTarget && ownerTarget !== senderPhone) {
@@ -1279,9 +1278,21 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         addLog(`[Brochure] Error: ${pdfErr.message}`);
       }
     }
-  } finally {
-    inFlightSenders.delete(senderPhone);
+  } catch (err) {
+    addLog(`Error processing inbound message from +${senderPhone}: ${err.message}`);
   }
+};
+
+const prevQueue = senderQueues.get(senderPhone) || Promise.resolve();
+const nextQueue = prevQueue
+  .then(task, task)
+  .finally(() => {
+    if (senderQueues.get(senderPhone) === nextQueue) {
+      senderQueues.delete(senderPhone);
+    }
+  });
+senderQueues.set(senderPhone, nextQueue);
+return nextQueue;
 }
 
 async function startOrgWhatsApp(orgId, forceNew = false) {
@@ -1500,6 +1511,10 @@ baileysManager.getInstance = function(orgId) {
       if (s.reconnectTimer) clearTimeout(s.reconnectTimer);
       orgSessions.delete(orgId);
     }
+    const origInst = originalGetInstance(orgId);
+    if (origInst && typeof origInst.disconnect === 'function') {
+      try { await origInst.disconnect(); } catch (e) {}
+    }
   };
   return inst;
 };
@@ -1514,15 +1529,21 @@ baileysManager.sendMessage = async function(orgId, toPhone, messageText, pdfPath
   try {
     let sent;
     if (pdfPath) {
+      const { getSafeAttachmentBuffer } = await import('./src/services/storageSecurity.js');
+      const docBuffer = await getSafeAttachmentBuffer(orgId, pdfPath);
+      if (!docBuffer) return { ok: false, error: 'Document attachment could not be securely loaded' };
       sent = await activeSock.sendMessage(jid, {
-        document: pdfPath.startsWith('http') ? { url: pdfPath } : fs.readFileSync(pdfPath),
+        document: docBuffer,
         mimetype: 'application/pdf',
         fileName: path.basename(pdfPath) || 'Brochure.pdf',
         caption: messageText || ''
       });
     } else if (imagePath) {
+      const { getSafeAttachmentBuffer } = await import('./src/services/storageSecurity.js');
+      const imgBuffer = await getSafeAttachmentBuffer(orgId, imagePath);
+      if (!imgBuffer) return { ok: false, error: 'Image attachment could not be securely loaded' };
       sent = await activeSock.sendMessage(jid, {
-        image: imagePath.startsWith('http') ? { url: imagePath } : fs.readFileSync(imagePath),
+        image: imgBuffer,
         caption: messageText || ''
       });
     } else {
@@ -1612,46 +1633,23 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
   const orgName = org?.name || config.companyName || 'MartFlow AI';
   const cityBase = org?.city_base || org?.company_city || config.cityBase || 'Delhi NCR / Ludhiana';
 
-  // Get catalog products from DB or config
+  // Get catalog products strictly for this organization (Zero cross-tenant leak)
   let products = [];
   if (supabaseAdmin && organizationId) {
     try {
       const { data: dbProds } = await supabaseAdmin.from('products').select('*').eq('org_id', organizationId).neq('is_active', false);
       if (dbProds && dbProds.length > 0) products = dbProds;
     } catch (e) {}
-  }
-  if (!products.length && supabaseAdmin) {
-    try {
-      const { data: recentProds } = await supabaseAdmin
-        .from('products')
-        .select('*')
-        .neq('is_active', false)
-        .order('created_at', { ascending: false })
-        .limit(30);
-      if (recentProds && recentProds.length > 0) {
-        products = recentProds;
-      }
-    } catch (e) {}
-  }
-  if (!products.length) {
-    products = config.products || [];
+  } else if (organizationId) {
+    products = db.findScoped('products', organizationId) || [];
   }
 
-  // Fetch or infer custom website/brochure knowledge
+  // Strictly tenant-isolated website/brochure knowledge
   let orgKnowledge = org?.website_knowledge || '';
-  if (!orgKnowledge && supabaseAdmin) {
+  if (!orgKnowledge && organizationId && supabaseAdmin) {
     try {
-      const { data: latestOrg } = await supabaseAdmin
-        .from('organizations')
-        .select('website_knowledge, catalog_pdf_url, catalog_pdf_name')
-        .not('website_knowledge', 'is', null)
-        .neq('website_knowledge', '')
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (latestOrg?.website_knowledge) {
-        orgKnowledge = latestOrg.website_knowledge;
-      }
+      const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', organizationId).maybeSingle();
+      if (curOrg?.website_knowledge) orgKnowledge = curOrg.website_knowledge;
     } catch (e) {}
   }
   const extraKnowledge = orgKnowledge
@@ -1698,6 +1696,7 @@ ${extraKnowledge}
 CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
 1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.
 2. If earlier chat history mentions unrelated products (such as packaging machinery, industrial equipment, etc. from a previous catalog), DISREGARD THEM COMPLETELY! Acknowledge the current business offerings and answer strictly from your active catalog above. NEVER invent or offer products that do not exist in the active catalog!
+3. If the customer asks about astrology, consultations, services, products, or says "check again" / "I'm talking about X", immediately answer from the active catalog above. Acknowledge and apologize if an earlier message mentioned something unrelated, and present what you actually offer.
 
 STRICT LENGTH RULE:
 1. Reply like a real busy human founder/manager on WhatsApp — 1 to 2 short sentences ONLY (strictly 18 to 38 words max) unless the customer explicitly asks to compare multiple plans/items.
@@ -1711,7 +1710,7 @@ STRICT LENGTH RULE:
       .map(m => `${m.role === 'ai' || m.sender === 'ai' ? 'You' : 'Customer'}: ${m.text || m.content || ''}`)
       .join('\n');
 
-    const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.8-flash'];
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
     for (const model of modelsToTry) {
       try {
         const resp = await fetch(
@@ -2570,47 +2569,19 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true, status: 'healthy', uptime: process.uptime(), timestamp: new Date().toISOString() });
 });
 
-app.get('/api/status', (req, res) => {
-  const pendingCallbacks = leads.filter((l) => l.callbackStatus === 'awaiting_client_time');
+app.get('/api/status', authenticate, requireRole(['owner', 'admin', 'superadmin']), (req, res) => {
+  const scopedLeads = db.findScoped('leads', req.organizationId) || [];
+  const pendingCallbacks = scopedLeads.filter((l) => l.callbackStatus === 'awaiting_client_time');
+  const org = db.findById('organizations', req.organizationId) || {};
   res.json({
-    waState,
-    config: {
-      ...config,
-      geminiConfigured: Boolean(config.geminiApiKey && config.geminiApiKey.trim().length > 15),
-      geminiApiKeyMasked: config.geminiApiKey ? `${config.geminiApiKey.slice(0, 6)}...` : ''
-    },
-    leadsCount: leads.length,
+    ok: true,
+    organizationId: req.organizationId,
+    planStatus: org.plan_status || 'trial',
+    leadsCount: scopedLeads.length,
     pendingCallbacksCount: pendingCallbacks.length,
     pendingCallbacks,
-    leads: leads.slice(0, 50),
-    learnings: loadLearnings()
+    leads: scopedLeads.slice(0, 50)
   });
-});
-
-app.post('/api/whatsapp/connect', async (req, res) => {
-  if (req.body?.reset) {
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
-    }
-    try {
-      if (sock) {
-        sock.ev.removeAllListeners();
-        sock.end();
-      }
-    } catch {}
-    sock = null;
-    isConnecting = false;
-    try {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-    } catch {}
-    waState.status = 'disconnected';
-    waState.qrDataUrl = null;
-    waState.connectedNumber = null;
-    waState.lastEvent = 'Resetting session and preparing fresh QR code...';
-  }
-  startWhatsApp();
-  res.json({ ok: true, message: 'WhatsApp connection started.' });
 });
 
 app.post('/api/config', authenticate, requireRole(['owner', 'admin']), (req, res) => {
@@ -2793,134 +2764,98 @@ app.post('/api/upload-catalog', authenticate, async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-    fs.writeFileSync(catalogPath, buffer);
-
-    const ext = path.extname(safeName).toLowerCase();
-    let extractedText = '';
-    const newProducts = [];
-
-    if (ext === '.pdf') {
-      try {
-        const p = new pdf.PDFParse({ data: buffer });
-        const textRes = await p.getText();
-        extractedText = textRes.text || '';
-      } catch (e) {
-        addLog(`PDF text extraction notice: ${e.message}`);
-      }
-
-      const prodName = (productName || safeName.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ')).trim();
-      const kwList = typeof keywords === 'string'
-        ? keywords.split(',').map((k) => k.trim().toLowerCase()).filter(Boolean)
-        : (Array.isArray(keywords) ? keywords : []);
-
-      if (!kwList.length) {
-        kwList.push(...prodName.toLowerCase().split(/\s+/).filter((w) => w.length > 2));
-      }
-
-      const newProduct = {
-        id: 'cat_' + Date.now().toString().slice(-4),
-        name: prodName,
-        keywords: kwList,
-        catalogFile: safeName,
-        priceRange: priceRange || 'Contact for official GST quotation',
-        imageFile: 'pouch-packing-machine.jpg',
-        subModels: [
-          {
-            name: prodName,
-            speed: 'Standard Factory Speed',
-            price: priceRange || 'Contact factory',
-            suitableFor: 'Industrial Manufacturing Line'
-          }
-        ]
-      };
-      config.products.unshift(newProduct);
-      newProducts.push(newProduct);
-    } else if (ext === '.xlsx' || ext === '.xls' || ext === '.csv') {
-      try {
-        const wb = XLSX.read(buffer, { type: 'buffer' });
-        const textLines = [];
-        for (const sheetName of wb.SheetNames) {
-          const sheet = wb.Sheets[sheetName];
-          const rows = XLSX.utils.sheet_to_json(sheet);
-          if (rows.length) {
-            textLines.push(`=== SPREADSHEET SHEET: ${sheetName} ===`);
-            for (const r of rows) {
-              const rowStr = Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(' | ');
-              textLines.push(rowStr);
-
-              // Auto-generate product entry from row
-              const nameKey = Object.keys(r).find((k) => /name|item|product|title|model|description/i.test(k));
-              const priceKey = Object.keys(r).find((k) => /price|rate|cost|mrp|amount/i.test(k));
-              const specsKey = Object.keys(r).find((k) => /spec|detail|feature|capacity|size|speed/i.test(k));
-
-              const itemTitle = String(r[nameKey] || '').trim();
-              if (itemTitle && itemTitle.length > 2) {
-                const itemPrice = priceKey && r[priceKey] ? String(r[priceKey]) : (priceRange || 'Contact for quote');
-                const itemSpecs = specsKey && r[specsKey] ? String(r[specsKey]) : Object.values(r).slice(1, 4).join(', ');
-                const kw = itemTitle.toLowerCase().split(/[\s,-]+/).filter((w) => w.length > 2);
-
-                const generated = {
-                  id: 'item_' + Math.random().toString(36).slice(2, 7),
-                  name: itemTitle,
-                  keywords: kw,
-                  catalogFile: safeName,
-                  priceRange: itemPrice,
-                  subModels: [
-                    {
-                      name: itemTitle,
-                      price: itemPrice,
-                      speed: 'Standard',
-                      suitableFor: itemSpecs
-                    }
-                  ]
-                };
-                config.products.unshift(generated);
-                newProducts.push(generated);
-              }
-            }
-          }
-        }
-        extractedText = textLines.join('\n');
-      } catch (err) {
-        addLog(`Excel/CSV parse error: ${err.message}`);
-      }
-    } else {
-      extractedText = buffer.toString('utf8');
-    }
-
-    // Append to dynamic catalog knowledge base
-    const k = loadCatalogKnowledge();
-    k.files = (k.files || []).filter((f) => f.filename !== safeName);
-    k.files.push({
-      filename: safeName,
-      type: ext.replace('.', ''),
-      uploadedAt: new Date().toISOString(),
-      productsCount: newProducts.length
-    });
-    k.textKnowledge = `${k.textKnowledge || ''}\n\n=== UPLOADED CATALOG FILE: ${safeName} ===\n${extractedText}`.trim();
-    saveCatalogKnowledge(k);
-
-    saveConfig(config);
-    addLog(`Uploaded & analyzed client catalog: "${safeName}" (${newProducts.length} products found)`);
-
-    res.json({
-      ok: true,
-      filename: safeName,
-      productsCount: newProducts.length,
-      message: `Catalog analyzed successfully! Extracted specifications for ${newProducts.length} product(s).`
-    });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
 
 // Real-Time Catalog Cache Invalidation & Instant AI Sync Endpoint
 app.post('/api/catalog/sync', async (req, res) => {
   try {
-    const { orgId } = req.body || {};
-    invalidateCache(orgId);
-    addLog(`[Catalog Sync] Flushed RAM cache for org: ${orgId || 'all'}`);
-    res.json({ ok: true, message: 'Catalog cache refreshed successfully' });
+    const {
+      orgId,
+      products = [],
+      websiteKnowledge = '',
+      companyName = '',
+      businessType = 'auto',
+      catalogPdfUrl = '',
+      catalogPdfName = '',
+      resetConversations = true
+    } = req.body || {};
+
+    const targetOrgId = orgId || '6fd354d9-3437-412d-856e-28bc19d44268';
+    const demoOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
+    const orgsToUpdate = Array.from(new Set([targetOrgId, demoOrgId]));
+
+    if (supabaseAdmin && Array.isArray(products) && products.length > 0) {
+      for (const oid of orgsToUpdate) {
+        try {
+          // 1. Atomically delete existing products for this org
+          await supabaseAdmin.from('products').delete().eq('org_id', oid);
+
+          // 2. Insert new products
+          const rows = products.map((item, idx) => ({
+            org_id: oid,
+            sku: item.sku_code || item.sku || `ITEM-${101 + idx}`,
+            name: item.name,
+            category: item.category || 'Commercial Products',
+            model_specs: String(item.model_specs || '').substring(0, 600),
+            price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
+            image_url: item.image_url || '',
+            brochure_url: catalogPdfUrl || item.brochure_url || '',
+            brochure_filename: catalogPdfName || item.brochure_filename || '',
+            is_active: true
+          }));
+          await supabaseAdmin.from('products').insert(rows);
+
+          // 3. Update organization metadata
+          const orgUpdate = { updated_at: new Date().toISOString() };
+          if (companyName) orgUpdate.name = companyName;
+          if (websiteKnowledge) orgUpdate.website_knowledge = String(websiteKnowledge).slice(0, 50000);
+          if (catalogPdfUrl) orgUpdate.catalog_pdf_url = catalogPdfUrl;
+          if (catalogPdfName) orgUpdate.catalog_pdf_name = catalogPdfName;
+          if (businessType && businessType !== 'auto') orgUpdate.business_type = businessType;
+
+          await supabaseAdmin.from('organizations').update(orgUpdate).eq('id', oid);
+
+          // 4. Wipe outdated conversation messages so previous discussion topics don't pollute the new catalog
+          if (resetConversations) {
+            const { data: convs } = await supabaseAdmin.from('conversations').select('id').eq('org_id', oid);
+            if (convs && convs.length > 0) {
+              const cIds = convs.map(c => c.id);
+              await supabaseAdmin.from('messages').delete().in('conversation_id', cIds);
+              await supabaseAdmin.from('conversations').update({ mode: 'auto', updated_at: new Date().toISOString() }).in('id', cIds);
+            }
+          }
+        } catch (orgSyncErr) {
+          addLog(`[Catalog Sync Error] Failed syncing org ${oid}: ${orgSyncErr.message}`);
+        }
+      }
+    }
+
+    // Update in-memory local state & config
+    if (Array.isArray(products) && products.length > 0) {
+      config.products = products.map((p, idx) => ({
+        id: p.sku || `prod_${idx}`,
+        name: p.name,
+        keywords: (p.name || '').toLowerCase().split(/\s+/).filter(w => w.length > 2),
+        catalogFile: catalogPdfName || 'Brochure.pdf',
+        priceRange: p.price_raw || 'Ask for Price',
+        model_specs: p.model_specs || ''
+      }));
+    }
+    if (companyName) config.companyName = companyName;
+    if (businessType && businessType !== 'auto') config.businessType = businessType;
+    try { saveConfig(config); } catch (e) {}
+
+    if (websiteKnowledge) {
+      try {
+        let catK = loadCatalogKnowledge();
+        catK.textKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${websiteKnowledge.slice(0, 30000)}`;
+        saveCatalogKnowledge(catK);
+      } catch (e) {}
+    }
+
+    // Invalidate RAM caches across all organizations
+    invalidateCache(null);
+    addLog(`[Catalog Sync] Flushed RAM cache and updated catalog for org: ${targetOrgId} (${products.length} products)`);
+    res.json({ ok: true, count: products.length, message: 'Catalog cache and database refreshed successfully' });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -2956,7 +2891,7 @@ Return a strict JSON object with this structure:
   ]
 }`;
 
-    const models = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite'];
+    const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
     for (const m of models) {
       try {
         const resp = await fetch(
@@ -3301,32 +3236,10 @@ async function initSupabaseWorker() {
               .eq('id', item.id);
             addLog(`[Supabase Worker] Outbound queue message delivered to +${targetPhone}`);
           } else {
-            // Also attempt fallback via primary socket if connected
-            if (sock && waState.status === 'connected') {
-              const jid = `${targetPhone}@s.whatsapp.net`;
-              if (item.pdf_url) {
-                const sent = await sock.sendMessage(jid, {
-                  document: { url: item.pdf_url },
-                  mimetype: 'application/pdf',
-                  fileName: item.pdf_name || 'Brochure.pdf',
-                  caption: item.message_text || ''
-                });
-                if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-              } else {
-                const sent = await sock.sendMessage(jid, { text: item.message_text });
-                if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-              }
-              await supabaseAdmin
-                .from('wa_outbound_queue')
-                .update({ status: 'sent', error_text: null })
-                .eq('id', item.id);
-              addLog(`[Supabase Worker] Outbound queue message delivered via primary socket to +${targetPhone}`);
-            } else {
-              await supabaseAdmin
-                .from('wa_outbound_queue')
-                .update({ status: 'failed', error_text: res.error || 'WhatsApp not connected' })
-                .eq('id', item.id);
-            }
+            await supabaseAdmin
+              .from('wa_outbound_queue')
+              .update({ status: 'failed', error_text: res.error || 'WhatsApp socket not connected for tenant' })
+              .eq('id', item.id);
           }
         } catch (sendErr) {
           await supabaseAdmin

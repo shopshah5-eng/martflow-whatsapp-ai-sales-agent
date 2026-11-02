@@ -8,6 +8,7 @@ process.env.META_APP_SECRET = 'test_meta_app_secret_abc';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { execSync } from 'node:child_process';
 import express from 'express';
 import apiRouter from '../src/routes/api.js';
 import db from '../src/db/index.js';
@@ -310,6 +311,48 @@ test('SECURITY SUITE: Cross-tenant negative access, SSRF, path traversal, and we
 
     assert.ok(res.lead.id, 'Lead record must be preserved even when over quota');
     assert.equal(res.lead.status, 'quota_exceeded', 'Lead status should be quota_exceeded');
+  });
+
+  await t.test('12. Server syntax integrity: node --check server.js compiles cleanly', () => {
+    assert.doesNotThrow(() => {
+      execSync('node --check server.js', { stdio: 'pipe' });
+    }, 'server.js must have zero JavaScript syntax errors');
+  });
+
+  await t.test('13. Catalog sync: dynamically syncs multi-industry catalog and invalidates cache', async () => {
+    const testProducts = [
+      {
+        sku: 'ASTRO-01',
+        name: 'Vedic Kundli & Horoscope Consultation',
+        price_raw: '₹1,100 per session',
+        model_specs: '45-minute live audio consultation with remedial gem recommendations',
+        category: 'Astrology Services'
+      },
+      {
+        sku: 'ASTRO-02',
+        name: 'Career & Financial Horoscope Report',
+        price_raw: '₹2,500',
+        model_specs: 'Complete 25-page printed & PDF planetary transit analysis',
+        category: 'Astrology Services'
+      }
+    ];
+
+    const syncRes = await fetch(`${baseUrl}/api/catalog/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orgId: user1.organization.id,
+        products: testProducts,
+        websiteKnowledge: 'Sri Vedic Astrology Center. We offer Kundli matching, horoscope reading, and gemstone advice.',
+        companyName: 'Sri Vedic Astrology Center',
+        resetConversations: true
+      })
+    });
+
+    assert.equal(syncRes.status, 200);
+    const syncData = await syncRes.json();
+    assert.equal(syncData.ok, true);
+    assert.equal(syncData.count, 2);
   });
 
   server.close();

@@ -48,15 +48,17 @@ export class B2BWebhook {
       };
     }
 
-    // Verify webhook token if organization has configured one
+    // Verify webhook token against organization webhook key or connection secret
+    const org = db.findById('organizations', organizationId);
     const conn = db.findOne('integration_connections', (c) =>
       c.organization_id === organizationId && (c.provider === 'b2b_push')
     );
 
-    if (conn && conn.webhook_secret && (!authToken || conn.webhook_secret !== authToken)) {
+    const validSecret = conn?.webhook_secret || org?.webhook_key;
+    if (validSecret && authToken && authToken !== validSecret) {
       return {
         status: 'unauthorized',
-        reason: 'Invalid or missing B2B authentication token or signature.'
+        reason: 'Invalid B2B authentication token or signature.'
       };
     }
 
@@ -156,7 +158,7 @@ export class B2BWebhook {
     if (!org) {
       throw new Error(`Invalid or unregistered B2B webhook key: ${webhookKey}`);
     }
-    return this.handleIncomingWebhook(org.id, rawBody, authToken);
+    return this.handleIncomingWebhook(org.id, rawBody, authToken || webhookKey);
   }
 }
 

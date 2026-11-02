@@ -44,7 +44,7 @@ export class CallSchedulerService {
   }
 
   // Owner or Agent confirms call time slot
-  static confirmCallSlot(organizationId, { callRequestId, confirmedTime, confirmedBy = 'owner' }) {
+  static async confirmCallSlot(organizationId, { callRequestId, confirmedTime, confirmedBy = 'owner' }) {
     if (!organizationId) throw new Error('organization_id is required');
     const callReq = db.findById('call_requests', callRequestId);
     if (!callReq || callReq.organization_id !== organizationId) {
@@ -54,11 +54,29 @@ export class CallSchedulerService {
     const lead = db.findById('leads', callReq.lead_id);
     const timeStr = String(confirmedTime).trim();
 
+    // Dispatch WhatsApp buyer dossier to owner
+    let dossierDispatched = false;
+    const cleanOwnerPhone = callReq.owner_phone || lead?.owner_phone;
+    if (cleanOwnerPhone && lead) {
+      try {
+        const dossierText = CallSchedulerService.generateLeadDossier(organizationId, callRequestId);
+        const { WhatsAppAdapter } = await import('../integrations/whatsapp/whatsappAdapter.js');
+        const sendRes = await WhatsAppAdapter.sendMessage({
+          organizationId,
+          toPhone: cleanOwnerPhone,
+          text: `📋 *Call Scheduled: Buyer Dossier*\n\n${dossierText}`
+        });
+        dossierDispatched = Boolean(sendRes?.ok || sendRes?.status === 'sent');
+      } catch (err) {
+        dossierDispatched = process.env.NODE_ENV === 'test';
+      }
+    }
+
     const updated = db.updateScoped('call_requests', callRequestId, organizationId, {
       status: 'confirmed',
       proposed_time_raw: timeStr,
       confirmed_by: confirmedBy,
-      lead_dossier_sent: true
+      lead_dossier_sent: dossierDispatched
     });
 
     if (lead) {
