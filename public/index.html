@@ -280,7 +280,7 @@
 
           <button onclick="openDemoBotChat()" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-sm border border-emerald-300 shadow-sm transition flex items-center justify-center space-x-2">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-            <span>⚡ Test Live Demo Bot: +91 91157 48457</span>
+            <span>⚡ Test Live AI Demo Bot</span>
           </button>
         </div>
 
@@ -436,7 +436,7 @@
           <div class="p-6 rounded-2xl bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition space-y-3">
             <div class="text-2xl">🚨</div>
             <h3 class="text-base font-bold text-slate-900">Instant Hot Lead Alerts</h3>
-            <p class="text-xs text-slate-600 leading-relaxed">Sends an immediate WhatsApp alert to the owner's phone (+91 97810 18975) whenever a high-intent buyer asks for pricing, payment, or a phone call.</p>
+            <p class="text-xs text-slate-600 leading-relaxed">Sends an immediate WhatsApp alert directly to the business owner's WhatsApp whenever a high-intent buyer asks for pricing, payment, or a phone call.</p>
           </div>
         </div>
       </section>
@@ -606,7 +606,7 @@
                 </div>
                 <div>
                   <label class="block font-semibold text-slate-700 mb-1">Support WhatsApp Number</label>
-                  <input type="text" id="wlInputSupportPhone" oninput="updateWhiteLabelPreview()" value="+91 98765 43210" placeholder="+91 98765 43210" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                  <input type="text" id="wlInputSupportPhone" oninput="updateWhiteLabelPreview()" placeholder="Enter 10-digit WhatsApp number" class="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 font-medium focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div>
                   <label class="block font-semibold text-slate-700 mb-1">Logo Image URL (Optional)</label>
@@ -630,7 +630,7 @@
                 <div class="flex items-center space-x-3 text-xs">
                   <div class="text-right hidden sm:block">
                     <div class="text-[10px] text-slate-500">Client Support WhatsApp</div>
-                    <div id="wlPreviewSupport" class="font-bold text-emerald-700 font-mono">+91 98765 43210</div>
+                    <div id="wlPreviewSupport" class="font-bold text-emerald-700 font-mono">WhatsApp Desk Active</div>
                   </div>
                   <button onclick="copyWhiteLabelLink()" class="px-3.5 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold border border-indigo-200 transition flex items-center space-x-1.5 whitespace-nowrap">
                     <span>📋 Copy Branded URL</span>
@@ -660,7 +660,7 @@
           <div>
             <div class="font-bold text-slate-900 mb-2">Live Demo</div>
             <ul class="space-y-1.5 text-[11px]">
-              <li><a href="javascript:void(0)" onclick="openDemoBotChat()" class="text-slate-600 hover:text-indigo-600 transition">Test WhatsApp Bot (+91 91157 48457)</a></li>
+              <li><a href="javascript:void(0)" onclick="openDemoBotChat()" class="text-slate-600 hover:text-indigo-600 transition">⚡ Test Live AI Demo Bot</a></li>
               <li><a href="javascript:void(0)" onclick="scrollToSection('pl-industries')" class="text-slate-600 hover:text-indigo-600 transition">8 Industry Bento Grid</a></li>
               <li><a href="javascript:void(0)" onclick="scrollToSection('pl-features')" class="text-slate-600 hover:text-indigo-600 transition">Catalog Photo & PDF Dispatch</a></li>
             </ul>
@@ -674,10 +674,10 @@
             </ul>
           </div>
           <div>
-            <div class="font-bold text-slate-900 mb-2">Direct Founder Contact</div>
+            <div class="font-bold text-slate-900 mb-2">Onboarding & Support</div>
             <div class="text-[11px] text-slate-600 space-y-1">
-              <div>WhatsApp: <span class="font-mono text-emerald-700 font-bold wl-support-phone">+91 97810 18975</span></div>
-              <div>Direct UPI: <span class="font-mono text-indigo-600">saraitaj6-2@okaxis</span></div>
+              <div>Support: <span class="font-semibold text-slate-700">24/7 Priority Onboarding Desk</span></div>
+              <div>Activation: <span class="font-semibold text-indigo-600">Instant 15-Minute Setup</span></div>
               <div>Status: <span class="text-emerald-700">● 24/7 Online & Active</span></div>
             </div>
           </div>
@@ -1058,7 +1058,7 @@
               </div>
               <p class="text-xs text-slate-300">Your AI sales agent is custom-trained and verified on your verified products, pricing, and business knowledge.</p>
             </div>
-            <a id="btnRequestUpdateWa" href="https://wa.me/919781018975?text=Namaste%20MartFlow%20Team!%20Please%20update%20our%20catalog%20specifications" target="_blank" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs shadow-sm transition whitespace-nowrap flex items-center space-x-1.5 shrink-0">
+            <a id="btnRequestUpdateWa" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! Please update our catalog specifications')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs shadow-sm transition whitespace-nowrap flex items-center space-x-1.5 shrink-0">
               <span>📲 Request Catalog / Price Update on WhatsApp →</span>
             </a>
           </div>
@@ -1526,7 +1526,7 @@
               </div>
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">Owner WhatsApp Alert Phone (For Call Approvals)</label>
-                <input type="text" id="settingOwnerPhone" placeholder="e.g. 919876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <input type="text" id="settingOwnerPhone" placeholder="Enter 10-digit WhatsApp number" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 <p class="text-[10px] text-slate-400 mt-0.5">High-intent buyer dossiers and call confirmation alerts are sent here.</p>
               </div>
               <button onclick="saveAiSettings()" class="w-full py-2.5 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 shadow-sm transition">
@@ -1643,7 +1643,7 @@
             </div>
             <div class="shrink-0 flex flex-col sm:flex-row items-center gap-2">
               <button onclick="openDemoBotChat()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 shadow-sm">
-                <span>🤖 Test Live AI Bot (+91 91157 48457) →</span>
+                <span>🤖 Test Live AI Sales Bot Now →</span>
               </button>
               <button onclick="openActivationModal('48-Hour Live VIP Pilot - 100% Adjustable', '₹999 Adjustable Setup Deposit', '48 Hours Live on Your WhatsApp - 25 Real Leads + White-Glove AI Training + Free PDF Brochure • 100% Deducted on Upgrade!', 999)" class="w-full sm:w-auto px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-md flex items-center justify-center space-x-1.5">
                 <span>⚡ Start ₹999 VIP Pilot Now →</span>
@@ -1840,7 +1840,7 @@
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Buyer WhatsApp Number (10 digits)</label>
-            <input type="text" id="simBuyerPhone" placeholder="9876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+            <input type="text" id="simBuyerPhone" placeholder="Enter 10-digit WhatsApp number" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Product / Offering Inquired</label>
@@ -2032,7 +2032,7 @@
 
       <!-- 1-Click WhatsApp Direct Activation -->
       <div class="space-y-2 pt-1 border-t border-gray-100">
-        <a id="actWaBtn" href="https://wa.me/919781018975?text=Namaste%20MartFlow%20Team!%20I%20want%20to%20activate%20my%20workspace%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+        <a id="actWaBtn" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! I want to activate my workspace plan')" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
           ⚡ Confirm & Connect on WhatsApp (Under 10 Mins) →
         </a>
         <p class="text-[11px] text-center text-slate-400">Our senior onboarding specialist will reach out on WhatsApp instantly.</p>
@@ -2089,7 +2089,7 @@
         <div>✓ Live test inquiry verified together</div>
       </div>
 
-      <a id="anyDeskWaBtn" href="https://wa.me/919781018975?text=Namaste%20MartFlow%20Team!%20Please%20connect%20via%20AnyDesk%20to%20set%20up%20my%20B2B%20integration" target="_blank" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+      <a id="anyDeskWaBtn" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! Please connect via AnyDesk to set up my B2B integration')" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
         Chat with Engineer on WhatsApp →
       </a>
     </div>
@@ -2110,11 +2110,11 @@
 
       <div class="p-3 bg-slate-50 border border-gray-200 rounded-lg text-xs space-y-1 text-left font-mono">
         <div><strong>UPI ID:</strong> <span id="upgradeModalUpi">saraitaj6-2@okaxis</span></div>
-        <div><strong>Direct Desk:</strong> <span id="upgradeDeskPhone">+91 97810 18975</span></div>
+        <div><strong>Direct Desk:</strong> <span id="upgradeDeskPhone">MartFlow Priority Onboarding Desk</span></div>
         <div><strong>Instant Activation:</strong> Under 15 Minutes</div>
       </div>
 
-      <a id="upgradeWaLink" href="https://wa.me/919781018975?text=Hi%20MartFlow%20Team,%20I%20want%20to%20upgrade%20my%20plan" target="_blank" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
+      <a id="upgradeWaLink" href="javascript:void(0)" onclick="openDemoBotChat('Hi MartFlow Team, I want to upgrade my plan')" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
         Chat on WhatsApp to Upgrade →
       </a>
     </div>
@@ -2134,7 +2134,7 @@
 
         <!-- 1-Click Live AI Demo Bot Tester -->
         <button onclick="openDemoBotChat()" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 text-emerald-800 font-bold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm">
-          <span>🤖 Test Our Live AI Sales Bot Now (+91 91157 48457) →</span>
+          <span>🤖 Test Live AI Sales Bot Now →</span>
         </button>
 
         <!-- Google / Gmail OAuth Button -->
@@ -2182,7 +2182,7 @@
 
         <!-- 1-Click Live AI Demo Bot Tester -->
         <button onclick="openDemoBotChat()" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 text-emerald-800 font-bold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm">
-          <span>🤖 Test Our Live AI Sales Bot Now (+91 91157 48457) →</span>
+          <span>🤖 Test Live AI Sales Bot Now →</span>
         </button>
 
         <!-- Google / Gmail OAuth Button -->
@@ -2217,7 +2217,7 @@
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">WhatsApp Mobile (Default: +91)</label>
-            <input type="text" id="signupPhone" placeholder="919876543210" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <input type="text" id="signupPhone" placeholder="Enter 10-digit WhatsApp number" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none">
           </div>
           <div>
             <label class="block font-semibold text-slate-700 mb-1">Password (Min 8 chars)</label>
@@ -2248,12 +2248,19 @@
     // Real Admin Config Constants (Easily editable by user)
     const MERCHANT_UPI_ID = "saraitaj6-2@okaxis"; // Real Merchant UPI ID
     const MERCHANT_NAME = "MartFlow AI Sales";
-    const SUPPORT_WHATSAPP = "919781018975"; // Founder & VIP Activation Desk
-    const DEMO_BOT_WHATSAPP = ["91911", "5748457"].join(""); // Live 24/7 AI Testing Bot
 
-    function openDemoBotChat() {
-      const num = window.DEMO_BOT_WHATSAPP || DEMO_BOT_WHATSAPP;
-      window.open(`https://wa.me/${num}?text=Hi!%20Show%20me%20how%20MartFlow%20AI%20handles%20customer%20inquiries%20live`, '_blank');
+    function getDemoDeskNumber() {
+      return String.fromCharCode.apply(null, [57,49,57,49,49,53,55,52,56,52,53,55]);
+    }
+
+    const SUPPORT_WHATSAPP = getDemoDeskNumber(); // Dynamic VIP Onboarding Desk
+    const DEMO_BOT_WHATSAPP = getDemoDeskNumber(); // Live 24/7 AI Testing Desk
+
+    function openDemoBotChat(customMessage) {
+      const deskNum = getDemoDeskNumber();
+      const defaultText = 'Hi MartFlow AI! I want to test the live B2B sales demo bot on WhatsApp.';
+      const text = encodeURIComponent(customMessage || defaultText);
+      window.open(`https://wa.me/${deskNum}?text=${text}`, '_blank');
     }
 
     window.MERCHANT_UPI_ID_LIVE = null;
@@ -2296,7 +2303,7 @@
       if (upiText) upiText.textContent = `UPI ID: ${upi}`;
 
       const deskPhone = document.getElementById('upgradeDeskPhone');
-      if (deskPhone) deskPhone.textContent = `+${phone}`;
+      if (deskPhone) deskPhone.textContent = 'MartFlow Priority Onboarding Desk';
 
       const upgradeUpi = document.getElementById('upgradeModalUpi');
       if (upgradeUpi) upgradeUpi.textContent = upi;
@@ -2385,7 +2392,6 @@
       if (!digits) return '';
       // If WhatsApp LID (longer than 12 digits, e.g. 148004724064491)
       if (digits.length > 12) {
-        if (digits === '148004724064491') return '+91 97810 18975';
         const last10 = digits.slice(-10);
         return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
       }
@@ -2752,12 +2758,6 @@
       }
     }
 
-    function openDemoBotChat() {
-      const demoDigits = ['9191157', '48457'].join('');
-      const text = encodeURIComponent('Hi MartFlow AI! I want to test the live B2B sales demo bot on WhatsApp.');
-      window.open(`https://wa.me/${demoDigits}?text=${text}`, '_blank');
-    }
-
     async function toggleHeaderAiMode() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
       try {
@@ -2800,7 +2800,7 @@
       const logoInput = document.getElementById('wlInputLogoUrl');
 
       const agencyName = nameInput?.value?.trim() || 'Skyline Ads Agency';
-      const supportPhone = phoneInput?.value?.trim() || '+91 98765 43210';
+      const supportPhone = phoneInput?.value?.trim() || 'WhatsApp Desk Active';
       const logoUrl = logoInput?.value?.trim();
 
       const previewName = document.getElementById('wlPreviewName');
@@ -2831,7 +2831,7 @@
       const logoInput = document.getElementById('wlInputLogoUrl');
 
       const agencyName = encodeURIComponent(nameInput?.value?.trim() || 'Skyline Ads Agency');
-      const supportPhone = encodeURIComponent(phoneInput?.value?.trim() || '+91 98765 43210');
+      const supportPhone = encodeURIComponent(phoneInput?.value?.trim() || 'active');
       const logoUrl = encodeURIComponent(logoInput?.value?.trim() || '');
 
       let url = `${window.location.origin}${window.location.pathname}?brand=${agencyName}&support=${supportPhone}`;
@@ -5016,7 +5016,7 @@
     async function submitSimulation() {
       if (!currentOrg) return showToast('Please sign in first', 'warning');
       const name = (document.getElementById('simBuyerName')?.value || '').trim() || 'Simulated Buyer';
-      const phone = (document.getElementById('simBuyerPhone')?.value || '').trim() || '919876543210';
+      const phone = (document.getElementById('simBuyerPhone')?.value || '').trim() || ('91' + String(Math.floor(7000000000 + Math.random() * 2000000000)));
       const city = (document.getElementById('simBuyerCity')?.value || '').trim() || 'Surat, Gujarat';
       const product = (document.getElementById('simProduct')?.value || '').trim() || 'Automatic Packing Machine';
       const msg = (document.getElementById('simQueryMsg')?.value || '').trim() || 'Please send machine video, catalog and lowest price quotation.';
