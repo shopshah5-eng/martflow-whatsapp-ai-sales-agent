@@ -670,20 +670,21 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         addLog(`[Human Takeover] Owner typed manually to customer +${recipientPhone}. Conversation set to manual.`);
       } catch (e) {}
     }
-    return;
+    // Only return if not testing in bot self-chat
+    if (!isSelfChat) {
+      return;
+    }
   }
 
-  // Ignore non-command messages from owner so bot never loops replying to owner
-  if (isFromOwner) {
-    return;
-  }
+  // NOTE: If isFromOwner is true, the owner is testing the bot from their personal number.
+  // Allow the message to flow into the AI sales engine so the owner receives real AI replies!
 
-  // Meta dual @lid + @s.whatsapp.net fingerprint cooldown (20 seconds)
+  // Meta dual @lid + @s.whatsapp.net fingerprint cooldown (10 seconds)
   const normText = (incomingText || '').trim().toLowerCase();
   const fpKey = `${orgId}:${senderPhone}:${normText}`;
   const now = Date.now();
-  if (recentInboundFingerprints.has(fpKey) && (now - recentInboundFingerprints.get(fpKey)) < 20000) {
-    addLog(`[Deduplication] Ignored duplicate Meta inbound event from +${senderPhone} within 20s.`);
+  if (recentInboundFingerprints.has(fpKey) && (now - recentInboundFingerprints.get(fpKey)) < 10000) {
+    addLog(`[Deduplication] Ignored duplicate Meta inbound event from +${senderPhone} within 10s.`);
     return;
   }
   recentInboundFingerprints.set(fpKey, now);
@@ -764,14 +765,21 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           return;
         }
 
-        if (existingConv?.mode === 'manual') {
+        if (isFromOwner || isSelfChat) {
+          if (existingConv && existingConv.mode === 'manual') {
+            existingConv.mode = 'auto';
+            if (supabaseAdmin && sbConvId) {
+              await supabaseAdmin.from('conversations').update({ mode: 'auto' }).eq('id', sbConvId);
+            }
+          }
+        } else if (existingConv?.mode === 'manual') {
           addLog(`[Manual Mode] Conversation for +${senderPhone} is paused in manual mode.`);
           return;
         }
 
         // Check lead quota for unpaid signups (main demo org is unlimited)
         const isMainDemo = orgId === '6fd354d9-3437-412d-856e-28bc19d44268' || freshOrg.is_unlimited === true || freshOrg.plan_status === 'active';
-        if (!isMainDemo) {
+        if (!isMainDemo && !isFromOwner && !isSelfChat) {
           const limit = freshOrg.monthly_lead_limit || 3;
           const used = freshOrg.leads_used || 0;
           const trialExpired = freshOrg.trial_ends_at && new Date(freshOrg.trial_ends_at) < new Date();
@@ -1345,7 +1353,7 @@ STRICT LENGTH RULE:
       .map(m => `${m.role === 'ai' || m.sender === 'ai' ? 'You' : 'Customer'}: ${m.text || m.content || ''}`)
       .join('\n');
 
-    const modelsToTry = ['gemini-flash-lite-latest', 'gemini-3.5-flash-lite', 'gemini-2.5-flash'];
+    const modelsToTry = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
     for (const model of modelsToTry) {
       try {
         const resp = await fetch(
