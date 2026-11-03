@@ -347,11 +347,11 @@
       <section class="pt-4 lg:pt-8">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
           
-          <!-- LEFT COLUMN: VALUE PROPOSITION & CTAs (lg:col-span-7) -->
+          <!-- LEFT COLUMN: VALUE PROPOSITION & DUAL CTAs (lg:col-span-7) -->
           <div class="lg:col-span-7 space-y-6 text-left">
             <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#F7FAF8] border border-[#E5EAE7] text-[#087F5B] text-xs font-semibold shadow-xs">
               <span class="w-2 h-2 rounded-full bg-[#10A37F] animate-pulse"></span>
-              <span class="tracking-wide">Autonomous WhatsApp Sales Infrastructure for B2B</span>
+              <span class="tracking-wide">Autonomous B2B WhatsApp Sales Executive</span>
             </div>
 
             <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#111827] leading-[1.12]">
@@ -362,22 +362,17 @@
               The 24/7 AI Sales Executive built for manufacturers, distributors, and wholesalers. Upload your product catalogue, answer buyer questions with exact specs and prices, and close orders automatically.
             </p>
 
-            <!-- TRIPLE CTAs -->
+            <!-- DUAL CTAs: 1 PRIMARY + 1 SECONDARY (NO CLUTTER) -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3.5 pt-2">
-              <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="group px-6 py-3.5 rounded-xl bg-[#087F5B] hover:bg-[#066548] text-white font-bold text-sm shadow-md shadow-[#087F5B]/20 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2">
+              <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="group px-7 py-4 rounded-xl bg-[#087F5B] hover:bg-[#066548] text-white font-bold text-sm shadow-md shadow-[#087F5B]/20 transition transform hover:-translate-y-0.5 flex items-center justify-center space-x-2">
                 <span>Start 48-Hour VIP Pilot (₹999 — 100% Adjusted)</span>
                 <svg class="w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </button>
 
-              <button onclick="openDemoBotChat()" class="group px-5 py-3.5 rounded-xl bg-[#F7FAF8] hover:bg-[#E5EAE7] text-[#087F5B] font-bold text-sm border border-[#E5EAE7] shadow-xs transition flex items-center justify-center space-x-2">
-                <span class="w-2 h-2 rounded-full bg-[#10A37F] animate-ping"></span>
-                <span>Watch Product Demo</span>
-                <svg class="w-4 h-4 text-[#087F5B] group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-              </button>
-
-              <button onclick="openAuthModal('signup')" class="px-5 py-3.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 font-bold text-sm border border-slate-200 shadow-xs transition flex items-center justify-center">
-                <span>Sign Up Free</span>
-              </button>
+              <a href="/pricing" onclick="event.preventDefault(); navigateTo('/pricing')" class="px-6 py-4 rounded-xl bg-[#F7FAF8] hover:bg-[#E5EAE7] text-[#087F5B] font-bold text-sm border border-[#E5EAE7] shadow-xs transition flex items-center justify-center space-x-2">
+                <span>Explore Plans &amp; Pricing</span>
+                <svg class="w-4 h-4 text-[#087F5B]" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
             </div>
 
             <!-- TRUST METRICS BAR -->
@@ -404,7 +399,7 @@
                 <div class="text-[11px] text-[#64748B] font-medium mt-0.5">Instant Spec Dispatch</div>
               </div>
               <div class="p-3.5 rounded-xl bg-[#F7FAF8] border border-[#E5EAE7] shadow-xs">
-                <div class="flex items-center space-x-1.5 text-[#111827] font-extrabold text-base">
+                <div class="flex items-center space-x-1.5 text-[#10A37F] font-extrabold text-base">
                   <svg class="w-4 h-4 text-[#10A37F] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                   <span>₹0 Setup Fee</span>
                 </div>
@@ -413,26 +408,15 @@
             </div>
           </div>
 
-          <!-- RIGHT COLUMN: ULTRA-REALISTIC PHONE MOCKUP (lg:col-span-5) -->
-          <div class="lg:col-span-5 relative flex justify-center">
-            <div class="relative w-full max-w-[390px]">
+          <!-- RIGHT COLUMN: PHOTOREALISTIC PHONE MOCKUP (lg:col-span-5) -->
+          <div class="lg:col-span-5 relative flex justify-center items-center">
+            <div class="relative w-full max-w-[460px] animate-float-phone">
               <!-- Ambient Emerald Glow Behind Mockup -->
-              <div class="absolute -top-6 -right-6 w-64 h-64 bg-[#10A37F]/15 rounded-full blur-3xl pointer-events-none"></div>
-              <div class="absolute -bottom-6 -left-6 w-64 h-64 bg-[#087F5B]/10 rounded-full blur-3xl pointer-events-none"></div>
+              <div class="absolute -top-6 -right-6 w-72 h-72 bg-[#10A37F]/15 rounded-full blur-3xl pointer-events-none"></div>
+              <div class="absolute -bottom-6 -left-6 w-72 h-72 bg-[#087F5B]/10 rounded-full blur-3xl pointer-events-none"></div>
 
-              <!-- Smartphone Frame Vector Asset -->
-              <div class="relative rounded-[40px] shadow-2xl border-4 border-slate-900 bg-slate-950 overflow-hidden transform hover:scale-[1.01] transition-transform duration-300">
-                <img src="/assets/hero-phone-mockup.svg" alt="MartFlow AI Live WhatsApp Dialogue Mockup" class="w-full h-auto block select-none" />
-              </div>
-
-              <!-- Floating Live Intent Pill -->
-              <div class="absolute -bottom-4 right-4 bg-white/95 backdrop-blur-md border border-[#E5EAE7] px-4 py-2.5 rounded-2xl shadow-xl flex items-center space-x-3 text-xs">
-                <div class="w-3 h-3 rounded-full bg-[#10A37F] animate-ping"></div>
-                <div>
-                  <div class="font-bold text-slate-900">Hot Lead Qualified</div>
-                  <div class="text-[10px] text-slate-500">500 Units • Owner Alert Sent</div>
-                </div>
-              </div>
+              <!-- Real Phone Mockup Asset -->
+              <img src="/assets/hero/hero-whatsapp.png" alt="MartFlow AI Live WhatsApp Dialogue Mockup" class="w-full h-auto object-contain select-none filter drop-shadow-2xl" loading="eager" />
             </div>
           </div>
 
@@ -512,8 +496,8 @@
           </div>
 
           <!-- Preview Graphic Mockup -->
-          <div class="rounded-xl overflow-hidden bg-slate-900 border border-slate-800">
-            <img src="/assets/dashboard-preview.svg" alt="MartFlow AI Dashboard Preview" class="w-full h-auto block select-none" />
+          <div class="rounded-xl overflow-hidden bg-white border border-[#E5EAE7] shadow-sm">
+            <img src="/assets/dashboard/dashboard-preview.png" alt="MartFlow AI Executive Dashboard Preview" class="w-full h-auto block select-none" loading="lazy" />
           </div>
         </div>
       </section>
@@ -521,149 +505,136 @@
       <!-- ===================================================================== -->
       <!-- 4. CORE CAPABILITIES (8 BENTO GRID CARDS)                             -->
       <!-- ===================================================================== -->
-      <section id="pl-features" class="space-y-12 scroll-mt-20">
+      <section id="pl-features" class="space-y-16 scroll-mt-20">
         <div class="text-center space-y-2 max-w-2xl mx-auto">
-          <div class="text-xs uppercase font-extrabold tracking-widest text-[#087F5B]">Engineered for Conversion</div>
-          <h2 class="text-2xl sm:text-4xl font-extrabold text-[#111827]">8 Core Capabilities Built for B2B Growth</h2>
-          <p class="text-xs sm:text-sm text-[#64748B]">Purpose-built tools to capture, qualify, and close enterprise inquiries without adding payroll.</p>
+          <div class="text-xs uppercase font-extrabold tracking-widest text-[#087F5B]">Engineered for B2B Growth</div>
+          <h2 class="text-2xl sm:text-4xl font-extrabold text-[#111827]">Built for Technical Sales &amp; Commercial Velocity</h2>
+          <p class="text-xs sm:text-sm text-[#64748B]">Purpose-built capabilities designed specifically to answer buyer specifications, dispatch technical brochures, and close wholesale deals.</p>
         </div>
 
-        <!-- VISUAL SHOWCASE BENTO: 5 CORE ENGINE ILLUSTRATIONS -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div class="lg:col-span-2 bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Neural Sales Core</span>
-                <h3 class="text-lg font-bold text-slate-900 mt-1">Instant Natural Language Spec & Price Matching</h3>
-              </div>
-              <span class="text-xs text-slate-500 font-medium">Sub-3s Response</span>
-            </div>
-            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
-              <img src="/assets/ai-assistant.svg" alt="MartFlow AI Neural Sales Core Diagram" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
-            </div>
-          </div>
-
-          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Catalogue Extraction</span>
-                <h3 class="text-lg font-bold text-slate-900 mt-1">PDF & Excel to SKU Database</h3>
-              </div>
-            </div>
-            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
-              <img src="/assets/catalogue-upload.svg" alt="MartFlow Smart Catalogue Upload & SKU Parser" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
-            </div>
-          </div>
-
-          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Qualification</span>
-                <h3 class="text-lg font-bold text-slate-900 mt-1">Commercial Lead Scoring</h3>
+        <!-- 4 ALTERNATING CORE DEMONSTRATIONS -->
+        <div class="space-y-16">
+          
+          <!-- FEATURE 1: AI SALES EXECUTIVE (Text Left, Image Right) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#F7FAF8]/70 border border-[#E5EAE7] rounded-3xl p-6 sm:p-10 shadow-xs">
+            <div class="lg:col-span-6 space-y-4 text-left">
+              <span class="text-[11px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-emerald-100 text-[#087F5B]">Capability 01</span>
+              <h3 class="text-2xl sm:text-3xl font-extrabold text-[#111827]">Autonomous B2B Conversations Grounded in Real Specs</h3>
+              <p class="text-sm text-[#64748B] leading-relaxed">
+                MartFlow answers inbound buyer questions in under 3 seconds in English, Hindi, and Hinglish. It reads tolerances, voltage ratings, material grades, and bulk discount brackets directly from your official data—with zero hallucination.
+              </p>
+              <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Sub-3s Response Speed</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>English, Hindi &amp; Hinglish</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>100% Catalog Grounded</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Night &amp; Weekend Coverage</span>
+                </div>
               </div>
             </div>
-            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
-              <img src="/assets/lead-management.svg" alt="B2B Lead Qualification Kanban" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
-            </div>
-          </div>
-
-          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Re-engagement</span>
-                <h3 class="text-lg font-bold text-slate-900 mt-1">Multi-Stage Follow-ups</h3>
+            <div class="lg:col-span-6 flex justify-center">
+              <div class="w-full rounded-2xl overflow-hidden bg-white border border-[#E5EAE7] shadow-sm">
+                <img src="/assets/features/ai-assistant.png" alt="AI Sales Executive Demo" class="w-full h-auto object-contain" loading="lazy">
               </div>
             </div>
-            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
-              <img src="/assets/automated-followup.svg" alt="Automated WhatsApp Follow-up Workflow" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
-            </div>
           </div>
 
-          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
-            <div class="flex items-center justify-between mb-4">
-              <div>
-                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Sales Calls</span>
-                <h3 class="text-lg font-bold text-slate-900 mt-1">Confirmed Owner Appointments</h3>
+          <!-- FEATURE 2: SMART CATALOGUE (Image Left, Text Right) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#F7FAF8]/70 border border-[#E5EAE7] rounded-3xl p-6 sm:p-10 shadow-xs">
+            <div class="lg:col-span-6 order-2 lg:order-1 flex justify-center">
+              <div class="w-full rounded-2xl overflow-hidden bg-white border border-[#E5EAE7] shadow-sm">
+                <img src="/assets/features/catalogue-upload.png" alt="Smart Product Catalogue Ingestion" class="w-full h-auto object-contain" loading="lazy">
               </div>
             </div>
-            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
-              <img src="/assets/appointment-booking.svg" alt="Two-Way Consultation Call Scheduler" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
+            <div class="lg:col-span-6 order-1 lg:order-2 space-y-4 text-left">
+              <span class="text-[11px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-emerald-100 text-[#087F5B]">Capability 02</span>
+              <h3 class="text-2xl sm:text-3xl font-extrabold text-[#111827]">From Raw PDF Brochures &amp; Excel to Structured SKUs</h3>
+              <p class="text-sm text-[#64748B] leading-relaxed">
+                Simply upload your existing product catalogues, price lists, or CSV spreadsheets. MartFlow extracts product models, MOQs, specifications, and CAD drawings into an indexed knowledge engine ready for instant WhatsApp dispatch.
+              </p>
+              <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>PDF Brochure Ingestion</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Excel &amp; CSV Price Sheets</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>MOQ &amp; Volume Tiering</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Instant PDF Attachments</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          <!-- Card 1: AI WhatsApp Sales Executive -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-            </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">24/7 AI Sales Executive</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Responds to inquiries in under 3 seconds in English, Hindi, and Hinglish. Never miss night-shift or weekend buyer enquiries.</p>
-          </div>
-
-          <!-- Card 2: Smart Product Catalogue -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-            </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">Smart Product Catalogue</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Ingests PDF brochures, Excel price lists, and CSV sheets. Extracts technical specs, models, prices, and MOQs instantly.</p>
           </div>
 
-          <!-- Card 3: Automatic Lead Qualification -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+          <!-- FEATURE 3: LEAD QUALIFICATION (Text Left, Image Right) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#F7FAF8]/70 border border-[#E5EAE7] rounded-3xl p-6 sm:p-10 shadow-xs">
+            <div class="lg:col-span-6 space-y-4 text-left">
+              <span class="text-[11px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-emerald-100 text-[#087F5B]">Capability 03</span>
+              <h3 class="text-2xl sm:text-3xl font-extrabold text-[#111827]">Separate High-Volume Orders From Casual Browsers</h3>
+              <p class="text-sm text-[#64748B] leading-relaxed">
+                MartFlow continuously calculates buyer intent based on required quantity, technical alignment, and purchasing urgency. Hot qualified buyers trigger instant priority notifications to the business owner with pre-filled dossiers.
+              </p>
+              <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Commercial Intent Scoring</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Owner WhatsApp Alerts</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Pipeline Status Tracking</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>1-Click CSV Export</span>
+                </div>
+              </div>
             </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">Automatic Lead Scoring</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Scores intent based on purchase volume, budget, and timeline. Automatically tags leads as Hot, Warm, or Cold.</p>
+            <div class="lg:col-span-6 flex justify-center">
+              <div class="w-full rounded-2xl overflow-hidden bg-white border border-[#E5EAE7] shadow-sm">
+                <img src="/assets/features/lead-management.png" alt="Commercial Lead Qualification Pipeline" class="w-full h-auto object-contain" loading="lazy">
+              </div>
+            </div>
           </div>
 
-          <!-- Card 4: AI Product Knowledge & Search -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <!-- FEATURE 4: AUTOMATIONS & CALL BOOKING (Image Left, Text Right) -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[#F7FAF8]/70 border border-[#E5EAE7] rounded-3xl p-6 sm:p-10 shadow-xs">
+            <div class="lg:col-span-6 order-2 lg:order-1 flex justify-center">
+              <div class="w-full rounded-2xl overflow-hidden bg-white border border-[#E5EAE7] shadow-sm">
+                <img src="/assets/features/automation-booking.png" alt="Automations & Two-Way Call Booking" class="w-full h-auto object-contain" loading="lazy">
+              </div>
             </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">Technical Spec Answering</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Answers complex technical questions on tolerances, voltage, material grades, and bulk discount brackets accurately.</p>
+            <div class="lg:col-span-6 order-1 lg:order-2 space-y-4 text-left">
+              <span class="text-[11px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-emerald-100 text-[#087F5B]">Capability 04</span>
+              <h3 class="text-2xl sm:text-3xl font-extrabold text-[#111827]">Timed WhatsApp Sequences &amp; Confirmed Consultation Slots</h3>
+              <p class="text-sm text-[#64748B] leading-relaxed">
+                Never lose a deal to silence. MartFlow triggers intelligent re-engagement nudges at T+2h and T+24h, offers physical sample shipments, and locks confirmed 15-minute technical review phone calls directly on WhatsApp.
+              </p>
+              <div class="grid grid-cols-2 gap-3 pt-2 text-xs">
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>T+2h / T+24h Follow-ups</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Two-Way Calendar Sync</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Sample Request Handling</span>
+                </div>
+                <div class="flex items-center space-x-2 font-semibold text-slate-700">
+                  <span class="text-[#087F5B] font-bold">✓</span><span>Seamless Human Takeover</span>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Card 5: Automated Follow-ups -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">Automated Smart Follow-ups</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Re-engages dormant buyers with timed catalogue updates and custom quotes to revive stale B2B purchase cycles.</p>
-          </div>
-
-          <!-- Card 6: Two-Way Sales Call Scheduling -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
-            </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">Two-Way Call Booking</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Coordinates calendar availability directly over WhatsApp and locks confirmed phone consultation slots with your senior sales team.</p>
-          </div>
-
-          <!-- Card 7: Lead Management Pipeline -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-            </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">Lead Pipeline &amp; CSV Export</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Centralized view of every buyer contact, conversation history, and requirement dossier with one-click secure CSV export.</p>
-          </div>
-
-          <!-- Card 8: Real-Time Sales Analytics -->
-          <div class="p-5 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs hover:border-[#087F5B]/40 hover:shadow-md transition group">
-            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-[#087F5B] border border-emerald-100 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-            </div>
-            <h3 class="text-base font-bold text-[#111827] group-hover:text-[#087F5B] transition">Real-Time Conversion Analytics</h3>
-            <p class="text-xs text-[#64748B] mt-2 leading-relaxed">Live dashboards tracking inquiry volume, qualification ratios, response speed, top demanded SKUs, and sales velocity.</p>
-          </div>
         </div>
       </section>
 
@@ -707,74 +678,66 @@
       <!-- ===================================================================== -->
       <!-- 6. BUILT FOR EVERY B2B INDUSTRY (6 VERTICAL CARDS)                    -->
       <!-- ===================================================================== -->
-      <section id="pl-industries" class="space-y-8 scroll-mt-20">
+      <section id="pl-industries" class="space-y-12 scroll-mt-20">
         <div class="text-center space-y-2 max-w-2xl mx-auto">
           <div class="text-xs uppercase font-extrabold tracking-widest text-[#087F5B]">Tailored Intelligence</div>
-          <h2 class="text-2xl sm:text-4xl font-extrabold text-[#111827]">Trained for 6 Core B2B Sectors</h2>
+          <h2 class="text-2xl sm:text-4xl font-extrabold text-[#111827]">Proven Across Core B2B Sectors</h2>
           <p class="text-xs sm:text-sm text-[#64748B]">Specialized sales vocabulary, unit metrics, and quotation logic tailored to each vertical.</p>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
-            <div>
-              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Heavy Machinery</div>
-              <h3 class="text-base font-bold text-[#111827] mt-1">Manufacturers &amp; Machinery</h3>
-              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Packaging machines, CNC tools, ribbon blenders, injection molding. Answers motor ratings, throughput speed, power specs, and dispatches technical drawings.</p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+          
+          <!-- Industry 1: Manufacturing -->
+          <div class="bg-white border border-[#E5EAE7] rounded-3xl overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between">
+            <div class="aspect-[16/10] overflow-hidden bg-slate-900 border-b border-[#E5EAE7]">
+              <img src="/assets/industries/manufacturing.webp" alt="Heavy Manufacturing & Machining" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" loading="lazy">
             </div>
-            <div class="pt-3 border-t border-slate-100">
-              <img src="/assets/manufacturing.svg" alt="Manufacturing Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
-            </div>
-          </div>
-
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
-            <div>
-              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">B2B Trade &amp; Distribution</div>
-              <h3 class="text-base font-bold text-[#111827] mt-1">Wholesale Distributors &amp; Stockists</h3>
-              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Bulk FMCG, stationery, automotive spares, apparel lots. Handles carton quantity minimums, distributor tier discounts, and stock availability.</p>
-            </div>
-            <div class="pt-3 border-t border-slate-100">
-              <img src="/assets/wholesale.svg" alt="Wholesale Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            <div class="p-6 space-y-3 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B]">Heavy Industry</span>
+                <h3 class="text-lg font-bold text-[#111827] mt-1">Manufacturers &amp; Machinery</h3>
+                <p class="text-xs text-[#64748B] leading-relaxed mt-1">Packaging machines, CNC tools, ribbon blenders, injection molding. Answers motor ratings, throughput speed, power specs, and dispatches technical drawings.</p>
+              </div>
+              <div class="pt-3 border-t border-slate-100 text-xs font-semibold text-[#087F5B]">
+                ⚡ 300 - 1,500 Inquiries/mo Handled
+              </div>
             </div>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
-            <div>
-              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Components &amp; Automation</div>
-              <h3 class="text-base font-bold text-[#111827] mt-1">Electricals &amp; Industrial Electronics</h3>
-              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Relays, contactors, LED drivers, switchgear, PLCs. Provides voltage ratings, coil resistances, pin configurations, and PDF component datasheets.</p>
+          <!-- Industry 2: Wholesale Distribution -->
+          <div class="bg-white border border-[#E5EAE7] rounded-3xl overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between">
+            <div class="aspect-[16/10] overflow-hidden bg-slate-900 border-b border-[#E5EAE7]">
+              <img src="/assets/industries/wholesale.webp" alt="Wholesale Distribution & Trading" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" loading="lazy">
             </div>
-            <div class="pt-3 border-t border-slate-100">
-              <img src="/assets/electrical.svg" alt="Electrical Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
-            </div>
-          </div>
-
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
-            <div>
-              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Paper &amp; Polymers</div>
-              <h3 class="text-base font-bold text-[#111827] mt-1">Packaging Materials &amp; Printing</h3>
-              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Corrugated master cartons, bopp tapes, bubble rolls, printed pouches. Calculates GSM specs, bursting strength, custom printing MOQs, and dispatch timelines.</p>
-            </div>
-            <div class="pt-3 border-t border-slate-100">
-              <img src="/assets/packaging.svg" alt="Packaging Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            <div class="p-6 space-y-3 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B]">B2B Trading</span>
+                <h3 class="text-lg font-bold text-[#111827] mt-1">Wholesale Distributors &amp; Stockists</h3>
+                <p class="text-xs text-[#64748B] leading-relaxed mt-1">Bulk commodities, hardware, stationery, apparel lots. Handles carton quantity minimums, distributor tier discounts, and stock availability.</p>
+              </div>
+              <div class="pt-3 border-t border-slate-100 text-xs font-semibold text-[#087F5B]">
+                ⚡ 500 - 3,000 Inquiries/mo Handled
+              </div>
             </div>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
-            <div>
-              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Construction &amp; Architectural</div>
-              <h3 class="text-base font-bold text-[#111827] mt-1">Industrial Supplies &amp; Hardware</h3>
-              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Valves, flanges, fasteners, stainless steel pipes, sanitaryware. Answers grade certifications, container load volumes, and contractor quote requests.</p>
+          <!-- Industry 3: Industrial Supplies -->
+          <div class="bg-white border border-[#E5EAE7] rounded-3xl overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between">
+            <div class="aspect-[16/10] overflow-hidden bg-slate-900 border-b border-[#E5EAE7]">
+              <img src="/assets/industries/industrial-supplies.webp" alt="Industrial Supplies & Equipment" class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" loading="lazy">
             </div>
-            <div class="pt-3 border-t border-slate-100">
-              <img src="/assets/industrial-supplies.svg" alt="Industrial Supplies Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            <div class="p-6 space-y-3 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B]">Engineering Supplies</span>
+                <h3 class="text-lg font-bold text-[#111827] mt-1">Industrial Supplies &amp; Hardware</h3>
+                <p class="text-xs text-[#64748B] leading-relaxed mt-1">Valves, flanges, fasteners, bearings, pipes, fittings, gaskets, and switchgear. Sends technical datasheets, grade certifications, and lot pricing.</p>
+              </div>
+              <div class="pt-3 border-t border-slate-100 text-xs font-semibold text-[#087F5B]">
+                ⚡ 400 - 2,000 Inquiries/mo Handled
+              </div>
             </div>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3">
-            <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Process &amp; Specialty</div>
-            <h3 class="text-base font-bold text-[#111827]">Chemicals &amp; Pharmaceuticals</h3>
-            <p class="text-xs text-[#64748B] leading-relaxed">Industrial solvents, food ingredients, active pharma intermediates. Sends Certificate of Analysis (COA), MSDS sheets, purity grades, and drum packaging details.</p>
-          </div>
         </div>
       </section>
 
@@ -4935,7 +4898,29 @@
       }
     }
 
+    async 
+    function mobileBackToInbox() {
+      const view = document.getElementById('view-conversations');
+      if (view) view.classList.remove('mobile-thread-active');
+      const listCol = document.getElementById('conversationsListCol');
+      const detailCol = document.getElementById('conversationDetailCol');
+      if (listCol) {
+        listCol.classList.remove('hidden');
+        listCol.classList.add('flex');
+      }
+      if (detailCol) {
+        detailCol.classList.add('hidden');
+        detailCol.classList.remove('flex');
+      }
+    }
+
     async function selectConversation(convId, silent = false) {
+      if (window.innerWidth < 768) {
+        const threadList = document.getElementById('convThreadPanel');
+        const chatDetail = document.getElementById('convChatPanel');
+        if (threadList) threadList.classList.add('hidden');
+        if (chatDetail) chatDetail.classList.remove('hidden');
+      }
       activeConversationId = convId;
       const chatBox = document.getElementById('chatMessagesStream');
       if (!chatBox) return;

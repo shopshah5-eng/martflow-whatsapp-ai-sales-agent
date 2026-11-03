@@ -291,3 +291,35 @@ body {
   }
 }
 
+/* Subtle floating phone animation */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-float-phone {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+/* Responsive Mobile Inbox layout transitions */
+@media (max-width: 1023px) {
+  .mobile-inbox-list {
+    width: 100% !important;
+    display: flex !important;
+  }
+  .mobile-inbox-thread {
+    width: 100% !important;
+  }
+  .mobile-thread-active #conversationsListCol {
+    display: none !important;
+  }
+  .mobile-thread-active #conversationDetailCol {
+    display: flex !important;
+  }
+}
+
+
