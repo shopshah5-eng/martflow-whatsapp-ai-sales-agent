@@ -280,12 +280,11 @@
 
     <!-- Middle Public Nav Links (visible when logged out) -->
     <nav id="publicNavLinks" class="hidden lg:flex items-center space-x-7 text-xs font-semibold text-slate-600">
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-features')" class="nav-glide-link hover:text-[#087F5B] transition">Features</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-how-it-works')" class="nav-glide-link hover:text-[#087F5B] transition">How It Works</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-industries')" class="nav-glide-link hover:text-[#087F5B] transition">Industries</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-pricing')" class="nav-glide-link hover:text-[#087F5B] transition">Pricing</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-about')" class="nav-glide-link hover:text-[#087F5B] transition">About Us</a>
-      <a href="javascript:void(0)" onclick="scrollToSection('pl-contact')" class="nav-glide-link hover:text-[#087F5B] transition">Contact</a>
+      <a href="/features" onclick="event.preventDefault(); navigateTo('/features')" class="nav-glide-link hover:text-[#087F5B] transition">Features</a>
+      <a href="/industries" onclick="event.preventDefault(); navigateTo('/industries')" class="nav-glide-link hover:text-[#087F5B] transition">Industries</a>
+      <a href="/pricing" onclick="event.preventDefault(); navigateTo('/pricing')" class="nav-glide-link hover:text-[#087F5B] transition">Pricing</a>
+      <a href="/about" onclick="event.preventDefault(); navigateTo('/about')" class="nav-glide-link hover:text-[#087F5B] transition">About Us</a>
+      <a href="/contact" onclick="event.preventDefault(); navigateTo('/contact')" class="nav-glide-link hover:text-[#087F5B] transition">Contact</a>
       <a href="javascript:void(0)" onclick="scrollToSection('pl-faq')" class="nav-glide-link hover:text-[#087F5B] transition">FAQ</a>
     </nav>
 
@@ -314,11 +313,11 @@
           <svg class="w-3.5 h-3.5 text-[#087F5B] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           <span>Live Demo</span>
         </button>
-        <button onclick="openAuthModal('login')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</button>
-        <button onclick="openAuthModal('signup')" class="hidden sm:inline-flex text-xs font-semibold px-4 py-1.5 rounded-lg bg-[#087F5B] text-white hover:bg-[#066649] shadow-xs transition items-center space-x-1.5">
+        <a href="/login" onclick="event.preventDefault(); navigateTo('/login')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</a>
+        <a href="/signup" onclick="event.preventDefault(); navigateTo('/signup')" class="hidden sm:inline-flex text-xs font-semibold px-4 py-1.5 rounded-lg bg-[#087F5B] text-white hover:bg-[#066649] shadow-xs transition items-center space-x-1.5">
           <span>Start Free Trial</span>
           <svg class="w-3.5 h-3.5 text-white/90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </button>
+        </a>
       </div>
 
       <div id="userProfileBadge" class="hidden items-center space-x-3">
@@ -522,11 +521,75 @@
       <!-- ===================================================================== -->
       <!-- 4. CORE CAPABILITIES (8 BENTO GRID CARDS)                             -->
       <!-- ===================================================================== -->
-      <section id="pl-features" class="space-y-8 scroll-mt-20">
+      <section id="pl-features" class="space-y-12 scroll-mt-20">
         <div class="text-center space-y-2 max-w-2xl mx-auto">
           <div class="text-xs uppercase font-extrabold tracking-widest text-[#087F5B]">Engineered for Conversion</div>
           <h2 class="text-2xl sm:text-4xl font-extrabold text-[#111827]">8 Core Capabilities Built for B2B Growth</h2>
           <p class="text-xs sm:text-sm text-[#64748B]">Purpose-built tools to capture, qualify, and close enterprise inquiries without adding payroll.</p>
+        </div>
+
+        <!-- VISUAL SHOWCASE BENTO: 5 CORE ENGINE ILLUSTRATIONS -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Neural Sales Core</span>
+                <h3 class="text-lg font-bold text-slate-900 mt-1">Instant Natural Language Spec & Price Matching</h3>
+              </div>
+              <span class="text-xs text-slate-500 font-medium">Sub-3s Response</span>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
+              <img src="/assets/ai-assistant.svg" alt="MartFlow AI Neural Sales Core Diagram" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Catalogue Extraction</span>
+                <h3 class="text-lg font-bold text-slate-900 mt-1">PDF & Excel to SKU Database</h3>
+              </div>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
+              <img src="/assets/catalogue-upload.svg" alt="MartFlow Smart Catalogue Upload & SKU Parser" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Qualification</span>
+                <h3 class="text-lg font-bold text-slate-900 mt-1">Commercial Lead Scoring</h3>
+              </div>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
+              <img src="/assets/lead-management.svg" alt="B2B Lead Qualification Kanban" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Re-engagement</span>
+                <h3 class="text-lg font-bold text-slate-900 mt-1">Multi-Stage Follow-ups</h3>
+              </div>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
+              <img src="/assets/automated-followup.svg" alt="Automated WhatsApp Follow-up Workflow" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-[#E5EAE7] p-6 shadow-xs hover:shadow-md transition">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Sales Calls</span>
+                <h3 class="text-lg font-bold text-slate-900 mt-1">Confirmed Owner Appointments</h3>
+              </div>
+            </div>
+            <div class="rounded-xl overflow-hidden border border-slate-100 bg-[#F7FAF8]">
+              <img src="/assets/appointment-booking.svg" alt="Two-Way Consultation Call Scheduler" class="w-full h-auto max-h-[340px] object-contain mx-auto" loading="lazy">
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -652,34 +715,59 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3">
-            <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Heavy Machinery</div>
-            <h3 class="text-base font-bold text-[#111827]">Manufacturers &amp; Machinery</h3>
-            <p class="text-xs text-[#64748B] leading-relaxed">Packaging machines, CNC tools, ribbon blenders, injection molding. Answers motor ratings, throughput speed, power specs, and dispatches technical drawings.</p>
+          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Heavy Machinery</div>
+              <h3 class="text-base font-bold text-[#111827] mt-1">Manufacturers &amp; Machinery</h3>
+              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Packaging machines, CNC tools, ribbon blenders, injection molding. Answers motor ratings, throughput speed, power specs, and dispatches technical drawings.</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+              <img src="/assets/manufacturing.svg" alt="Manufacturing Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            </div>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3">
-            <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">B2B Trade &amp; Distribution</div>
-            <h3 class="text-base font-bold text-[#111827]">Wholesale Distributors &amp; Stockists</h3>
-            <p class="text-xs text-[#64748B] leading-relaxed">Bulk FMCG, stationery, automotive spares, apparel lots. Handles carton quantity minimums, distributor tier discounts, and stock availability.</p>
+          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">B2B Trade &amp; Distribution</div>
+              <h3 class="text-base font-bold text-[#111827] mt-1">Wholesale Distributors &amp; Stockists</h3>
+              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Bulk FMCG, stationery, automotive spares, apparel lots. Handles carton quantity minimums, distributor tier discounts, and stock availability.</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+              <img src="/assets/wholesale.svg" alt="Wholesale Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            </div>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3">
-            <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Components &amp; Automation</div>
-            <h3 class="text-base font-bold text-[#111827]">Electricals &amp; Industrial Electronics</h3>
-            <p class="text-xs text-[#64748B] leading-relaxed">Relays, contactors, LED drivers, switchgear, PLCs. Provides voltage ratings, coil resistances, pin configurations, and PDF component datasheets.</p>
+          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Components &amp; Automation</div>
+              <h3 class="text-base font-bold text-[#111827] mt-1">Electricals &amp; Industrial Electronics</h3>
+              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Relays, contactors, LED drivers, switchgear, PLCs. Provides voltage ratings, coil resistances, pin configurations, and PDF component datasheets.</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+              <img src="/assets/electrical.svg" alt="Electrical Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            </div>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3">
-            <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Paper &amp; Polymers</div>
-            <h3 class="text-base font-bold text-[#111827]">Packaging Materials &amp; Printing</h3>
-            <p class="text-xs text-[#64748B] leading-relaxed">Corrugated master cartons, bopp tapes, bubble rolls, printed pouches. Calculates GSM specs, bursting strength, custom printing MOQs, and dispatch timelines.</p>
+          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Paper &amp; Polymers</div>
+              <h3 class="text-base font-bold text-[#111827] mt-1">Packaging Materials &amp; Printing</h3>
+              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Corrugated master cartons, bopp tapes, bubble rolls, printed pouches. Calculates GSM specs, bursting strength, custom printing MOQs, and dispatch timelines.</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+              <img src="/assets/packaging.svg" alt="Packaging Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            </div>
           </div>
 
-          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3">
-            <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Construction &amp; Architectural</div>
-            <h3 class="text-base font-bold text-[#111827]">Building Materials &amp; Hardware</h3>
-            <p class="text-xs text-[#64748B] leading-relaxed">Ceramic tiles, sanitaryware, stainless steel pipes, fasteners. Answers grade certifications, container load volumes, and contractor quote requests.</p>
+          <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3 flex flex-col justify-between">
+            <div>
+              <div class="text-xs font-bold text-[#087F5B] uppercase tracking-wider">Construction &amp; Architectural</div>
+              <h3 class="text-base font-bold text-[#111827] mt-1">Industrial Supplies &amp; Hardware</h3>
+              <p class="text-xs text-[#64748B] leading-relaxed mt-2">Valves, flanges, fasteners, stainless steel pipes, sanitaryware. Answers grade certifications, container load volumes, and contractor quote requests.</p>
+            </div>
+            <div class="pt-3 border-t border-slate-100">
+              <img src="/assets/industrial-supplies.svg" alt="Industrial Supplies Visual" class="w-full h-auto max-h-40 object-contain rounded-lg" loading="lazy">
+            </div>
           </div>
 
           <div class="p-6 rounded-2xl bg-white border border-[#E5EAE7] shadow-xs space-y-3">
@@ -1245,12 +1333,12 @@
       <div class="p-4 space-y-1 overflow-y-auto custom-scroll">
         <div class="text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Workspace</div>
 
-        <button onclick="switchView('dashboard')" id="nav-dashboard" class="nav-item active w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/overview')" id="nav-dashboard" class="nav-item active w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
           <span>Dashboard</span>
         </button>
 
-        <button onclick="switchView('leads')" id="nav-leads" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/leads')" id="nav-leads" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <div class="flex items-center space-x-3">
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
             <span>Leads</span>
@@ -1258,39 +1346,39 @@
           <span id="badgeLeadCount" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span><span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span>
         </button>
 
-        <button onclick="switchView('conversations')" id="nav-conversations" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/inbox')" id="nav-conversations" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
           <span>Conversations</span>
         </button>
 
-        <button onclick="switchView('catalog')" id="nav-catalog" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/catalogue')" id="nav-catalog" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
           <span id="navCatalogText">Product Catalog</span>
         </button>
 
-        <button onclick="switchView('whatsapp')" id="nav-whatsapp" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/ai-assistant')" id="nav-whatsapp" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
           <span>WhatsApp Setup</span>
         </button>
 
-        <button onclick="switchView('calls')" id="nav-calls" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/appointments')" id="nav-calls" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
           <span>Call Scheduler</span>
         </button>
 
-        <button onclick="switchView('analytics')" id="nav-analytics" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/analytics')" id="nav-analytics" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
           <span>Analytics</span>
         </button>
 
         <div class="pt-4 text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Settings & Plan</div>
 
-        <button onclick="switchView('settings')" id="nav-settings" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/settings')" id="nav-settings" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
           <span>Company Settings</span>
         </button>
 
-        <button onclick="switchView('billing')" id="nav-billing" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+        <button onclick="navigateTo('/dashboard/billing')" id="nav-billing" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
           <div class="flex items-center space-x-3">
             <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
             <span>Membership & Plan</span>
@@ -1298,7 +1386,7 @@
           <span id="navBillingBadge" class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">TRIAL</span>
         </button>
 
-        <button onclick="switchView('engineer')" id="nav-engineer" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-[#087F5B] bg-[#F7FAF8] hover:bg-indigo-100 transition hidden">
+        <button onclick="navigateTo('/admin')" id="nav-engineer" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-[#087F5B] bg-[#F7FAF8] hover:bg-indigo-100 transition hidden">
           <span class="text-xs">🛠️</span>
           <span class="font-semibold text-xs">Engineer Console</span>
         </button>
@@ -1321,7 +1409,7 @@
     <main class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-8 bg-[#fafafa]">
 
       <!-- TOP TRIAL STATUS BAR (48-HOUR LIVE TRIAL BANNER) -->
-      <div id="trialStatusBar" class="mb-5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 border border-[#087F5B]/30 rounded-xl p-3.5 text-white shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div id="trialStatusBar" class="mb-5 bg-emerald-50/90 border border-emerald-200/80 rounded-xl p-3.5 text-emerald-950 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         <div class="flex items-center space-x-3 text-xs w-full sm:w-auto">
           <span class="flex h-2.5 w-2.5 relative shrink-0">
             <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -1349,26 +1437,26 @@
       <!-- ============================================== -->
       <section id="view-dashboard" class="view-panel space-y-6">
         <!-- EXECUTIVE OVERVIEW BANNER (FOR CLIENTS) -->
-        <div id="dashExecutiveBanner" class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800 space-y-4">
+        <div id="dashExecutiveBanner" class="bg-white border border-[#E5EAE7] rounded-2xl p-5 lg:p-6 text-slate-900 shadow-xs space-y-4">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Autonomous Sales Active</span>
-              <h2 class="text-lg lg:text-xl font-bold mt-1">⚡ 24×7 Autonomous WhatsApp AI Sales Desk</h2>
-              <p class="text-xs text-slate-300 mt-0.5">Instant catalog dispatch, buyer qualification, and consultation booking active around the clock.</p>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Autonomous Sales Engine Active</span>
+              <h2 class="text-lg lg:text-xl font-bold text-slate-900 mt-1">⚡ 24×7 Autonomous WhatsApp AI Sales Desk</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Instant catalog dispatch, buyer qualification, and consultation booking active around the clock.</p>
             </div>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-slate-800">
-            <div onclick="switchView('whatsapp')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
-              <div class="text-xs font-bold text-emerald-300">1. WhatsApp Device Connection</div>
-              <p class="text-[11px] text-slate-400 mt-1">Manage paired business SIM and socket status.</p>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-[#E5EAE7]">
+            <div onclick="navigateTo('/dashboard/ai-assistant')" class="bg-[#F7FAF8] hover:bg-emerald-50/50 border border-[#E5EAE7] rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-[#087F5B]">1. WhatsApp Device Connection</div>
+              <p class="text-[11px] text-slate-500 mt-1">Manage paired business SIM and socket status.</p>
             </div>
-            <div onclick="switchView('conversations')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
-              <div class="text-xs font-bold text-indigo-300">2. View Live Buyer Chats</div>
-              <p class="text-[11px] text-slate-400 mt-1">Inspect real-time AI replies and manual overrides.</p>
+            <div onclick="navigateTo('/dashboard/inbox')" class="bg-[#F7FAF8] hover:bg-emerald-50/50 border border-[#E5EAE7] rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-slate-800">2. View Live Buyer Chats</div>
+              <p class="text-[11px] text-slate-500 mt-1">Inspect real-time AI replies and manual overrides.</p>
             </div>
-            <div onclick="switchView('calls')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
-              <div class="text-xs font-bold text-amber-300">3. Scheduled Owner Calls</div>
-              <p class="text-[11px] text-slate-400 mt-1">Confirm consultation slots requested by buyers.</p>
+            <div onclick="navigateTo('/dashboard/appointments')" class="bg-[#F7FAF8] hover:bg-emerald-50/50 border border-[#E5EAE7] rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-amber-700">3. Scheduled Owner Calls</div>
+              <p class="text-[11px] text-slate-500 mt-1">Confirm consultation slots requested by buyers.</p>
             </div>
           </div>
         </div>
@@ -2742,7 +2830,7 @@
           <div>
             <div class="flex justify-between items-center mb-1">
               <label class="block font-semibold text-slate-700">Password</label>
-              <button type="button" onclick="handleForgotPassword()" class="text-[11px] text-[#087F5B] hover:underline">Forgot password?</button>
+              <button type="button" onclick="toggleAuthMode('recovery')" class="text-[11px] text-[#087F5B] hover:underline">Forgot password?</button>
             </div>
             <input type="password" id="loginPassword" placeholder="••••••••" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#087F5B] focus:outline-none">
           </div>
@@ -2752,6 +2840,26 @@
         </div>
         <div class="text-center text-xs text-slate-500 pt-2">
           Don't have an account? <button onclick="toggleAuthMode('signup')" class="text-[#087F5B] font-semibold underline">Create Company Workspace</button>
+        </div>
+      </div>
+
+      <!-- PASSWORD RECOVERY FORM -->
+      <div id="recoveryFormBlock" class="hidden space-y-4">
+        <h2 class="text-lg lg:text-xl font-bold text-slate-900">Reset Your Password</h2>
+        <p class="text-xs text-slate-500">Enter your registered business email and we will send you a secure password reset link.</p>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Business Email</label>
+            <input type="email" id="recoveryEmail" placeholder="you@company.com" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#087F5B] focus:outline-none">
+          </div>
+          <button onclick="handleRecoverySubmit()" class="w-full py-2.5 bg-[#087F5B] text-white font-semibold rounded-lg hover:bg-[#066548] shadow-sm transition">
+            Send Reset Instructions
+          </button>
+        </div>
+
+        <div class="text-center text-xs text-slate-500 pt-2">
+          Remembered your password? <button onclick="toggleAuthMode('login')" class="text-[#087F5B] font-semibold underline">Back to Sign In</button>
         </div>
       </div>
 
@@ -3253,7 +3361,197 @@
     }
 
     // 4. View Switching & Drawer Navigation
-    function switchView(viewName) {
+    
+    // =========================================================================
+    // 🧭 PRODUCTION SPA ROUTER: PUBLIC, AUTH & DASHBOARD ROUTE SEPARATION
+    // =========================================================================
+    function navigateTo(path, pushState = true) {
+      if (pushState && window.location.pathname !== path && window.location.hash !== '#' + path) {
+        try {
+          window.history.pushState({ path }, '', path);
+        } catch (e) {
+          window.location.hash = path;
+        }
+      }
+      handleRoute(path);
+    }
+
+    function showMarketingView() {
+      const publicLanding = document.getElementById('publicLandingPage');
+      const workspaceContainer = document.getElementById('appWorkspaceContainer');
+      const publicNavLinks = document.getElementById('publicNavLinks');
+      const btnMobileSidebar = document.getElementById('btnMobileSidebar');
+
+      if (publicLanding) publicLanding.classList.remove('hidden');
+      if (workspaceContainer) {
+        workspaceContainer.classList.add('hidden');
+        workspaceContainer.classList.remove('flex');
+      }
+      if (publicNavLinks) publicNavLinks.classList.remove('hidden');
+      if (btnMobileSidebar) btnMobileSidebar.classList.add('hidden');
+    }
+
+    function showAppWorkspaceView() {
+      const publicLanding = document.getElementById('publicLandingPage');
+      const workspaceContainer = document.getElementById('appWorkspaceContainer');
+      const publicNavLinks = document.getElementById('publicNavLinks');
+      const btnMobileSidebar = document.getElementById('btnMobileSidebar');
+
+      if (publicLanding) publicLanding.classList.add('hidden');
+      if (workspaceContainer) {
+        workspaceContainer.classList.remove('hidden');
+        workspaceContainer.classList.add('flex');
+      }
+      if (publicNavLinks) publicNavLinks.classList.add('hidden');
+      if (btnMobileSidebar) btnMobileSidebar.classList.remove('hidden');
+    }
+
+    function handleRoute(overridePath) {
+      const currentPath = overridePath || window.location.pathname || (window.location.hash ? window.location.hash.replace(/^#/, '') : '/');
+      const cleanPath = currentPath.toLowerCase().replace(/\/$/, '') || '/';
+
+      // 1. Auth routes
+      if (cleanPath === '/login' || cleanPath === '#/login') {
+        if (currentOrg && currentUser) {
+          return navigateTo('/dashboard/overview', true);
+        }
+        showMarketingView();
+        openAuthModal('login', false);
+        document.title = 'Sign In | MartFlow AI';
+        return;
+      }
+      if (cleanPath === '/signup' || cleanPath === '#/signup') {
+        if (currentOrg && currentUser) {
+          return navigateTo('/dashboard/overview', true);
+        }
+        showMarketingView();
+        openAuthModal('signup', false);
+        document.title = 'Create Company Workspace | MartFlow AI';
+        return;
+      }
+      if (cleanPath === '/forgot-password' || cleanPath === '#/forgot-password') {
+        showMarketingView();
+        openAuthModal('recovery', false);
+        document.title = 'Reset Password | MartFlow AI';
+        return;
+      }
+
+      // 2. Protected Dashboard routes
+      if (cleanPath.startsWith('/dashboard') || cleanPath === '/admin') {
+        if (!currentOrg && !currentUser) {
+          sessionStorage.setItem('mf_auth_redirect', cleanPath);
+          showToast('Please sign in to access your dashboard.', 'info');
+          return navigateTo('/login', true);
+        }
+
+        showAppWorkspaceView();
+
+        if (cleanPath === '/dashboard' || cleanPath === '/dashboard/overview') {
+          switchView('dashboard', false);
+          document.title = 'Executive Overview | MartFlow AI';
+        } else if (cleanPath === '/dashboard/inbox') {
+          switchView('conversations', false);
+          document.title = 'WhatsApp Inbox | MartFlow AI';
+        } else if (cleanPath === '/dashboard/leads') {
+          switchView('leads', false);
+          document.title = 'Leads Pipeline | MartFlow AI';
+        } else if (cleanPath === '/dashboard/catalogue' || cleanPath === '/dashboard/catalog') {
+          switchView('catalog', false);
+          document.title = 'Product Catalogue | MartFlow AI';
+        } else if (cleanPath === '/dashboard/ai-assistant') {
+          switchView('whatsapp', false);
+          document.title = 'AI Assistant & Settings | MartFlow AI';
+        } else if (cleanPath === '/dashboard/automations') {
+          switchView('settings', false);
+          document.title = 'Automations & Rules | MartFlow AI';
+        } else if (cleanPath === '/dashboard/appointments' || cleanPath === '/dashboard/calls') {
+          switchView('calls', false);
+          document.title = 'Scheduled Calls | MartFlow AI';
+        } else if (cleanPath === '/dashboard/analytics') {
+          switchView('analytics', false);
+          document.title = 'Sales Analytics | MartFlow AI';
+        } else if (cleanPath === '/dashboard/settings') {
+          switchView('settings', false);
+          document.title = 'Workspace Settings | MartFlow AI';
+        } else if (cleanPath === '/dashboard/billing') {
+          switchView('billing', false);
+          document.title = 'Membership & Billing | MartFlow AI';
+        } else if (cleanPath === '/admin') {
+          const isAdmin = (currentUser && (currentUser.role === 'superadmin' || currentUser.role === 'admin')) ||
+                          new URLSearchParams(window.location.search).get('admin') === '1';
+          if (isAdmin) {
+            switchView('engineer', false);
+            document.title = 'System Administration | MartFlow AI';
+          } else {
+            showToast('Restricted: Superadmin credentials required.', 'warning');
+            navigateTo('/dashboard/overview', true);
+          }
+        }
+        return;
+      }
+
+      // 3. Public Marketing routes
+      showMarketingView();
+      closeAuthModal(false);
+
+      if (cleanPath === '/features') {
+        document.title = 'Features | MartFlow AI';
+        scrollToSection('pl-features');
+      } else if (cleanPath === '/industries') {
+        document.title = 'Industries & Sectors | MartFlow AI';
+        scrollToSection('pl-industries');
+      } else if (cleanPath === '/pricing') {
+        document.title = 'Pricing & Pilot Plans | MartFlow AI';
+        scrollToSection('pl-pricing');
+      } else if (cleanPath === '/about') {
+        document.title = 'About Us | MartFlow AI';
+        scrollToSection('pl-about');
+      } else if (cleanPath === '/contact') {
+        document.title = 'Contact Sales | MartFlow AI';
+        scrollToSection('pl-contact');
+      } else {
+        document.title = 'MartFlow AI | WhatsApp Sales Executive for Manufacturers & B2B';
+      }
+    }
+
+    window.addEventListener('popstate', () => handleRoute());
+    window.addEventListener('hashchange', () => handleRoute());
+
+    async function handleRecoverySubmit() {
+      const email = (document.getElementById('recoveryEmail')?.value || '').trim();
+      if (!email) return showToast('Please enter your business email', 'warning');
+      try {
+        if (sb) {
+          const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/login' });
+          if (error) throw error;
+          showToast('Password reset link sent to ' + email + '! Check your inbox.', 'success');
+          setTimeout(() => toggleAuthMode('login'), 2500);
+        } else {
+          showToast('Password reset instructions sent to ' + email, 'success');
+          setTimeout(() => toggleAuthMode('login'), 2500);
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function switchView(viewName, syncUrl = true) {
+      if (syncUrl) {
+        const routeMap = {
+          dashboard: '/dashboard/overview',
+          leads: '/dashboard/leads',
+          conversations: '/dashboard/inbox',
+          catalog: '/dashboard/catalogue',
+          whatsapp: '/dashboard/ai-assistant',
+          calls: '/dashboard/appointments',
+          analytics: '/dashboard/analytics',
+          settings: '/dashboard/settings',
+          billing: '/dashboard/billing',
+          engineer: '/admin'
+        };
+        const targetRoute = routeMap[viewName] || '/dashboard';
+        try { window.history.pushState({ path: targetRoute }, '', targetRoute); } catch(e) {}
+      }
       const views = ['dashboard', 'leads', 'conversations', 'catalog', 'whatsapp', 'calls', 'analytics', 'settings', 'billing', 'engineer'];
       views.forEach(v => {
         const el = document.getElementById(`view-${v}`);
@@ -3314,7 +3612,12 @@
     function FREE() {}
 
     // 5. Auth Modal & Flow
-    function openAuthModal(mode = 'login') {
+    function openAuthModal(mode = 'login', updateUrl = true) {
+      if (updateUrl) {
+        if (mode === 'login') navigateTo('/login', true);
+        else if (mode === 'signup') navigateTo('/signup', true);
+        else if (mode === 'recovery') navigateTo('/forgot-password', true);
+      }
       const modal = document.getElementById('authModal');
       if (modal) modal.classList.remove('hidden');
       toggleAuthMode(mode);
@@ -6224,6 +6527,7 @@
       refreshPaymentAndSupportLinks();
       fetchPublicConfig();
       await checkAuthStatus();
+      handleRoute();
     });
 
     // =========================================================================

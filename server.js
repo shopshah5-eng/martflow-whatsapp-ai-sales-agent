@@ -3532,6 +3532,19 @@ app.post('/api/wa/disconnect', authenticate, requireRole(['owner', 'admin']), as
   res.json({ ok: true, message: 'Session disconnected' });
 });
 
+// SPA Wildcard Route Fallback: serves public/index.html for client routes (Home, Features, Pricing, Login, Dashboard, etc.)
+app.get('*', (req, res, next) => {
+  if (
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/catalogs') ||
+    req.path.startsWith('/auth_info') ||
+    req.path.includes('.')
+  ) {
+    return next();
+  }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, '0.0.0.0', () => {
   addLog(`MartFlow B2B WhatsApp AI Server running at http://localhost:${PORT}`);

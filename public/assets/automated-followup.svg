@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 480" width="100%" height="100%" fill="none">
+  <rect x="20" y="20" width="560" height="440" rx="20" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="1.5"/>
+  <rect x="40" y="40" width="520" height="48" rx="10" fill="#F7FAF8"/>
+  <text x="60" y="70" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#111827">Multi-Stage Automated WhatsApp Follow-up Engine</text>
+
+  <!-- Flow Steps -->
+  <g transform="translate(60, 120)">
+    <!-- Stage 1 -->
+    <circle cx="30" cy="30" r="24" fill="#087F5B"/>
+    <text x="24" y="36" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#FFFFFF">1</text>
+    <text x="70" y="26" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#111827">T+2 Hours: Quotation Check-in</text>
+    <text x="70" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#64748B">"Namaste! Did you get a chance to review the spec sheet &amp; pricing?"</text>
+
+    <!-- Connector Line -->
+    <line x1="30" y1="54" x2="30" y2="100" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 4"/>
+
+    <!-- Stage 2 -->
+    <g transform="translate(0, 100)">
+      <circle cx="30" cy="30" r="24" fill="#10A37F"/>
+      <text x="22" y="36" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#FFFFFF">2</text>
+      <text x="70" y="26" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#111827">T+24 Hours: Technical Assistance &amp; Samples</text>
+      <text x="70" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#64748B">"Would you like us to dispatch physical sample units to your plant?"</text>
+    </g>
+
+    <!-- Connector Line -->
+    <line x1="30" y1="154" x2="30" y2="200" stroke="#CBD5E1" stroke-width="2" stroke-dasharray="4 4"/>
+
+    <!-- Stage 3 -->
+    <g transform="translate(0, 200)">
+      <circle cx="30" cy="30" r="24" fill="#F59E0B"/>
+      <text x="22" y="36" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#FFFFFF">3</text>
+      <text x="70" y="26" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#111827">T+72 Hours: Final Commercial Re-engagement</text>
+      <text x="70" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#64748B">"Special lot discount of 4% applicable if PO confirmed by Friday."</text>
+    </g>
+  </g>
+</svg>
