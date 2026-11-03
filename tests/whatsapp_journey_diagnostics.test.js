@@ -73,14 +73,49 @@ test('WHATSAPP JOURNEY DIAGNOSTICS & FIX SUITE: Complete Flow Verification', asy
     assert.match(body.error, /10-digit/i);
   });
 
-  await t.test('3. Unsafe legacy simulator fails closed for public and authenticated requests', async () => {
-    for (const token of [null, tenant.token]) {
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers.Authorization = `Bearer ${token}`;
-      const res = await fetch(`${baseUrl}/api/simulate-lead`, { method: 'POST', headers, body: JSON.stringify({ phone: '9811122233' }) });
-      assert.equal(res.status, 503);
-      assert.equal((await res.json()).ok, false);
-    }
+  await t.test('3. Rebuilt simulator enforces consent, phone validation, and tenant isolation', async () => {
+    // A: Missing consent must fail with 400
+    const noConsentRes = await fetch(`${baseUrl}/api/simulate-lead`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: '9811122233' })
+    });
+    assert.equal(noConsentRes.status, 400);
+    const noConsentBody = await noConsentRes.json();
+    assert.equal(noConsentBody.ok, false);
+    assert.match(noConsentBody.error, /consent/i);
+
+    // B: Invalid phone (<10 digits) with consent must fail with 400
+    const invalidPhoneRes = await fetch(`${baseUrl}/api/simulate-lead`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ consent: true, phone: '1234' })
+    });
+    assert.equal(invalidPhoneRes.status, 400);
+    const invalidPhoneBody = await invalidPhoneRes.json();
+    assert.equal(invalidPhoneBody.ok, false);
+    assert.match(invalidPhoneBody.error, /10-digit/i);
+
+    // C: Authenticated tenant with consent scopes strictly to tenant organization
+    const authRes = await fetch(`${baseUrl}/api/simulate-lead`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tenant.token}`
+      },
+      body: JSON.stringify({
+        consent: true,
+        phone: '9811122233',
+        name: 'Isolated Buyer',
+        productQuery: 'Industrial Packaging Unit'
+      })
+    });
+    assert.equal(authRes.status, 200);
+    const authBody = await authRes.json();
+    assert.equal(authBody.ok, true);
+    assert.equal(authBody.simulated, true);
+    assert.equal(authBody.tenantId, tenant.organization.id);
+    assert.ok(authBody.deliveryStatus.startsWith('simulated_'));
   });
 
   await t.test('4. Public enquiry rate limit rejects excessive requests', async () => {

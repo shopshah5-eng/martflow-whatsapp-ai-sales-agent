@@ -219,17 +219,21 @@
   <!-- Authentication Script -->
   <script>
     // Use the same runtime auth configuration as the backend/workspace.
-    let sb = null;
+    const SUPABASE_URL = "https://uriqhusalcdgdlgzgasp.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE";
+    let sb = (window.supabase && typeof window.supabase.createClient === 'function')
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
     const authClientReady = (async () => {
-      if (!window.supabase || typeof window.supabase.createClient !== 'function') return;
       try {
         const response = await fetch('/api/public-config');
         const config = await response.json();
-        if (response.ok && config.supabaseUrl && config.supabaseAnonKey) {
+        if (response.ok && config.supabaseUrl && config.supabaseAnonKey && window.supabase) {
           sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
         }
       } catch (error) {
-        console.warn('Authentication configuration unavailable:', error.message);
+        // Pre-configured Supabase client is active as fallback
       }
     })();
 
@@ -554,6 +558,9 @@
 
     async function handleGoogleSignIn() {
       await authClientReady;
+      if (!sb && window.supabase && typeof window.supabase.createClient === 'function') {
+        try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) {}
+      }
       if (!sb) {
         showToast('Google sign-in is initializing. Please use business email.', 'info');
         return;

@@ -8,7 +8,7 @@ import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
+import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp, verifySessionToken } from '../auth/authService.js';
 import { authenticate, requireRole } from '../middleware/authMiddleware.js';
 import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
@@ -907,7 +907,13 @@ router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
 
   try {
     // Never put an anonymous demo enquiry into an unrelated customer's tenant.
-    const demoOrg = db.findById('organizations', '6fd354d9-3437-412d-856e-28bc19d44268');
+    let demoOrg = null;
+    try {
+      demoOrg = await repository.getOrganizationById('6fd354d9-3437-412d-856e-28bc19d44268');
+    } catch (_) {}
+    if (!demoOrg) {
+      demoOrg = db.findById('organizations', '6fd354d9-3437-412d-856e-28bc19d44268');
+    }
     if (!demoOrg) return res.status(503).json({ ok: false, error: 'Demo enquiries are currently unavailable.' });
     const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
     const { lead } = LeadService.createOrDeduplicateLead(demoOrg.id, {
@@ -933,9 +939,125 @@ router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
   }
 });
 
-// The legacy simulator used an unscoped global socket and lead store.
-router.post('/simulate-lead', (req, res) => {
-  res.status(503).json({ ok: false, error: 'The legacy simulator is temporarily unavailable.' });
+const simulationLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many simulation requests. Please wait a few minutes.' }
+});
+
+// Rebuilt tenant-isolated, consent-based simulation endpoint
+router.post('/simulate-lead', simulationLimiter, async (req, res) => {
+  try {
+    const { consent, phone, name, productQuery, productName, city, message, queryMessage } = req.body || {};
+
+    // 1. Mandatory Explicit Consent Check
+    if (consent !== true && consent !== 'true') {
+      return res.status(400).json({
+        ok: false,
+        error: 'Explicit consent is required to simulate a WhatsApp demo message.'
+      });
+    }
+
+    // 2. Validate WhatsApp phone number (minimum 10 digits)
+    const cleanPhone = String(phone || '').replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Valid 10-digit WhatsApp mobile number required.'
+      });
+    }
+    const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+
+    // 3. Resolve Target Tenant with Strict Isolation
+    let targetOrgId = null;
+    const authHeader = req.headers.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      const payload = verifySessionToken(token);
+      if (payload?.organizationId) {
+        targetOrgId = payload.organizationId;
+      } else {
+        const sb = repository.getSupabase();
+        if (sb) {
+          try {
+            const { data } = await sb.auth.getUser(token);
+            if (data?.user?.id) {
+              const profile = await repository.getProfileById(data.user.id);
+              if (profile?.org_id || profile?.organization_id) {
+                targetOrgId = profile.org_id || profile.organization_id;
+              }
+            }
+          } catch (_) {}
+        }
+      }
+    }
+
+    // If unauthenticated, strictly scope to dedicated demo tenant (never fall back to another customer)
+    const DEMO_TENANT_ID = '6fd354d9-3437-412d-856e-28bc19d44268';
+    if (!targetOrgId) {
+      targetOrgId = DEMO_TENANT_ID;
+    }
+
+    let org = null;
+    try {
+      org = await repository.getOrganizationById(targetOrgId);
+    } catch (_) {}
+    if (!org) {
+      org = db.findById('organizations', targetOrgId);
+    }
+    if (!org) {
+      return res.status(503).json({
+        ok: false,
+        error: 'Simulation workspace is currently unavailable.'
+      });
+    }
+
+    // 4. Verify Baileys WhatsApp Connection State for Target Tenant
+    const waState = baileysManager.getState(targetOrgId);
+    const isConnected = waState?.status === 'connected';
+    const connectedAccount = waState?.phone || baileysManager.getInstance(targetOrgId)?.sock?.user?.id?.split(':')[0]?.split('@')[0] || null;
+
+    // 5. Create Scoped Lead
+    const buyerName = (name || 'Simulated Demo Buyer').trim();
+    const query = (productQuery || productName || 'Automatic Pouch Packing Machine').trim();
+    const buyerCity = (city || 'Demo City').trim();
+    const reqText = (message || queryMessage || 'Simulated WhatsApp Lead Inquiry').trim();
+
+    const { lead } = LeadService.createOrDeduplicateLead(targetOrgId, {
+      buyer_name: buyerName,
+      buyer_phone: normPhone,
+      buyer_city: buyerCity,
+      product_inquired: query,
+      requirement: reqText,
+      source: 'Isolated Consent-Based Simulator'
+    });
+
+    // 6. Honest Delivery Status (Real messages never sent without explicit manual approval)
+    const deliveryStatus = isConnected ? 'simulated_connected' : 'simulated_offline';
+
+    res.json({
+      ok: true,
+      simulated: true,
+      consentVerified: true,
+      tenantId: targetOrgId,
+      deliveryStatus,
+      connectedAccount,
+      lead: {
+        id: lead.id,
+        name: lead.buyer_name,
+        phone: lead.buyer_phone,
+        productName: lead.product_inquired,
+        status: lead.status
+      },
+      message: isConnected
+        ? 'Consent verified. Lead recorded in isolated tenant with active WhatsApp gateway (simulation mode; real message suppressed without operator approval).'
+        : 'Consent verified. Lead recorded in isolated demo tenant (WhatsApp gateway offline).'
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 router.post('/membership/unlock-code', authenticate, async (req, res) => {

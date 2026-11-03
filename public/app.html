@@ -2827,7 +2827,15 @@
 
         // If URL has OAuth callback tokens, process them and prevent premature login modal popup
         if (window.location.hash.includes('access_token') || window.location.hash.includes('error')) {
-          const { data: { session } } = await sb.auth.getSession();
+          let session = null;
+          for (let attempt = 0; attempt < 6; attempt++) {
+            const { data } = await sb.auth.getSession();
+            if (data?.session) {
+              session = data.session;
+              break;
+            }
+            await new Promise(r => setTimeout(r, 200));
+          }
           if (session) {
             await handleAuthSession(session);
             closeAuthModal();
@@ -2836,7 +2844,6 @@
             } catch (e) {}
             return;
           }
-          return;
         }
 
         const { data: { session } } = await sb.auth.getSession();
@@ -5813,6 +5820,14 @@
         await fetchPublicConfig();
         await checkAuthStatus();
         if (!currentOrg || !currentUser) {
+          if (window.location.hash.includes('access_token')) {
+            await new Promise(r => setTimeout(r, 1000));
+            if (currentOrg && currentUser) {
+              handleAppWorkspaceRoute();
+              loadDashboardData();
+              return;
+            }
+          }
           sessionStorage.setItem('mf_auth_redirect', window.location.pathname);
           window.location.href = '/login';
           return;
