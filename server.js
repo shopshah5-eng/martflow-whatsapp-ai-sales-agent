@@ -3532,7 +3532,22 @@ app.post('/api/wa/disconnect', authenticate, requireRole(['owner', 'admin']), as
   res.json({ ok: true, message: 'Session disconnected' });
 });
 
-// SPA Wildcard Route Fallback: serves public/index.html for client routes (Home, Features, Pricing, Login, Dashboard, etc.)
+// ==============================================================================
+// MULTI-PAGE APPLICATION ROUTES (AUTHENTICATION & ARCHITECTURE SEPARATION)
+// ==============================================================================
+app.get(['/app', '/app/*'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'app.html'));
+});
+
+app.get(['/login', '/signup', '/forgot-password'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'login.html'));
+});
+
+app.get(['/admin', '/admin/*'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// SPA Wildcard Route Fallback: serves public/index.html for client routes (Home, Features, Pricing, About, etc.)
 app.get('*', (req, res, next) => {
   if (
     req.path.startsWith('/api') ||

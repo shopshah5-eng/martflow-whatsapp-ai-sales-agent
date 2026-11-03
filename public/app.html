@@ -1,0 +1,2474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Customer Workspace | MartFlow AI</title>
+  
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MartFlow AI — Autonomous B2B WhatsApp Sales Executive</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/martflow-design-system.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', '"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'] },
+          colors: {
+            brand: {
+              DEFAULT: '#087F5B',
+              50: '#E6F4F0',
+              100: '#C2E2D7',
+              500: '#10A37F',
+              600: '#087F5B',
+              700: '#066649',
+              800: '#044D37',
+              900: '#023325'
+            },
+            emerald: {
+              50: '#F0FDF4',
+              100: '#DCFCE7',
+              200: '#BBF7D0',
+              300: '#86EFAC',
+              400: '#4ADE80',
+              500: '#10A37F',
+              600: '#087F5B',
+              700: '#066649',
+              800: '#044D37',
+              900: '#023325'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body { background-color: #FFFFFF; color: #111827; font-family: 'Inter', sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+
+    /* 1. Dedicated Smooth View Entrance (180ms Crisp Fade + 4px Glide) */
+    @keyframes viewEnter {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    .view-panel:not(.hidden) {
+      animation: viewEnter 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      will-change: transform, opacity;
+    }
+
+    /* 2. Sidebar Navigation Hover Glide & Active Pill Indicator */
+    .nav-item {
+      position: relative;
+      transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    }
+    .nav-item:hover:not(.active) {
+      background-color: #F7FAF8;
+      color: #111827;
+      transform: translateX(2px);
+    }
+    .nav-item:hover:not(.active) svg {
+      color: #087F5B;
+    }
+    .nav-item.active {
+      background-color: #E6F4F0 !important;
+      color: #087F5B !important;
+      font-weight: 600;
+    }
+    .nav-item.active svg {
+      color: #087F5B !important;
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 15%;
+      height: 70%;
+      width: 3.5px;
+      background-color: #087F5B;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* 3. Interactive Card Hover Depth */
+    .kpi-card,
+    #view-dashboard .grid > div,
+    #view-analytics .grid > div,
+    #view-billing .grid > div {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+    .kpi-card:hover,
+    #view-dashboard .grid > div:hover,
+    #view-analytics .grid > div:hover,
+    #view-billing .grid > div:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px -8px rgba(15, 23, 42, 0.08);
+      border-color: #C2E2D7;
+    }
+
+    /* 4. Tactile Button Micro-Physics */
+    button, a.btn-action {
+      transition: transform 0.12s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+    }
+    button:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+    button.bg-emerald-600:hover, button.bg-brand:hover {
+      box-shadow: 0 6px 16px -4px rgba(8, 127, 91, 0.35);
+    }
+
+    /* 5. Catalog Dropzone Hover & Drag-Over Physics */
+    #catalogDropzone {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, background-color 0.2s ease;
+    }
+    #catalogDropzone:hover, #catalogDropzone.dragover {
+      border-color: #087F5B;
+      background-color: rgba(230, 244, 240, 0.55);
+      transform: scale(1.005);
+    }
+    #catalogDropzone:hover .dropzone-icon,
+    #catalogDropzone.dragover .dropzone-icon {
+      transform: translateY(-3px);
+      transition: transform 0.2s ease;
+    }
+
+    /* 6. Spring Modal Backdrop & Card Entrance */
+    @keyframes modalPop {
+      from {
+        opacity: 0;
+        transform: scale(0.97) translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    .fixed.z-50:not(.hidden) > div {
+      animation: modalPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    /* 7. WhatsApp Live Chat Message Slide-In & Table Rows Hover */
+    @keyframes msgSlide {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    #chatMessagesStream > div {
+      animation: msgSlide 0.15s ease forwards;
+    }
+    tbody tr {
+      transition: background-color 0.14s ease;
+    }
+    tbody tr:hover {
+      background-color: rgba(247, 250, 248, 0.9);
+    }
+
+    /* Soft pulse dot for live connected socket */
+    @keyframes softPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.2); }
+    }
+    .pulse-dot {
+      animation: softPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    /* 8. Hand-Crafted Enterprise SaaS Micro-Physics & Hover States */
+    .nav-glide-link {
+      position: relative;
+      padding-bottom: 2px;
+      transition: color 0.18s ease;
+    }
+    .nav-glide-link::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background-color: #087F5B;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .nav-glide-link:hover::after {
+      transform: scaleX(1);
+    }
+
+    .card-hover-elevate {
+      transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.18s ease;
+      will-change: transform, box-shadow;
+    }
+    .card-hover-elevate:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px -8px rgba(8, 127, 91, 0.12);
+      border-color: #C2E2D7;
+    }
+
+    @keyframes floatGentle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    .animate-float {
+      animation: floatGentle 5s ease-in-out infinite;
+    }
+
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 400ms cubic-bezier(0.16, 1, 0.3, 1), transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: opacity, transform;
+    }
+    .reveal-on-scroll.is-revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, ::before, ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+
+  <style>
+    /* Ensure body takes full height for app layout */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900 antialiased h-screen flex flex-col overflow-hidden">
+
+  <!-- TOP APPLICATION NAVIGATION BAR -->
+  <header class="h-14 bg-white border-b border-gray-200 px-4 sm:px-6 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center space-x-3 sm:space-x-4">
+      <button id="btnMobileSidebar" onclick="toggleMobileSidebar()" class="lg:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+
+      <a href="/app" class="flex items-center space-x-2">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#087F5B] to-[#10A37F] flex items-center justify-center text-white shadow-sm">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        </div>
+        <span class="font-extrabold text-slate-900 tracking-tight text-base hidden sm:inline">MartFlow<span class="text-[#087F5B]">.AI</span></span>
+      </a>
+
+      <!-- Org Badge & Active Plan Status -->
+      <div id="topOrgBadge" class="flex items-center space-x-2 pl-2 sm:pl-4 border-l border-gray-200">
+        <span id="topOrgName" class="text-xs sm:text-sm font-bold text-slate-800 truncate max-w-[140px] sm:max-w-[200px]">Enterprise Workspace</span>
+        <span id="topOrgPlan" class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Active</span>
+      </div>
+    </div>
+
+    <!-- Actions & User Profile -->
+    <div class="flex items-center space-x-2 sm:space-x-4">
+      <!-- AI Mode Toggle -->
+      <button id="btnHeaderAiMode" onclick="toggleChatModeGlobal()" class="inline-flex items-center space-x-2 py-1.5 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition shadow-sm">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span id="headerAiModeLabel">Autonomous AI</span>
+      </button>
+
+      <!-- WhatsApp Live Status Pill -->
+      <div id="headerWaStatus" class="hidden sm:inline-flex items-center space-x-1.5 py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 font-medium">
+        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+        <span id="headerWaLabel">WhatsApp Syncing</span>
+      </div>
+
+      <!-- User Profile & Sign Out -->
+      <div id="userProfileBadge" class="flex items-center space-x-3">
+        <div class="hidden md:flex flex-col text-right">
+          <span id="userFullName" class="text-xs font-bold text-slate-800">Business Owner</span>
+          <span id="userEmail" class="text-[10px] text-slate-400 truncate max-w-[120px]">user@company.com</span>
+        </div>
+        <button onclick="logout()" title="Sign out of workspace" class="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition border border-transparent hover:border-rose-200">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- WORKSPACE CONTENT & SIDEBAR -->
+    <div id="appWorkspaceContainer" class="flex-1 flex overflow-hidden relative">
+
+    <!-- MOBILE BACKDROP OVERLAY -->
+    <div id="mobileBackdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-900/50 z-30 hidden lg:hidden"></div>
+
+    <!-- 10-ITEM PERSISTENT SIDEBAR / MOBILE DRAWER -->
+    <aside id="appSidebar" class="fixed inset-y-0 left-0 z-40 w-64 border-r border-gray-200 bg-white flex flex-col justify-between shrink-0 transform -translate-x-full lg:translate-x-0 lg:static transition-transform duration-200 ease-in-out">
+      <div class="p-4 space-y-1 overflow-y-auto custom-scroll">
+        <div class="text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Workspace</div>
+
+        <button onclick="navigateTo('/dashboard/overview')" id="nav-dashboard" class="nav-item active w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+          <span>Dashboard</span>
+        </button>
+
+        <button onclick="navigateTo('/dashboard/leads')" id="nav-leads" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <div class="flex items-center space-x-3">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+            <span>Leads</span>
+          </div>
+          <span id="badgeLeadCount" class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span><span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-semibold">0</span>
+        </button>
+
+        <button onclick="navigateTo('/dashboard/inbox')" id="nav-conversations" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          <span>Conversations</span>
+        </button>
+
+        <button onclick="navigateTo('/dashboard/catalogue')" id="nav-catalog" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <span id="navCatalogText">Product Catalog</span>
+        </button>
+
+        <button onclick="navigateTo('/dashboard/ai-assistant')" id="nav-whatsapp" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          <span>WhatsApp Setup</span>
+        </button>
+
+        <button onclick="navigateTo('/dashboard/appointments')" id="nav-calls" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+          <span>Call Scheduler</span>
+        </button>
+
+        <button onclick="navigateTo('/dashboard/analytics')" id="nav-analytics" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          <span>Analytics</span>
+        </button>
+
+        <div class="pt-4 text-[11px] uppercase tracking-wider font-bold text-slate-400 px-3 py-1">Settings & Plan</div>
+
+        <button onclick="navigateTo('/dashboard/settings')" id="nav-settings" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          <span>Company Settings</span>
+        </button>
+
+        <button onclick="navigateTo('/dashboard/billing')" id="nav-billing" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-50 transition">
+          <div class="flex items-center space-x-3">
+            <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+            <span>Membership & Plan</span>
+          </div>
+          <span id="navBillingBadge" class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">TRIAL</span>
+        </button>
+
+        <button onclick="navigateTo('/admin')" id="nav-engineer" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-[#087F5B] bg-[#F7FAF8] hover:bg-indigo-100 transition hidden">
+          <span class="text-xs">🛠️</span>
+          <span class="font-semibold text-xs">Engineer Console</span>
+        </button>
+      </div>
+
+      <!-- SIDEBAR FOOTER: LIVE DYNAMIC SOCKET STATUS -->
+      <div class="p-4 border-t border-gray-100 bg-slate-50 space-y-2">
+        <div class="flex items-center justify-between text-xs">
+          <span class="text-slate-500 font-medium">WhatsApp Socket</span>
+          <span id="waStatusBadge" class="inline-flex items-center text-[11px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full">
+            <span id="waStatusDot" class="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></span>
+            <span id="waStatusText">Checking...</span>
+          </span>
+        </div>
+        <div class="text-[11px] text-slate-400">MartFlow AI v1.0.0 (Production)</div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT VIEW AREA -->
+    <main class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-8 bg-[#fafafa]">
+
+      <!-- TOP TRIAL STATUS BAR (48-HOUR LIVE TRIAL BANNER) -->
+      <div id="trialStatusBar" class="mb-5 bg-emerald-50/90 border border-emerald-200/80 rounded-xl p-3.5 text-emerald-950 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center space-x-3 text-xs w-full sm:w-auto">
+          <span class="flex h-2.5 w-2.5 relative shrink-0">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+          </span>
+          <div>
+            <div class="font-bold text-emerald-300 flex items-center gap-1.5 flex-wrap">
+              <span><span class="mr-1.5 inline-block">⚡</span>48-Hour Live VIP Pilot (₹999 — 100% Adjusted in Plan!)</span>
+              <span id="trialLeadsBadge" class="text-slate-300 font-normal text-[11px]">(Up to 25 Live Customer Inquiries • Full ₹999 Deducted on Upgrade)</span>
+            </div>
+            <div id="trialCountdownText" class="text-[11px] text-emerald-200/90 font-mono mt-0.5 font-medium">
+              47h 59m pilot remaining • Up to 25 live inquiries • 100% adjusted on upgrade
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center space-x-2 w-full sm:w-auto justify-end shrink-0">
+          <button onclick="openActivationModal('Standard Growth Plan - 3-Month Launch Offer', '₹9,999 One-Time - 3 Months FREE!', '500 Monthly Leads • 3 Months Maintenance FREE (₹2,999/mo from Month 4) • Paid ₹999 Pilot? Apply code ADJUST999 to pay ₹9,000 balance!', 9999)" class="text-xs font-semibold px-3.5 py-1.5 bg-[#087F5B] hover:bg-[#066548] text-white rounded-lg transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+            <span>⚡ Upgrade Plan</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW 1: DASHBOARD (EXECUTIVE OVERVIEW) -->
+      <!-- ============================================== -->
+      <section id="view-dashboard" class="view-panel space-y-6">
+        <!-- EXECUTIVE OVERVIEW BANNER (FOR CLIENTS) -->
+        <div id="dashExecutiveBanner" class="bg-white border border-[#E5EAE7] rounded-2xl p-5 lg:p-6 text-slate-900 shadow-xs space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-50 text-[#087F5B] border border-emerald-200">Autonomous Sales Engine Active</span>
+              <h2 class="text-lg lg:text-xl font-bold text-slate-900 mt-1">⚡ 24×7 Autonomous WhatsApp AI Sales Desk</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Instant catalog dispatch, buyer qualification, and consultation booking active around the clock.</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-3 border-t border-[#E5EAE7]">
+            <div onclick="navigateTo('/dashboard/ai-assistant')" class="bg-[#F7FAF8] hover:bg-emerald-50/50 border border-[#E5EAE7] rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-[#087F5B]">1. WhatsApp Device Connection</div>
+              <p class="text-[11px] text-slate-500 mt-1">Manage paired business SIM and socket status.</p>
+            </div>
+            <div onclick="navigateTo('/dashboard/inbox')" class="bg-[#F7FAF8] hover:bg-emerald-50/50 border border-[#E5EAE7] rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-slate-800">2. View Live Buyer Chats</div>
+              <p class="text-[11px] text-slate-500 mt-1">Inspect real-time AI replies and manual overrides.</p>
+            </div>
+            <div onclick="navigateTo('/dashboard/appointments')" class="bg-[#F7FAF8] hover:bg-emerald-50/50 border border-[#E5EAE7] rounded-xl p-3.5 cursor-pointer transition">
+              <div class="text-xs font-bold text-amber-700">3. Scheduled Owner Calls</div>
+              <p class="text-[11px] text-slate-500 mt-1">Confirm consultation slots requested by buyers.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3-STEP GUIDED ONBOARDING CARD (FOUNDER / ADMIN ONLY ?admin=1) -->
+        <div id="dashOnboardingCard" class="hidden bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-5 lg:p-6 text-white shadow-sm border border-slate-800">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Zero Tech Needed</span>
+              <h2 id="dashBannerTitle" class="text-lg lg:text-xl font-bold mt-1">Go Live in 3 Simple Steps (Under 5 Minutes)</h2>
+              <p id="dashBannerSub" class="text-xs text-slate-300 mt-0.5">Automated PDF catalog dispatch, Hinglish deal closing, and business owner call booking.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button id="btnSimLead" onclick="openSimulationModal()" class="text-xs font-semibold px-3.5 py-2 bg-[#087F5B] text-white rounded-lg hover:bg-[#066548] transition shadow-sm whitespace-nowrap flex items-center space-x-1.5">
+                <span>⚡</span>
+                <span id="btnSimLeadText">Test Inbound Lead</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5 pt-4 border-t border-slate-800">
+            <div onclick="switchView('whatsapp')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-emerald-300">
+                <span class="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white text-[10px] font-bold">1</span>
+                <span id="step1Title">1. Scan Sales WhatsApp QR (10 Sec)</span>
+              </div>
+              <p id="step1Desc" class="text-[11px] text-slate-400 mt-1">Scan from your official sales phone or secondary SIM.</p>
+            </div>
+
+            <div onclick="switchView('catalog')" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-indigo-300">
+                <span class="w-5 h-5 rounded-full bg-[#087F5B] flex items-center justify-center text-white text-[10px] font-bold">2</span>
+                <span id="step2Title">2. Drop PDF Catalogs</span>
+              </div>
+              <p id="step2Desc" class="text-[11px] text-slate-400 mt-1">Upload PDF, Excel, or CSV catalogs. AI extracts specs & pricing.</p>
+            </div>
+
+            <div onclick="openAnyDeskHelpModal()" class="bg-slate-800/70 hover:bg-slate-800 border border-slate-700/80 rounded-xl p-3.5 cursor-pointer transition">
+              <div class="flex items-center space-x-2 text-xs font-semibold text-amber-300">
+                <span class="w-5 h-5 rounded-full bg-amber-600 flex items-center justify-center text-white text-[10px] font-bold">3</span>
+                <span id="step3Title">3. Connect B2B Portal (Or Free Help)</span>
+              </div>
+              <p id="step3Desc" class="text-[11px] text-slate-400 mt-1">Copy webhook URL or have our engineer connect via AnyDesk in 10 mins.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 id="dashOverviewTitle" class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Live AI Sales Overview</h1>
+            <p id="dashOverviewSub" class="text-xs text-slate-500 mt-0.5">Real-time buyer qualification & instant WhatsApp dispatch.</p>
+          </div>
+          <button onclick="loadDashboardData()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700 shadow-sm transition">
+            🔄 Refresh
+          </button>
+        </div>
+
+        <!-- 5 METRICS CARDS (GENUINE CALCULATION, NO FAKE DATA) -->
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div id="lblStatLeadsToday" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Today's Enquiries</div>
+            <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Asia/Kolkata date</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div id="lblStatMedianResponse" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">PDF Reply Speed (<10s)</div>
+            <div id="statMedianResponse" class="text-2xl font-bold text-[#087F5B] mt-1">N/A</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Time to WhatsApp PDF</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div id="lblStatQualifiedRate" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">🔥 Hot Serious Buyers</div>
+            <div id="statQualifiedRate" class="text-2xl font-bold text-slate-900 mt-1">0%</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Capacity & specs aligned</div>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div id="lblStatCallsBooked" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Owner Calls Fixed</div>
+            <div id="statCallsBooked" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">2-Way owner confirmed</div>
+          </div>
+          <div class="col-span-2 lg:col-span-1 bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <div id="lblStatCatalogProducts" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Active Catalog Offerings</div>
+            <div id="statCatalogProducts" class="text-2xl font-bold text-slate-900 mt-1">0</div>
+            <div id="lblStatCatalogSub" class="text-[10px] text-slate-400 mt-0.5">Verified catalog offerings</div>
+          </div>
+        </div>
+
+        <!-- RECENT LEADS PREVIEW -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm lg:text-base font-bold text-slate-900">Recent Inquiries</h2>
+            <button onclick="switchView('leads')" class="text-xs text-[#087F5B] font-semibold hover:underline">View All Leads →</button>
+          </div>
+          <div id="dashboardLeadsTable" class="overflow-x-auto">
+            <!-- Dynamic table rows or pure empty state -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: LEADS (FULL TABLE & SEARCH) -->
+      <!-- ============================================== -->
+      <section id="view-leads" class="view-panel hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Lead Management</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Filter, assign, qualify, and export B2B Portal & Marketplace Inquiries.</p>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="exportLeadsCsv()" class="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-slate-700 bg-white hover:bg-gray-50 shadow-sm transition inline-flex items-center">
+              <svg class="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- SEARCH & FILTER BAR -->
+        <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
+          <div class="flex-1 min-w-[240px]">
+            <input type="text" id="leadSearchInput" oninput="debounceLeadsSearch()" placeholder="Search buyer name, phone, city, or product..." class="w-full text-xs px-3.5 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#087F5B] focus:outline-none">
+          </div>
+          <div class="flex space-x-2">
+            <select id="leadStatusFilter" onchange="fetchLeadsList()" class="text-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none">
+              <option value="">All Statuses</option>
+              <option value="new">New</option>
+              <option value="processing">Processing</option>
+              <option value="replied">Replied</option>
+              <option value="qualified">Qualified</option>
+              <option value="awaiting_call">Awaiting Call</option>
+              <option value="call_booked">Call Booked</option>
+              <option value="converted">Converted</option>
+              <option value="lost">Lost</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- LEADS DATA TABLE -->
+        <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+          <div id="leadsTableContainer" class="overflow-x-auto">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 3: CONVERSATIONS (WHATSAPP INBOX) -->
+      <!-- ============================================== -->
+      <section id="view-conversations" class="view-panel hidden space-y-6">
+        <div>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Conversations Inbox</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Real-time WhatsApp buyer dialogs with AI Auto-Pilot vs Human Takeover toggle.</p>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl h-[620px] flex flex-col md:flex-row overflow-hidden shadow-sm">
+          <!-- Buyer Threads List -->
+          <div id="convThreadPanel" id="conversationsListCol" class="w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0">
+            <div class="p-3 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700">All Inquiries</span>
+              <button onclick="fetchConversationsList()" class="text-[11px] text-[#087F5B] hover:underline">Refresh</button>
+            </div>
+            <div id="conversationThreadList" class="flex-1 overflow-y-auto custom-scroll p-2 space-y-1">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Chat Timeline & Composer -->
+          <div id="convChatPanel" class="flex-1 flex flex-col justify-between bg-slate-50">
+            <!-- Chat Header -->
+            <div class="h-14 border-b border-gray-200 bg-white px-4 lg:px-6 flex items-center justify-between shrink-0">
+              <div class="flex items-center space-x-2">
+                <button onclick="mobileBackToThreads()" class="md:hidden p-1 text-slate-500 hover:text-slate-800">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <div>
+                  <div id="chatBuyerName" class="text-xs lg:text-sm font-bold text-slate-900">Select a Conversation</div>
+                  <div id="chatBuyerPhone" class="text-[10px] text-slate-500">No active thread selected</div>
+                </div>
+              </div>
+              <div id="chatModeControls" class="hidden items-center space-x-2">
+                <span class="text-xs text-slate-500 hidden sm:inline">Mode:</span>
+                <button onclick="toggleChatMode()" id="btnChatModeToggle" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  🤖 AI Active
+                </button>
+              </div>
+            </div>
+
+            <!-- Messages Stream -->
+            <div id="chatMessagesStream" class="flex-1 overflow-y-auto custom-scroll p-4 lg:p-6 space-y-3">
+              <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs">
+                <svg class="w-12 h-12 mb-2 stroke-current opacity-40" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                Select a conversation thread to view live messages.
+              </div>
+            </div>
+
+            <!-- Composer -->
+            <div class="p-3 border-t border-gray-200 bg-white flex items-center space-x-2 shrink-0">
+              <input type="text" id="chatComposerInput" onkeydown="if(event.key==='Enter') sendManualReply()" placeholder="Type a message to buyer..." class="flex-1 text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#087F5B]">
+              <button onclick="sendManualReply()" class="text-xs font-semibold px-4 py-2 bg-[#087F5B] text-white rounded-lg hover:bg-[#066548] shadow-sm transition">
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 4: PRODUCT CATALOG -->
+      <!-- ============================================== -->
+      <section id="view-catalog" class="view-panel hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">AI Knowledge Base & Catalog</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Custom verified product catalog, technical specs, pricing, and automated brochure dispatch.</p>
+          </div>
+          <button id="btnQuickAddSku" onclick="openQuickAddModal()" class="text-xs font-semibold px-3.5 py-2 bg-[#087F5B] text-white rounded-lg hover:bg-[#066548] shadow-sm transition">
+            + Quick Add SKU
+          </button>
+        </div>
+
+        <!-- Managed AI Knowledge Base Card (For Clients) -->
+        <div id="cardManagedAiKnowledge" class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 border border-slate-800 rounded-2xl p-6 text-white shadow-sm space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center space-x-2">
+                <span class="text-base">🧠</span>
+                <h2 class="text-base font-bold">Managed AI Knowledge Base</h2>
+                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Verified by Engineers</span>
+              </div>
+              <p class="text-xs text-slate-300">Your AI sales agent is custom-trained and verified on your verified products, pricing, and business knowledge.</p>
+            </div>
+            <a id="btnRequestUpdateWa" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! Please update our catalog specifications')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs shadow-sm transition whitespace-nowrap flex items-center space-x-1.5 shrink-0">
+              <span>📲 Request Catalog / Price Update on WhatsApp →</span>
+            </a>
+          </div>
+          <div class="flex items-center space-x-4 pt-2 border-t border-slate-800 text-xs text-slate-400">
+            <div><span class="text-white font-bold" id="lblTrainedItemsCount">0</span> Trained Products / Offerings</div>
+            <div>•</div>
+            <div id="lblManagedWebsiteDomain" class="text-indigo-300 font-mono">Domain: Auto-Synced</div>
+          </div>
+        </div>
+
+        <!-- UPLOAD DROPZONE (CLICKABLE & DRAGGABLE - ADMIN ?admin=1) -->
+        <div id="catalogDropzone" onclick="document.getElementById('catalogFileInput').click()" ondragover="event.preventDefault(); this.classList.add('border-[#087F5B]', 'bg-emerald-50/20');" ondragleave="this.classList.remove('border-[#087F5B]', 'bg-emerald-50/20');" ondrop="handleCatalogDrop(event)" class="cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 lg:p-8 text-center hover:border-[#087F5B] transition shadow-sm">
+          <input type="file" id="catalogFileInput" accept=".pdf,.xlsx,.xls,.csv" multiple class="hidden" onchange="handleCatalogFileSelected(event)">
+          <div class="max-w-md mx-auto space-y-2 pointer-events-none">
+            <div class="w-10 h-10 bg-emerald-50 text-[#087F5B] rounded-full flex items-center justify-center mx-auto">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            </div>
+            <div class="text-xs lg:text-sm font-semibold text-slate-800">Drag & drop your product catalog or <span class="text-[#087F5B] underline font-bold">browse</span></div>
+            <div class="text-[11px] text-slate-500">Formats: PDF brochure, Excel (.xlsx, .xls), or CSV (Auto-extracts every product row!)</div>
+            <div id="catalogUploadStatus" class="hidden text-xs text-[#087F5B] font-semibold pt-1"></div>
+          </div>
+        </div>
+
+        <div id="catalogReplaceToggleWrapper" class="hidden px-1">
+          <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 mt-2 cursor-pointer">
+            <input type="checkbox" id="replaceCatalogToggle" checked class="rounded text-[#087F5B]">
+            <span>Replace existing catalog (auto-delete old items not in uploaded file)</span>
+          </label>
+        </div>
+
+        <!-- Optional Website Knowledge Sync (ADMIN ?admin=1) -->
+        <div id="cardWebsiteSync" class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">🌐</span>
+              <h3 class="text-xs font-bold text-slate-900">Website Knowledge Sync & Custom AI Training</h3>
+            </div>
+            <span id="websiteSyncStatusBadge" class="text-[10px] px-2 py-0.5 rounded font-semibold bg-slate-100 text-slate-600">Not Synced</span>
+          </div>
+          <p class="text-[11px] text-slate-500">Train AI on your business website, about page, or paste custom sales guidelines & rules below.</p>
+          <div class="flex gap-2">
+            <input type="url" id="websiteUrlInput" placeholder="https://yourcompany.com" class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-[#087F5B] focus:outline-none" />
+            <button onclick="syncWebsiteKnowledge()" id="btnSyncWebsite" class="px-3.5 py-1.5 bg-[#087F5B] hover:bg-[#066548] text-white text-xs font-semibold rounded-lg transition whitespace-nowrap">
+              <span>Sync Website</span>
+            </button>
+          </div>
+          <div id="websiteSyncInfo" class="text-[10px] text-slate-400"></div>
+
+          <div class="pt-3 border-t border-gray-100 space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold text-slate-800">Custom AI Instructions & Business Knowledge</label>
+              <span class="text-[10px] text-slate-400">Persona, COD/Shipping, MOQ & Policies</span>
+            </div>
+            <textarea id="customKnowledgeInput" rows="5" placeholder="Paste custom AI sales persona, shipping/COD rules, MOQ policies, warranty terms, or full business details here..." class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-[#087F5B] focus:outline-none font-mono"></textarea>
+            <div class="flex justify-end">
+              <button onclick="saveCustomKnowledge()" id="btnSaveCustomKnowledge" class="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg transition flex items-center space-x-1.5 shadow-sm">
+                <span>💾 Save AI Instructions</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm lg:text-base font-bold text-slate-900">Extracted Products & Price Specifications</h2>
+            <div class="flex items-center space-x-3">
+              <button id="btnClearCatalog" onclick="clearAllCatalogProducts()" class="hidden text-xs text-rose-600 hover:text-rose-700 font-semibold px-2.5 py-1 rounded-lg border border-rose-200 hover:bg-rose-50 transition">🗑️ Clear All</button>
+              <button onclick="fetchCatalogProducts()" class="text-xs text-[#087F5B] hover:underline">Refresh</button>
+            </div>
+          </div>
+          <div id="catalogProductsContainer" class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
+                  <th class="py-3 px-4">Photo</th>
+                  <th class="py-3 px-4">SKU</th>
+                  <th id="thColProductName" class="py-3 px-4">Product / Item Name</th>
+                  <th id="thColProductSpecs" class="py-3 px-4">Specifications / Details</th>
+                  <th class="py-3 px-4">Price Spec</th>
+                  <th class="py-3 px-4">Brochure PDF</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="catalogTableBody" class="divide-y divide-gray-100">
+                <!-- Dynamically populated via fetchCatalogProducts() -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 5: WHATSAPP INTEGRATION -->
+      <!-- ============================================== -->
+      <section id="view-whatsapp" class="view-panel hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">WhatsApp Business Setup</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Pair your official business WhatsApp number to send automatic brochures, AI qualifying replies, and hot lead alerts.</p>
+          </div>
+          <!-- Worker Engine Status Pill -->
+          <div id="waWorkerEnginePill" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/30">
+            <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+            <span id="waEnginePillText">Checking Engine Status...</span>
+          </div>
+        </div>
+
+        <!-- Row 1: Phone Numbers Config & Live Automation Switches -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Card 1: Phone Numbers Configuration -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-bold text-sm">📱</div>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900">Dedicated WhatsApp Numbers</h3>
+                  <span class="text-[11px] text-slate-500">Live linked SIM & sales escalation</span>
+                </div>
+              </div>
+              <span id="waConnectedStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500">⚪ Disconnected</span>
+            </div>
+
+            <!-- Connected Device Status Banner -->
+            <div class="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-center justify-between text-xs">
+              <div class="flex items-center space-x-2.5">
+                <span class="text-base">🤖</span>
+                <div>
+                  <div class="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Connected WhatsApp SIM</div>
+                  <div id="waConnectedNumberDisplay" class="text-slate-500 font-normal text-xs">No device linked yet</div>
+                </div>
+              </div>
+              <span class="text-[10px] text-slate-400">Auto-detected upon scan</span>
+            </div>
+
+            <div class="space-y-3.5 text-xs">
+              <!-- Hidden or sync input for waBotNumberInput for legacy ID compatibility -->
+              <input type="hidden" id="waBotNumberInput" value="">
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">
+                  Main Owner / Sales Director WhatsApp Number (Alerts)
+                </label>
+                <input type="text" id="waOwnerAlertInput" placeholder="e.g. 98XXXXXXXX (Country code 91 auto-added)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#087F5B] focus:outline-none">
+                <p class="text-[10px] text-slate-400 mt-0.5">Receives instant hot-lead alerts, requested call bookings, and high-value buyer summaries.</p>
+                <!-- Warning badge if owner number equals linked bot SIM -->
+                <div id="waOwnerAlertWarning" class="hidden mt-1.5 p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-800 flex items-center gap-1.5">
+                  <span>⚠️</span>
+                  <span><strong>Notice:</strong> Owner Alert number cannot be the same as the linked Bot SIM, otherwise alerts will message yourself.</span>
+                </div>
+              </div>
+
+              <div class="pt-2">
+                <button onclick="saveWaPhoneNumbers()" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-lg text-xs transition shadow-sm flex items-center justify-center gap-2">
+                  <span>💾 Save Owner Alert Number</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 2: Live Automation Switches & First Welcome Message -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-9 h-9 rounded-xl bg-[#087F5B] text-white flex items-center justify-center font-bold text-sm">⚡</div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">24×7 AI Qualification & Rules</h3>
+                <span class="text-[11px] text-slate-500">Autonomous customer engagement switches</span>
+              </div>
+            </div>
+
+            <div class="space-y-3 text-xs">
+              <!-- Switch 1: AI Auto Reply -->
+              <div class="flex items-center justify-between p-2.5 bg-slate-50 border border-gray-100 rounded-lg">
+                <div>
+                  <div class="font-bold text-slate-800">24×7 AI Auto-Reply</div>
+                  <div class="text-[10px] text-slate-500">Answers specs, pricing, speed & Hindi/English questions</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="waAutoReplyToggle" checked class="sr-only peer">
+                  <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              <!-- Switch 2: Auto-Send PDF Brochure -->
+              <div class="flex items-center justify-between p-2.5 bg-slate-50 border border-gray-100 rounded-lg">
+                <div>
+                  <div class="font-bold text-slate-800">Auto-Send PDF Brochure</div>
+                  <div class="text-[10px] text-slate-500">Matches product keywords and sends official catalog file</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="waAutoPdfToggle" checked class="sr-only peer">
+                  <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              <!-- Switch 3: Forward Hot Leads -->
+              <div class="flex items-center justify-between p-2.5 bg-slate-50 border border-gray-100 rounded-lg">
+                <div>
+                  <div class="font-bold text-slate-800">Forward Hot Leads to Owner</div>
+                  <div class="text-[10px] text-slate-500">Pings owner WhatsApp when buyer shares city/quantity</div>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" id="waOwnerAlertsToggle" checked class="sr-only peer">
+                  <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Custom First Welcome Greeting</label>
+                <textarea id="waWelcomeMessageInput" oninput="updateWelcomePreview()" rows="2" placeholder="Namaste! Thank you for reaching out. How can our team assist you today?" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-[#087F5B] focus:outline-none"></textarea>
+              </div>
+
+              <!-- 💬 Live Preview Starting Greeting Box -->
+              <div class="bg-[#F7FAF8] border border-[#E5EAE7] rounded-xl p-3 text-xs space-y-1.5">
+                <div class="flex items-center justify-between text-[11px] font-bold text-[#111827]">
+                  <span class="flex items-center gap-1.5"><span>💬</span> Preview Starting Greeting (Buyer WhatsApp View)</span>
+                  <span class="text-[10px] font-normal text-indigo-500">Auto-sent on "Hi / Namaste / Hello"</span>
+                </div>
+                <div id="waWelcomePreviewText" class="bg-white border border-[#E5EAE7]/80 rounded-lg p-2.5 text-slate-700 text-xs shadow-xs italic whitespace-pre-line leading-relaxed">
+                  Namaste! Welcome to our store. How can we help you today?
+                </div>
+              </div>
+
+              <button onclick="saveWaAutomations()" class="w-full py-1.5 bg-[#087F5B] hover:bg-[#066548] text-white font-semibold rounded-lg text-xs transition">
+                Save Automation Rules
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: Live Dual Device Pairing Card -->
+        <div class="grid grid-cols-1 gap-6">
+          <!-- Card 3: Dual Real Pairing Card -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm">🔗</div>
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900">Device Pairing & Session Status</h3>
+                  <span id="waConnectionBadge" class="text-[11px] font-semibold text-slate-500">Checking session...</span>
+                </div>
+              </div>
+              <button onclick="disconnectWaSession()" class="text-[11px] font-semibold text-rose-600 hover:text-rose-700 border border-rose-200 hover:border-rose-300 bg-rose-50 px-2.5 py-1 rounded-lg transition">
+                Disconnect / Reset
+              </button>
+            </div>
+
+            <!-- Pairing Mode Navigation Tabs -->
+            <div class="flex border-b border-gray-200 text-xs font-semibold">
+              <button id="waTabQrBtn" onclick="switchWaPairingTab('qr')" class="py-2 px-4 border-b-2 border-[#087F5B] text-[#087F5B] font-bold transition">
+                📷 Tab 1: Scan Live QR Code
+              </button>
+              <button id="waTabCodeBtn" onclick="switchWaPairingTab('code')" class="py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition">
+                🔢 Tab 2: 8-Digit Pairing Code (No Camera)
+              </button>
+            </div>
+
+            <!-- TAB 1: QR Code Section -->
+            <div id="waTabQrContent" class="space-y-4 text-center">
+              <div class="text-[11px] text-[#087F5B] font-medium bg-[#F7FAF8] py-1.5 px-3 rounded-lg border border-[#E5EAE7] inline-block">
+                ✨ <strong>Zero typing needed:</strong> Simply click below and point your WhatsApp camera to link!
+              </div>
+              <div id="baileysQrContainer" class="w-56 h-56 bg-slate-50 mx-auto border border-gray-200 rounded-xl flex items-center justify-center text-xs text-slate-400 p-2 shadow-inner">
+                <div class="p-4 text-center space-y-2">
+                  <div class="text-2xl">📱</div>
+                  <div class="font-semibold text-slate-600">Click below to generate live QR code</div>
+                </div>
+              </div>
+              <div id="baileysStatusMessage" class="text-xs text-slate-600 font-medium">Ready to pair spare WhatsApp Business SIM.</div>
+
+              <div class="flex justify-center gap-2">
+                <button onclick="generateLiveQrCode()" class="text-xs font-semibold px-4 py-2 bg-[#087F5B] hover:bg-[#066548] text-white rounded-lg shadow-sm transition">
+                  Generate Live QR Code
+                </button>
+                <button onclick="checkWaConnection(true)" class="text-xs font-semibold px-3 py-2 border border-gray-300 bg-white hover:bg-gray-50 text-slate-700 rounded-lg transition">
+                  🔄 Refresh Status
+                </button>
+              </div>
+
+              <div class="text-[11px] text-slate-500 text-left bg-slate-50 p-3 rounded-lg space-y-1">
+                <div>1. Open WhatsApp on your phone.</div>
+                <div>2. Tap <strong>Linked Devices > Link a Device</strong>.</div>
+                <div>3. Point camera at the live QR code above.</div>
+              </div>
+            </div>
+
+            <!-- TAB 2: 8-Digit Pairing Code Section -->
+            <div id="waTabCodeContent" class="hidden space-y-4 text-center">
+              <div class="max-w-xs mx-auto text-left space-y-1">
+                <label class="block text-xs font-semibold text-slate-700">Phone Number to Pair (Bot SIM):</label>
+                <input type="text" id="waPairPhoneInput" oninput="syncBotNumber(this.value)" placeholder="e.g. 98XXXXXXXX (no +91 needed)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                <p class="text-[10px] text-slate-400">Enter the 10-digit number of the SIM you want to link. Country code 91 is auto-added.</p>
+              </div>
+
+              <div class="bg-slate-50 border border-gray-200 rounded-xl p-5 text-center space-y-3">
+                <div class="text-xs text-slate-600">Pairing Code for Bot Number:</div>
+                <div id="waPairingCodeDisplay" class="text-2xl lg:text-3xl font-mono tracking-widest font-black text-slate-400 bg-white px-4 py-3 rounded-xl border border-dashed border-gray-300 inline-block">
+                  ---- - ----
+                </div>
+                <div id="waPairingCodeCopyBtnContainer" class="hidden">
+                  <button onclick="copyPairingCode()" class="text-xs font-semibold px-3 py-1 bg-emerald-600 text-white rounded-md hover:bg-emerald-700 transition">
+                    📋 Copy Code
+                  </button>
+                </div>
+              </div>
+
+              <div class="flex justify-center gap-2">
+                <button onclick="getLivePairingCode()" class="text-xs font-semibold px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition">
+                  Get 8-Digit Pairing Code
+                </button>
+                <button onclick="checkWaConnection(true)" class="text-xs font-semibold px-3 py-2 border border-gray-300 bg-white hover:bg-gray-50 text-slate-700 rounded-lg transition">
+                  🔄 Refresh
+                </button>
+              </div>
+
+              <div class="text-[11px] text-slate-500 text-left bg-slate-50 p-3 rounded-lg space-y-1">
+                <div>1. Open WhatsApp on your phone.</div>
+                <div>2. Tap <strong>Linked Devices > Link a Device > Link with phone number instead</strong>.</div>
+                <div>3. Enter the 8-digit code displayed above.</div>
+              </div>
+            </div>
+          </div>
+
+          
+        </div>
+      
+          <!-- Card 4: Send Live Test WhatsApp Now -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg">🧪</div>
+              <div>
+                <h3 class="text-sm font-bold text-slate-900">Send Live Test WhatsApp Now</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Test real message & PDF delivery to your phone in 1 click</p>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Recipient Phone Number (with Country Code)</label>
+              <input type="text" id="testRecipientPhone" placeholder="e.g. 98XXXXXXXX (no +91 needed)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Attach Product Brochure PDF</label>
+              <select id="testBrochureSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
+                <option value="">-- No Brochure (Text Message Only) --</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Test Message</label>
+              <textarea id="testMessageText" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">Hi! Here are the details you requested from our team.</textarea>
+            </div>
+
+            <button onclick="sendLiveTestWhatsApp()" id="btnSendTestWa" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center justify-center space-x-1.5">
+              <span>🚀 Send Live WhatsApp Test</span>
+            </button>
+            <div id="testDispatchStatus" class="hidden text-xs text-center font-medium mt-1"></div>
+          </div>
+  
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 6: CALL SCHEDULER -->
+      <!-- ============================================== -->
+      <section id="view-calls" class="view-panel hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Two-Way Call Scheduler</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Autonomous coordination between buyer inquiry and business specialist availability.</p>
+          </div>
+          <button onclick="fetchCallRequests()" class="text-xs text-[#087F5B] font-semibold hover:underline">Refresh</button>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <h2 class="text-sm lg:text-base font-bold text-slate-900">Scheduled & Pending Call Consultations</h2>
+          <div id="callRequestsTableContainer" class="overflow-x-auto">
+            <!-- Dynamic table rows -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 7: ANALYTICS -->
+      <!-- ============================================== -->
+      <section id="view-analytics" class="view-panel hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Genuine Analytics</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Zero synthetic or fabricated data. All calculations reflect actual DB records.</p>
+          </div>
+          <button onclick="loadAnalyticsData()" class="text-xs font-semibold px-3 py-1.5 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-slate-700 shadow-sm">
+            Refresh
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase">Total Buyer Leads</span>
+            <div id="anTotalLeads" class="text-3xl font-bold text-slate-900">0</div>
+            <p class="text-xs text-slate-400">Total inquiries captured</p>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase">Qualification Rate</span>
+            <div id="anQualRate" class="text-3xl font-bold text-[#087F5B]">0%</div>
+            <p class="text-xs text-slate-400">Inquiries meeting machine specs</p>
+          </div>
+          <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-2">
+            <span class="text-xs font-semibold text-slate-500 uppercase">Confirmed Call Rate</span>
+            <div id="anCallRate" class="text-3xl font-bold text-emerald-600">0%</div>
+            <p class="text-xs text-slate-400">Director consultations scheduled</p>
+          </div>
+        </div>
+
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+          <h3 class="text-sm font-bold text-slate-900">Response Speed & Conversion Velocity</h3>
+          <div class="space-y-3 text-xs">
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <span>Sub-10s Brochure Dispatch Rate</span>
+                <span id="anSpeedPct">100%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-500 w-full"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between font-semibold text-slate-700 mb-1">
+                <span>Direct WhatsApp Inbound Engagement</span>
+                <span id="anEngagePct">0%</span>
+              </div>
+              <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div id="anEngageBar" class="h-full bg-[#087F5B] w-0 transition-all duration-500"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 8: SETTINGS -->
+      <!-- ============================================== -->
+      <section id="view-settings" class="view-panel hidden space-y-6">
+        <div>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Settings</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Manage company identity, B2B webhook credentials, and AI deal rules.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Business Profile & Owner Alerts (Primary for Owner) -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Business Profile & Owner Alerts</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Basic information used by AI when qualifying inbound buyer leads.</p>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Company / Business Display Name</label>
+                <input type="text" id="settingCompanyName" placeholder="e.g. Surya Solar / Sharma Enterprises" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <input type="hidden" id="settingBusinessType" value="auto">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">City / Dispatch Base</label>
+                <input type="text" id="settingCityBase" placeholder="e.g. Ludhiana / Delhi NCR" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Owner WhatsApp Alert Phone (For Call Approvals)</label>
+                <input type="text" id="settingOwnerPhone" placeholder="Enter 10-digit WhatsApp number" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                <p class="text-[10px] text-slate-400 mt-0.5">High-intent buyer dossiers and call confirmation alerts are sent here.</p>
+              </div>
+              <button onclick="saveAiSettings()" class="w-full py-2.5 bg-[#087F5B] text-white font-semibold rounded-lg hover:bg-[#066548] shadow-sm transition">
+                Save Business Profile
+              </button>
+            </div>
+          </div>
+
+          <!-- Account Security & Change Password -->
+          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">🔒 Account Security — Change Password</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Update your account login password securely.</p>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">New Password</label>
+                <input type="password" id="newPasswordInput" placeholder="Enter new password (min 6 chars)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Confirm New Password</label>
+                <input type="password" id="confirmPasswordInput" placeholder="Re-enter new password" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <button onclick="handleChangePassword()" class="w-full py-2.5 bg-slate-900 text-white font-semibold rounded-lg hover:bg-slate-800 shadow-sm transition">
+                Update Password
+              </button>
+            </div>
+          </div>
+
+          <!-- Engineer Setup & Webhook Settings (Technical - Admin Only ?admin=1) -->
+          <div id="cardEngineerSettings" class="hidden bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">🔧 Engineer Setup & Webhook Settings</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Paste into B2B Seller Portal / CRM or connect persistent cloud server.</p>
+            </div>
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Your Organization's Webhook URL</label>
+                <div class="flex">
+                  <input type="text" id="webhookUrlInput" readonly value="Loading webhook URL..." class="flex-1 px-3 py-2 bg-slate-50 border border-gray-300 rounded-l-lg text-slate-700 font-mono text-[11px] truncate">
+                  <button onclick="copyWebhookUrl()" class="px-3.5 py-2 bg-[#087F5B] text-white font-semibold rounded-r-lg hover:bg-[#066548] transition">Copy</button>
+                </div>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">B2B CRM Key / Secret (Optional)</label>
+                <input type="password" id="b2bCrmKeyInput" placeholder="mfg_crm_secret..." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Backend Server API URL (For Railway / Render / VPS)</label>
+                <input type="text" id="settingApiBase" placeholder="https://your-backend.railway.app (or leave empty for preview)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-slate-700 text-xs">
+                <p class="text-[10px] text-slate-400 mt-1">Connecting a URL here exits static preview mode immediately.</p>
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Google Gemini API Key (Optional)</label>
+                <input type="password" id="settingGeminiKey" placeholder="AIzaSy... (Leave empty to use smart zero-key engine)" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+              </div>
+              <button onclick="saveEngineerSettings()" class="w-full py-2.5 bg-[#087F5B] hover:bg-[#066548] text-white font-semibold rounded-lg text-xs shadow-sm transition">
+                Save Technical Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 9: WORKSPACE MEMBERSHIP & PLAN ACTIVATION -->
+      <!-- ============================================== -->
+      <section id="view-billing" class="view-panel hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">Workspace Membership & Commercial Plans</h1>
+            <p class="text-xs text-slate-500 mt-0.5">High-intent autonomous AI sales closing for your business inquiries.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="memStatusBadge" class="text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+              ⚡ 48-Hour Live VIP Pilot Active
+            </span>
+          </div>
+        </div>
+
+        <!-- CARD 1: VIP PILOT STATUS & LIVE LEADS USAGE BAR -->
+        <div class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-6 text-white shadow-sm border border-slate-800 space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-500/30 text-emerald-300 border border-emerald-400/30">Live Workspace Quota</span>
+              <h3 class="text-lg font-bold">48-Hour Live VIP Pilot: 25 Inquiries Included (₹999 — 100% Deducted on Upgrade)</h3>
+              <p class="text-xs text-slate-300">Your workspace is active. AI qualifies buyers, attaches PDF brochures, and schedules owner calls.</p>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-slate-300">Pilot Time Remaining:</div>
+              <div id="memCountdownDisplay" class="text-base font-mono font-bold text-emerald-300 mt-0.5">47h 59m remaining</div>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="space-y-1.5 pt-2">
+            <div class="flex justify-between text-xs font-medium text-slate-300">
+              <span>Pilot Inquiries Processed</span>
+              <span id="memLeadQuotaText" class="font-bold text-white">0 / 25 Pilot Leads Used</span>
+            </div>
+            <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+              <div id="memLeadProgressBar" class="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PROMINENT VIP PILOT CARD (JUST ₹999 - 100% ADJUSTED IN PLAN) -->
+        <div class="bg-gradient-to-r from-emerald-950 via-slate-900 to-indigo-950 border-2 border-emerald-500/70 rounded-2xl p-6 text-white shadow-lg space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 border border-emerald-400/40">🚀 VIP Launch Pilot • 100% Risk-Free</span>
+              <h3 class="text-lg lg:text-xl font-bold text-white">Start With 48-Hour Live VIP Pilot on Your WhatsApp — Just ₹999 (100% Adjusted in Your Plan!)</h3>
+              <p class="text-xs text-slate-300 max-w-3xl">Put MartFlow AI live on YOUR business WhatsApp for 48 Hours (up to 25 real customer inquiries + Engineer AI Setup + FREE Custom PDF Brochure Design). When you upgrade, your entire ₹999 is 100% deducted (pay just ₹9,000 balance for Standard or ₹14,000 for Pro)!</p>
+            </div>
+            <div class="shrink-0 flex flex-col sm:flex-row items-center gap-2">
+              <button onclick="openDemoBotChat()" class="w-full sm:w-auto px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/40 font-semibold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 shadow-sm">
+                <span>🤖 Test Live AI Sales Bot Now →</span>
+              </button>
+              <button onclick="openActivationModal('48-Hour Live VIP Pilot - 100% Adjustable', '₹999 Adjustable Setup Deposit', '48 Hours Live on Your WhatsApp - 25 Real Leads + White-Glove AI Training + Free PDF Brochure • 100% Deducted on Upgrade!', 999)" class="w-full sm:w-auto px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-md flex items-center justify-center space-x-1.5">
+                <span>⚡ Start ₹999 VIP Pilot Now →</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 2: 4 COMMERCIAL PLANS BENTO GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- PLAN 1: STANDARD GROWTH -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-5 hover:border-indigo-300 transition">
+            <div class="space-y-3">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">Standard Growth</span>
+              <h3 class="text-lg font-bold text-slate-900">₹9,999 <span class="text-xs font-normal text-slate-500">One-Time (3 Months Maintenance FREE!)</span></h3>
+              <p class="text-xs text-slate-500">Regular ₹7,500 + ₹2,999/mo • 500 Leads/mo. 3 Months Maintenance FREE, then ₹2,999/mo from Month 4 • For businesses, consultants & clinics.</p>
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>500 Verified Buyer Leads / Month</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Instant PDF Brochure Dispatch (&lt;10s)</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Hindi & Hinglish Voice-Note AI</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>24×7 Hinglish AI Deal Closing</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Instant Hot-Lead WhatsApp Alerts to Owner</span></div>
+              </div>
+            </div>
+            <button onclick="openActivationModal('Standard Growth', '₹9,999 One-Time', 'Includes 500 leads/mo, 3 Months Maintenance FREE (₹2,999/mo from Month 4), PDF brochure dispatch, Hinglish deal qualification, owner alerts', 9999)" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-xs transition shadow-sm">
+              Activate Standard Plan (₹9,999) →
+            </button>
+          </div>
+
+          <!-- PLAN 2: PRO HIGH-VOLUME (MOST POPULAR) -->
+          <div class="bg-white border-2 border-[#087F5B] rounded-2xl p-6 shadow-md flex flex-col justify-between space-y-5 relative">
+            <div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#087F5B] text-white text-[10px] font-bold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-sm">
+              🔥 Most Popular for Growing Businesses
+            </div>
+            <div class="space-y-3 pt-1">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#087F5B] border border-[#E5EAE7]">Pro High-Volume</span>
+              <h3 class="text-lg font-bold text-slate-900">₹14,999 <span class="text-xs font-normal text-slate-500">One-Time (3 Months Maintenance FREE!)</span></h3>
+              <p class="text-xs text-slate-500">Regular ₹12,000 + ₹4,999/mo • 2,000 Leads/mo. For multi-product brands, exporters & high-volume teams.</p>
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Up to 2,000 Buyer Leads / Month</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Unlimited Catalogs & PDFs Ingestion</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Website Knowledge Scraper Sync</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Two-Way Director Call Scheduler</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Priority 15-Minute AnyDesk Setup</span></div>
+              </div>
+            </div>
+            <button onclick="openActivationModal('Pro High-Volume', '₹14,999 One-Time', 'Includes 2,000 leads/mo, 3 Months Maintenance FREE, unlimited catalogs, website scraper sync, priority AnyDesk setup', 14999)" class="w-full py-2.5 bg-[#087F5B] hover:bg-[#066548] text-white font-bold rounded-xl text-xs transition shadow-md">
+              Activate Pro Plan (₹14,999) →
+            </button>
+          </div>
+
+          <!-- PLAN 3: ENTERPRISE OFFICIAL META API -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-5 hover:border-emerald-300 transition">
+            <div class="space-y-3">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">💎 Enterprise Official Meta API</span>
+              <h3 class="text-lg font-bold text-slate-900">₹25,000 <span class="text-xs font-normal text-slate-500">Setup + ₹7,999/mo</span></h3>
+              <p class="text-xs text-slate-500">300+ Leads/day • Official Meta Cloud API • High throughput for enterprise sales departments.</p>
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Official Meta Cloud WhatsApp Business API</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Green Tick Brand Verification Assistance</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Dedicated Senior Sales Engineer on WhatsApp & Phone</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Custom AI Fine-Tuning & Multi-SIM Support</span></div>
+              </div>
+            </div>
+            <button onclick="openActivationModal('Enterprise Official Meta API', '₹25,000 Setup + ₹7,999/mo', '300+ Leads/day, Official Meta Cloud API, dedicated engineer support', 25000)" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-sm">
+              Activate Enterprise (₹25,000) →
+            </button>
+          </div>
+
+          <!-- PLAN 4: AGENCY WHITE-LABEL PARTNER -->
+          <div class="bg-white border-2 border-emerald-500/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between space-y-5 hover:border-emerald-600 transition relative">
+            <div class="space-y-3">
+              <span class="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-gradient-to-r from-emerald-50 to-indigo-50 text-[#111827] border border-[#E5EAE7]">🚀 Agency White-Label</span>
+              <h3 class="text-lg font-bold text-slate-900">₹35,000 <span class="text-xs font-normal text-slate-500">One-Time ($420)</span></h3>
+              <p class="text-xs text-slate-500">5 Client Workspace Accounts Included • Full 100% Agency Rebranding.</p>
+              <div class="pt-2 border-t border-gray-100 text-xs space-y-2 text-slate-600">
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span><strong>5 Client Accounts</strong> Included</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>100% Your Agency Brand & Logo</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Keep 100% of Client Retainers</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Extra Client Workspaces at ₹4,000/ea</span></div>
+                <div class="flex items-center gap-1.5"><span class="text-emerald-600 font-bold">✓</span><span>Priority Partner Engineering Support</span></div>
+              </div>
+            </div>
+            <button onclick="openActivationModal('Agency White-Label Partner License', '₹35,000 One-Time', '5 Client Workspace Accounts Included • Extra slots at ₹4,000 • 100% Rebrand', 35000)" class="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-sm">
+              Activate Agency License (₹35,000) →
+            </button>
+          </div>
+        </div>
+
+        <!-- PARTNER COUPON CODE UNLOCK -->
+        <div class="p-5 bg-emerald-50/60 border border-[#E5EAE7] rounded-2xl space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h4 class="text-xs font-bold text-[#111827]">Have a Partner Coupon Code or Tailored Proposal?</h4>
+              <p class="text-[11px] text-[#111827]">Enter your partner coupon code or activation reference to unlock your discounted rate.</p>
+            </div>
+            <div class="flex items-center space-x-2">
+              <input type="text" id="offerCodeInput" placeholder="Enter partner code" class="px-3 py-1.5 text-xs border border-[#E5EAE7] rounded-lg uppercase font-mono font-bold focus:ring-2 focus:ring-[#087F5B] focus:outline-none">
+              <button onclick="submitActivationCode()" class="px-3 py-1.5 bg-[#087F5B] hover:bg-[#066548] text-white rounded-lg text-xs font-semibold shadow-sm transition">
+                Apply
+              </button>
+            </div>
+          </div>
+
+          <!-- Tailored Invoice Banner (If custom_quote_inr is active) -->
+          <div id="customQuoteBanner" class="hidden p-3 bg-white border border-emerald-300 rounded-lg flex items-center justify-between">
+            <div>
+              <span class="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded">Tailored Proposal Unlocked</span>
+              <div class="text-sm font-bold text-slate-900 mt-0.5">Special Commercial Activation: <span id="customQuoteAmountText" class="text-[#087F5B] font-extrabold">₹999</span></div>
+              <div id="customQuoteDescText" class="text-[11px] text-emerald-800 font-medium mt-0.5">48-Hour VIP Setup Deposit — Adjusted in Plan</div>
+            </div>
+            <button onclick="openActivationModal('Tailored Commercial License', document.getElementById('customQuoteAmountText').textContent, document.getElementById('customQuoteDescText')?.textContent || 'Custom Tailored Commercial Activation')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+              Activate Now →
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 10: ENGINEER CONSOLE (?admin=1) -->
+      <!-- ============================================== -->
+      <section id="view-engineer" class="view-panel hidden space-y-6">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-[#087F5B] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-[#E5EAE7]">Engineer Console (?admin=1)</span>
+          </div>
+          <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight mt-1">Infrastructure, Database & Gateways</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Developer credentials for Supabase multi-tenant database, Razorpay API, and Merchant UPI.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Card 1: Supabase Multi-Tenant Config -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">⚡</span>
+              <h3 class="text-sm font-bold text-slate-900">Supabase Project & Google Auth</h3>
+            </div>
+            <p class="text-xs text-slate-500">Row-Level Security (RLS) is pre-configured in `supabase_schema.sql`. Paste keys below to activate live cloud DB.</p>
+
+            <div class="space-y-3 text-xs">
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Supabase Project URL</label>
+                <input type="text" id="engSupabaseUrl" placeholder="https://xyzcompany.supabase.co" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Supabase Anon Public Key</label>
+                <input type="password" id="engSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
+              <p class="text-[11px] text-slate-400">If blank, MartFlow seamlessly runs on isolated transactional local/in-browser storage.</p>
+            </div>
+          </div>
+
+          <!-- Card 2: Merchant Payment Gateways (UPI & Razorpay) -->
+          <div class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">💳</span>
+              <h3 class="text-sm font-bold text-slate-900">Payment Gateways (UPI & Razorpay)</h3>
+            </div>
+            <p class="text-xs text-slate-500">Configure direct bank UPI settlement (0% MDR) and official Razorpay checkout SDK credentials.</p>
+
+            <div class="space-y-3 text-xs">
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Merchant UPI ID</label>
+                  <input type="text" id="engMerchantUpiId" placeholder="YOUR_REAL_UPI_ID" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+                </div>
+                <div>
+                  <label class="block font-semibold text-slate-700 mb-1">Merchant Display Name</label>
+                  <input type="text" id="engMerchantName" placeholder="MartFlow AI" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Razorpay Key ID (Optional)</label>
+                <input type="text" id="engRazorpayKeyId" placeholder="rzp_live_..." class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
+
+              <div>
+                <label class="block font-semibold text-slate-700 mb-1">Backend Server API Base URL</label>
+                <input type="text" id="engApiBase" placeholder="https://api.martflow.ai (leave blank if local)" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button onclick="saveEngineerSettings()" class="px-5 py-2.5 bg-[#087F5B] hover:bg-[#066548] text-white font-semibold rounded-lg text-xs shadow-sm transition">
+            Save Infrastructure Credentials
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- SIMULATION MODAL (TEST INBOUND LEAD) -->
+  <div id="simulationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeSimulationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="space-y-4">
+        <div class="flex items-center space-x-2">
+          <span class="text-lg">⚡</span>
+          <h2 class="text-lg font-bold text-slate-900">Test Inbound Buyer Lead</h2>
+        </div>
+        <p class="text-xs text-slate-500">Simulate a buyer submitting an inquiry on B2B marketplace. Tests instant lead ingestion and auto-WhatsApp dispatch.</p>
+
+        <div class="space-y-3 text-xs">
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Buyer Name</label>
+            <input type="text" id="simBuyerName" value="Sandeep Kumar" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Buyer WhatsApp Number (10 digits)</label>
+            <input type="text" id="simBuyerPhone" placeholder="Enter 10-digit WhatsApp number" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Product / Offering Inquired</label>
+            <input type="text" id="simProduct" value="Automatic Pouch Packing Machine" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Buyer City</label>
+            <input type="text" id="simBuyerCity" value="Ludhiana" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Requirement Note</label>
+            <input type="text" id="simQueryMsg" value="Need machine for 50g-100g powder packing. Send price quotation and PDF brochure." class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+          </div>
+          <button onclick="submitSimulation()" class="w-full py-2.5 bg-[#087F5B] text-white font-semibold rounded-lg hover:bg-[#066548] shadow-sm transition">
+            Dispatch Test Inquiry
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK-ADD SKU MODAL -->
+  <div id="quickAddModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeQuickAddModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="space-y-4">
+        <h2 class="text-lg font-bold text-slate-900">+ Quick Add Product / Service</h2>
+        <p class="text-xs text-slate-500">Add a product or service directly to your verified catalog knowledge base in 10 seconds.</p>
+        <div class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">SKU / Code (Optional)</label>
+              <input type="text" id="qaSku" placeholder="e.g. SKU-RB500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Price Specification</label>
+              <input type="text" id="qaPriceRaw" placeholder="e.g. ₹3,85,000 + GST" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+            </div>
+          </div>
+          <div>
+            <label id="lblEditProductName" class="block font-semibold text-slate-700 mb-1">Product / Offering Name <span class="text-rose-500">*</span></label>
+            <input type="text" id="qaProductName" placeholder="e.g. Industrial Ribbon Blender RB-500" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Model / Capacity / Specs Details</label>
+            <input type="text" id="qaModel" placeholder="e.g. 500 Kg Batch Capacity, SS-304" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Product Photo / Image (Optional)</label>
+            <input type="file" id="qaImageFile" accept="image/*" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-slate-50 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-[#087F5B] hover:file:bg-indigo-100">
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Product / Service Brochure PDF (Auto-sent to WhatsApp)</label>
+            <input type="file" id="qaPdfFile" accept=".pdf" class="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg text-xs bg-slate-50 file:mr-2 file:py-1 file:px-2.5 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-[#087F5B] hover:file:bg-indigo-100">
+          </div>
+          <button id="qaSubmitBtn" onclick="submitQuickAddProduct()" class="w-full py-2.5 bg-[#087F5B] text-white font-semibold rounded-lg hover:bg-[#066548] shadow-sm transition flex items-center justify-center gap-2">
+            <span>💾 Save to Catalog</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT PRODUCT SKU MODAL -->
+  <div id="editProductModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative">
+      <button onclick="closeEditProductModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="space-y-4">
+        <h2 class="text-lg font-bold text-slate-900">Edit Catalog Product / Offering</h2>
+        <p class="text-xs text-slate-500">Update pricing, specifications, photos, or brochure PDF for this SKU.</p>
+        <input type="hidden" id="editProductId">
+        <div class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">SKU / Code</label>
+              <input type="text" id="editSku" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs font-mono">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Price Specification</label>
+              <input type="text" id="editPriceRaw" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+            </div>
+          </div>
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">Product / Offering Name <span class="text-rose-500">*</span></label>
+            <input type="text" id="editProductName" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs">
+          </div>
+          <div>
+            <label id="lblEditModel" class="block font-semibold text-slate-700 mb-1">Model / Specs / Capacity Details</label>
+            <textarea id="editModel" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs"></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Update Photo (Optional)</label>
+              <input type="file" id="editImageFile" accept="image/*" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-[10px] bg-slate-50 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-emerald-50 file:text-[#087F5B] hover:file:bg-indigo-100">
+            </div>
+            <div>
+              <label class="block font-semibold text-slate-700 mb-1">Update PDF Brochure</label>
+              <input type="file" id="editPdfFile" accept=".pdf" class="w-full px-2 py-1.5 border border-gray-300 rounded-lg text-[10px] bg-slate-50 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-emerald-50 file:text-[#087F5B] hover:file:bg-indigo-100">
+            </div>
+          </div>
+          <button id="editSubmitBtn" onclick="submitEditProduct()" class="w-full py-2.5 bg-[#087F5B] text-white font-semibold rounded-lg hover:bg-[#066548] shadow-sm transition flex items-center justify-center gap-2">
+            <span>💾 Save Changes</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIGH-TRUST PAYMENT & PLAN ACTIVATION MODAL -->
+  <!-- HIGH-TRUST DUAL PAYMENT & PLAN ACTIVATION MODAL -->
+  <div id="activationModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto custom-scroll">
+      <button onclick="closeActivationModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="text-center space-y-1">
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">Instant VIP Activation</span>
+        <h2 id="actPlanTitle" class="text-lg font-bold text-slate-900 mt-2">Commercial Sales License</h2>
+        <div id="actPlanPrice" class="text-2xl font-extrabold text-[#087F5B]">₹999</div>
+        <p id="actPlanDesc" class="text-xs text-slate-500">100% adjusted into final plan. Instant activation with AnyDesk support.</p>
+      </div>
+
+      <!-- PAYMENT METHOD TABS -->
+      <div class="flex border-b border-gray-200 text-xs font-semibold">
+        <button id="payTabUpiBtn" onclick="switchPayTab('upi')" class="flex-1 py-2.5 text-center border-b-2 border-[#087F5B] text-[#087F5B] font-bold transition flex items-center justify-center space-x-1.5">
+          <span>⚡ Instant Direct UPI QR (0% MDR • ₹999 VIP Pilot / Full Plan)</span>
+        </button>
+        <button id="payTabRazorpayBtn" onclick="switchPayTab('razorpay')" class="hidden flex-1 py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition items-center justify-center space-x-1.5">
+          <span>💳 Razorpay</span>
+        </button>
+      </div>
+
+      <!-- TAB 1: INSTANT DIRECT UPI QR & UTR LOGGING -->
+      <div id="payTabUpiContent" class="space-y-3 pt-1">
+        <!-- Compact Coupon / Pilot Adjustment Code Box -->
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+          <label class="block font-semibold text-slate-700">Have a Coupon / Pilot Adjustment Code?</label>
+          <div class="flex space-x-2">
+            <input type="text" id="modalCouponInput" placeholder="e.g. ADJUST999 / PILOT999" class="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg font-mono uppercase focus:ring-2 focus:ring-[#087F5B] focus:outline-none">
+            <button type="button" onclick="applyModalCoupon()" class="px-4 py-2 bg-[#087F5B] hover:bg-[#066548] text-white font-bold rounded-lg text-xs transition shadow-xs shrink-0">
+              Apply
+            </button>
+          </div>
+        </div>
+
+        <div class="p-4 bg-[#F7FAF8] border border-[#E5EAE7] rounded-xl text-center space-y-3">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-[#111827]">Scan & Pay via GPay, PhonePe, Paytm, BHIM</div>
+          <div class="bg-white p-2 rounded-xl inline-block border border-[#E5EAE7] shadow-sm">
+            <img id="actUpiQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dsaraitaj6-2%40okaxis%26pn%3DMartFlow%2520AI%26am%3D9999%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
+          </div>
+          <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
+            <span id="actUpiIdText" class="text-slate-600 font-semibold truncate">UPI ID: saraitaj6-2@okaxis</span>
+            <button onclick="copyUpiId()" class="text-[#087F5B] hover:text-[#111827] font-bold ml-2 shrink-0">Copy</button>
+          </div>
+          <a id="actUpiMobileBtn" href="#" class="block w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition">
+            📱 Open in UPI App (GPay / PhonePe / Paytm)
+          </a>
+        </div>
+
+        <!-- 12-Digit UTR Input for Instant Activation -->
+        <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl space-y-2 text-xs">
+          <label class="block font-semibold text-slate-700">Enter 12-Digit Bank UTR / Reference No. After Payment:</label>
+          <div class="flex space-x-2">
+            <input type="text" id="utrRefInput" placeholder="e.g. 429381029384" class="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg font-mono focus:ring-2 focus:ring-[#087F5B] focus:outline-none">
+            <button onclick="submitUtrVerification()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition shadow-sm shrink-0">
+              Verify UTR
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500">Your transaction will be verified in under 60 seconds.</p>
+        </div>
+      </div>
+
+      <!-- TAB 2: RAZORPAY OFFICIAL CHECKOUT SDK -->
+      <div id="payTabRazorpayContent" class="hidden space-y-4 pt-1">
+        <div class="p-4 bg-slate-50 border border-gray-200 rounded-xl space-y-3 text-xs">
+          <div class="flex items-center space-x-2 text-[#087F5B] font-bold">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            <span>Razorpay Secure Business Checkout</span>
+          </div>
+          <p class="text-slate-600">Supports all major payment options with instant GST tax invoice:</p>
+          <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-700">
+            <div class="p-2 bg-white border border-gray-200 rounded">💳 Credit & Debit Cards</div>
+            <div class="p-2 bg-white border border-gray-200 rounded">🏦 50+ NetBanking Banks</div>
+            <div class="p-2 bg-white border border-gray-200 rounded">📱 UPI & Autopay</div>
+            <div class="p-2 bg-white border border-gray-200 rounded">🏢 Corporate Cards & EMI</div>
+          </div>
+        </div>
+
+        <button onclick="startRazorpayPayment()" class="hidden w-full py-3 bg-[#087F5B] hover:bg-[#066548] text-white font-bold rounded-xl text-xs shadow-md transition flex items-center justify-center space-x-2">
+          <span>Pay Securely via Razorpay →</span>
+        </button>
+      </div>
+
+      <!-- Partner / Affiliate Referral Badge -->
+      <div id="actAffiliateBadge" class="hidden p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center justify-between">
+        <div class="flex items-center space-x-1.5">
+          <span>🤝</span>
+          <span id="actAffiliateBadgeText">Partner Referral Applied</span>
+        </div>
+        <span class="text-[10px] bg-emerald-200/60 text-emerald-900 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Verified</span>
+      </div>
+
+      <!-- 1-Click WhatsApp Direct Activation -->
+      <div class="space-y-2 pt-1 border-t border-gray-100">
+        <a id="actWaBtn" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! I want to activate my workspace plan')" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+          ⚡ Confirm & Connect on WhatsApp (Under 10 Mins) →
+        </a>
+        <p class="text-[11px] text-center text-slate-400">Our senior onboarding specialist will reach out on WhatsApp instantly.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONFIRM CALL MODAL (ZERO WINDOW.PROMPT) -->
+  <div id="confirmCallModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative space-y-4">
+      <button onclick="closeConfirmCallModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-lg font-bold">
+        📞
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Confirm Call Consultation</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Select or enter the confirmed time slot for buyer & specialist consultation call.</p>
+      </div>
+
+      <input type="hidden" id="confirmCallIdInput">
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-1">Confirmed Time Slot (IST)</label>
+        <input type="text" id="confirmCallTimeInput" value="Today at 4:30 PM IST" class="w-full px-3 py-2 text-xs border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#087F5B] focus:outline-none font-semibold">
+      </div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="closeConfirmCallModal()" class="flex-1 py-2 text-xs font-semibold border border-gray-300 rounded-lg text-slate-600 hover:bg-gray-50 transition">Cancel</button>
+        <button onclick="submitCallConfirmation()" class="flex-1 py-2 text-xs font-semibold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition shadow-sm">Confirm Slot</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ANYDESK ENGINEER ASSISTANCE MODAL -->
+  <div id="anyDeskHelpModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl relative space-y-4">
+      <button onclick="closeAnyDeskHelpModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="w-10 h-10 rounded-full bg-indigo-100 text-[#087F5B] flex items-center justify-center text-lg font-bold">
+        💻
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-slate-900">Done-For-You AnyDesk Connection</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Let our integration engineers connect your B2B CRM and catalog brochures on AnyDesk or Google Meet.</p>
+      </div>
+
+      <div class="p-3 bg-slate-50 border border-gray-200 rounded-xl text-xs space-y-1.5 text-slate-700">
+        <div>✓ 100% Done in 10-15 Minutes</div>
+        <div>✓ Zero technical steps required from you</div>
+        <div>✓ Live test inquiry verified together</div>
+      </div>
+
+      <a id="anyDeskWaBtn" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! Please connect via AnyDesk to set up my B2B integration')" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
+        Chat with Engineer on WhatsApp →
+      </a>
+    </div>
+  </div>
+
+  <!-- WORKSPACE MODALS -->
+    <div id="upgradeModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-center space-y-4">
+      <button onclick="closeUpgradeModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <div class="w-12 h-12 bg-emerald-50 text-[#087F5B] rounded-full flex items-center justify-center mx-auto text-xl">
+        ⭐
+      </div>
+      <h2 id="upgradePlanTitle" class="text-lg font-bold text-slate-900">Upgrade Plan</h2>
+      <p class="text-xs text-slate-600">To upgrade your monthly buyer lead quota or activate multi-user team seats, contact our onboarding director via WhatsApp:</p>
+
+      <div class="p-3 bg-slate-50 border border-gray-200 rounded-lg text-xs space-y-1 text-left font-mono">
+        <div><strong>UPI ID:</strong> <span id="upgradeModalUpi">saraitaj6-2@okaxis</span></div>
+        <div><strong>Direct Desk:</strong> <span id="upgradeDeskPhone">MartFlow Priority Onboarding Desk</span></div>
+        <div><strong>Instant Activation:</strong> Under 15 Minutes</div>
+      </div>
+
+      <a id="upgradeWaLink" href="javascript:void(0)" onclick="openDemoBotChat('Hi MartFlow Team, I want to upgrade my plan')" class="block w-full py-2.5 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 shadow-sm transition text-xs">
+        Chat on WhatsApp to Upgrade →
+      </a>
+    </div>
+  </div>
+
+    <div id="onboardingModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white border border-gray-200 rounded-2xl max-w-xl w-full p-6 shadow-2xl relative flex flex-col">
+      <button onclick="closeOnboardingModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <!-- HEADER -->
+      <div class="space-y-1 mb-5">
+        <div class="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Fast-Track Setup • Live in 5 Minutes</span>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">Get Your WhatsApp AI Sales Executive Ready</h2>
+        <p class="text-xs text-slate-500">Complete these 4 simple steps to connect your number, upload your catalogue, and start closing sales.</p>
+      </div>
+
+      <!-- PROGRESS PILLS -->
+      <div class="flex items-center justify-between relative mb-6 px-2">
+        <div class="absolute top-4 left-6 right-6 h-0.5 bg-slate-200 -z-0"></div>
+        <div class="flex flex-col items-center space-y-1 relative z-10">
+          <div id="onboardingPill1" class="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-emerald-200">1</div>
+          <span class="text-[10px] font-semibold text-slate-700">WhatsApp</span>
+        </div>
+        <div class="flex flex-col items-center space-y-1 relative z-10">
+          <div id="onboardingPill2" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 font-bold flex items-center justify-center text-xs">2</div>
+          <span class="text-[10px] font-semibold text-slate-500">Catalogue</span>
+        </div>
+        <div class="flex flex-col items-center space-y-1 relative z-10">
+          <div id="onboardingPill3" class="w-8 h-8 rounded-full bg-slate-100 text-slate-400 font-bold flex items-center justify-center text-xs">3</div>
+          <span class="text-[10px] font-semibold text-slate-500">Rules</span>
+        </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
+
+  <!-- EMBED APPLICATION ENGINE JAVASCRIPT -->
+  <script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+              .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+              .replace(/<[^>]+>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+          }
+        }
+
+        if (!markdown) throw new Error('Could not read website content. Please check URL.');
+
+        const truncatedMarkdown = markdown.slice(0, 50000);
+
+        if (sb) {
+          const { error } = await sb.from('organizations').update({
+            website_url: cleanUrl,
+            website_knowledge: truncatedMarkdown,
+            website_synced_at: new Date().toISOString()
+          }).eq('id', currentOrg.id);
+          if (error) throw error;
+        }
+
+        currentOrg.website_url = cleanUrl;
+        currentOrg.website_knowledge = truncatedMarkdown;
+        currentOrg.website_synced_at = new Date().toISOString();
+
+        updateWebsiteSyncBadge();
+        showToast('Website knowledge base synced successfully! AI is now trained on your site.', 'success');
+      } catch (err) {
+        showToast('Website sync error: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldBtnText;
+        }
+      }
+    }
+
+    function updateWebsiteSyncBadge() {
+      const badge = document.getElementById('websiteSyncStatusBadge');
+      const info = document.getElementById('websiteSyncInfo');
+      const input = document.getElementById('websiteUrlInput');
+
+      if (currentOrg?.website_url && input) {
+        input.value = currentOrg.website_url;
+      }
+
+      if (currentOrg?.website_knowledge && badge) {
+        badge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+        badge.textContent = '✓ AI Trained on Site';
+
+        if (info) {
+          info.classList.remove('hidden');
+          const dateStr = currentOrg.website_synced_at ? new Date(currentOrg.website_synced_at).toLocaleString() : 'Recently';
+          info.innerHTML = `<span class="font-bold text-slate-800">Synced:</span> ${escapeHtml(dateStr)} • <span class="font-mono text-indigo-700">${escapeHtml(currentOrg.website_url)}</span> (${Math.round((currentOrg.website_knowledge.length / 1024))} KB knowledge base)`;
+        }
+      }
+    }
+
+    async function saveBusinessType() {
+      if (!currentOrg) return;
+      const type = document.getElementById('settingBusinessType')?.value || 'auto';
+      try {
+        if (sb) {
+          await sb.from('organizations').update({ business_type: type }).eq('id', currentOrg.id);
+        }
+        currentOrg.business_type = type;
+        applyNicheAdaptation(type);
+        showToast('Business niche updated to ' + type, 'success');
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    function applyNicheAdaptation(type = 'auto') {
+      applyBusinessNiche(type);
+    }
+
+    // =========================================================================
+    // 📦 SMART CATALOG PARSER & MULTI-ROW EXTRACTION (EXCEL, CSV, PDF)
+    // =========================================================================
+    function handleCatalogDrop(event) {
+      event.preventDefault();
+      const dropzone = document.getElementById('catalogDropzone');
+      if (dropzone) dropzone.classList.remove('border-indigo-500', 'bg-indigo-50/20');
+      const files = Array.from(event.dataTransfer?.files || []);
+      if (files.length) processCatalogFiles(files);
+    }
+
+    async function handleCatalogFileSelected(event) {
+      const files = Array.from(event?.target?.files || []);
+      if (files.length) {
+        await processCatalogFiles(files);
+        event.target.value = '';
+      }
+    }
+
+    async function renderAndParsePdfWithImages(arrayBuffer) {
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const extractedItems = [];
+      const fullTextChunks = [];
+      const skuLineRegex = /^([A-Z]{2,4}-\d{2,4}[A-Z]?)\s+(.+?)\s+((?:Rs\.?|₹|INR)\s*[\d,]+(?:\s*\/\s*[A-Za-z.]+|\s*\([^)]+\)|\s*\+\s*[A-Za-z0-9.,/\s]+|\s*Deposit)?)$/i;
+      const priceFallbackRegex = /((?:Rs\.?|₹|INR)\s*[\d,]+[^\n|]*)/i;
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const scale = 1.6;
+        const viewport = page.getViewport({ scale });
+        const pageHeightPt = viewport.height / scale;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.floor(viewport.width);
+        canvas.height = Math.floor(viewport.height);
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const content = await page.getTextContent();
+        const rowBuckets = [];
+        for (const it of content.items) {
+          const str = (it.str || '').trim();
+          if (!str) continue;
+          const xPt = it.transform[4];
+          const yPt = it.transform[5];
+          let bucket = rowBuckets.find(b => Math.abs(b.yPt - yPt) <= 3.5);
+          if (!bucket) {
+            bucket = { yPt, parts: [] };
+            rowBuckets.push(bucket);
+          }
+          bucket.parts.push({ xPt, str });
+        }
+        rowBuckets.sort((a, b) => b.yPt - a.yPt);
+        const lines = rowBuckets.map(b => {
+          b.parts.sort((p1, p2) => p1.xPt - p2.xPt);
+          return {
+            yPt: b.yPt,
+            minXPt: b.parts[0].xPt,
+            text: b.parts.map(p => p.str).join(' ').replace(/\s+/g, ' ').trim()
+          };
+        });
+        fullTextChunks.push(lines.map(l => l.text).join('\n'));
+
+        const cardIndices = [];
+        lines.forEach((ln, idx) => {
+          if (/^[A-Z]{2,4}-\d{2,4}[A-Z]?\b/.test(ln.text) && !/\b(?:Series|System)\s*-/i.test(ln.text)) {
+            cardIndices.push(idx);
+          }
+        });
+
+        // Universal heuristic for non-machinery brochures (Solar, Services, Clinic, Coaching, Real Estate, Fashion, etc.)
+        if (cardIndices.length === 0) {
+          lines.forEach((ln, idx) => {
+            const hasPrice = /(?:Rs\.?|₹|INR)\s*[\d,]+/i.test(ln.text);
+            const isBulletOrNum = /^\s*(?:\d+[\.\)]|[•\-\*])\s+[A-Za-z]/.test(ln.text);
+            const isGoodLength = ln.text.length >= 4 && ln.text.length <= 80;
+            const notMeta = !/^(page\s*\d+|copyright|all rights|contact|phone|email|website|address|call|http)/i.test(ln.text);
+            if (notMeta && (hasPrice || (isBulletOrNum && isGoodLength))) {
+              cardIndices.push(idx);
+            }
+          });
+        }
+        if (cardIndices.length === 0 && lines.length > 0) {
+          const contentLines = lines.filter(l => l.text.length >= 6 && l.text.length <= 80 && !/^(page\s*\d+|www\.|http|email|phone|contact)/i.test(l.text));
+          if (contentLines.length > 0) {
+            const step = Math.max(1, Math.floor(contentLines.length / 6));
+            for (let i = 0; i < contentLines.length; i += step) {
+              const lineIdx = lines.indexOf(contentLines[i]);
+              if (lineIdx !== -1 && !cardIndices.includes(lineIdx)) {
+                cardIndices.push(lineIdx);
+              }
+              if (cardIndices.length >= 6) break;
+            }
+          }
+        }
+
+        for (let cIdx = 0; cIdx < cardIndices.length; cIdx++) {
+          const startIdx = cardIndices[cIdx];
+          const nextIdx = cIdx + 1 < cardIndices.length ? cardIndices[cIdx + 1] : lines.length;
+          const headerLine = lines[startIdx];
+
+          let sku = `ITEM-${pageNum}${cIdx + 1}`;
+          let name = headerLine.text.replace(/^\s*(?:\d+[\.\)]|[•\-\*])\s*/, '').trim();
+          let price = 'Ask for Price';
+
+          const m = headerLine.text.match(skuLineRegex);
+          if (m) {
+            sku = m[1].trim();
+            name = m[2].trim();
+            price = m[3].trim();
+          } else {
+            const skuMatch = headerLine.text.match(/^([A-Z]{2,4}-\d{2,4}[A-Z]?)\s+(.+)$/);
+            if (skuMatch) {
+              sku = skuMatch[1].trim();
+              let rest = skuMatch[2].trim();
+              const pm = rest.match(priceFallbackRegex);
+              if (pm) {
+                price = pm[1].trim();
+                rest = rest.replace(pm[0], '').trim();
+              }
+              name = rest || sku;
+            } else {
+              const pm = headerLine.text.match(priceFallbackRegex);
+              if (pm) {
+                price = pm[1].trim();
+                name = headerLine.text.replace(pm[0], '').replace(/^\s*(?:\d+[\.\)]|[•\-\*])\s*/, '').trim() || `Service Option ${cIdx + 1}`;
+              }
+            }
+          }
+
+          const specLines = [];
+          for (let k = startIdx + 1; k < nextIdx; k++) {
+            const t = lines[k].text.replace(/^[•\-*]\s*/, '').trim();
+            if (!t) continue;
+            if (/^(?:HOW TO TEST|HOW YOUR|STORE SHIPPING|BOOKING,|WHOLESALE ORDERING|SUBSIDY PAPERWORK|CERTIFICATION,|SAYA DATE|CONSULTATION,|LIVE AI DEMO|WHATSAPP SALES)/i.test(t)) break;
+            specLines.push(t);
+          }
+
+          let thumbDataUrl = '';
+          try {
+            if (headerLine.minXPt >= 130) {
+              const topPt = pageHeightPt - (headerLine.yPt + 15);
+              const cropX = Math.max(0, Math.round(41 * scale));
+              const cropY = Math.max(0, Math.round(topPt * scale));
+              const cropSize = Math.round(108 * scale);
+              const tc = document.createElement('canvas');
+              tc.width = 220;
+              tc.height = 220;
+              const tctx = tc.getContext('2d');
+              tctx.fillStyle = '#ffffff';
+              tctx.fillRect(0, 0, 220, 220);
+              tctx.drawImage(canvas, cropX, cropY, cropSize, cropSize, 0, 0, 220, 220);
+              thumbDataUrl = tc.toDataURL('image/jpeg', 0.82);
+            }
+          } catch (cropErr) {
+            console.warn('Thumbnail crop skipped for', sku, cropErr);
+          }
+
+          extractedItems.push({
+            sku_code: sku,
+            name: name.substring(0, 120),
+            model_specs: (specLines.join(' | ') || 'Standard Specification').substring(0, 600),
+            price_raw: price.substring(0, 80),
+            moq: 'Standard',
+            stock_status: 'Available',
+            image_url: thumbDataUrl
+          });
+        }
+      }
+      if (extractedItems.length === 0 && fullTextChunks.length > 0) {
+        const fullClean = fullTextChunks.join('\n\n').trim();
+        if (fullClean.length > 10) {
+          extractedItems.push({
+            sku_code: 'CATALOG-01',
+            name: 'Official Services & Offerings',
+            model_specs: fullClean.slice(0, 500).replace(/\n+/g, ' '),
+            price_raw: 'Ask for Price',
+            moq: 'Standard',
+            stock_status: 'Available',
+            image_url: ''
+          });
+        }
+      }
+      return { items: extractedItems, rawText: fullTextChunks.join('\n\n') };
+    }
+
+    function inferCategory(name = '', sku = '') {
+      const n = (name || '').toLowerCase();
+      const s = (sku || '').toUpperCase();
+      if (s.startsWith('CL-') || /clothing|apparel|dress|kurti|shirt|suit|boutique/i.test(n)) return 'Apparel & Boutique';
+      if (s.startsWith('TR-') || /tour|travel|holiday|package|manali|kashmir|resort/i.test(n)) return 'Tours & Travel Packages';
+      if (s.startsWith('TX-') || /blanket|quilt|textile|bedsheet|mink/i.test(n)) return 'Blankets & Textiles';
+      if (s.startsWith('SL-') || /solar|rooftop|bifacial|panel|inverter/i.test(n)) return 'Solar Power Plants';
+      if (s.startsWith('CR-') || /car|suv|sedan|vehicle|pre-owned/i.test(n)) return 'Automobiles & Pre-Owned Cars';
+      if (s.startsWith('WD-') || /wedding|banquet|hall|catering|marriage/i.test(n)) return 'Wedding Banquets & Catering';
+      if (s.startsWith('IN-') || /kitchen|modular|interior|wardrobe|plywood/i.test(n)) return 'Interiors & Modular Kitchens';
+      if (s.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(n)) return 'MartFlow AI Setup Plans';
+      if (/ielts|pte|visa|coaching|english batch/i.test(n)) return 'Education & Study Visa';
+      if (/pouch|packing|packaging|collar|auger/i.test(n)) return 'Pouch Packing Machinery';
+      if (/liquid|filling|paste|bottle|syrup/i.test(n)) return 'Liquid & Paste Filling';
+      if (/sealer|sealing|strap|strapping|carton/i.test(n)) return 'Carton Sealing & Strapping';
+      return 'General Products';
+    }
+
+    async function processCatalogFile(file) {
+      if (file) return processCatalogFiles([file]);
+    }
+
+    async function processCatalogFiles(fileList) {
+      if (!fileList?.length) return;
+      if (!currentOrg) return showToast('Please sign in first to upload catalogs.', 'warning');
+
+      const statusBox = document.getElementById('uploadStatusToast');
+      const statusMsg = document.getElementById('uploadStatusText');
+      const setStatus = (msg) => {
+        if (statusBox) statusBox.classList.remove('hidden');
+        if (statusMsg) statusMsg.textContent = msg;
+      };
+
+      try {
+        const shouldReplace = document.getElementById('replaceCatalogToggle')
+          ? document.getElementById('replaceCatalogToggle').checked
+          : true;
+
+        // Cache existing SKU images so uploading an Excel sheet NEVER wipes out existing PDF photos!
+        const existingBySku = new Map();
+        if (sb) {
+          const { data: oldRows } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
+          (oldRows || []).forEach(r => {
+            if (r.sku_code) existingBySku.set(String(r.sku_code).trim().toUpperCase(), r);
+          });
+        }
+
+        // Sort files so PDFs run FIRST (extracting photos + uploading PDF brochure), then Excel/CSV enriches/merges!
+        const sortedFiles = [...fileList].sort((a, b) => {
+          const aPdf = a.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
+          const bPdf = b.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
+          return aPdf - bPdf;
+        });
+
+        const mergedMap = new Map();
+        if (!shouldReplace) {
+          existingBySku.forEach((r, key) => {
+            mergedMap.set(key, {
+              sku_code: r.sku_code,
+              name: r.name,
+              model_specs: r.model_specs,
+              price_raw: r.price_raw,
+              moq: r.moq || 'Standard',
+              stock_status: r.stock_status || 'Available',
+              image_url: r.image_url || ''
+            });
+          });
+        }
+
+        let uploadedPdfUrl = currentOrg.catalog_pdf_url || '';
+        let uploadedPdfName = currentOrg.catalog_pdf_name || '';
+
+        for (const file of sortedFiles) {
+          const ext = file.name.split('.').pop().toLowerCase();
+          let fileItems = [];
+
+          if (ext === 'pdf') {
+            setStatus(`Uploading ${file.name} & cropping product photos...`);
+            if (sb) {
+              const storagePath = `org_${currentOrg.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+              const { error: upErr } = await sb.storage.from('catalogs').upload(storagePath, file, { contentType: 'application/pdf', upsert: true });
+              if (!upErr) {
+                const { data: pubUrlData } = sb.storage.from('catalogs').getPublicUrl(storagePath);
+                if (pubUrlData?.publicUrl) {
+                  uploadedPdfUrl = pubUrlData.publicUrl;
+                  uploadedPdfName = file.name;
+                  currentOrg.catalog_pdf_url = pubUrlData.publicUrl;
+                  currentOrg.catalog_pdf_name = file.name;
+                }
+              }
+            }
+            const arrayBuf = await file.arrayBuffer();
+            const { items, rawText } = await renderAndParsePdfWithImages(arrayBuf);
+            fileItems = items;
+
+            if (rawText && rawText.trim().length > 20) {
+              const truncatedKnowledge = rawText.slice(0, 50000);
+              currentOrg.website_knowledge = truncatedKnowledge;
+
+              // Infer clean brand name from file name if current name is generic
+              const cleanBrand = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').replace(/\bcatalog\b|\bbrochure\b|\bpdf\b/gi, '').trim();
+              if (cleanBrand && cleanBrand.length >= 3 && (!currentOrg.name || /martflow|my enterprise/i.test(currentOrg.name))) {
+                currentOrg.name = cleanBrand;
+              }
+
+              if (sb) {
+                try {
+                  await sb.from('organizations').update({
+                    name: currentOrg.name,
+                    website_knowledge: truncatedKnowledge,
+                    updated_at: new Date().toISOString()
+                  }).eq('id', currentOrg.id);
+                } catch (e) {}
+              }
+            }
+
+            if (fileItems.length === 0 && rawText.trim().length > 20) {
+              setStatus(`Extracting items from ${file.name} with AI...`);
+              const resp = await fetch(`${API_BASE}/api/catalog/extract-ai`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rawText, fileName: file.name })
+              }).catch(() => null);
+              if (resp && resp.ok) {
+                const j = await resp.json();
+                if (Array.isArray(j.items)) fileItems = j.items;
+              }
+            }
+          } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
+            setStatus(`Reading spreadsheet ${file.name}...`);
+            const buf = await file.arrayBuffer();
+            const wb = XLSX.read(buf, { type: 'array' });
+            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
+            fileItems = rows.map((r, i) => ({
+              sku_code: String(r.SKU || r['SKU Code'] || r.Code || `ITEM-${101 + i}`).trim(),
+              name: String(r['Product Name'] || r.Name || r.Item || r.Title || '').trim(),
+              price_raw: String(r.Price || r.Rate || r.MRP || 'Ask for Price').trim(),
+              model_specs: String(r['Specifications & Details'] || r.Specifications || r.Specs || r.Description || 'Standard').trim(),
+              moq: String(r.MOQ || 'Standard').trim(),
+              stock_status: 'Available',
+              image_url: String(r['Image URL'] || r.Image || '').trim()
+            })).filter(x => x.name);
+          }
+
+          // Smart SKU Merge across PDF + Excel!
+          for (const item of fileItems) {
+            const key = (item.sku_code || item.name).trim().toUpperCase();
+            const prev = mergedMap.get(key);
+            const fallbackOldImg = existingBySku.get(key)?.image_url || '';
+            mergedMap.set(key, {
+              sku_code: item.sku_code || prev?.sku_code || 'ITEM',
+              name: item.name || prev?.name || '',
+              model_specs: (item.model_specs && item.model_specs.length >= (prev?.model_specs?.length || 0)) ? item.model_specs : (prev?.model_specs || item.model_specs),
+              price_raw: (item.price_raw && item.price_raw !== 'Ask for Price') ? item.price_raw : (prev?.price_raw || 'Ask for Price'),
+              moq: item.moq || prev?.moq || 'Standard',
+              stock_status: item.stock_status || prev?.stock_status || 'Available',
+              image_url: item.image_url || prev?.image_url || fallbackOldImg || ''
+            });
+          }
+        }
+
+        const finalItems = Array.from(mergedMap.values());
+        if (!finalItems.length) throw new Error('Could not detect items in the selected file(s).');
+
+        setStatus(`Saving ${finalItems.length} merged items & photos to live database...`);
+        const rowsToInsert = finalItems.map(item => ({
+          sku: item.sku_code || item.sku || 'ITEM',
+          name: item.name,
+          category: item.category || inferCategory(item.name, item.sku_code || item.sku),
+          model_specs: String(item.model_specs || '').substring(0, 600),
+          price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
+          image_url: item.image_url || '',
+          brochure_url: uploadedPdfUrl || item.brochure_url || '',
+          brochure_filename: uploadedPdfName || item.brochure_filename || '',
+          is_active: true
+        }));
+
+        // One authorized transactional write; never clear chat history.
+        const syncResponse = await fetch(`${API_BASE}/api/catalog/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {}) },
+          body: JSON.stringify({
+            orgId: currentOrg?.id, products: rowsToInsert,
+            websiteKnowledge: currentOrg?.website_knowledge || '',
+            companyName: currentOrg?.name || 'Our Company',
+            catalogPdfName: uploadedPdfName || ''
+          })
+        });
+        const syncResult = await syncResponse.json();
+        if (!syncResponse.ok || !syncResult.ok) throw new Error(syncResult.error || 'Catalog sync failed.');
+
+        await fetchCatalogProducts();
+        if (typeof updateCatalogBannerUI === 'function') updateCatalogBannerUI();
+        showToast(`✅ Synced ${finalItems.length} unique products with photos!`, 'success');
+      } catch (err) {
+        console.error('Catalog process error:', err);
+        showToast('Catalog upload error: ' + (err.message || err), 'error');
+      } finally {
+        setTimeout(() => { if (statusBox) statusBox.classList.add('hidden'); }, 1500);
+      }
+    }
+
+    // =========================================================================
+    // ✏️ INLINE EDITING & EDIT SKU MODAL
+    // =========================================================================
+    let catalogProductsCache = [];
+
+    async function inlineEditProductPrice(id) {
+      const existing = (catalogProductsCache || []).find(x => String(x.id) === String(id));
+      const currentPrice = existing ? (existing.price_raw || '') : '';
+      const newPrice = prompt('Enter updated price specification:', currentPrice);
+      if (newPrice === null || newPrice.trim() === currentPrice) return;
+      try {
+        if (sb && currentOrg) {
+          const { error } = await sb.from('products').update({ price_raw: newPrice.trim() }).eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        }
+        showToast('Price updated to ' + newPrice.trim(), 'success');
+        await fetchCatalogProducts();
+      } catch (e) { showToast('Update failed: ' + e.message, 'error'); }
+    }
+
+    async function inlineEditProductSpecs(id) {
+      const existing = (catalogProductsCache || []).find(x => String(x.id) === String(id));
+      const currentSpecs = existing ? (existing.model_specs || '') : '';
+      const newSpecs = prompt('Enter updated specifications & details:', currentSpecs);
+      if (newSpecs === null || newSpecs.trim() === currentSpecs) return;
+      try {
+        if (sb && currentOrg) {
+          const { error } = await sb.from('products').update({ model_specs: newSpecs.trim() }).eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        }
+        showToast('Specifications updated!', 'success');
+        await fetchCatalogProducts();
+      } catch (e) { showToast('Update failed: ' + e.message, 'error'); }
+    }
+
+    function openEditProductModal(productId) {
+      const prod = catalogProductsCache.find(p => p.id === productId);
+      if (!prod) return;
+
+      if (document.getElementById('editProductId')) document.getElementById('editProductId').value = prod.id;
+      if (document.getElementById('editSku')) document.getElementById('editSku').value = prod.sku || '';
+      if (document.getElementById('editProductName')) document.getElementById('editProductName').value = prod.name || '';
+      if (document.getElementById('editPriceRaw')) document.getElementById('editPriceRaw').value = prod.price_raw || '';
+      if (document.getElementById('editModel')) document.getElementById('editModel').value = prod.model_specs || '';
+
+      const modal = document.getElementById('editProductModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeEditProductModal() {
+      const modal = document.getElementById('editProductModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitEditProduct() {
+      const id = document.getElementById('editProductId')?.value;
+      const sku = (document.getElementById('editSku')?.value || '').trim();
+      const name = (document.getElementById('editProductName')?.value || '').trim();
+      const price_raw = (document.getElementById('editPriceRaw')?.value || '').trim();
+      const model_specs = (document.getElementById('editModel')?.value || '').trim();
+
+      if (!name) return showToast('Product name is required', 'error');
+
+      try {
+        if (sb) {
+          const { error } = await sb.from('products').update({
+            sku,
+            name,
+            price_raw,
+            model_specs
+          }).eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        }
+        closeEditProductModal();
+        showToast('Product updated successfully!', 'success');
+        fetchCatalogProducts();
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // ⏱️ 48-HOUR LIVE TRIAL COUNTDOWN TIMER
+    // =========================================================================
+    let trialTimerInterval = null;
+    function startTrialCountdownTimer() {
+      if (trialTimerInterval) clearInterval(trialTimerInterval);
+
+      function updateCountdown() {
+        if (!currentOrg) return;
+
+        const trialEnds = currentOrg.trial_ends_at ? new Date(currentOrg.trial_ends_at) : new Date(Date.now() + 48 * 3600 * 1000);
+        const diffMs = trialEnds.getTime() - Date.now();
+
+        const trialCountEl = document.getElementById('trialCountdownText');
+        const memCountEl = document.getElementById('memCountdownDisplay');
+        const memLeadQuota = document.getElementById('memLeadQuotaText');
+        const memProgressBar = document.getElementById('memLeadProgressBar');
+
+        const leadsUsed = currentOrg.trial_leads_used || currentOrg.leads_used || 0;
+        const leadsLimit = currentOrg.trial_lead_limit || currentOrg.monthly_lead_limit || 25;
+        const leadsLeft = Math.max(0, leadsLimit - leadsUsed);
+
+        if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Pilot Leads Used (${leadsLeft} Remaining)`;
+        if (memProgressBar) {
+          const pct = Math.min(100, Math.round((leadsUsed / Math.max(1, leadsLimit)) * 100));
+          memProgressBar.style.width = pct + '%';
+        }
+
+        if (diffMs <= 0) {
+          if (trialCountEl) trialCountEl.textContent = 'Pilot expired • Upgrade to full plan to resume';
+          if (memCountEl) memCountEl.textContent = 'Pilot Expired';
+        } else {
+          const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+          const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+          const timeStr = `${totalHours}h ${mins}m pilot remaining • ${leadsLeft} live inquiries left`;
+          if (trialCountEl) trialCountEl.textContent = timeStr;
+          if (memCountEl) memCountEl.textContent = `${totalHours}h ${mins}m remaining`;
+        }
+      }
+
+      updateCountdown();
+      trialTimerInterval = setInterval(updateCountdown, 30000);
+    }
+
+</script>
+
+  <script>
+    // App Route Mapper for /app/*
+    function handleAppRoute() {
+      const path = window.location.pathname.toLowerCase();
+      if (path === '/app' || path === '/app/' || path === '/app/overview') {
+        switchView('dashboard', false);
+      } else if (path === '/app/inbox') {
+        switchView('conversations', false);
+      } else if (path === '/app/leads') {
+        switchView('leads', false);
+      } else if (path === '/app/catalogue' || path === '/app/catalog') {
+        switchView('catalog', false);
+      } else if (path === '/app/whatsapp') {
+        switchView('whatsapp', false);
+      } else if (path === '/app/assistant') {
+        switchView('whatsapp', false);
+      } else if (path === '/app/automations') {
+        switchView('settings', false);
+      } else if (path === '/app/appointments' || path === '/app/calls') {
+        switchView('calls', false);
+      } else if (path === '/app/analytics') {
+        switchView('analytics', false);
+      } else if (path === '/app/settings') {
+        switchView('settings', false);
+      } else if (path === '/app/billing') {
+        switchView('billing', false);
+      }
+    }
+
+    // Wrap switchView to update URL to /app/*
+    const origSwitchView = window.switchView;
+    window.switchView = function(viewName, syncUrl = true) {
+      origSwitchView(viewName, false);
+      if (syncUrl) {
+        const routeMap = {
+          dashboard: '/app/overview',
+          leads: '/app/leads',
+          conversations: '/app/inbox',
+          catalog: '/app/catalogue',
+          whatsapp: '/app/whatsapp',
+          calls: '/app/appointments',
+          analytics: '/app/analytics',
+          settings: '/app/settings',
+          billing: '/app/billing',
+          engineer: '/admin'
+        };
+        const target = routeMap[viewName] || '/app';
+        try { window.history.pushState({ path: target }, '', target); } catch(e) {}
+      }
+    };
+
+    window.addEventListener('popstate', handleAppRoute);
+    window.addEventListener('DOMContentLoaded', () => {
+      // Check auth guard immediately
+      const token = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
+      if (!token) {
+        sessionStorage.setItem('mf_auth_redirect', window.location.pathname);
+        window.location.href = '/login';
+        return;
+      }
+      handleAppRoute();
+    });
+  </script>
+</body>
+</html>
