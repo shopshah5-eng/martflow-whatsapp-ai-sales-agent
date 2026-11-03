@@ -134,7 +134,7 @@ test('authentication provider errors do not trigger an alternate signup', async 
 });
 
 test('network fallback never fakes success for real API calls', async () => {
-  for (const name of ['index', 'app', 'admin']) {
+  for (const name of ['app', 'admin']) {
     const { dom } = openPage(name);
     await wait(20);
     await assert.rejects(dom.window.handleStaticDemoRequest('/api/catalog/sync', {}), /server is unavailable/i);
@@ -151,20 +151,20 @@ test('legacy dashboard deep links are routed to the workspace on both hosts', ()
 test('contact form sends the fields the API expects and reports connection failures honestly', async () => {
   const { dom } = openPage('index');
   await wait(30);
-  const w = dom.window;
-  w.document.getElementById('contactOrgName').value = 'Test company';
-  w.document.getElementById('contactPhone').value = '9876543210';
-  w.document.getElementById('contactRequirement').value = 'Synthetic enquiry';
+  const w = dom.window, d = w.document;
+  for (const [id, value] of Object.entries({ name: 'Test User', business: 'Test company', email: 'test@example.test', phone: '9876543210', message: 'Synthetic enquiry' })) d.getElementById(id).value = value;
+  d.getElementById('contactConsent').checked = true;
   let payload;
-  w.fetch = async (_url, options) => {
-    payload = JSON.parse(options.body);
-    throw new Error('offline');
-  };
+  w.fetch = async (_url, options) => { payload = JSON.parse(options.body); throw new Error('offline'); };
   await w.handleContactSubmit();
-  assert.equal(payload.name, 'Test company');
+  assert.equal(payload.name, 'Test User');
   assert.equal(payload.phone, '9876543210');
-  assert.equal(payload.message, 'Synthetic enquiry');
-  assert.match(w.document.getElementById('toastContainer').textContent, /Unable to submit/i);
+  assert.match(payload.message, /Business: Test company/);
+  assert.match(payload.message, /Email: test@example.test/);
+  assert.match(payload.message, /Synthetic enquiry/);
+  assert.match(d.getElementById('formNote').textContent, /Unable to submit/i);
+  assert.equal(d.getElementById('contactSubmit').disabled, false);
+  assert.equal(d.getElementById('business').value, 'Test company');
   dom.window.close();
 });
 
@@ -269,7 +269,7 @@ test('each page initializes at most one authentication client', async () => {
   for (const name of ['index', 'login', 'app']) {
     const { dom, state } = openPage(name, { path: name === 'index' ? '/' : `/${name}`, supabase: client });
     await wait(80);
-    assert.equal(state.clientCreations, 1, `${name} created multiple Supabase clients`);
+    assert.equal(state.clientCreations, name === 'index' ? 0 : 1, `${name} should initialize only the clients it needs`);
     dom.window.close();
   }
 });
@@ -345,5 +345,71 @@ test('catalogue manager submits manual details through authenticated JSON API', 
   assert.equal(call.options.headers.Authorization, 'Bearer synthetic');
   assert.deepEqual(JSON.parse(call.options.body), { name: 'Precision Widget', sku: 'A-42', priceRaw: '100', model: 'Size 5' });
   assert.deepEqual(errors, []);
+  dom.window.close();
+});
+
+
+test('homepage menu, FAQ and plan enquiry remain accessible and functional', async () => {
+  const { dom, errors } = openPage('index', { path: '/' });
+  await wait(30);
+  const w = dom.window, d = w.document;
+  const menu = d.getElementById('toggle');
+  menu.click();
+  assert.equal(menu.getAttribute('aria-expanded'), 'true');
+  assert.equal(d.getElementById('links').classList.contains('open'), true);
+  d.querySelector('#links a[href="#features"]').click();
+  assert.equal(menu.getAttribute('aria-expanded'), 'false');
+  const faq = d.querySelector('.q');
+  faq.click();
+  assert.equal(faq.getAttribute('aria-expanded'), 'true');
+  assert.equal(d.getElementById(faq.getAttribute('aria-controls')).parentElement.classList.contains('open'), true);
+  faq.click();
+  assert.equal(faq.getAttribute('aria-expanded'), 'false');
+  d.querySelector('[data-interest="Standard Growth"]').click();
+  assert.match(d.getElementById('formNote').textContent, /Standard Growth/);
+  assert.deepEqual(errors, []);
+  dom.window.close();
+});
+
+test('homepage enquiry validates consent, retains fields on failure and resets only on confirmed success', async () => {
+  const { dom } = openPage('index', { path: '/?ref=Partner_42' });
+  await wait(30);
+  const w = dom.window, d = w.document;
+  for (const [id, value] of Object.entries({ name: 'Test User', business: 'Synthetic Co', email: 'test@example.test', phone: '9876543210', message: 'Synthetic requirement' })) d.getElementById(id).value = value;
+  let calls = [];
+  w.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => ({ ok: true }) }; };
+  await w.handleContactSubmit();
+  assert.equal(calls.length, 0, 'consent must be checked');
+  d.getElementById('contactConsent').checked = true;
+  d.querySelector('[data-interest="Pro Business"]').click();
+  await w.handleContactSubmit();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, '/api/public/demo-enquiry');
+  const payload = JSON.parse(calls[0].options.body);
+  assert.equal(payload.productQuery, 'Pro Business');
+  assert.match(payload.message, /Partner reference: Partner_42/);
+  assert.match(payload.message, /Synthetic requirement/);
+  assert.match(d.getElementById('formNote').textContent, /received/i);
+  assert.equal(d.getElementById('name').value, '');
+  assert.equal(d.getElementById('contactConsent').checked, false);
+  dom.window.close();
+});
+
+
+test('homepage prevents duplicate submissions and keeps entered data when the API rejects an enquiry', async () => {
+  const { dom } = openPage('index', { path: '/' }); await wait(30);
+  const w = dom.window, d = w.document;
+  for (const [id, value] of Object.entries({ name: 'Test User', business: 'Synthetic Co', email: 'test@example.test', phone: '9876543210' })) d.getElementById(id).value = value;
+  d.getElementById('contactConsent').checked = true;
+  let resolveFetch, calls = 0;
+  w.fetch = () => { calls++; return new Promise(resolve => { resolveFetch = resolve; }); };
+  const first = w.handleContactSubmit();
+  await w.handleContactSubmit();
+  assert.equal(calls, 1);
+  resolveFetch({ ok: false, json: async () => ({ ok: false, error: 'Enquiries are unavailable.' }) });
+  await first;
+  assert.match(d.getElementById('formNote').textContent, /unavailable/i);
+  assert.equal(d.getElementById('business').value, 'Synthetic Co');
+  assert.equal(d.getElementById('contactSubmit').disabled, false);
   dom.window.close();
 });

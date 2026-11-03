@@ -203,7 +203,7 @@ test('WHATSAPP JOURNEY DIAGNOSTICS & FIX SUITE: Complete Flow Verification', asy
     assert.ok(demoHtml.includes('/api/public/demo-enquiry'), 'demo.html must call /api/public/demo-enquiry');
 
     const indexHtml = fs.readFileSync(path.join(process.cwd(), 'public', 'index.html'), 'utf8');
-    assert.ok(indexHtml.includes('window.DEMO_BOT_WHATSAPP_LIVE'), 'index.html must dynamically read DEMO_BOT_WHATSAPP_LIVE');
+    assert.ok(indexHtml.includes('/api/public/demo-enquiry'), 'the homepage must submit enquiries to the existing API');
   });
 
   server.close();

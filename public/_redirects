@@ -9,6 +9,7 @@
 /login            /login.html       200
 /signup           /login.html       200
 /forgot-password  /login.html       200
+/demo             /demo.html        200
 /admin/*          /admin.html       200
 /admin            /admin.html       200
 

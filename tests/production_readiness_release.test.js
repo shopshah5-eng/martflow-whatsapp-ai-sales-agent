@@ -365,8 +365,7 @@ test('PRODUCTION RELEASE SUITE: Security, Isolation, Learning & Health Verificat
     const html = fs.readFileSync(path.resolve('public/index.html'), 'utf8');
     assert.ok(html.includes('initAffiliateTracking'), 'index.html must initialize affiliate tracking');
     assert.ok(html.includes('mf_affiliate_ref'), 'index.html must store affiliate ref in localStorage');
-    assert.ok(html.includes('actPartnerBadge'), 'index.html must render partner badge container');
-    assert.ok(html.includes('[Partner Ref:'), 'index.html must attach partner ref to UTR submission');
+    assert.ok(html.includes('Partner reference:'), 'homepage enquiries must retain sanitized referral attribution');
   });
 
   server.close();
