@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 840" width="100%" height="100%" fill="none">
+  <defs>
+    <filter id="phone-shadow" x="-8%" y="-4%" width="116%" height="110%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#022c22" flood-opacity="0.14"/>
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#022c22" flood-opacity="0.08"/>
+    </filter>
+    <linearGradient id="phone-bezel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="50%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="wa-header" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#087F5B"/>
+      <stop offset="100%" stop-color="#066649"/>
+    </linearGradient>
+    <linearGradient id="pdf-icon-bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FEE2E2"/>
+      <stop offset="100%" stop-color="#FECACA"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Phone Body Outer Frame -->
+  <g filter="url(#phone-shadow)">
+    <!-- Outer Rim -->
+    <rect x="10" y="10" width="400" height="820" rx="48" fill="url(#phone-bezel)" stroke="#334155" stroke-width="3"/>
+    <!-- Screen Glass -->
+    <rect x="22" y="22" width="376" height="796" rx="38" fill="#F0F2F5"/>
+  </g>
+
+  <!-- Dynamic Island / Speaker Notch -->
+  <rect x="150" y="34" width="120" height="24" rx="12" fill="#020617"/>
+  <circle cx="244" cy="46" r="4" fill="#1E293B"/>
+
+  <!-- WHATSAPP STATUS BAR -->
+  <g id="status-bar" transform="translate(38, 48)">
+    <text x="0" y="0" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0F172A">9:41</text>
+    <!-- Cellular, Wifi, Battery -->
+    <g transform="translate(300, -9)">
+      <rect x="0" y="6" width="3" height="4" rx="0.5" fill="#0F172A"/>
+      <rect x="4" y="4" width="3" height="6" rx="0.5" fill="#0F172A"/>
+      <rect x="8" y="2" width="3" height="8" rx="0.5" fill="#0F172A"/>
+      <rect x="12" y="0" width="3" height="10" rx="0.5" fill="#0F172A"/>
+      <!-- Battery -->
+      <rect x="22" y="1" width="18" height="9" rx="2" fill="none" stroke="#0F172A" stroke-width="1.2"/>
+      <rect x="24" y="3" width="12" height="5" rx="1" fill="#087F5B"/>
+    </g>
+  </g>
+
+  <!-- WHATSAPP TOP APP BAR -->
+  <rect x="22" y="68" width="376" height="68" fill="url(#wa-header)"/>
+  <g transform="translate(36, 82)">
+    <!-- Back arrow -->
+    <path d="M6 18L0 12L6 6" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Avatar -->
+    <circle cx="30" cy="18" r="16" fill="#FFFFFF"/>
+    <text x="23" y="23" font-family="Inter, sans-serif" font-size="13" font-weight="800" fill="#087F5B">M</text>
+    <!-- Verified Badge -->
+    <circle cx="42" cy="28" r="5" fill="#10A37F" stroke="#FFFFFF" stroke-width="1"/>
+    <path d="M40 28L41.5 29.5L44.5 26.5" stroke="#FFFFFF" stroke-width="1" stroke-linecap="round"/>
+    
+    <!-- Title & Status -->
+    <text x="56" y="14" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">Apex Industrial Switchgear</text>
+    <text x="56" y="28" font-family="Inter, sans-serif" font-size="10" font-weight="500" fill="#A7F3D0">Verified Business • MartFlow AI</text>
+    
+    <!-- Video, Call, More Icons -->
+    <circle cx="300" cy="18" r="3" fill="#FFFFFF"/>
+    <circle cx="310" cy="18" r="3" fill="#FFFFFF"/>
+    <circle cx="320" cy="18" r="3" fill="#FFFFFF"/>
+  </g>
+
+  <!-- CHAT CANVAS BACKGROUND (Dotted wallpaper effect) -->
+  <rect x="22" y="136" width="376" height="616" fill="#EFEAE2"/>
+  
+  <!-- TIME STAMP PILL -->
+  <rect x="165" y="150" width="90" height="20" rx="10" fill="#FFFFFF" fill-opacity="0.9" stroke="#E2E8F0" stroke-width="0.5"/>
+  <text x="210" y="164" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#64748B" text-anchor="middle">TODAY</text>
+
+  <!-- MESSAGE 1: INCOMING BUYER INQUIRY (Gray Left Bubble) -->
+  <g transform="translate(36, 184)">
+    <rect width="270" height="72" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="0.5"/>
+    <text x="14" y="22" font-family="Inter, sans-serif" font-size="11.5" font-weight="500" fill="#1E293B">Namaste. Looking for 500 units of</text>
+    <text x="14" y="38" font-family="Inter, sans-serif" font-size="11.5" font-weight="600" fill="#087F5B">15A Heavy Duty Relays (MF-15R).</text>
+    <text x="14" y="54" font-family="Inter, sans-serif" font-size="11" font-weight="400" fill="#64748B">Can you share specs, MOQ & price?</text>
+    <text x="238" y="66" font-family="Inter, sans-serif" font-size="9" fill="#94A3B8">09:41</text>
+  </g>
+
+  <!-- MESSAGE 2: MARTFLOW AI INSTANT REPLY (Emerald Right Bubble) -->
+  <g transform="translate(104, 270)">
+    <rect width="280" height="114" rx="14" fill="#D9FDD3" stroke="#B4F4A8" stroke-width="0.5"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#065F46">Namaste! Yes, ex-stock ready to dispatch.</text>
+    <text x="14" y="38" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1E293B">• Model: <tspan font-weight="700">MF-15R Heavy-Duty 15A Relay</tspan></text>
+    <text x="14" y="54" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1E293B">• Unit Price: <tspan font-weight="700" fill="#087F5B">₹240/pc</tspan> (Taxes applicable)</text>
+    <text x="14" y="70" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1E293B">• MOQ: 100 pcs • For 500 pcs: <tspan font-weight="700">₹1,20,000</tspan></text>
+    <text x="14" y="86" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#1E293B">• Dispatch: Within 24 hrs from Ahmedabad</text>
+    <!-- Read checkmarks -->
+    <text x="236" y="106" font-family="Inter, sans-serif" font-size="9" fill="#087F5B">09:41</text>
+    <path d="M266 102L270 106L276 99" stroke="#10A37F" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <path d="M262 102L266 106" stroke="#10A37F" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- MESSAGE 3: PDF CATALOG ATTACHMENT CARD -->
+  <g transform="translate(104, 396)">
+    <rect width="280" height="88" rx="14" fill="#D9FDD3" stroke="#B4F4A8" stroke-width="0.5"/>
+    <!-- PDF Card Inner -->
+    <rect x="8" y="8" width="264" height="48" rx="8" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="0.8"/>
+    <!-- PDF Icon -->
+    <rect x="16" y="14" width="28" height="36" rx="4" fill="url(#pdf-icon-bg)"/>
+    <text x="21" y="34" font-family="Inter, sans-serif" font-size="9" font-weight="800" fill="#DC2626">PDF</text>
+    <!-- PDF Title & Size -->
+    <text x="52" y="27" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#0F172A">MF-15R_Relay_Technical_Specs.pdf</text>
+    <text x="52" y="42" font-family="Inter, sans-serif" font-size="9.5" font-weight="500" fill="#64748B">1.4 MB • 6 Pages Datasheet</text>
+    <!-- Download pill -->
+    <circle cx="254" cy="32" r="11" fill="#F1F5F9"/>
+    <path d="M254 27V35M250 32L254 36L258 32" stroke="#087F5B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    
+    <text x="14" y="74" font-family="Inter, sans-serif" font-size="10.5" font-weight="500" fill="#065F46">Official engineering catalog & test reports.</text>
+    <text x="236" y="80" font-family="Inter, sans-serif" font-size="9" fill="#087F5B">09:41</text>
+    <path d="M266 76L270 80L276 73" stroke="#10A37F" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- MESSAGE 4: CALL TO ACTION INTERACTIVE BUTTONS -->
+  <g transform="translate(104, 496)">
+    <!-- Main prompt card -->
+    <rect width="280" height="106" rx="14" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="0.8"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0F172A">Would you like a direct sales consultation?</text>
+    
+    <!-- Action Button 1: Book Call -->
+    <rect x="12" y="32" width="256" height="30" rx="8" fill="#087F5B"/>
+    <text x="140" y="51" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">📅 Book 10-Min Technical Call</text>
+
+    <!-- Action Button 2: Request Proforma -->
+    <rect x="12" y="68" width="256" height="30" rx="8" fill="#F0FDF4" stroke="#087F5B" stroke-width="1"/>
+    <text x="140" y="87" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#087F5B" text-anchor="middle">📄 Generate Official Proforma Invoice</text>
+  </g>
+
+  <!-- MESSAGE 5: BUYER REACTION (Booking Confirmed) -->
+  <g transform="translate(36, 614)">
+    <rect width="240" height="46" rx="14" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="0.5"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#087F5B">Clicked: Book 10-Min Technical Call</text>
+    <text x="14" y="34" font-family="Inter, sans-serif" font-size="10" font-weight="400" fill="#64748B">Preferred slot: Today 3:30 PM IST</text>
+    <text x="208" y="38" font-family="Inter, sans-serif" font-size="9" fill="#94A3B8">09:42</text>
+  </g>
+
+  <!-- MESSAGE 6: AI CALL CONFIRMATION DOSSIER -->
+  <g transform="translate(104, 672)">
+    <rect width="280" height="52" rx="14" fill="#D9FDD3" stroke="#B4F4A8" stroke-width="0.5"/>
+    <text x="14" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#065F46">✅ Call Confirmed for 3:30 PM!</text>
+    <text x="14" y="36" font-family="Inter, sans-serif" font-size="10.5" font-weight="500" fill="#1E293B">Lead assigned to Senior Technical Manager.</text>
+    <text x="236" y="44" font-family="Inter, sans-serif" font-size="9" fill="#087F5B">09:42</text>
+    <path d="M266 40L270 44L276 37" stroke="#10A37F" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- BOTTOM WHATSAPP INPUT BAR -->
+  <rect x="22" y="744" width="376" height="58" fill="#F0F2F5"/>
+  <g transform="translate(36, 754)">
+    <!-- Emoji icon -->
+    <circle cx="16" cy="18" r="10" fill="#CBD5E1"/>
+    <!-- Input box -->
+    <rect x="36" y="4" width="260" height="30" rx="15" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="0.8"/>
+    <text x="50" y="23" font-family="Inter, sans-serif" font-size="11" fill="#94A3B8">Reply to customer...</text>
+    <!-- Mic / Send icon -->
+    <circle cx="316" cy="19" r="16" fill="#087F5B"/>
+    <path d="M312 19L316 15L320 19M316 15V24" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- HOME BAR -->
+  <rect x="145" y="808" width="130" height="4" rx="2" fill="#0F172A"/>
+</svg>

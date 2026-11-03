@@ -1,0 +1,210 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="100%" height="100%" fill="none">
+  <defs>
+    <filter id="dash-shadow" x="-5%" y="-5%" width="110%" height="114%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="20" stdDeviation="30" flood-color="#022c22" flood-opacity="0.10"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#022c22" flood-opacity="0.05"/>
+    </filter>
+    <linearGradient id="metric-grad-1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F7FAF8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Window Container -->
+  <g filter="url(#dash-shadow)">
+    <rect x="10" y="10" width="940" height="580" rx="16" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="1.5"/>
+  </g>
+
+  <!-- Top App Navigation Bar -->
+  <rect x="10" y="10" width="940" height="54" rx="16" fill="#FAFCFB"/>
+  <line x1="10" y1="64" x2="950" y2="64" stroke="#E5EAE7" stroke-width="1"/>
+
+  <!-- Window Controls -->
+  <circle cx="36" cy="37" r="5" fill="#EF4444"/>
+  <circle cx="52" cy="37" r="5" fill="#F59E0B"/>
+  <circle cx="68" cy="37" r="5" fill="#10B981"/>
+
+  <!-- Brand Title -->
+  <g transform="translate(100, 26)">
+    <rect width="24" height="24" rx="6" fill="#087F5B"/>
+    <path d="M12 6L6 14H11L10 18L16 10H11L12 6Z" fill="#FFFFFF"/>
+    <text x="32" y="17" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#111827">MartFlow <tspan fill="#087F5B">AI</tspan></text>
+    <rect x="130" y="1" width="110" height="22" rx="11" fill="#E6F4F0" stroke="#C2E2D7" stroke-width="0.8"/>
+    <circle cx="140" cy="12" r="3.5" fill="#087F5B"/>
+    <text x="148" y="15" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#087F5B">Sales Engine Active</text>
+  </g>
+
+  <!-- Top Right Stats -->
+  <g transform="translate(730, 24)">
+    <rect width="190" height="28" rx="8" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="1"/>
+    <circle cx="16" cy="14" r="4" fill="#10A37F"/>
+    <text x="28" y="18" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#334155">WhatsApp: Connected</text>
+  </g>
+
+  <!-- SIDEBAR (LEFT) -->
+  <rect x="10" y="65" width="200" height="525" fill="#FFFFFF"/>
+  <line x1="210" y1="65" x2="210" y2="590" stroke="#E5EAE7" stroke-width="1"/>
+
+  <g transform="translate(24, 85)">
+    <!-- Active Nav Item: Overview -->
+    <rect width="172" height="34" rx="8" fill="#E6F4F0"/>
+    <circle cx="20" cy="17" r="5" fill="#087F5B"/>
+    <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="700" fill="#087F5B">Overview</text>
+
+    <!-- Other Nav Items -->
+    <g transform="translate(0, 42)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">WhatsApp Inbox</text>
+      <rect x="140" y="9" width="22" height="16" rx="8" fill="#F1F5F9"/>
+      <text x="147" y="21" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#0F172A">12</text>
+    </g>
+    <g transform="translate(0, 78)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">Leads Management</text>
+      <rect x="140" y="9" width="22" height="16" rx="8" fill="#087F5B"/>
+      <text x="147" y="21" font-family="Inter, sans-serif" font-size="9" font-weight="700" fill="#FFFFFF">5</text>
+    </g>
+    <g transform="translate(0, 114)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">Product Catalogue</text>
+    </g>
+    <g transform="translate(0, 150)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">AI Sales Assistant</text>
+    </g>
+    <g transform="translate(0, 186)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">Sales Automations</text>
+    </g>
+    <g transform="translate(0, 222)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">Appointments</text>
+    </g>
+    <g transform="translate(0, 258)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">Analytics & ROI</text>
+    </g>
+    <g transform="translate(0, 294)">
+      <text x="36" y="21" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">Company Settings</text>
+    </g>
+  </g>
+
+  <!-- MAIN CONTENT CANVAS -->
+  <g transform="translate(230, 85)">
+    <!-- Header Greeting -->
+    <text x="0" y="20" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#111827">Executive Sales Overview</text>
+    <text x="0" y="38" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#64748B">Live autonomous performance for Apex Industrial Switchgear</text>
+
+    <!-- KPI ROW (4 Cards) -->
+    <g transform="translate(0, 56)">
+      <!-- Card 1: Total Enquiries -->
+      <rect width="165" height="84" rx="12" fill="url(#metric-grad-1)" stroke="#E5EAE7" stroke-width="1"/>
+      <text x="14" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#64748B">TOTAL ENQUIRIES</text>
+      <text x="14" y="56" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#111827">1,482</text>
+      <text x="14" y="72" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">↑ 18.4% this week</text>
+
+      <!-- Card 2: Qualified Leads -->
+      <g transform="translate(178, 0)">
+        <rect width="165" height="84" rx="12" fill="url(#metric-grad-1)" stroke="#E5EAE7" stroke-width="1"/>
+        <text x="14" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#64748B">QUALIFIED LEADS</text>
+        <text x="14" y="56" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#087F5B">394</text>
+        <text x="14" y="72" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">89% qualification</text>
+      </g>
+
+      <!-- Card 3: Avg Response Time -->
+      <g transform="translate(356, 0)">
+        <rect width="165" height="84" rx="12" fill="url(#metric-grad-1)" stroke="#E5EAE7" stroke-width="1"/>
+        <text x="14" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#64748B">AVG RESPONSE TIME</text>
+        <text x="14" y="56" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#111827">1.8s</text>
+        <text x="14" y="72" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">Instant 24×7 replies</text>
+      </g>
+
+      <!-- Card 4: Appointments Booked -->
+      <g transform="translate(534, 0)">
+        <rect width="165" height="84" rx="12" fill="url(#metric-grad-1)" stroke="#E5EAE7" stroke-width="1"/>
+        <text x="14" y="24" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#64748B">CALLS BOOKED</text>
+        <text x="14" y="56" font-family="Inter, sans-serif" font-size="22" font-weight="800" fill="#087F5B">42</text>
+        <text x="14" y="72" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">100% 2-way synced</text>
+      </g>
+    </g>
+
+    <!-- LOWER SECTION: RECENT CONVERSATIONS & PRODUCT CATALOGUE GRIDS -->
+    <g transform="translate(0, 156)">
+      <!-- Panel 1: Live Lead Inbox Stream -->
+      <rect width="420" height="315" rx="12" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="1"/>
+      <text x="16" y="28" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#111827">Live WhatsApp Sales Feed</text>
+      <text x="350" y="28" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">Live 24×7</text>
+
+      <!-- Row 1 -->
+      <g transform="translate(16, 45)">
+        <rect width="388" height="56" rx="8" fill="#F7FAF8" stroke="#E5EAE7" stroke-width="0.8"/>
+        <circle cx="28" cy="28" r="14" fill="#087F5B"/>
+        <text x="24" y="32" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">K</text>
+        <text x="50" y="22" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#111827">Kunal Patel <tspan font-weight="400" fill="#64748B">(Shreeji Electricals)</tspan></text>
+        <text x="50" y="40" font-family="Inter, sans-serif" font-size="10.5" font-weight="500" fill="#087F5B">Quote sent: 500 pcs MF-15R @ ₹240</text>
+        <rect x="290" y="16" width="88" height="22" rx="11" fill="#E6F4F0"/>
+        <text x="334" y="31" font-family="Inter, sans-serif" font-size="9.5" font-weight="700" fill="#087F5B" text-anchor="middle">QUALIFIED (95%)</text>
+      </g>
+
+      <!-- Row 2 -->
+      <g transform="translate(16, 110)">
+        <rect width="388" height="56" rx="8" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="0.8"/>
+        <circle cx="28" cy="28" r="14" fill="#3B82F6"/>
+        <text x="23" y="32" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">R</text>
+        <text x="50" y="22" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#111827">Ramesh Sharma <tspan font-weight="400" fill="#64748B">(Apex Power)</tspan></text>
+        <text x="50" y="40" font-family="Inter, sans-serif" font-size="10.5" font-weight="500" fill="#334155">Booked technical consultation for 4:00 PM</text>
+        <rect x="290" y="16" width="88" height="22" rx="11" fill="#FEF3C7"/>
+        <text x="334" y="31" font-family="Inter, sans-serif" font-size="9.5" font-weight="700" fill="#B45309" text-anchor="middle">CALL BOOKED</text>
+      </g>
+
+      <!-- Row 3 -->
+      <g transform="translate(16, 175)">
+        <rect width="388" height="56" rx="8" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="0.8"/>
+        <circle cx="28" cy="28" r="14" fill="#64748B"/>
+        <text x="24" y="32" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">V</text>
+        <text x="50" y="22" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#111827">Vikas Shah <tspan font-weight="400" fill="#64748B">(Shah Automations)</tspan></text>
+        <text x="50" y="40" font-family="Inter, sans-serif" font-size="10.5" font-weight="500" fill="#334155">Catalog PDF downloaded • MOQ confirmed</text>
+        <rect x="290" y="16" width="88" height="22" rx="11" fill="#F1F5F9"/>
+        <text x="334" y="31" font-family="Inter, sans-serif" font-size="9.5" font-weight="700" fill="#475569" text-anchor="middle">ENGAGED</text>
+      </g>
+
+      <!-- Row 4 -->
+      <g transform="translate(16, 240)">
+        <rect width="388" height="56" rx="8" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="0.8"/>
+        <circle cx="28" cy="28" r="14" fill="#087F5B"/>
+        <text x="24" y="32" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF">A</text>
+        <text x="50" y="22" font-family="Inter, sans-serif" font-size="11.5" font-weight="700" fill="#111827">Amit Verma <tspan font-weight="400" fill="#64748B">(Verma Industries)</tspan></text>
+        <text x="50" y="40" font-family="Inter, sans-serif" font-size="10.5" font-weight="500" fill="#087F5B">Proforma invoice requested for 1,200 pcs</text>
+        <rect x="290" y="16" width="88" height="22" rx="11" fill="#E6F4F0"/>
+        <text x="334" y="31" font-family="Inter, sans-serif" font-size="9.5" font-weight="700" fill="#087F5B" text-anchor="middle">HIGH INTENT</text>
+      </g>
+    </g>
+
+    <!-- Panel 2: Product Catalogue AI Knowledge -->
+    <g transform="translate(435, 156)">
+      <rect width="265" height="315" rx="12" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="1"/>
+      <text x="16" y="28" font-family="Inter, sans-serif" font-size="13" font-weight="700" fill="#111827">Catalogue Knowledge</text>
+      <text x="180" y="28" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">38 Products</text>
+
+      <!-- Catalog Item 1 -->
+      <g transform="translate(16, 45)">
+        <rect width="233" height="74" rx="8" fill="#F7FAF8" stroke="#E5EAE7" stroke-width="0.8"/>
+        <text x="12" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#111827">Heavy Duty 15A Relay (MF-15R)</text>
+        <text x="12" y="36" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">₹240/pc <tspan font-weight="400" fill="#64748B">• MOQ: 100 pcs</tspan></text>
+        <text x="12" y="52" font-family="Inter, sans-serif" font-size="9.5" font-weight="500" fill="#64748B">PDF Datasheet Attached • In Stock</text>
+        <circle cx="218" cy="20" r="4" fill="#10A37F"/>
+      </g>
+
+      <!-- Catalog Item 2 -->
+      <g transform="translate(16, 130)">
+        <rect width="233" height="74" rx="8" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="0.8"/>
+        <text x="12" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#111827">Digital 3-Phase Timer (MF-T30)</text>
+        <text x="12" y="36" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">₹680/pc <tspan font-weight="400" fill="#64748B">• MOQ: 25 pcs</tspan></text>
+        <text x="12" y="52" font-family="Inter, sans-serif" font-size="9.5" font-weight="500" fill="#64748B">CE Certified • Calibration report ready</text>
+        <circle cx="218" cy="20" r="4" fill="#10A37F"/>
+      </g>
+
+      <!-- Catalog Item 3 -->
+      <g transform="translate(16, 215)">
+        <rect width="233" height="74" rx="8" fill="#FFFFFF" stroke="#E5EAE7" stroke-width="0.8"/>
+        <text x="12" y="20" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#111827">Micro Thermal Sensor (MF-TS1)</text>
+        <text x="12" y="36" font-family="Inter, sans-serif" font-size="10" font-weight="600" fill="#087F5B">₹195/pc <tspan font-weight="400" fill="#64748B">• MOQ: 200 pcs</tspan></text>
+        <text x="12" y="52" font-family="Inter, sans-serif" font-size="9.5" font-weight="500" fill="#64748B">Fast dispatch • OEM packaging</text>
+        <circle cx="218" cy="20" r="4" fill="#10A37F"/>
+      </g>
+    </g>
+  </g>
+</svg>
