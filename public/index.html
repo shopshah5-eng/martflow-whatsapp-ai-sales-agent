@@ -313,11 +313,15 @@
           <svg class="w-3.5 h-3.5 text-[#087F5B] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           <span>Live Demo</span>
         </button>
-        <a href="/login" onclick="event.preventDefault(); navigateTo('/login')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</a>
-        <a href="/signup" onclick="event.preventDefault(); navigateTo('/signup')" class="hidden sm:inline-flex text-xs font-semibold px-4 py-1.5 rounded-lg bg-[#087F5B] text-white hover:bg-[#066649] shadow-xs transition items-center space-x-1.5">
+        <a href="/login" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</a>
+        <a href="/signup" class="hidden sm:inline-flex text-xs font-semibold px-4 py-1.5 rounded-lg bg-[#087F5B] text-white hover:bg-[#066649] shadow-xs transition items-center space-x-1.5">
           <span>Start Free Trial</span>
           <svg class="w-3.5 h-3.5 text-white/90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
+        <!-- Mobile Hamburger Menu Button (Phone / Tablet Only) -->
+        <button id="btnPublicMobileMenu" onclick="togglePublicMobileMenu()" class="lg:hidden p-2 rounded-lg border border-gray-200 text-slate-700 hover:text-[#087F5B] hover:bg-slate-50 transition flex items-center justify-center shrink-0" aria-label="Toggle navigation menu">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
       </div>
 
       <div id="userProfileBadge" class="hidden items-center space-x-3">
@@ -331,6 +335,65 @@
       </div>
     </div>
   </header>
+  <!-- RESPONSIVE MOBILE NAVIGATION DRAWER (FOR SMARTPHONES & TABLETS) -->
+  <div id="publicMobileDrawer" class="fixed inset-0 z-50 hidden transition-opacity duration-300">
+    <div onclick="togglePublicMobileMenu()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"></div>
+    <div class="fixed top-0 right-0 bottom-0 w-80 max-w-[85vw] bg-white shadow-2xl flex flex-col justify-between p-6 z-50">
+      <div class="space-y-6">
+        <div class="flex items-center justify-between pb-4 border-b border-gray-100">
+          <div class="flex items-center space-x-2">
+            <div class="w-8 h-8 rounded-lg bg-[#087F5B] flex items-center justify-center text-white font-bold text-sm shadow-sm">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                <path d="M13 8l-4 5h3l-1 4 4-5h-3l1-4z" fill="currentColor" stroke="none"/>
+              </svg>
+            </div>
+            <span class="font-extrabold text-slate-900 text-base tracking-tight">MartFlow <span class="text-[#087F5B]">AI</span></span>
+          </div>
+          <button onclick="togglePublicMobileMenu()" class="p-2 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-50 transition" aria-label="Close navigation menu">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        <nav class="flex flex-col space-y-1.5 text-sm font-semibold text-slate-700">
+          <a href="/features" onclick="togglePublicMobileMenu()" class="py-2.5 px-3 rounded-xl hover:bg-[#F7FAF8] hover:text-[#087F5B] transition flex items-center justify-between">
+            <span>Features</span>
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a href="/industries" onclick="togglePublicMobileMenu()" class="py-2.5 px-3 rounded-xl hover:bg-[#F7FAF8] hover:text-[#087F5B] transition flex items-center justify-between">
+            <span>Industries</span>
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a href="/pricing" onclick="togglePublicMobileMenu()" class="py-2.5 px-3 rounded-xl hover:bg-[#F7FAF8] hover:text-[#087F5B] transition flex items-center justify-between">
+            <span>Pricing</span>
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a href="/about" onclick="togglePublicMobileMenu()" class="py-2.5 px-3 rounded-xl hover:bg-[#F7FAF8] hover:text-[#087F5B] transition flex items-center justify-between">
+            <span>About Us</span>
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a href="/contact" onclick="togglePublicMobileMenu()" class="py-2.5 px-3 rounded-xl hover:bg-[#F7FAF8] hover:text-[#087F5B] transition flex items-center justify-between">
+            <span>Contact Sales</span>
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+          <a href="javascript:void(0)" onclick="togglePublicMobileMenu(); scrollToSection('pl-faq')" class="py-2.5 px-3 rounded-xl hover:bg-[#F7FAF8] hover:text-[#087F5B] transition flex items-center justify-between">
+            <span>FAQ</span>
+            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </nav>
+      </div>
+
+      <div class="pt-6 border-t border-gray-100 space-y-3">
+        <a href="/signup" class="w-full py-3 bg-[#087F5B] hover:bg-[#066548] text-white font-bold text-center rounded-xl block shadow-sm text-xs">
+          Start 14-Day Free Trial →
+        </a>
+        <a href="/login" class="w-full py-2.5 border border-gray-200 text-slate-700 hover:bg-slate-50 font-semibold text-center rounded-xl block text-xs">
+          Sign In to Workspace
+        </a>
+      </div>
+    </div>
+  </div>
+
 
     <!-- PUBLIC SAAS LANDING PAGE (PREMIUM B2B ENTERPRISE REDESIGN) -->
   <div id="publicLandingPage" class="flex-1 overflow-y-auto custom-scroll bg-white text-[#111827] flex flex-col justify-between relative">
@@ -1337,7 +1400,7 @@
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
           </svg>
-          <span>Continue with Google (Gmail)</span>
+          <span>Continue with Google</span>
         </button>
 
         <div class="flex items-center my-2">
@@ -1405,7 +1468,7 @@
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
           </svg>
-          <span>Continue with Google (Gmail)</span>
+          <span>Continue with Google</span>
         </button>
 
         <div class="flex items-center my-2">
@@ -1911,7 +1974,8 @@
         workspaceContainer.classList.add('hidden');
         workspaceContainer.classList.remove('flex');
       }
-      if (publicNavLinks) publicNavLinks.classList.remove('hidden');
+      // publicNavLinks is hidden on mobile and only visible on lg:flex via CSS
+      if (publicNavLinks) { publicNavLinks.classList.add('hidden', 'lg:flex'); }
       if (btnMobileSidebar) btnMobileSidebar.classList.add('hidden');
     }
 
@@ -2116,6 +2180,13 @@
       if (viewName === 'settings') loadSettingsData();
       if (viewName === 'billing') loadMembershipData();
       if (viewName === 'engineer') loadEngineerSettings();
+    }
+
+    
+    function togglePublicMobileMenu() {
+      const drawer = document.getElementById('publicMobileDrawer');
+      if (!drawer) return;
+      drawer.classList.toggle('hidden');
     }
 
     function toggleMobileSidebar() {
@@ -2351,7 +2422,8 @@
           if (error) throw error;
           await handleAuthSession(data.session);
           closeAuthModal();
-          showToast('Welcome back!', 'success');
+          showToast('Welcome back! Redirecting...', 'success');
+          setTimeout(() => { window.location.href = '/app'; }, 600);
         } else {
           const data = await apiFetch('/api/auth/login', {
             method: 'POST',
@@ -2380,7 +2452,7 @@
         const { error } = await sb.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: window.location.origin
+            redirectTo: window.location.origin + '/app'
           }
         });
         if (error) throw error;
@@ -5068,6 +5140,11 @@
     // 🚀 INITIALIZATION ON PAGE LOAD
     // =========================================================================
     window.addEventListener('DOMContentLoaded', async () => {
+      if (window.location.hash.includes('access_token')) {
+        window.location.href = '/app' + window.location.hash;
+        return;
+      }
+
       initScrollReveal();
       checkWhiteLabelUrlParams();
       refreshPaymentAndSupportLinks();

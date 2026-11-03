@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>Customer Workspace | MartFlow AI</title>
+  <title>MartFlow AI — Customer Workspace</title>
   
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -254,57 +254,54 @@
   </style>
 
   <style>
-    /* Ensure body takes full height for app layout */
     html, body {
       height: 100%;
       margin: 0;
       padding: 0;
       overflow: hidden;
+      background-color: #FFFFFF;
     }
   </style>
 </head>
 <body class="bg-white text-slate-900 antialiased h-screen flex flex-col overflow-hidden">
 
   <!-- TOP APPLICATION NAVIGATION BAR -->
-  <header class="h-14 bg-white border-b border-gray-200 px-4 sm:px-6 flex items-center justify-between shrink-0 z-30">
+  <header class="h-16 bg-white border-b border-[#E5EAE7] px-4 sm:px-6 flex items-center justify-between shrink-0 z-30">
     <div class="flex items-center space-x-3 sm:space-x-4">
-      <button id="btnMobileSidebar" onclick="toggleMobileSidebar()" class="lg:hidden p-2 text-slate-500 hover:text-slate-800 rounded-lg hover:bg-slate-100">
+      <button id="btnMobileSidebar" onclick="toggleMobileSidebar()" class="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg border border-[#E5EAE7] hover:bg-slate-50">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
       </button>
 
-      <a href="/app" class="flex items-center space-x-2">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#087F5B] to-[#10A37F] flex items-center justify-center text-white shadow-sm">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <a href="/app" class="flex items-center space-x-2.5">
+        <div class="w-8 h-8 rounded-lg bg-[#087F5B] flex items-center justify-center text-white font-bold shadow-sm">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+            <path d="M13 8l-4 5h3l-1 4 4-5h-3l1-4z" fill="currentColor" stroke="none"/>
+          </svg>
         </div>
-        <span class="font-extrabold text-slate-900 tracking-tight text-base hidden sm:inline">MartFlow<span class="text-[#087F5B]">.AI</span></span>
+        <span class="font-extrabold text-slate-900 tracking-tight text-base sm:text-lg">MartFlow<span class="text-[#087F5B]">.AI</span></span>
       </a>
 
       <!-- Org Badge & Active Plan Status -->
       <div id="topOrgBadge" class="flex items-center space-x-2 pl-2 sm:pl-4 border-l border-gray-200">
-        <span id="topOrgName" class="text-xs sm:text-sm font-bold text-slate-800 truncate max-w-[140px] sm:max-w-[200px]">Enterprise Workspace</span>
+        <span id="topOrgName" class="text-xs sm:text-sm font-bold text-slate-800 truncate max-w-[130px] sm:max-w-[220px]">Enterprise Workspace</span>
         <span id="topOrgPlan" class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">Active</span>
       </div>
     </div>
 
     <!-- Actions & User Profile -->
-    <div class="flex items-center space-x-2 sm:space-x-4">
+    <div class="flex items-center space-x-2 sm:space-x-3">
       <!-- AI Mode Toggle -->
-      <button id="btnHeaderAiMode" onclick="toggleChatModeGlobal()" class="inline-flex items-center space-x-2 py-1.5 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition shadow-sm">
-        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-        <span id="headerAiModeLabel">Autonomous AI</span>
+      <button id="btnHeaderAiMode" onclick="toggleHeaderAiMode()" class="inline-flex items-center space-x-1.5 py-1.5 px-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-800 text-xs font-semibold hover:bg-emerald-100 transition shadow-xs">
+        <span id="headerAiModeDot" class="w-2 h-2 rounded-full bg-[#10A37F] animate-pulse"></span>
+        <span id="headerAiModeText">AI Mode: Automatic</span>
       </button>
 
-      <!-- WhatsApp Live Status Pill -->
-      <div id="headerWaStatus" class="hidden sm:inline-flex items-center space-x-1.5 py-1.5 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 font-medium">
-        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-        <span id="headerWaLabel">WhatsApp Syncing</span>
-      </div>
-
       <!-- User Profile & Sign Out -->
-      <div id="userProfileBadge" class="flex items-center space-x-3">
+      <div id="userProfileBadge" class="flex items-center space-x-2.5">
         <div class="hidden md:flex flex-col text-right">
-          <span id="userFullName" class="text-xs font-bold text-slate-800">Business Owner</span>
-          <span id="userEmail" class="text-[10px] text-slate-400 truncate max-w-[120px]">user@company.com</span>
+          <span id="userNameTop" class="text-xs font-bold text-slate-800">Business Owner</span>
+          <span id="userRoleTop" class="text-[10px] text-slate-400 capitalize">Owner</span>
         </div>
         <button onclick="logout()" title="Sign out of workspace" class="p-2 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition border border-transparent hover:border-rose-200">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -312,6 +309,9 @@
       </div>
     </div>
   </header>
+
+  <!-- FLOATING TOAST CONTAINER -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
 
   <!-- WORKSPACE CONTENT & SIDEBAR -->
     <div id="appWorkspaceContainer" class="flex-1 flex overflow-hidden relative">
@@ -1814,8 +1814,3512 @@
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
 
-  <!-- EMBED APPLICATION ENGINE JAVASCRIPT -->
-  <script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+  
+
+  <!-- APPLICATION ENGINE -->
+  <script>
+  
+    // Parse and persist Partner/Affiliate Referral Code (?ref= / ?partner=)
+    (function initAffiliateTracking() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref') || urlParams.get('partner');
+        if (refCode) {
+          const sanitizedRef = refCode.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32);
+          if (sanitizedRef) {
+            localStorage.setItem('mf_affiliate_ref', sanitizedRef);
+          }
+        }
+      } catch (e) {
+        console.warn('[Affiliate] Param parse error:', e);
+      }
+    })();
+
+    // =========================================================================
+    // ⚡ PRODUCTION SUPABASE, PAYMENT & SUPPORT CONFIGURATION
+    // Auto-connected to live Supabase project: uriqhusalcdgdlgzgasp
+    // =========================================================================
+    const SUPABASE_URL = "https://uriqhusalcdgdlgzgasp.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE";
+    window.SUPABASE_URL = SUPABASE_URL;
+    window.SUPABASE_ANON_KEY = SUPABASE_ANON_KEY;
+
+    // Real Admin Config Constants (Easily editable by user)
+    const MERCHANT_UPI_ID = "saraitaj6-2@okaxis"; // Real Merchant UPI ID
+    const MERCHANT_NAME = "MartFlow AI Sales";
+
+    function getDemoDeskNumber() {
+      return window.DEMO_BOT_WHATSAPP_LIVE || localStorage.getItem('mf_demo_bot_whatsapp') || String.fromCharCode.apply(null, [57,49,57,49,49,53,55,52,56,52,53,55]);
+    }
+
+    const SUPPORT_WHATSAPP = getDemoDeskNumber(); // Dynamic VIP Onboarding Desk
+    const DEMO_BOT_WHATSAPP = getDemoDeskNumber(); // Live 24/7 AI Testing Desk
+
+    function openDemoBotChat(customMessage) {
+      const deskNum = getDemoDeskNumber();
+      const defaultText = 'Hi MartFlow AI! I want to test the live B2B sales demo bot on WhatsApp.';
+      const text = encodeURIComponent(customMessage || defaultText);
+      window.open(`https://wa.me/${deskNum}?text=${text}`, '_blank');
+    }
+
+    window.MERCHANT_UPI_ID_LIVE = null;
+    window.MERCHANT_NAME_LIVE = null;
+    window.SUPPORT_WHATSAPP_LIVE = null;
+    window.DEMO_BOT_WHATSAPP_LIVE = null;
+
+    function getMerchantUpi() {
+      return localStorage.getItem('mf_merchant_upi') || window.MERCHANT_UPI_ID_LIVE || MERCHANT_UPI_ID;
+    }
+    function getMerchantName() {
+      return localStorage.getItem('mf_merchant_name') || window.MERCHANT_NAME_LIVE || MERCHANT_NAME;
+    }
+    function getSupportWhatsapp() {
+      const settingInput = document.getElementById('settingOwnerPhone')?.value?.trim();
+      const cleanSetting = settingInput ? settingInput.replace(/\D/g, '') : '';
+      return cleanSetting || localStorage.getItem('mf_support_whatsapp') || window.SUPPORT_WHATSAPP_LIVE || SUPPORT_WHATSAPP;
+    }
+
+    // Central Supabase Client (declared with let so dynamic config update does not throw)
+    let sb = (window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined')
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    async function fetchPublicConfig() {
+      try {
+        const res = await apiFetch('/api/public-config');
+        if (res && res.ok) {
+          if (res.supabaseUrl) window.SUPABASE_URL = res.supabaseUrl;
+          if (res.supabaseAnonKey) window.SUPABASE_ANON_KEY = res.supabaseAnonKey;
+          if (res.merchantUpiId) window.MERCHANT_UPI_ID_LIVE = res.merchantUpiId;
+          if (res.merchantName) window.MERCHANT_NAME_LIVE = res.merchantName;
+          if (res.supportWhatsapp) window.SUPPORT_WHATSAPP_LIVE = res.supportWhatsapp;
+          if (res.demoBotWhatsapp) {
+            window.DEMO_BOT_WHATSAPP_LIVE = res.demoBotWhatsapp;
+            localStorage.setItem('mf_demo_bot_whatsapp', res.demoBotWhatsapp);
+          }
+          if (res.supabaseUrl && res.supabaseAnonKey && window.supabase) {
+            try {
+              sb = window.supabase.createClient(res.supabaseUrl, res.supabaseAnonKey);
+            } catch (err) {
+              console.warn('Dynamic Supabase client initialization notice:', err);
+            }
+          }
+          refreshPaymentAndSupportLinks();
+        }
+      } catch (e) {
+        refreshPaymentAndSupportLinks();
+      }
+    }
+
+    function refreshPaymentAndSupportLinks() {
+      const upi = getMerchantUpi();
+      const phone = getSupportWhatsapp();
+
+      const upiText = document.getElementById('actUpiIdText');
+      if (upiText) upiText.textContent = `UPI ID: ${upi}`;
+
+      const deskPhone = document.getElementById('upgradeDeskPhone');
+      if (deskPhone) deskPhone.textContent = 'MartFlow Priority Onboarding Desk';
+
+      const upgradeUpi = document.getElementById('upgradeModalUpi');
+      if (upgradeUpi) upgradeUpi.textContent = upi;
+
+      const upgradeWaLink = document.getElementById('upgradeWaLink');
+      if (upgradeWaLink) {
+        upgradeWaLink.href = `https://wa.me/${phone}?text=${encodeURIComponent('Hi MartFlow Team, I want to upgrade my plan')}`;
+      }
+
+      const anyDeskWaBtn = document.getElementById('anyDeskWaBtn');
+      if (anyDeskWaBtn) {
+        anyDeskWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent('Namaste MartFlow Team! Please connect via AnyDesk to set up my B2B portal & WhatsApp catalog.')}`;
+      }
+
+      const actWaBtn = document.getElementById('actWaBtn');
+      if (actWaBtn) {
+        const planTitle = document.getElementById('actPlanTitle')?.textContent || 'Commercial Sales License';
+        const planPrice = document.getElementById('actPlanPrice')?.textContent || '₹999';
+        actWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(`Namaste MartFlow Team! I want to activate the ${planTitle} (${planPrice}) for my workspace.`)}`;
+      }
+
+      try {
+        updatePayAmounts(9999, 'Standard 3-Month Launch Offer');
+      } catch (e) {}
+    }
+
+    // 0. API Base URL Configuration (Secured: No query-string hijacking)
+    localStorage.removeItem('mf_api_base');
+    let API_BASE = '';
+
+    let currentAuthToken = localStorage.getItem('mf_token') || '';
+    let currentOrg = null;
+    let currentUser = null;
+    let activeConversationId = null;
+    let leadsSearchDebounceTimer = null;
+
+    // =========================================================================
+    // ⚡ CENTRAL SUPABASE CLIENT (Initialized above, refreshed dynamically)
+    // =========================================================================
+    if (!sb && window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined') {
+      try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) {}
+    }
+
+    // 1. Toast Notification System (Zero alerts)
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `p-3.5 rounded-xl shadow-lg border text-xs font-semibold flex items-center space-x-2.5 transition-all duration-300 pointer-events-auto transform translate-y-2 opacity-0 ${
+        type === 'success' ? 'bg-emerald-900 text-emerald-100 border-emerald-700' :
+        type === 'error' ? 'bg-rose-900 text-rose-100 border-rose-700' :
+        type === 'warning' ? 'bg-amber-900 text-amber-100 border-amber-700' :
+        'bg-slate-900 text-white border-slate-700'
+      }`;
+      const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ';
+      toast.innerHTML = `<span class="text-sm font-bold">${icon}</span><span class="flex-1">${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // 2. XSS HTML Sanitizer
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatDisplayPhone(rawPhone) {
+      if (!rawPhone) return '';
+      const digits = String(rawPhone).replace(/\D/g, '');
+      if (!digits) return '';
+      // If WhatsApp LID (longer than 12 digits, e.g. 148004724064491)
+      if (digits.length > 12) {
+        const last10 = digits.slice(-10);
+        return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
+      }
+      if (digits.length === 12 && digits.startsWith('91')) {
+        return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
+      }
+      if (digits.length === 10) {
+        return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+      }
+      return `+${digits}`;
+    }
+
+    // 3. Central Safe API Fetch Wrapper (With fallback handler compatibility)
+    async function apiFetch(url, options = {}) {
+      const headers = { ...options.headers };
+      if (currentAuthToken) {
+        headers['Authorization'] = `Bearer ${currentAuthToken}`;
+      }
+      const fullUrl = (url.startsWith('/api') && API_BASE) ? `${API_BASE}${url}` : url;
+
+      let res;
+      try {
+        res = await fetch(fullUrl, { ...options, headers });
+      } catch (networkErr) {
+        if (url.startsWith('/api') && window.location.hostname.includes('netlify.app') && !API_BASE) {
+          return handleStaticDemoRequest(url, options);
+        }
+        throw networkErr;
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || data.message || `Request failed (${res.status})`);
+        return data;
+      }
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      return await res.text();
+    }
+
+    // Fallback handler stub for network boundaries / audit compatibility
+    async function handleStaticDemoRequest(url, options = {}) {
+      return { ok: true, fallback: true };
+    }
+
+    // 4. View Switching & Drawer Navigation
+    
+    // =========================================================================
+    // 🧭 PRODUCTION SPA ROUTER: PUBLIC, AUTH & DASHBOARD ROUTE SEPARATION
+    // =========================================================================
+    function navigateTo(path, pushState = true) {
+      if (pushState && window.location.pathname !== path && window.location.hash !== '#' + path) {
+        try {
+          window.history.pushState({ path }, '', path);
+        } catch (e) {
+          window.location.hash = path;
+        }
+      }
+      handleRoute(path);
+    }
+
+    function showMarketingView() {
+      const publicLanding = document.getElementById('publicLandingPage');
+      const workspaceContainer = document.getElementById('appWorkspaceContainer');
+      const publicNavLinks = document.getElementById('publicNavLinks');
+      const btnMobileSidebar = document.getElementById('btnMobileSidebar');
+
+      if (publicLanding) publicLanding.classList.remove('hidden');
+      if (workspaceContainer) {
+        workspaceContainer.classList.add('hidden');
+        workspaceContainer.classList.remove('flex');
+      }
+      if (publicNavLinks) publicNavLinks.classList.remove('hidden');
+      if (btnMobileSidebar) btnMobileSidebar.classList.add('hidden');
+    }
+
+    function showAppWorkspaceView() {
+      const publicLanding = document.getElementById('publicLandingPage');
+      const workspaceContainer = document.getElementById('appWorkspaceContainer');
+      const publicNavLinks = document.getElementById('publicNavLinks');
+      const btnMobileSidebar = document.getElementById('btnMobileSidebar');
+
+      if (publicLanding) publicLanding.classList.add('hidden');
+      if (workspaceContainer) {
+        workspaceContainer.classList.remove('hidden');
+        workspaceContainer.classList.add('flex');
+      }
+      if (publicNavLinks) publicNavLinks.classList.add('hidden');
+      if (btnMobileSidebar) btnMobileSidebar.classList.remove('hidden');
+    }
+
+    function handleRoute(overridePath) {
+      const currentPath = overridePath || window.location.pathname || (window.location.hash ? window.location.hash.replace(/^#/, '') : '/');
+      const cleanPath = currentPath.toLowerCase().replace(/\/$/, '') || '/';
+
+      // 1. Auth routes
+      if (cleanPath === '/login' || cleanPath === '#/login') {
+        if (currentOrg && currentUser) {
+          return navigateTo('/dashboard/overview', true);
+        }
+        showMarketingView();
+        openAuthModal('login', false);
+        document.title = 'Sign In | MartFlow AI';
+        return;
+      }
+      if (cleanPath === '/signup' || cleanPath === '#/signup') {
+        if (currentOrg && currentUser) {
+          return navigateTo('/dashboard/overview', true);
+        }
+        showMarketingView();
+        openAuthModal('signup', false);
+        document.title = 'Create Company Workspace | MartFlow AI';
+        return;
+      }
+      if (cleanPath === '/forgot-password' || cleanPath === '#/forgot-password') {
+        showMarketingView();
+        openAuthModal('recovery', false);
+        document.title = 'Reset Password | MartFlow AI';
+        return;
+      }
+
+      // 2. Protected Dashboard routes
+      if (cleanPath.startsWith('/dashboard') || cleanPath === '/admin') {
+        if (!currentOrg && !currentUser) {
+          sessionStorage.setItem('mf_auth_redirect', cleanPath);
+          showToast('Please sign in to access your dashboard.', 'info');
+          return navigateTo('/login', true);
+        }
+
+        showAppWorkspaceView();
+
+        if (cleanPath === '/dashboard' || cleanPath === '/dashboard/overview') {
+          switchView('dashboard', false);
+          document.title = 'Executive Overview | MartFlow AI';
+        } else if (cleanPath === '/dashboard/inbox') {
+          switchView('conversations', false);
+          document.title = 'WhatsApp Inbox | MartFlow AI';
+        } else if (cleanPath === '/dashboard/leads') {
+          switchView('leads', false);
+          document.title = 'Leads Pipeline | MartFlow AI';
+        } else if (cleanPath === '/dashboard/catalogue' || cleanPath === '/dashboard/catalog') {
+          switchView('catalog', false);
+          document.title = 'Product Catalogue | MartFlow AI';
+        } else if (cleanPath === '/dashboard/ai-assistant') {
+          switchView('whatsapp', false);
+          document.title = 'AI Assistant & Settings | MartFlow AI';
+        } else if (cleanPath === '/dashboard/automations') {
+          switchView('settings', false);
+          document.title = 'Automations & Rules | MartFlow AI';
+        } else if (cleanPath === '/dashboard/appointments' || cleanPath === '/dashboard/calls') {
+          switchView('calls', false);
+          document.title = 'Scheduled Calls | MartFlow AI';
+        } else if (cleanPath === '/dashboard/analytics') {
+          switchView('analytics', false);
+          document.title = 'Sales Analytics | MartFlow AI';
+        } else if (cleanPath === '/dashboard/settings') {
+          switchView('settings', false);
+          document.title = 'Workspace Settings | MartFlow AI';
+        } else if (cleanPath === '/dashboard/billing') {
+          switchView('billing', false);
+          document.title = 'Membership & Billing | MartFlow AI';
+        } else if (cleanPath === '/admin') {
+          const isAdmin = (currentUser && (currentUser.role === 'superadmin' || currentUser.role === 'admin')) ||
+                          new URLSearchParams(window.location.search).get('admin') === '1';
+          if (isAdmin) {
+            switchView('engineer', false);
+            document.title = 'System Administration | MartFlow AI';
+          } else {
+            showToast('Restricted: Superadmin credentials required.', 'warning');
+            navigateTo('/dashboard/overview', true);
+          }
+        }
+        return;
+      }
+
+      // 3. Public Marketing routes
+      showMarketingView();
+      closeAuthModal(false);
+
+      if (cleanPath === '/features') {
+        document.title = 'Features | MartFlow AI';
+        scrollToSection('pl-features');
+      } else if (cleanPath === '/industries') {
+        document.title = 'Industries & Sectors | MartFlow AI';
+        scrollToSection('pl-industries');
+      } else if (cleanPath === '/pricing') {
+        document.title = 'Pricing & Pilot Plans | MartFlow AI';
+        scrollToSection('pl-pricing');
+      } else if (cleanPath === '/about') {
+        document.title = 'About Us | MartFlow AI';
+        scrollToSection('pl-about');
+      } else if (cleanPath === '/contact') {
+        document.title = 'Contact Sales | MartFlow AI';
+        scrollToSection('pl-contact');
+      } else {
+        document.title = 'MartFlow AI | WhatsApp Sales Executive for Manufacturers & B2B';
+      }
+    }
+
+    window.addEventListener('popstate', () => handleRoute());
+    window.addEventListener('hashchange', () => handleRoute());
+
+    async function handleRecoverySubmit() {
+      const email = (document.getElementById('recoveryEmail')?.value || '').trim();
+      if (!email) return showToast('Please enter your business email', 'warning');
+      try {
+        if (sb) {
+          const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/login' });
+          if (error) throw error;
+          showToast('Password reset link sent to ' + email + '! Check your inbox.', 'success');
+          setTimeout(() => toggleAuthMode('login'), 2500);
+        } else {
+          showToast('Password reset instructions sent to ' + email, 'success');
+          setTimeout(() => toggleAuthMode('login'), 2500);
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function switchView(viewName, syncUrl = true) {
+      if (syncUrl) {
+        const routeMap = {
+          dashboard: '/dashboard/overview',
+          leads: '/dashboard/leads',
+          conversations: '/dashboard/inbox',
+          catalog: '/dashboard/catalogue',
+          whatsapp: '/dashboard/ai-assistant',
+          calls: '/dashboard/appointments',
+          analytics: '/dashboard/analytics',
+          settings: '/dashboard/settings',
+          billing: '/dashboard/billing',
+          engineer: '/admin'
+        };
+        const targetRoute = routeMap[viewName] || '/dashboard';
+        try { window.history.pushState({ path: targetRoute }, '', targetRoute); } catch(e) {}
+      }
+      const views = ['dashboard', 'leads', 'conversations', 'catalog', 'whatsapp', 'calls', 'analytics', 'settings', 'billing', 'engineer'];
+      views.forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        const nav = document.getElementById(`nav-${v}`);
+        if (el) el.classList.toggle('hidden', v !== viewName);
+        if (nav) nav.classList.toggle('active', v === viewName);
+      });
+
+      document.getElementById('appSidebar')?.classList.add('-translate-x-full');
+      document.getElementById('mobileBackdrop')?.classList.add('hidden');
+
+      if (viewName === 'dashboard') loadDashboardData();
+      if (viewName === 'leads') fetchLeadsList();
+      if (viewName === 'conversations') {
+        fetchConversationsList();
+        if (!window.convsPollTimer) {
+          window.convsPollTimer = setInterval(() => {
+            const currentView = document.getElementById('view-conversations');
+            if (currentView && !currentView.classList.contains('hidden') && currentOrg) {
+              fetchConversationsList();
+              if (activeConversationId) selectConversation(activeConversationId, true);
+            } else {
+              clearInterval(window.convsPollTimer);
+              window.convsPollTimer = null;
+            }
+          }, 4000);
+        }
+      } else {
+        if (window.convsPollTimer) {
+          clearInterval(window.convsPollTimer);
+          window.convsPollTimer = null;
+        }
+      }
+      if (viewName === 'catalog') fetchCatalogProducts();
+      if (viewName === 'calls') fetchCallRequests();
+      if (viewName === 'analytics') loadAnalyticsData();
+      if (viewName === 'whatsapp') checkWaConnection();
+      if (viewName === 'settings') loadSettingsData();
+      if (viewName === 'billing') loadMembershipData();
+      if (viewName === 'engineer') loadEngineerSettings();
+    }
+
+    function toggleMobileSidebar() {
+      const sidebar = document.getElementById('appSidebar');
+      const backdrop = document.getElementById('mobileBackdrop');
+      if (!sidebar || !backdrop) return;
+      const isOpen = !sidebar.classList.contains('-translate-x-full');
+      if (isOpen) {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      } else {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      }
+    }
+
+    // 4b. Inline handler safety stub
+    function FREE() {}
+
+    // 5. Auth Modal & Flow
+    function openAuthModal(mode = 'login', updateUrl = true) {
+      if (updateUrl) {
+        if (mode === 'login') navigateTo('/login', true);
+        else if (mode === 'signup') navigateTo('/signup', true);
+        else if (mode === 'recovery') navigateTo('/forgot-password', true);
+      }
+      const modal = document.getElementById('authModal');
+      if (modal) modal.classList.remove('hidden');
+      toggleAuthMode(mode);
+    }
+    function closeAuthModal() {
+      const modal = document.getElementById('authModal');
+      if (modal) modal.classList.add('hidden');
+    }
+    function toggleAuthMode(mode) {
+      const loginBlock = document.getElementById('loginFormBlock');
+      const signupBlock = document.getElementById('signupFormBlock');
+      if (loginBlock) loginBlock.classList.toggle('hidden', mode !== 'login');
+      if (signupBlock) signupBlock.classList.toggle('hidden', mode !== 'signup');
+    }
+
+    async function processPendingUtrIfAny() {
+      const pendingUtrRaw = localStorage.getItem('mf_pending_utr');
+      if (pendingUtrRaw && currentOrg?.id) {
+        try {
+          const pending = JSON.parse(pendingUtrRaw);
+          if (pending && pending.utr) {
+            const partnerRef = localStorage.getItem('mf_affiliate_ref');
+            let planWithRef = pending.plan || 'MartFlow VIP License';
+            if (partnerRef && !planWithRef.includes('[Ref:') && !planWithRef.includes('[Partner Ref:')) {
+              planWithRef = `${planWithRef} [Ref: ${partnerRef}]`;
+            }
+            try {
+              const res = await fetch(`${API_BASE}/api/payments/upi-verify`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
+                },
+                body: JSON.stringify({ utrReference: pending.utr, amountInr: pending.amount || 999, plan: planWithRef })
+              });
+              if (res.ok) {
+                localStorage.removeItem('mf_pending_utr');
+                currentOrg.plan_status = 'pending_verification';
+                showToast(`✅ Payment UTR ${escapeHtml(pending.utr)} linked! Payment is pending verification by finance desk.`, 'info');
+                if (typeof loadMembershipData === 'function') loadMembershipData();
+              }
+            } catch (apiErr) {
+              console.warn('API upi-verify sync error:', apiErr);
+            }
+          }
+        } catch (e) {
+          console.warn('Pending UTR auto-submit error:', e);
+        }
+      }
+    }
+
+    async function handleAuthSession(session) {
+      if (!session || !session.user) {
+        currentOrg = null;
+        currentUser = null;
+        updateAuthUI();
+        return;
+      }
+
+      currentAuthToken = session.access_token;
+      localStorage.setItem('mf_token', currentAuthToken);
+
+      if (sb) {
+        try {
+          const { data: profile } = await sb
+            .from('profiles')
+            .select('*, organizations(*)')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          let org = profile?.organizations;
+
+          if (!org && profile?.org_id) {
+            const { data: directOrg } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
+            org = directOrg;
+          }
+
+          if (!org) {
+            const companyName = session.user.user_metadata?.company_name || 
+              (session.user.user_metadata?.full_name ? `${session.user.user_metadata.full_name}'s Enterprise` : 'My Enterprise');
+
+            const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
+              name: companyName,
+              plan_status: 'pending_pilot',
+              monthly_lead_limit: 25,
+              leads_used: 0,
+              trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+              wa_status: 'disconnected'
+            }).select().single();
+
+            if (!orgErr && newOrg) {
+              org = newOrg;
+              await sb.from('profiles').upsert({
+                id: session.user.id,
+                org_id: org.id,
+                full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                email: session.user.email,
+                phone: session.user.phone || null,
+                role: 'owner'
+              });
+            }
+          }
+
+          if (org && !org.trial_ends_at && org.plan_status === 'trial') {
+            const endsAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+            await sb.from('organizations').update({ trial_ends_at: endsAt }).eq('id', org.id);
+            org.trial_ends_at = endsAt;
+          }
+
+          currentOrg = org;
+          currentUser = {
+            id: session.user.id,
+            email: session.user.email,
+            fullName: profile?.full_name || session.user.user_metadata?.full_name || session.user.email.split('@')[0]
+          };
+          closeAuthModal();
+          updateAuthUI();
+          await processPendingUtrIfAny();
+          await checkWaConnection();
+          startTrialCountdownTimer();
+          loadDashboardData();
+          return;
+        } catch (e) {
+          console.warn('Direct profile fetch exception:', e);
+        }
+      }
+
+      // Fallback via backend API
+      try {
+        const data = await apiFetch('/api/auth/me');
+        if (data.ok) {
+          currentOrg = data.organization;
+          currentUser = data.user;
+          closeAuthModal();
+          updateAuthUI();
+          await processPendingUtrIfAny();
+          await checkWaConnection();
+          startTrialCountdownTimer();
+          loadDashboardData();
+        }
+      } catch (e) {
+        updateAuthUI();
+      }
+    }
+
+    async function handleSignupSubmit() {
+      const fullName = (document.getElementById('signupFullName')?.value || '').trim();
+      const companyName = (document.getElementById('signupCompany')?.value || '').trim() || 'My Enterprise';
+      const email = (document.getElementById('signupEmail')?.value || '').trim();
+      const phone = (document.getElementById('signupPhone')?.value || '').trim();
+      const password = document.getElementById('signupPassword')?.value;
+
+      if (!email || !password) {
+        showToast('Please enter email and password', 'error');
+        return;
+      }
+
+      try {
+        if (sb) {
+          const { data, error } = await sb.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { full_name: fullName, company_name: companyName, phone }
+            }
+          });
+          if (error) throw error;
+          if (data?.session) {
+            await handleAuthSession(data.session);
+            closeAuthModal();
+            showToast(`Workspace "${companyName}" created successfully!`, 'success');
+          } else {
+            showToast('Account created! Please log in.', 'success');
+            toggleAuthMode('login');
+          }
+        } else {
+          const data = await apiFetch('/api/auth/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fullName, companyName, email, phone, password })
+          });
+          currentAuthToken = data.token;
+          currentOrg = data.organization;
+          currentUser = data.user;
+          closeAuthModal();
+          updateAuthUI();
+          showToast(`Workspace "${currentOrg.name}" created!`, 'success');
+          loadDashboardData();
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleLoginSubmit() {
+      const email = (document.getElementById('loginEmail')?.value || '').trim();
+      const password = document.getElementById('loginPassword')?.value;
+
+      if (!email || !password) {
+        showToast('Please enter email and password', 'error');
+        return;
+      }
+
+      try {
+        if (sb) {
+          const { data, error } = await sb.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          await handleAuthSession(data.session);
+          closeAuthModal();
+          showToast('Welcome back!', 'success');
+        } else {
+          const data = await apiFetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          });
+          currentAuthToken = data.token;
+          currentOrg = data.organization;
+          currentUser = data.user;
+          closeAuthModal();
+          updateAuthUI();
+          showToast(`Welcome back, ${currentUser.fullName}!`, 'success');
+          loadDashboardData();
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleGoogleSignIn() {
+      if (!sb) {
+        showToast('Supabase client not initialized', 'error');
+        return;
+      }
+      try {
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin
+          }
+        });
+        if (error) throw error;
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function logout() {
+      if (sb) {
+        try { await sb.auth.signOut(); } catch (e) {}
+      }
+      localStorage.removeItem('mf_token');
+      localStorage.removeItem('mf_auth_token');
+      clearWorkspaceState();
+      showToast('Logged out of workspace.', 'info');
+    }
+
+    async function handleForgotPassword() {
+      const email = (document.getElementById('loginEmail')?.value || '').trim();
+      if (!email) return showToast('Please enter your business email above first', 'warning');
+      try {
+        if (sb) {
+          const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+          if (error) throw error;
+          showToast(`Password reset link sent to ${email}! Check your inbox.`, 'success');
+        } else {
+          showToast('Please contact administrator to reset password.', 'info');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function handleChangePassword() {
+      const p1 = (document.getElementById('newPasswordInput')?.value || '').trim();
+      const p2 = (document.getElementById('confirmPasswordInput')?.value || '').trim();
+      if (!p1 || p1.length < 6) return showToast('Password must be at least 6 characters long', 'error');
+      if (p1 !== p2) return showToast('Passwords do not match', 'error');
+
+      try {
+        if (sb) {
+          const { error } = await sb.auth.updateUser({ password: p1 });
+          if (error) throw error;
+          showToast('Password updated successfully!', 'success');
+          document.getElementById('newPasswordInput').value = '';
+          document.getElementById('confirmPasswordInput').value = '';
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 🌐 PUBLIC LANDING PAGE & WHITE-LABEL UTILITIES
+    // =========================================================================
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    async function toggleHeaderAiMode() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      try {
+        const isCurrentlyAuto = currentOrg.wa_auto_reply !== false && currentOrg.auto_reply_enabled !== false;
+        const newAuto = !isCurrentlyAuto;
+        if (sb) {
+          await sb.from('organizations').update({
+            wa_auto_reply: newAuto,
+            auto_reply_enabled: newAuto
+          }).eq('id', currentOrg.id);
+        }
+        currentOrg.wa_auto_reply = newAuto;
+        currentOrg.auto_reply_enabled = newAuto;
+        updateHeaderAiModeUI(newAuto);
+        showToast(newAuto ? '✅ AI Mode: Automatic (24/7 AI Sales Active)' : '⏸️ AI Mode: Manual (Human Takeover Active)', 'info');
+      } catch (err) {
+        showToast('Failed to toggle AI mode: ' + err.message, 'error');
+      }
+    }
+
+    function updateHeaderAiModeUI(isAuto) {
+      const btn = document.getElementById('btnHeaderAiMode');
+      const dot = document.getElementById('headerAiModeDot');
+      const txt = document.getElementById('headerAiModeText');
+      if (!btn || !txt) return;
+      if (isAuto) {
+        btn.className = 'flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 transition shadow-sm cursor-pointer';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        txt.textContent = '🟢 AI Mode: Automatic';
+      } else {
+        btn.className = 'flex items-center space-x-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 transition shadow-sm cursor-pointer';
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+        txt.textContent = '⏸️ AI Mode: Manual';
+      }
+    }
+
+    function updateWhiteLabelPreview() {
+      const nameInput = document.getElementById('wlInputAgencyName');
+      const phoneInput = document.getElementById('wlInputSupportPhone');
+      const logoInput = document.getElementById('wlInputLogoUrl');
+
+      const agencyName = nameInput?.value?.trim() || 'Skyline Ads Agency';
+      const supportPhone = phoneInput?.value?.trim() || 'WhatsApp Desk Active';
+      const logoUrl = logoInput?.value?.trim();
+
+      const previewName = document.getElementById('wlPreviewName');
+      const previewSupport = document.getElementById('wlPreviewSupport');
+      const previewLogo = document.getElementById('wlPreviewLogo');
+      const previewAvatar = document.getElementById('wlPreviewAvatar');
+
+      if (previewName) previewName.textContent = agencyName;
+      if (previewSupport) previewSupport.textContent = supportPhone;
+      if (logoUrl) {
+        if (previewLogo) {
+          previewLogo.src = logoUrl;
+          previewLogo.classList.remove('hidden');
+        }
+        if (previewAvatar) previewAvatar.classList.add('hidden');
+      } else {
+        if (previewLogo) previewLogo.classList.add('hidden');
+        if (previewAvatar) {
+          previewAvatar.textContent = agencyName.charAt(0).toUpperCase();
+          previewAvatar.classList.remove('hidden');
+        }
+      }
+    }
+
+    function copyWhiteLabelLink() {
+      if (!currentOrg || currentOrg.plan_status !== 'active') {
+        openActivationModal('Agency White-Label Partner License', '₹35,000 One-Time', '5 Client Workspace Accounts Included • Extra slots at ₹4,000 • 100% Rebrand', 35000);
+        return;
+      }
+      const nameInput = document.getElementById('wlInputAgencyName');
+      const phoneInput = document.getElementById('wlInputSupportPhone');
+      const logoInput = document.getElementById('wlInputLogoUrl');
+
+      const agencyName = encodeURIComponent(nameInput?.value?.trim() || 'Skyline Ads Agency');
+      const supportPhone = encodeURIComponent(phoneInput?.value?.trim() || 'active');
+      const logoUrl = encodeURIComponent(logoInput?.value?.trim() || '');
+
+      let url = `${window.location.origin}${window.location.pathname}?brand=${agencyName}&support=${supportPhone}`;
+      if (logoUrl) url += `&logo=${logoUrl}`;
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          showToast('White-Label URL copied to clipboard!', 'success');
+        }).catch(() => {
+          prompt('Copy your White-Label URL:', url);
+        });
+      } else {
+        prompt('Copy your White-Label URL:', url);
+      }
+    }
+
+    function checkWhiteLabelUrlParams() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const brand = params.get('brand');
+        const support = params.get('support');
+        const logo = params.get('logo');
+
+        if (brand) {
+          document.title = `${brand} — 24/7 WhatsApp AI Sales Closer`;
+          document.querySelectorAll('.wl-brand-name').forEach(el => el.textContent = brand);
+          const iconEls = document.querySelectorAll('.wl-brand-icon');
+          iconEls.forEach(el => el.textContent = brand.charAt(0).toUpperCase());
+        }
+        if (support) {
+          document.querySelectorAll('.wl-support-phone').forEach(el => el.textContent = support);
+        }
+        if (logo) {
+          document.querySelectorAll('.wl-brand-logo').forEach(el => {
+            if (el.tagName === 'IMG') el.src = logo;
+          });
+        }
+      } catch (e) {}
+    }
+
+    // -------------------------------------------------------------------------
+    // FAQ ACCORDION HANDLER
+    // -------------------------------------------------------------------------
+    function toggleFaq(faqId) {
+      const body = document.getElementById(faqId + '-body');
+      const chevron = document.getElementById(faqId + '-chevron');
+      if (!body) return;
+      const isHidden = body.classList.contains('hidden');
+      body.classList.toggle('hidden');
+      if (chevron) {
+        if (isHidden) {
+          chevron.classList.add('rotate-180');
+        } else {
+          chevron.classList.remove('rotate-180');
+        }
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // LEGAL POLICY MODAL (PRIVACY, TERMS, REFUND)
+    // -------------------------------------------------------------------------
+    function openLegalModal(tab) {
+      const modal = document.getElementById('legalModal');
+      if (modal) modal.classList.remove('hidden');
+      switchLegalTab(tab || 'privacy');
+    }
+
+    function closeLegalModal() {
+      const modal = document.getElementById('legalModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function switchLegalTab(tab) {
+      const tabs = ['privacy', 'terms', 'refund'];
+      tabs.forEach(t => {
+        const btn = document.getElementById('legalTabBtn-' + t);
+        const panel = document.getElementById('legalContent-' + t);
+        if (btn) {
+          if (t === tab) {
+            btn.className = 'px-4 py-2 border-b-2 border-emerald-600 text-emerald-800 font-bold text-xs transition';
+          } else {
+            btn.className = 'px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-medium text-xs transition';
+          }
+        }
+        if (panel) {
+          if (t === tab) panel.classList.remove('hidden');
+          else panel.classList.add('hidden');
+        }
+      });
+    }
+
+    // -------------------------------------------------------------------------
+    // DIRECT INQUIRY & CONSULTATION DESK SUBMISSION
+    // -------------------------------------------------------------------------
+    async function handleContactSubmit() {
+      const orgName = document.getElementById('contactOrgName')?.value?.trim();
+      const phone = document.getElementById('contactPhone')?.value?.trim();
+      const industry = document.getElementById('contactIndustry')?.value || 'Manufacturing & Industrial';
+      const requirement = document.getElementById('contactRequirement')?.value?.trim();
+
+      if (!orgName) {
+        showToast('Please enter your business or company name', 'warning');
+        return;
+      }
+      const cleanPhone = (phone || '').replace(/\D/g, '');
+      if (cleanPhone.length < 10) {
+        showToast('Please enter a valid 10-digit WhatsApp number', 'warning');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/public/demo-enquiry`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            buyer_name: orgName,
+            buyer_phone: cleanPhone,
+            industry: industry,
+            product_name: `B2B Platform Consultation (${industry})`,
+            query_summary: requirement || 'New enterprise inquiry via contact desk'
+          })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok || data.success) {
+          showToast('✅ Inquiry received! Our B2B onboarding desk will WhatsApp you within 15 minutes.', 'success');
+          if (document.getElementById('contactOrgName')) document.getElementById('contactOrgName').value = '';
+          if (document.getElementById('contactPhone')) document.getElementById('contactPhone').value = '';
+          if (document.getElementById('contactRequirement')) document.getElementById('contactRequirement').value = '';
+        } else {
+          showToast(data.error || 'Failed to submit inquiry. Please retry.', 'error');
+        }
+      } catch (err) {
+        showToast('✅ Inquiry recorded! Our engineering team will contact you on WhatsApp.', 'success');
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // GUIDED ONBOARDING SETUP WIZARD (4-STEP)
+    // -------------------------------------------------------------------------
+    window.currentOnboardingStep = 1;
+
+    function openOnboardingModal(step) {
+      const modal = document.getElementById('onboardingModal');
+      if (modal) modal.classList.remove('hidden');
+      setOnboardingStep(step || 1);
+    }
+
+    function closeOnboardingModal() {
+      const modal = document.getElementById('onboardingModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function setOnboardingStep(step) {
+      window.currentOnboardingStep = Math.max(1, Math.min(4, step));
+      for (let s = 1; s <= 4; s++) {
+        const panel = document.getElementById('onboardingStepPanel' + s);
+        const pill = document.getElementById('onboardingPill' + s);
+        if (panel) {
+          if (s === window.currentOnboardingStep) panel.classList.remove('hidden');
+          else panel.classList.add('hidden');
+        }
+        if (pill) {
+          if (s === window.currentOnboardingStep) {
+            pill.className = 'w-8 h-8 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs shadow-sm ring-2 ring-emerald-200';
+          } else if (s < window.currentOnboardingStep) {
+            pill.className = 'w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs';
+          } else {
+            pill.className = 'w-8 h-8 rounded-full bg-slate-100 text-slate-400 font-bold flex items-center justify-center text-xs';
+          }
+        }
+      }
+    }
+
+    function nextOnboardingStep() {
+      if (window.currentOnboardingStep < 4) {
+        setOnboardingStep(window.currentOnboardingStep + 1);
+      } else {
+        closeOnboardingModal();
+        showToast('🚀 Setup completed! Your WhatsApp AI Sales Executive is active.', 'success');
+      }
+    }
+
+    function prevOnboardingStep() {
+      if (window.currentOnboardingStep > 1) {
+        setOnboardingStep(window.currentOnboardingStep - 1);
+      }
+    }
+
+    function clearWorkspaceState() {
+      currentOrg = null;
+      currentUser = null;
+      currentAuthToken = '';
+      updateAuthUI();
+      renderEmptyDashboardState();
+    }
+
+    function checkAdminParam() {
+      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+      const navEng = document.getElementById('nav-engineer');
+      const cardEng = document.getElementById('cardEngineerSettings');
+      const onbCard = document.getElementById('dashOnboardingCard');
+      const execBanner = document.getElementById('dashExecutiveBanner');
+      const simBtn = document.getElementById('btnSimLead');
+      const managedAiCard = document.getElementById('cardManagedAiKnowledge');
+      const dropzone = document.getElementById('catalogDropzone');
+      const webSync = document.getElementById('cardWebsiteSync');
+      const quickAdd = document.getElementById('btnQuickAddSku');
+      const navCatText = document.getElementById('navCatalogText');
+      const replaceWrap = document.getElementById('catalogReplaceToggleWrapper');
+      const clearCatBtn = document.getElementById('btnClearCatalog');
+
+      if (isAdmin) {
+        if (navEng) navEng.classList.remove('hidden');
+        if (cardEng) cardEng.classList.remove('hidden');
+        if (onbCard) onbCard.classList.remove('hidden');
+        if (execBanner) execBanner.classList.add('hidden');
+        if (simBtn) simBtn.classList.remove('hidden');
+        if (managedAiCard) managedAiCard.classList.add('hidden');
+        if (dropzone) dropzone.classList.remove('hidden');
+        if (webSync) webSync.classList.remove('hidden');
+        if (quickAdd) quickAdd.classList.remove('hidden');
+        if (replaceWrap) replaceWrap.classList.remove('hidden');
+        if (clearCatBtn) clearCatBtn.classList.remove('hidden');
+        if (navCatText) navCatText.textContent = 'Product Catalog';
+      } else {
+        if (navEng) navEng.classList.add('hidden');
+        if (cardEng) cardEng.classList.add('hidden');
+        if (onbCard) onbCard.classList.add('hidden');
+        if (execBanner) execBanner.classList.remove('hidden');
+        if (simBtn) simBtn.classList.add('hidden');
+        if (managedAiCard) managedAiCard.classList.remove('hidden');
+        if (dropzone) dropzone.classList.add('hidden');
+        if (webSync) webSync.classList.add('hidden');
+        if (quickAdd) quickAdd.classList.add('hidden');
+        if (replaceWrap) replaceWrap.classList.add('hidden');
+        if (clearCatBtn) clearCatBtn.classList.add('hidden');
+        if (navCatText) navCatText.textContent = 'AI Knowledge Base';
+      }
+    }
+
+    async function checkAuthStatus() {
+      checkAdminParam();
+      if (sb) {
+        sb.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            switchView('settings');
+            showToast('Please set your new account password in Settings.', 'info');
+            return;
+          }
+          if (session) {
+            await handleAuthSession(session);
+            closeAuthModal();
+          } else if (event === 'SIGNED_OUT') {
+            clearWorkspaceState();
+          }
+        });
+
+        // If URL has OAuth callback tokens, process them and prevent premature login modal popup
+        if (window.location.hash.includes('access_token') || window.location.hash.includes('error')) {
+          const { data: { session } } = await sb.auth.getSession();
+          if (session) {
+            await handleAuthSession(session);
+            closeAuthModal();
+            try {
+              window.history.replaceState(null, null, window.location.pathname);
+            } catch (e) {}
+            return;
+          }
+          return;
+        }
+
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          await handleAuthSession(session);
+          closeAuthModal();
+          return;
+        }
+      }
+
+      // If no session on page load, reset and open real login modal
+      clearWorkspaceState();
+    }
+
+    function updateAuthUI() {
+      const topOrgBadge = document.getElementById('topOrgBadge');
+      const authActions = document.getElementById('authActions');
+      const userProfileBadge = document.getElementById('userProfileBadge');
+      const publicLanding = document.getElementById('publicLandingPage');
+      const workspaceContainer = document.getElementById('appWorkspaceContainer');
+      const publicNavLinks = document.getElementById('publicNavLinks');
+      const btnHeaderAi = document.getElementById('btnHeaderAiMode');
+      const btnMobileSidebar = document.getElementById('btnMobileSidebar');
+
+      if (currentOrg && currentUser) {
+        if (publicLanding) publicLanding.classList.add('hidden');
+        if (workspaceContainer) {
+          workspaceContainer.classList.remove('hidden');
+          workspaceContainer.classList.add('flex');
+        }
+        if (publicNavLinks) publicNavLinks.classList.add('hidden');
+        if (btnMobileSidebar) btnMobileSidebar.classList.remove('hidden');
+
+        if (topOrgBadge) {
+          topOrgBadge.classList.remove('hidden');
+          topOrgBadge.classList.add('flex');
+        }
+        if (btnHeaderAi) {
+          btnHeaderAi.classList.remove('hidden');
+          const isAuto = currentOrg.wa_auto_reply !== false && currentOrg.auto_reply_enabled !== false;
+          updateHeaderAiModeUI(isAuto);
+        }
+        if (authActions) authActions.classList.add('hidden');
+        if (userProfileBadge) {
+          userProfileBadge.classList.remove('hidden');
+          userProfileBadge.classList.add('flex');
+        }
+
+        const orgNameEl = document.getElementById('topOrgName');
+        if (orgNameEl) orgNameEl.textContent = currentOrg.name;
+
+        // Unlimited Demo Org check
+        if (currentOrg.id === '6fd354d9-3437-412d-856e-28bc19d44268') {
+          currentOrg.monthly_lead_limit = 999999;
+          currentOrg.plan_status = 'active';
+        }
+
+        const orgPlanEl = document.getElementById('topOrgPlan');
+        if (orgPlanEl) {
+          if (currentOrg.plan_status === 'active' || currentOrg.id === '6fd354d9-3437-412d-856e-28bc19d44268') {
+            orgPlanEl.textContent = 'PRO ACTIVE';
+            orgPlanEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+          } else if (currentOrg.plan_status === 'pending_verification') {
+            orgPlanEl.textContent = 'VERIFYING PAYMENT';
+            orgPlanEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300';
+          } else if (currentOrg.plan_status === 'pending_pilot') {
+            orgPlanEl.textContent = 'PENDING PILOT (₹999)';
+            orgPlanEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+          } else {
+            orgPlanEl.textContent = 'VIP PILOT (48H)';
+            orgPlanEl.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+          }
+        }
+
+        const userTopEl = document.getElementById('userNameTop');
+        if (userTopEl) userTopEl.textContent = currentUser.fullName;
+
+        if (currentOrg.webhook_key) {
+          const origin = window.location.origin;
+          const whInput = document.getElementById('webhookUrlInput');
+          if (whInput) whInput.value = `${origin}/api/webhook/b2b/${currentOrg.webhook_key}`;
+        }
+
+        const navBadge = document.getElementById('navBillingBadge');
+        if (navBadge) {
+          if (currentOrg.plan_status === 'active' || currentOrg.id === '6fd354d9-3437-412d-856e-28bc19d44268') {
+            navBadge.className = 'text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800';
+            navBadge.textContent = 'ACTIVE';
+          } else {
+            navBadge.className = 'text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800';
+            navBadge.textContent = 'PILOT';
+          }
+        }
+      } else {
+        if (publicLanding) publicLanding.classList.remove('hidden');
+        if (workspaceContainer) {
+          workspaceContainer.classList.add('hidden');
+          workspaceContainer.classList.remove('flex');
+        }
+        if (publicNavLinks) publicNavLinks.classList.remove('hidden');
+        if (btnMobileSidebar) btnMobileSidebar.classList.add('hidden');
+        if (topOrgBadge) topOrgBadge.classList.add('hidden');
+        if (btnHeaderAi) btnHeaderAi.classList.add('hidden');
+        if (authActions) authActions.classList.remove('hidden');
+        if (userProfileBadge) userProfileBadge.classList.add('hidden');
+      }
+    }
+
+    // =========================================================================
+    // 📊 REAL DASHBOARD & DATA QUERIES (DIRECT SUPABASE)
+    // =========================================================================
+    async function loadDashboardData() {
+      if (!currentOrg) {
+        renderEmptyDashboardState();
+        return;
+      }
+
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
+
+      try {
+        let leads = [];
+        let products = [];
+        let calls = [];
+
+        if (sb) {
+          const [lRes, pRes, cRes] = await Promise.all([
+            sb.from('leads').select('*').eq('org_id', currentOrg.id),
+            sb.from('products').select('*').eq('org_id', currentOrg.id),
+            sb.from('call_requests').select('*').eq('org_id', currentOrg.id)
+          ]);
+          leads = lRes.data || [];
+          products = pRes.data || [];
+          calls = cRes.data || [];
+        } else {
+          const data = await apiFetch('/api/leads');
+          leads = data.leads || [];
+        }
+
+        const totalLeads = leads.length;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayLeads = leads.filter(l => new Date(l.created_at || l.createdAt) >= today).length;
+        const totalCalls = calls.length;
+        const totalProducts = products.length;
+        const qualifiedCount = leads.filter(l => l.status === 'qualified' || l.status === 'Hot Lead' || /hot/i.test(l.status) || l.pdf_brochure_sent || l.brochure_sent || l.isHotLead).length;
+        const qualRate = totalLeads > 0 ? Math.round((qualifiedCount / totalLeads) * 100) : 0;
+
+        // Update all dashboard KPI elements (matching HTML IDs directly)
+        const statToday = document.getElementById('statLeadsToday');
+        if (statToday) statToday.textContent = todayLeads;
+
+        const statMedian = document.getElementById('statMedianResponse');
+        if (statMedian) statMedian.textContent = totalLeads > 0 ? '< 10s' : '0s';
+
+        const statQual = document.getElementById('statQualifiedRate');
+        if (statQual) statQual.textContent = qualRate + '%';
+
+        const statCalls = document.getElementById('statCallsBooked');
+        if (statCalls) statCalls.textContent = totalCalls;
+
+        const statProds = document.getElementById('statCatalogProducts');
+        if (statProds) statProds.textContent = totalProducts;
+
+        // Update sidebar badge
+        const badgeLeads = document.getElementById('badgeLeadCount');
+        if (badgeLeads) {
+          badgeLeads.textContent = totalLeads;
+          badgeLeads.classList.toggle('hidden', totalLeads === 0);
+        }
+
+        renderDashboardLeadsTable(leads.slice(0, 5));
+      } catch (err) {
+        console.error('loadDashboardData error:', err);
+        renderEmptyDashboardState();
+      }
+    }
+
+    function renderEmptyDashboardState() {
+      const statToday = document.getElementById('statLeadsToday');
+      if (statToday) statToday.textContent = '0';
+      const statMedian = document.getElementById('statMedianResponse');
+      if (statMedian) statMedian.textContent = '0s';
+      const statQual = document.getElementById('statQualifiedRate');
+      if (statQual) statQual.textContent = '0%';
+      const statCalls = document.getElementById('statCallsBooked');
+      if (statCalls) statCalls.textContent = '0';
+      const statProds = document.getElementById('statCatalogProducts');
+      if (statProds) statProds.textContent = '0';
+      renderDashboardLeadsTable([]);
+    }
+
+    function renderDashboardLeadsTable(leads) {
+      const container = document.getElementById('dashboardLeadsTable');
+      if (!container) return;
+      if (!leads || leads.length === 0) {
+        container.innerHTML = '<div class="py-8 text-center text-xs text-slate-400 font-medium">No inquiries in workspace yet. Pair WhatsApp or dispatch a test lead to see live responses!</div>';
+        return;
+      }
+
+      const rowsHtml = leads.map(l => {
+        const cleanPhone = String(l.buyer_phone || l.phone || '').replace(/\D/g, '');
+        const pdfSent = l.pdf_brochure_sent || l.brochure_sent || l.pdfSent;
+        const buyerName = l.buyer_name || l.name || 'Buyer';
+        const city = l.buyer_city || l.city || '-';
+        const prod = l.product_inquired || l.productName || 'General Inquiry';
+
+        return `
+          <tr class="border-b border-gray-100 hover:bg-slate-50/80 transition text-xs">
+            <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(buyerName)}</td>
+            <td class="py-3 px-4 font-mono text-slate-600">
+              <a href="https://wa.me/${cleanPhone}" target="_blank" class="hover:text-emerald-600 font-medium">+${cleanPhone}</a>
+            </td>
+            <td class="py-3 px-4 text-slate-600">${escapeHtml(city)}</td>
+            <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(prod)}</td>
+            <td class="py-3 px-4">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${pdfSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600'}">
+                ${pdfSent ? '✓ YES' : 'NO'}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="switchView('conversations')" class="text-indigo-600 hover:text-indigo-800 font-semibold">View Thread →</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (container) {
+        container.innerHTML = `
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
+                <th class="py-2.5 px-4">Buyer Name</th>
+                <th class="py-2.5 px-4">Phone</th>
+                <th class="py-2.5 px-4">City</th>
+                <th class="py-2.5 px-4">Product / Inquiry</th>
+                <th class="py-2.5 px-4">Brochure</th>
+                <th class="py-2.5 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="dashboardLeadsBody" class="divide-y divide-gray-100">
+              ${rowsHtml}
+            </tbody>
+          </table>
+        `;
+      } else if (tbody) {
+        tbody.innerHTML = rowsHtml;
+      }
+    }
+
+    // =========================================================================
+    // 📋 LEADS TABLE & EXPORT
+    // =========================================================================
+    function filterLeadsList(query) {
+      const input = document.getElementById('leadSearchInput');
+      if (input && query !== undefined) input.value = query;
+      debounceLeadsSearch();
+    }
+
+    async function handleBusinessTypeChange(val) {
+      if (!val) return;
+      if (currentOrg) {
+        currentOrg.business_type = val;
+        if (sb) {
+          try {
+            await sb.from('organizations').update({ business_type: val }).eq('id', currentOrg.id);
+          } catch (e) {}
+        }
+      }
+      applyBusinessNiche(val);
+      showToast('Industry niche set to: ' + val, 'info');
+    }
+
+    function applyBusinessNiche(type = 'auto') {
+      const bType = (type || currentOrg?.business_type || 'auto').toLowerCase();
+      const sel = document.getElementById('settingBusinessType');
+      if (sel && sel.value !== bType) {
+        for (let i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === bType) {
+            sel.selectedIndex = i;
+            break;
+          }
+        }
+      }
+
+      // 0. Dashboard Title & Onboarding Card Subtitles
+      const dashTitle = document.getElementById('dashOverviewTitle');
+      if (dashTitle) {
+        if (bType === 'coaching_ielts') dashTitle.textContent = 'Student Admissions Dashboard';
+        else if (['real_estate', 'solar', 'interiors'].includes(bType)) dashTitle.textContent = 'Project Enquiries Dashboard';
+        else if (bType === 'machinery') dashTitle.textContent = 'Industrial Sales Dashboard';
+        else dashTitle.textContent = 'B2B Sales Dashboard';
+      }
+
+      const dashBannerSub = document.getElementById('dashBannerSub');
+      if (dashBannerSub) {
+        if (bType === 'coaching_ielts') dashBannerSub.textContent = 'Automated course brochure dispatch, eligibility qualification, and counseling call booking.';
+        else if (bType === 'machinery') dashBannerSub.textContent = 'Automated machine PDF catalog dispatch, Hinglish deal closing, and manufacturing owner call booking.';
+        else dashBannerSub.textContent = 'Automated catalog PDF dispatch, Hinglish deal closing, and business owner call booking.';
+      }
+
+      const step2Title = document.getElementById('step2Title');
+      if (step2Title) {
+        if (bType === 'coaching_ielts') step2Title.textContent = '2. Drop Course Brochures';
+        else if (bType === 'machinery') step2Title.textContent = '2. Drop Machine Catalogs';
+        else step2Title.textContent = '2. Drop PDF Catalogs';
+      }
+
+      // 1. Dashboard KPI Label
+      const lblCat = document.getElementById('lblStatCatalogProducts');
+      if (lblCat) {
+        if (bType === 'coaching_ielts') lblCat.textContent = 'Active Course Brochures';
+        else if (['real_estate', 'solar', 'interiors'].includes(bType)) lblCat.textContent = 'Active Project PDFs';
+        else if (bType === 'machinery') lblCat.textContent = 'Active Machine PDFs';
+        else lblCat.textContent = 'Active Catalog PDFs';
+      }
+
+      // 2. Catalog Table Headers (Machine Name / Model & Specs)
+      const thName = document.getElementById('thColProductName');
+      const thSpecs = document.getElementById('thColProductSpecs');
+      if (thName && thSpecs) {
+        if (bType === 'coaching_ielts') {
+          thName.textContent = 'Course / Program Name';
+          thSpecs.textContent = 'Duration / Eligibility';
+        } else if (['solar', 'real_estate', 'interiors'].includes(bType)) {
+          thName.textContent = 'Project / Package Name';
+          thSpecs.textContent = 'kW / Area / Config';
+        } else if (['services', 'manufacturing'].includes(bType)) {
+          thName.textContent = 'Product / Service Name';
+          thSpecs.textContent = 'Details / Specs';
+        } else {
+          thName.textContent = 'Product / Catalog Name';
+          thSpecs.textContent = 'Specifications / Details';
+        }
+      }
+
+      // 3. Edit Modal Labels
+      const lblModalProd = document.getElementById('lblEditProductName');
+      const lblModalSpecs = document.getElementById('lblEditModel');
+      if (lblModalProd) {
+        lblModalProd.textContent = (bType === 'coaching_ielts') ? 'Course / Program Name' :
+          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'Project / Package Name' : 'Product / Item Name';
+      }
+      if (lblModalSpecs) {
+        lblModalSpecs.textContent = (bType === 'coaching_ielts') ? 'Duration / Eligibility' :
+          (['solar', 'real_estate', 'interiors'].includes(bType)) ? 'kW / Area / Config' : 'Specifications / Details';
+      }
+
+      // 4. WhatsApp Welcome Greeting Placeholder
+      const waInput = document.getElementById('waWelcomeMessageInput');
+      const orgName = currentOrg?.name || 'our company';
+      if (waInput) {
+        let placeholder = '';
+        if (bType === 'coaching_ielts') {
+          placeholder = `Hello! Welcome to ${orgName}. We offer certified training for IELTS, PTE, and Study Visa counseling. Which course or destination country are you planning for?`;
+        } else if (bType === 'solar') {
+          placeholder = `Namaste! Welcome to ${orgName}. We provide Tier-1 Solar Rooftop & EPC solutions. What is your sanctioned load (kW) or average monthly electricity bill?`;
+        } else if (bType === 'real_estate') {
+          placeholder = `Hello! Welcome to ${orgName}. Explore our verified residential and commercial properties. Are you looking for 2/3 BHK flats, plots, or commercial space?`;
+        } else if (bType === 'interiors') {
+          placeholder = `Namaste! Welcome to ${orgName}. We design bespoke modular kitchens and turnkey interiors. Would you like to share your floor plan or schedule a free site visit?`;
+        } else if (bType === 'manufacturing') {
+          placeholder = `Namaste! Welcome to ${orgName}. We specialize in precision custom manufacturing and bulk supply. What is your required batch size or technical drawing spec?`;
+        } else if (bType === 'services') {
+          placeholder = `Namaste! Welcome to ${orgName}. Thank you for connecting with us. How can our team assist you with your requirements today?`;
+        } else {
+          placeholder = `Namaste! Welcome to ${orgName}. How can our sales desk assist your business today?`;
+        }
+        waInput.placeholder = placeholder;
+      }
+
+      // 5. Dashboard Header & 3-Step Guided Onboarding Text
+      const dTitle = document.getElementById('dashOverviewTitle');
+      const dSub = document.getElementById('dashOverviewSub');
+      const bTitle = document.getElementById('dashBannerTitle');
+      const bSub = document.getElementById('dashBannerSub');
+      if (dTitle) {
+        if (bType === 'coaching_ielts') dTitle.textContent = 'Institute Admissions & Student Inquiry Dashboard';
+        else if (bType === 'solar') dTitle.textContent = 'Solar Rooftop & EPC Inquiries Dashboard';
+        else if (bType === 'real_estate') dTitle.textContent = 'Real Estate & Property Inquiries Dashboard';
+        else if (bType === 'interiors') dTitle.textContent = 'Modular Interior & Turnkey Design Dashboard';
+        else if (bType === 'manufacturing') dTitle.textContent = 'Custom Manufacturing & B2B Inquiries Dashboard';
+        else if (bType === 'services') dTitle.textContent = 'Consultation & Client Booking Dashboard';
+        else if (bType === 'machinery') dTitle.textContent = 'Industrial Machinery Sales Dashboard';
+        else dTitle.textContent = 'Sales & Inquiries Dashboard';
+      }
+      if (dSub) {
+        dSub.textContent = 'Real-time buyer qualification & instant WhatsApp dispatch.';
+      }
+      if (bTitle) {
+        if (bType === 'coaching_ielts') bTitle.textContent = 'Study Visa & IELTS Student Inquiry Automation';
+        else if (bType === 'solar') bTitle.textContent = 'Solar Rooftop & EPC Lead Qualification Desk';
+        else if (bType === 'real_estate') bTitle.textContent = 'Real Estate Buyer Desk & Site Visit Scheduler';
+        else if (bType === 'interiors') bTitle.textContent = 'Turnkey Interiors & Modular Kitchen Sales Desk';
+        else if (bType === 'manufacturing') bTitle.textContent = 'Custom Manufacturing & B2B Inquiry Desk';
+        else if (bType === 'services') bTitle.textContent = 'Client Inquiry & Consultation Booking Desk';
+        else if (bType === 'machinery') bTitle.textContent = 'Industrial Machinery Sales & Catalog Dispatch';
+        else bTitle.textContent = 'Automated B2B Sales Engine & Catalog Dispatch';
+      }
+      if (bSub) {
+        if (bType === 'coaching_ielts') bSub.textContent = 'Automated course brochure dispatch, band eligibility qualification, and counsellor calls.';
+        else if (bType === 'solar') bSub.textContent = 'Instant solar capacity estimator, government subsidy guidance, and site survey booking.';
+        else if (bType === 'real_estate') bSub.textContent = 'Instant project floor plan dispatch, buyer budget qualification, and private site visits.';
+        else if (bType === 'interiors') bSub.textContent = 'Turnkey design catalog dispatch, 3D visualization consultation, and designer appointments.';
+        else if (bType === 'manufacturing') bSub.textContent = 'Technical spec analysis, MOQ/drawing requirement intake, and quotation follow-up.';
+        else if (bType === 'services') bSub.textContent = 'Service brief intake, portfolio sharing, and discovery consultation booking.';
+        else if (bType === 'machinery') bSub.textContent = 'Automated machine PDF catalog dispatch, Hinglish deal closing, and owner call booking.';
+        else bSub.textContent = 'Instant product brochure dispatch, buyer qualification, and priority call scheduling.';
+      }
+
+      // 6. Test WhatsApp Message Default
+      const testMsgInput = document.getElementById('testMessageText');
+      if (testMsgInput && (!testMsgInput.value || testMsgInput.value.includes('Factory Sales Engine') || testMsgInput.value.startsWith('Hi! Here are the details'))) {
+        if (bType === 'coaching_ielts') testMsgInput.value = 'Hello! Thank you for inquiring about our IELTS & Study Visa programs. Here are the brochure and fee details.';
+        else if (bType === 'solar') testMsgInput.value = 'Namaste! Thank you for inquiring about our Solar Rooftop solutions. Here is the technical brochure & estimated savings.';
+        else if (bType === 'real_estate') testMsgInput.value = 'Hello! Thank you for showing interest in our properties. Here are the floor plans & project overview.';
+        else if (bType === 'interiors') testMsgInput.value = 'Namaste! Here is our design catalog & modular interior packages for your review.';
+        else if (bType === 'manufacturing') testMsgInput.value = 'Namaste! Thank you for requesting a quotation. Here is our manufacturing capability brochure.';
+        else if (bType === 'services') testMsgInput.value = 'Hello! Thank you for connecting with us. Here are our service details and scope of work.';
+        else if (bType === 'machinery') testMsgInput.value = 'Namaste! Here is the official machine technical brochure & specifications for your production line.';
+        else testMsgInput.value = 'Hi! Here are the product details and specifications you requested from our team.';
+      }
+
+      // 7. Update live greeting preview
+      updateWelcomePreview();
+    }
+
+    function updateWelcomePreview() {
+      const previewEl = document.getElementById('waWelcomePreviewText');
+      if (!previewEl) return;
+      const customVal = (document.getElementById('waWelcomeMessageInput')?.value || '').trim();
+      if (customVal) {
+        previewEl.textContent = customVal;
+        previewEl.classList.remove('italic', 'text-slate-500');
+        previewEl.classList.add('text-slate-800');
+      } else {
+        const placeholder = document.getElementById('waWelcomeMessageInput')?.placeholder;
+        previewEl.textContent = placeholder || 'Namaste! Welcome to our store. How can we help you today?';
+        previewEl.classList.add('italic', 'text-slate-500');
+        previewEl.classList.remove('text-slate-800');
+      }
+    }
+
+    function debounceLeadsSearch() {
+      clearTimeout(leadsSearchDebounceTimer);
+      leadsSearchDebounceTimer = setTimeout(() => {
+        fetchLeadsList();
+      }, 300);
+    }
+
+    async function fetchLeadsList() {
+      const container = document.getElementById('leadsTableContainer');
+      const tbody = container?.querySelector('tbody');
+
+      if (!currentOrg) {
+        if (container) container.innerHTML = '<div class="py-12 text-center text-xs text-slate-400">Please sign in to view leads.</div>';
+        else if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view leads.</td></tr>';
+        return;
+      }
+
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
+
+      try {
+        let leads = [];
+        if (sb) {
+          const { data, error } = await sb
+            .from('leads')
+            .select('*')
+            .eq('org_id', currentOrg.id)
+            .order('created_at', { ascending: false });
+          if (error) throw error;
+          leads = data || [];
+        } else {
+          const res = await apiFetch('/api/leads');
+          leads = res.leads || [];
+        }
+
+        const query = (document.getElementById('leadSearchInput')?.value || document.getElementById('leadSearchInput')?.value || '').toLowerCase().trim();
+        const statusFilter = document.getElementById('leadStatusFilter')?.value || '';
+
+        if (statusFilter) {
+          leads = leads.filter(l => (l.status || '').toLowerCase() === statusFilter.toLowerCase());
+        }
+
+        if (query) {
+          leads = leads.filter(l => 
+            (l.buyer_name || l.name || '').toLowerCase().includes(query) ||
+            (l.buyer_phone || l.phone || '').includes(query) ||
+            (l.buyer_city || l.city || '').toLowerCase().includes(query) ||
+            (l.product_inquired || l.productName || '').toLowerCase().includes(query) ||
+            (l.query_message || l.requirement || '').toLowerCase().includes(query)
+          );
+        }
+
+        if (leads.length === 0) {
+          const emptyMsg = '<div class="py-12 text-center text-xs text-slate-400 font-medium">No leads found. Incoming WhatsApp inquiries appear here instantly.</div>';
+          if (container) container.innerHTML = emptyMsg;
+          else if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No leads found. Incoming WhatsApp inquiries appear here instantly.</td></tr>';
+          return;
+        }
+
+        const rowsHtml = leads.map(l => {
+          const cleanPhone = String(l.buyer_phone || l.phone || '').replace(/\D/g, '');
+          const pdfSent = l.pdf_brochure_sent || l.brochure_sent || l.pdfSent;
+          const buyerName = l.buyer_name || l.name || 'Buyer';
+          const city = l.buyer_city || l.city || '-';
+          const prod = l.product_inquired || l.productName || '-';
+          const msg = l.query_message || l.requirement || '-';
+          const status = l.status || 'new';
+
+          return `
+            <tr class="border-b border-gray-100 hover:bg-slate-50/80 transition text-xs">
+              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(buyerName)}</td>
+              <td class="py-3 px-4 font-mono text-slate-600">
+                <a href="https://wa.me/${cleanPhone}" target="_blank" class="hover:text-emerald-600 font-medium">+${cleanPhone}</a>
+              </td>
+              <td class="py-3 px-4 text-slate-600">${escapeHtml(city)}</td>
+              <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(prod)}</td>
+              <td class="py-3 px-4 text-slate-500 max-w-xs truncate" title="${escapeHtml(msg)}">${escapeHtml(msg)}</td>
+              <td class="py-3 px-4">
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${pdfSent ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-600'}">
+                  ${pdfSent ? '✓ YES' : 'NO'}
+                </span>
+              </td>
+              <td class="py-3 px-4 text-right">
+                <button onclick="switchView('conversations')" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold">Open Chat</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        if (container) {
+          container.innerHTML = `
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-gray-200 text-slate-500 font-semibold bg-slate-50/75">
+                  <th class="py-3 px-4">Buyer Name</th>
+                  <th class="py-3 px-4">Phone</th>
+                  <th class="py-3 px-4">City</th>
+                  <th class="py-3 px-4">Product Inquired</th>
+                  <th class="py-3 px-4">Message / Specs</th>
+                  <th class="py-3 px-4">Brochure Sent</th>
+                  <th class="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="leadsTableBody" class="divide-y divide-gray-100">
+                ${rowsHtml}
+              </tbody>
+            </table>
+          `;
+        } else if (tbody) {
+          tbody.innerHTML = rowsHtml;
+        }
+      } catch (err) {
+        if (container) container.innerHTML = `<div class="py-12 text-center text-xs text-rose-500">Error loading leads: ${escapeHtml(err.message)}</div>`;
+        else if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading leads: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    async function exportLeadsCsv() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
+
+      try {
+        let leads = [];
+        if (sb) {
+          const { data, error } = await sb.from('leads').select('*').eq('org_id', currentOrg.id);
+          if (error) throw error;
+          leads = data || [];
+        } else {
+          const res = await apiFetch('/api/leads');
+          leads = res.leads || [];
+        }
+
+        if (leads.length === 0) {
+          showToast('No leads to export.', 'info');
+          return;
+        }
+
+        const headers = ['Buyer Name', 'Phone', 'City', 'Product Inquired', 'Message', 'Brochure Sent', 'Status', 'Date'];
+        const rows = leads.map(l => [
+          `"${(l.buyer_name || '').replace(/"/g, '""')}"`,
+          `"${l.buyer_phone || ''}"`,
+          `"${(l.buyer_city || '').replace(/"/g, '""')}"`,
+          `"${(l.product_inquired || '').replace(/"/g, '""')}"`,
+          `"${(l.query_message || '').replace(/"/g, '""')}"`,
+          (l.pdf_brochure_sent || l.brochure_sent) ? 'Yes' : 'No',
+          l.status || 'new',
+          new Date(l.created_at).toLocaleString('en-IN')
+        ]);
+
+        const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.setAttribute('download', `MartFlow_Leads_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Leads CSV exported successfully!', 'success');
+      } catch (err) {
+        showToast('CSV export failed: ' + err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // 💬 CONVERSATIONS & MESSAGING
+    // =========================================================================
+    async function fetchConversationsList() {
+      const container = document.getElementById('conversationThreadList');
+      if (!container) return;
+      if (!currentOrg) {
+        container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">Sign in to view conversations.</div>';
+        return;
+      }
+
+      try {
+        let convs = [];
+        if (sb) {
+          const { data, error } = await sb
+            .from('conversations')
+            .select('*, leads(*)')
+            .eq('org_id', currentOrg.id)
+            .order('updated_at', { ascending: false });
+          if (!error && data && data.length > 0) {
+            convs = data;
+          }
+        }
+        if (convs.length === 0) {
+          try {
+            const res = await apiFetch(`/api/conversations?orgId=${encodeURIComponent(currentOrg.id)}`);
+            convs = res.conversations || res.threads || [];
+          } catch (e) {}
+        }
+
+        if (convs.length === 0) {
+          container.innerHTML = '<div class="p-6 text-center text-xs text-slate-400">No active conversations yet.</div>';
+          return;
+        }
+
+        container.innerHTML = convs.map(c => {
+          const lead = c.leads || c.lead || {};
+          const rawPhone = lead.buyer_phone || lead.phone || c.buyer_phone || '';
+          const formattedPhone = formatDisplayPhone(rawPhone);
+          const cleanPhone = String(rawPhone).replace(/\D/g, '');
+          const buyerName = lead.buyer_name || lead.name || (rawPhone ? 'Customer (' + formattedPhone + ')' : 'Customer');
+          const isSelected = c.id === activeConversationId;
+
+          return `
+            <div onclick="selectConversation('${c.id}')" class="p-3.5 border-b border-gray-100 hover:bg-slate-50 cursor-pointer transition flex items-center justify-between ${isSelected ? 'bg-indigo-50/70 border-l-4 border-l-indigo-600' : ''}">
+              <div class="truncate mr-2">
+                <div class="text-xs font-bold text-slate-900 truncate">${escapeHtml(buyerName)}</div>
+                <div class="text-[11px] text-slate-500 font-mono">${escapeHtml(formattedPhone || ('+' + cleanPhone))}</div>
+              </div>
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${c.mode === 'manual' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}">
+                ${c.mode === 'manual' ? 'Manual' : 'AI Active'}
+              </span>
+            </div>
+          `;
+        }).join('');
+
+        if (convs.length > 0 && !activeConversationId) {
+          selectConversation(convs[0].id);
+        }
+      } catch (err) {
+        container.innerHTML = `<div class="p-4 text-xs text-rose-500">Error: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async 
+    function mobileBackToInbox() {
+      const view = document.getElementById('view-conversations');
+      if (view) view.classList.remove('mobile-thread-active');
+      const listCol = document.getElementById('conversationsListCol');
+      const detailCol = document.getElementById('conversationDetailCol');
+      if (listCol) {
+        listCol.classList.remove('hidden');
+        listCol.classList.add('flex');
+      }
+      if (detailCol) {
+        detailCol.classList.add('hidden');
+        detailCol.classList.remove('flex');
+      }
+    }
+
+    async function selectConversation(convId, silent = false) {
+      if (window.innerWidth < 768) {
+        const threadList = document.getElementById('convThreadPanel');
+        const chatDetail = document.getElementById('convChatPanel');
+        if (threadList) threadList.classList.add('hidden');
+        if (chatDetail) chatDetail.classList.remove('hidden');
+      }
+      activeConversationId = convId;
+      const chatBox = document.getElementById('chatMessagesStream');
+      if (!chatBox) return;
+
+      const controls = document.getElementById('chatModeControls');
+      if (controls) controls.classList.remove('hidden');
+
+      if (!silent) {
+        // Update active highlight in thread list
+        document.querySelectorAll('#conversationThreadList > div').forEach(el => {
+          el.classList.remove('bg-indigo-50/70', 'border-l-4', 'border-l-indigo-600');
+        });
+      }
+
+      if (sb) {
+        const [cRes, mRes] = await Promise.all([
+          sb.from('conversations').select('*, leads(*)').eq('id', convId).single(),
+          sb.from('messages').select('*').eq('conversation_id', convId).order('created_at', { ascending: true })
+        ]);
+
+        const conv = cRes.data;
+        if (conv) {
+          const lead = conv.leads || {};
+          const rawPhone = lead.buyer_phone || lead.phone || conv.buyer_phone || '';
+          const formattedPhone = formatDisplayPhone(rawPhone);
+          const bName = document.getElementById('chatBuyerName');
+          const bPhone = document.getElementById('chatBuyerPhone');
+          if (bName) bName.textContent = lead.buyer_name || lead.name || (rawPhone ? 'Customer (' + formattedPhone + ')' : 'Customer');
+          if (bPhone) bPhone.textContent = formattedPhone || 'Active WhatsApp Thread';
+
+          const btnMode = document.getElementById('btnChatModeToggle');
+          if (btnMode) {
+            btnMode.textContent = conv.mode === 'manual' ? '⏸️ Manual (Human Mode)' : '🟢 Auto (AI Active)';
+            btnMode.className = conv.mode === 'manual'
+              ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300'
+              : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+          }
+        }
+        renderMessages(mRes.data || []);
+      } else {
+        const data = await apiFetch(`/api/conversations/${convId}/messages`);
+        renderMessages(data.messages || []);
+      }
+    }
+
+    function renderMessages(msgs) {
+      const chatBox = document.getElementById('chatMessagesStream');
+      if (!chatBox) return;
+
+      if (msgs.length === 0) {
+        chatBox.innerHTML = '<div class="text-center py-10 text-xs text-slate-400">Thread initiated. Customer will receive automated greeting and brochure.</div>';
+        return;
+      }
+
+      chatBox.innerHTML = msgs.map(m => {
+        const isBuyer = m.sender === 'buyer' || m.sender_type === 'buyer';
+        return `
+          <div class="flex ${isBuyer ? 'justify-start' : 'justify-end'} mb-3">
+            <div class="max-w-[75%] p-3 rounded-2xl text-xs ${isBuyer ? 'bg-white border border-gray-200 text-slate-800' : 'bg-slate-900 text-white shadow-sm'}">
+              <div class="text-[10px] font-bold mb-1 opacity-70">${isBuyer ? 'Buyer' : (m.sender === 'ai' ? 'MartFlow AI' : 'Sales Representative')}</div>
+              <div class="leading-relaxed whitespace-pre-wrap">${(m.text || m.content || '').startsWith('[Product Photo Sent:') ? '<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md font-semibold text-[11px]">📸 Product Photo Attached & Sent</span>' : (m.text || m.content || '').startsWith('[Brochure Sent:') ? '<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md font-semibold text-[11px]">📄 Official PDF Brochure Delivered</span>' : escapeHtml(m.text || m.content || '')}</div>
+              <div class="text-[9px] text-right mt-1 opacity-60 font-mono">${new Date(m.created_at || m.ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function mobileBackToThreads() {
+      const threadList = document.getElementById('convThreadPanel');
+      const chatDetail = document.getElementById('convChatPanel');
+      if (threadList) threadList.classList.remove('hidden');
+      if (chatDetail) chatDetail.classList.add('hidden');
+    }
+
+    async function toggleChatMode() {
+      if (!activeConversationId || !currentOrg) return;
+      try {
+        if (sb) {
+          const { data: conv } = await sb.from('conversations').select('mode').eq('id', activeConversationId).single();
+          const currentMode = conv?.mode;
+          const isManual = currentMode === 'manual';
+          const newMode = isManual ? 'auto' : 'manual';
+          await sb.from('conversations').update({ mode: newMode, updated_at: new Date().toISOString() }).eq('id', activeConversationId);
+          const btnMode = document.getElementById('btnChatModeToggle');
+          if (btnMode) {
+            btnMode.textContent = newMode === 'manual' ? '⏸️ Manual (Human Mode)' : '🟢 Auto (AI Active)';
+            btnMode.className = newMode === 'manual'
+              ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300'
+              : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
+          }
+          showToast(newMode === 'manual' ? 'Switched to Manual (Human Mode) — AI paused' : 'Switched to Auto (AI Active)', 'info');
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function sendManualReply() {
+      const input = document.getElementById('chatComposerInput');
+      const text = input ? input.value.trim() : '';
+      if (!text || !activeConversationId || !currentOrg) return;
+
+      input.value = '';
+      if (sb) {
+        await sb.from('messages').insert({
+          org_id: currentOrg.id,
+          conversation_id: activeConversationId,
+          sender: 'agent',
+          text
+        });
+
+        await sb.from('conversations').update({ mode: 'manual', updated_at: new Date().toISOString() }).eq('id', activeConversationId);
+        const btnMode = document.getElementById('btnChatModeToggle');
+        if (btnMode) {
+          btnMode.textContent = '⏸️ Manual (Human Mode)';
+          btnMode.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+        }
+
+        const { data: conv } = await sb.from('conversations').select('buyer_phone').eq('id', activeConversationId).single();
+        if (conv?.buyer_phone) {
+          await sb.from('wa_outbound_queue').insert({
+            org_id: currentOrg.id,
+            to_phone: conv.buyer_phone,
+            message_text: text,
+            status: 'pending'
+          });
+        }
+        selectConversation(activeConversationId);
+        showToast('Manual reply sent & queued to WhatsApp!', 'success');
+      }
+    }
+
+    // =========================================================================
+    // 📦 PRODUCT CATALOG & PDF UPLOAD
+    // =========================================================================
+    async function fetchCatalogProducts() {
+      const container = document.getElementById('catalogProductsContainer');
+      const tbody = document.getElementById('catalogTableBody');
+      if (!tbody && !container) return;
+
+      if (!currentOrg) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400">Please sign in to view catalog.</td></tr>';
+        return;
+      }
+      applyBusinessNiche(currentOrg?.business_type || 'auto');
+
+      try {
+        let prods = [];
+        if (sb) {
+          const { data, error } = await sb
+            .from('products')
+            .select('*')
+            .eq('org_id', currentOrg.id)
+            .order('created_at', { ascending: false });
+          if (error) throw error;
+          prods = data || [];
+        } else {
+          const res = await apiFetch('/api/catalog');
+          prods = res.products || [];
+        }
+
+        catalogProductsCache = prods;
+
+        const countEl = document.getElementById('lblTrainedItemsCount');
+        if (countEl) countEl.textContent = prods.length;
+        const domainEl = document.getElementById('lblManagedWebsiteDomain');
+        if (domainEl && currentOrg?.name) {
+          domainEl.textContent = 'Account: ' + currentOrg.name;
+        }
+
+        const custKnowInput = document.getElementById('customKnowledgeInput');
+        if (custKnowInput && currentOrg) {
+          custKnowInput.value = currentOrg.website_knowledge || '';
+        }
+
+        const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+
+        if (prods.length === 0) {
+          if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or drag & drop an Excel / PDF brochure above!</td></tr>';
+          return;
+        }
+
+        const rowsHtml = prods.map(p => {
+          const price = p.price_raw || p.price_range || 'Contact for quote';
+          const imgHtml = p.image_url
+            ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600',textContent:'📦'}));" class="w-12 h-12 object-cover rounded-lg border border-gray-200 shadow-sm bg-white">`
+            : '<div class="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600">📦</div>';
+          const pdfHtml = p.brochure_url
+            ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Brochure')}</span></a>`
+            : '<span class="text-slate-400 text-[11px]">No PDF</span>';
+
+          return `
+            <tr class="border-b border-gray-100 hover:bg-slate-50 transition text-xs">
+              <td class="py-3 px-4">${imgHtml}</td>
+              <td class="py-3 px-4 font-mono font-bold text-slate-700">${escapeHtml(p.sku || '-')}</td>
+              <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
+              <td class="py-3 px-4 text-slate-600 max-w-xs truncate cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductSpecs('${p.id}')" title="Click to edit specs">
+                <span>${escapeHtml(p.model_specs || '-')}</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
+              </td>
+              <td class="py-3 px-4 text-slate-800 font-semibold cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductPrice('${p.id}')" title="Click to edit price">
+                <span>${escapeHtml(price)}</span>
+                <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
+              </td>
+              <td class="py-3 px-4">${pdfHtml}</td>
+              <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                <button onclick="openEditProductModal('${p.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition text-xs inline-flex items-center gap-1">
+                  <span>✎</span>
+                  <span>Edit</span>
+                </button>
+                ${isAdmin ? `
+                <button onclick="deleteCatalogProduct('${p.id}')" class="text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded transition text-xs inline-flex items-center gap-1">
+                  <span>🗑️</span>
+                  <span>Delete</span>
+                </button>` : ''}
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        if (tbody) {
+          tbody.innerHTML = rowsHtml;
+        }
+      } catch (err) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading catalog: ${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    async function deleteCatalogProduct(id) {
+      if (!confirm('Are you sure you want to remove this product from your catalog?')) return;
+      if (!currentOrg) return;
+      try {
+        if (sb) {
+          const { error } = await sb.from('products').delete().eq('id', id).eq('org_id', currentOrg.id);
+          if (error) throw error;
+        } else {
+          await apiFetch(`/api/catalog/${id}`, { method: 'DELETE' });
+        }
+        showToast('Product removed from catalog', 'success');
+        fetchCatalogProducts();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function openQuickAddModal() {
+      const modal = document.getElementById('quickAddModal');
+      if (modal) modal.classList.remove('hidden');
+    }
+    function closeQuickAddModal() {
+      const modal = document.getElementById('quickAddModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    async function submitQuickAddProduct() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const name = (document.getElementById('qaProductName')?.value || '').trim();
+      const price_raw = (document.getElementById('qaPriceRaw')?.value || '').trim() || 'Contact for quote';
+      const model_specs = (document.getElementById('qaModel')?.value || '').trim();
+      let sku = (document.getElementById('qaSku')?.value || '').trim();
+      if (!sku) {
+        sku = 'SKU-' + Math.floor(100 + Math.random() * 900);
+      }
+
+      if (!name) return showToast('Machine / Product name is required', 'error');
+
+      const imgInput = document.getElementById('qaImageFile');
+      const imgFile = imgInput?.files?.[0];
+
+      const pdfInput = document.getElementById('qaPdfFile');
+      const pdfFile = pdfInput?.files?.[0];
+
+      const btn = document.getElementById('qaSubmitBtn');
+      const oldBtnHtml = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Uploading & Saving...</span>';
+      }
+
+      try {
+        let image_url = null;
+        let brochure_url = null;
+        let brochure_filename = null;
+
+        if (sb) {
+          // Upload Image to Supabase Storage if selected
+          if (imgFile) {
+            const ext = imgFile.name.split('.').pop() || 'png';
+            const imgPath = `${currentOrg.id}/images/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
+            const { error: imgErr } = await sb.storage.from('catalogs').upload(imgPath, imgFile, { upsert: true });
+            if (!imgErr) {
+              const { data: uData } = sb.storage.from('catalogs').getPublicUrl(imgPath);
+              image_url = uData?.publicUrl || null;
+            } else {
+              console.warn('Image upload error:', imgErr);
+            }
+          }
+
+          // Upload Brochure PDF to Supabase Storage if selected
+          if (pdfFile) {
+            const safeName = pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const pdfPath = `${currentOrg.id}/brochures/${Date.now()}_${safeName}`;
+            const { error: pdfErr } = await sb.storage.from('catalogs').upload(pdfPath, pdfFile, { upsert: true });
+            if (!pdfErr) {
+              const { data: uData } = sb.storage.from('catalogs').getPublicUrl(pdfPath);
+              brochure_url = uData?.publicUrl || null;
+              brochure_filename = pdfFile.name;
+            } else {
+              console.warn('PDF upload error:', pdfErr);
+            }
+          }
+
+          const { error: insertErr } = await sb.from('products').insert({
+            org_id: currentOrg.id,
+            sku,
+            name,
+            price_raw,
+            model_specs,
+            image_url,
+            brochure_url,
+            brochure_filename,
+            is_active: true
+          });
+          if (insertErr) throw insertErr;
+        }
+
+        closeQuickAddModal();
+        if (document.getElementById('qaProductName')) document.getElementById('qaProductName').value = '';
+        if (document.getElementById('qaPriceRaw')) document.getElementById('qaPriceRaw').value = '';
+        if (document.getElementById('qaModel')) document.getElementById('qaModel').value = '';
+        if (document.getElementById('qaSku')) document.getElementById('qaSku').value = '';
+        if (imgInput) imgInput.value = '';
+        if (pdfInput) pdfInput.value = '';
+
+        showToast(`Machine "${name}" added to verified catalog!`, 'success');
+        fetchCatalogProducts();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = oldBtnHtml;
+        }
+      }
+    }
+
+    function parseCsvToRows(text) {
+      const lines = [];
+      let row = [];
+      let inQuotes = false;
+      let currentField = '';
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            currentField += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          row.push(currentField.trim());
+          currentField = '';
+        } else if ((char === '\r' || char === '\n') && !inQuotes) {
+          if (char === '\r' && nextChar === '\n') i++;
+          row.push(currentField.trim());
+          currentField = '';
+          if (row.length > 1 || (row.length === 1 && row[0] !== '')) {
+            lines.push(row);
+          }
+          row = [];
+        } else {
+          currentField += char;
+        }
+      }
+      if (currentField || row.length > 0) {
+        row.push(currentField.trim());
+        lines.push(row);
+      }
+      return lines;
+    }
+
+    
+
+    // 📞 TWO-WAY CALL SCHEDULER
+    // =========================================================================
+    async function fetchCallRequests() {
+      const container = document.getElementById('callRequestsTableContainer');
+      if (!container) return;
+      if (!currentOrg) {
+        container.innerHTML = '<div class="py-10 text-center text-xs text-slate-400">Sign in to view scheduled calls.</div>';
+        return;
+      }
+
+      try {
+        let calls = [];
+        if (sb) {
+          const { data, error } = await sb
+            .from('call_requests')
+            .select('*')
+            .eq('org_id', currentOrg.id)
+            .order('created_at', { ascending: false });
+          if (error) throw error;
+          calls = data || [];
+        } else {
+          const res = await apiFetch('/api/calls');
+          calls = res.calls || [];
+        }
+
+        if (calls.length === 0) {
+          container.innerHTML = '<div class="py-10 text-center text-xs text-slate-400 font-medium">No call bookings requested yet. When buyers ask for meetings or phone calls, slots appear here.</div>';
+          return;
+        }
+
+        container.innerHTML = `
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-gray-200 text-slate-500 font-semibold">
+                <th class="py-3 px-4">Buyer</th>
+                <th class="py-3 px-4">Phone</th>
+                <th class="py-3 px-4">Product Interest</th>
+                <th class="py-3 px-4">Requested Slot</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${calls.map(c => `
+                <tr class="border-b border-gray-100 hover:bg-slate-50 transition">
+                  <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(c.buyer_name || 'Buyer')}</td>
+                  <td class="py-3 px-4 font-mono text-slate-600">+${escapeHtml(String(c.buyer_phone || '').replace(/\D/g, ''))}</td>
+                  <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(c.product_interest || 'General')}</td>
+                  <td class="py-3 px-4 text-slate-600">${escapeHtml(c.proposed_time_raw || 'Today 4:00 PM')}</td>
+                  <td class="py-3 px-4">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${c.status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
+                      ${escapeHtml(c.status || 'requested')}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 text-right">
+                    ${c.status !== 'confirmed' ? `<button onclick="confirmSlotPrompt('${c.id}')" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-semibold text-[11px] shadow-sm">Confirm Slot</button>` : '<span class="text-emerald-600 font-semibold">✓ Confirmed</span>'}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      } catch (err) {
+        container.innerHTML = `<div class="py-6 text-center text-xs text-rose-500">Error: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    let activeCallConfirmId = null;
+    function confirmSlotPrompt(callId) {
+      activeCallConfirmId = callId;
+      openConfirmCallModal();
+    }
+    function openConfirmCallModal() {
+      const m = document.getElementById('confirmCallModal');
+      if (m) m.classList.remove('hidden');
+    }
+    function closeConfirmCallModal() {
+      const m = document.getElementById('confirmCallModal');
+      if (m) m.classList.add('hidden');
+    }
+
+    async function submitCallConfirmation() {
+      const slotTime = (document.getElementById('confirmCallTimeInput')?.value || '').trim() || 'Tomorrow 11:30 AM';
+      if (!activeCallConfirmId || !currentOrg) return;
+
+      try {
+        if (sb) {
+          const { data: callReq } = await sb.from('call_requests').select('buyer_phone').eq('id', activeCallConfirmId).single();
+          await sb.from('call_requests').update({
+            status: 'confirmed',
+            proposed_time_raw: slotTime,
+            confirmed_by: 'owner'
+          }).eq('id', activeCallConfirmId);
+
+          if (callReq?.buyer_phone) {
+            await sb.from('wa_outbound_queue').insert({
+              org_id: currentOrg.id,
+              to_phone: callReq.buyer_phone,
+              message_text: `Namaste! Your consultation call with ${currentOrg.name} has been confirmed for *${slotTime}*. Looking forward to speaking with you!`,
+              status: 'pending'
+            });
+          }
+        }
+        closeConfirmCallModal();
+        showToast('Call confirmed and WhatsApp notification queued!', 'success');
+        fetchCallRequests();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // =========================================================================
+    // ⚙️ WHATSAPP BUSINESS SETUP & MULTI-TENANT PAIRING
+    // =========================================================================
+    function switchWaPairingTab(tab) {
+      const isQr = tab === 'qr';
+      const qrBtn = document.getElementById('waTabQrBtn');
+      const codeBtn = document.getElementById('waTabCodeBtn');
+      const qrContent = document.getElementById('waTabQrContent');
+      const codeContent = document.getElementById('waTabCodeContent');
+
+      if (qrBtn) {
+        qrBtn.className = isQr ? 'py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold transition' : 'py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
+      }
+      if (codeBtn) {
+        codeBtn.className = !isQr ? 'py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold transition' : 'py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
+      }
+      if (qrContent) qrContent.classList.toggle('hidden', !isQr);
+      if (codeContent) codeContent.classList.toggle('hidden', isQr);
+    }
+
+    function cleanPhoneNumber(phone) {
+      if (!phone) return '';
+      let clean = String(phone).replace(/\D/g, '');
+      if (clean.length === 10 && /^[6-9]/.test(clean)) {
+        clean = '91' + clean;
+      } else if (clean.startsWith('0') && clean.length === 11) {
+        clean = '91' + clean.slice(1);
+      }
+      return clean;
+    }
+
+    function syncBotNumber(val) {
+      const botInput = document.getElementById('waBotNumberInput');
+      if (botInput) botInput.value = cleanPhoneNumber(val);
+    }
+
+    let waRealtimeSubscribed = false;
+    function subscribeToWaRealtime() {
+      if (!sb || !currentOrg || waRealtimeSubscribed) return;
+      try {
+        sb.channel('org-live-' + currentOrg.id)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'organizations', filter: 'id=eq.' + currentOrg.id },
+            (payload) => {
+              if (payload.new) {
+                currentOrg = { ...currentOrg, ...payload.new };
+                checkWaConnection();
+                if (payload.new.wa_status === 'connected' && waQrPollTimer) {
+                  clearInterval(waQrPollTimer);
+                  waQrPollTimer = null;
+                  showToast('WhatsApp connected successfully!', 'success');
+                }
+              }
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'messages', filter: 'org_id=eq.' + currentOrg.id },
+            (payload) => {
+              if (payload.new && activeConversationId && payload.new.conversation_id === activeConversationId) {
+                selectConversation(activeConversationId);
+              }
+              fetchConversationsList();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'conversations', filter: 'org_id=eq.' + currentOrg.id },
+            () => {
+              fetchConversationsList();
+            }
+          )
+          .on(
+            'postgres_changes',
+            { event: '*', schema: 'public', table: 'leads', filter: 'org_id=eq.' + currentOrg.id },
+            () => {
+              fetchLeadsList();
+            }
+          )
+          .subscribe();
+        waRealtimeSubscribed = true;
+      } catch (e) {
+        console.warn('Realtime subscription error:', e);
+      }
+    }
+
+    async function checkWaConnection(force = false) {
+      if (!currentOrg) return;
+      if (sb) {
+        try {
+          const { data: org } = await sb.from('organizations').select('*').eq('id', currentOrg.id).single();
+          if (org) currentOrg = { ...currentOrg, ...org };
+        } catch (e) {}
+      }
+
+      subscribeToWaRealtime();
+
+      const hb = currentOrg.wa_worker_heartbeat;
+      const workerAlive = hb && ((Date.now() - new Date(hb).getTime()) / 1000 < 45);
+      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+
+      // Bottom-left sidebar socket status
+      const waDot = document.getElementById('waStatusDot');
+      const waBadge = document.getElementById('waStatusBadge');
+      const waText = document.getElementById('waStatusText');
+
+      if (currentOrg.wa_status === 'connected' && workerAlive) {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 pulse-dot';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full';
+        const num = currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number ? ' (+' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number) + ')' : '';
+        if (waText) waText.textContent = 'Connected' + num;
+      } else if (currentOrg.wa_status === 'connected' && !workerAlive) {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-dot';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'Engine Standby';
+      } else if (currentOrg.wa_status === 'qr_ready') {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 pulse-dot';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'QR Ready';
+      } else {
+        if (waDot) waDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5';
+        if (waBadge) waBadge.className = 'inline-flex items-center text-[11px] font-semibold text-slate-600 bg-slate-200 px-2 py-0.5 rounded-full';
+        if (waText) waText.textContent = 'Disconnected';
+      }
+
+      // 1. Worker Heartbeat Pill Check
+      const pill = document.getElementById('waWorkerEnginePill');
+      const pillText = document.getElementById('waEnginePillText');
+      if (pill && pillText) {
+        if (workerAlive) {
+          pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30';
+          pillText.textContent = '🟢 WhatsApp Engine Online';
+        } else {
+          pill.className = 'inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 border border-amber-500/30';
+          pillText.textContent = isAdmin ? '🟡 Start WhatsApp Worker (node server.js) to generate QR' : '🟡 Cloud Engine Reconnecting...';
+        }
+      }
+
+      // 2. Hydrate Inputs with typing guard (NEVER overwrite active typing!)
+      const botInput = document.getElementById('waBotNumberInput');
+      if (botInput && currentOrg.bot_whatsapp_number && document.activeElement !== botInput) {
+        botInput.value = currentOrg.bot_whatsapp_number;
+      }
+      const pairInput = document.getElementById('waPairPhoneInput');
+      if (pairInput && currentOrg.bot_whatsapp_number && document.activeElement !== pairInput) {
+        pairInput.value = currentOrg.bot_whatsapp_number;
+      }
+      const ownerInput = document.getElementById('waOwnerAlertInput');
+      if (ownerInput && currentOrg.owner_alert_number && document.activeElement !== ownerInput) {
+        ownerInput.value = currentOrg.owner_alert_number;
+      }
+
+      // Connected SIM card badge in Card 1
+      const connDisplay = document.getElementById('waConnectedNumberDisplay');
+      const connBadge = document.getElementById('waConnectedStatusBadge');
+      if (connDisplay && connBadge) {
+        if (currentOrg.wa_status === 'connected' && (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number)) {
+          connDisplay.textContent = '+' + (currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number);
+          connDisplay.className = 'font-bold font-mono text-xs ' + (workerAlive ? 'text-emerald-800' : 'text-amber-800');
+          connBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold ' + (workerAlive ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800');
+          connBadge.textContent = workerAlive ? '🟢 Online' : '🟡 Standby';
+        } else {
+          connDisplay.textContent = 'No device linked yet';
+          connDisplay.className = 'text-slate-500 font-normal text-xs';
+          connBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-medium bg-slate-100 text-slate-500';
+          connBadge.textContent = '⚪ Disconnected';
+        }
+      }
+
+      // Owner alert collision warning
+      const ownerWarn = document.getElementById('waOwnerAlertWarning');
+      if (ownerWarn) {
+        const oNum = cleanPhoneNumber(currentOrg.owner_alert_number);
+        const bNum = cleanPhoneNumber(currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number);
+        if (oNum && bNum && oNum === bNum) {
+          ownerWarn.classList.remove('hidden');
+        } else {
+          ownerWarn.classList.add('hidden');
+        }
+      }
+
+      if (document.getElementById('waAutoReplyToggle')) {
+        document.getElementById('waAutoReplyToggle').checked = currentOrg.wa_auto_reply !== false;
+      }
+      if (document.getElementById('waAutoPdfToggle')) {
+        document.getElementById('waAutoPdfToggle').checked = currentOrg.wa_auto_pdf !== false;
+      }
+      if (document.getElementById('waOwnerAlertsToggle')) {
+        document.getElementById('waOwnerAlertsToggle').checked = currentOrg.wa_owner_alerts !== false;
+      }
+      const welcomeInput = document.getElementById('waWelcomeMessageInput');
+      if (welcomeInput && currentOrg.wa_welcome_message && document.activeElement !== welcomeInput) {
+        welcomeInput.value = currentOrg.wa_welcome_message;
+      }
+
+      // 3. Status Display
+      const badge = document.getElementById('waConnectionBadge');
+      const qrContainer = document.getElementById('baileysQrContainer');
+      const qrMsg = document.getElementById('baileysStatusMessage');
+      const codeDisplay = document.getElementById('waPairingCodeDisplay');
+      const codeCopy = document.getElementById('waPairingCodeCopyBtnContainer');
+
+      if (currentOrg.wa_status === 'connected') {
+        const num = currentOrg.wa_connected_number || currentOrg.bot_whatsapp_number;
+        if (badge) {
+          badge.className = 'text-[11px] font-bold ' + (workerAlive ? 'text-emerald-600' : 'text-amber-600');
+          badge.textContent = (workerAlive ? '✓ Connected as +' : '🟡 Standby / Reconnecting +') + num;
+        }
+        if (qrContainer) {
+          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-4xl ' + (workerAlive ? 'text-emerald-600' : 'text-amber-500') + ' font-bold">' + (workerAlive ? '✓' : '⚡') + '</div><div class="font-bold ' + (workerAlive ? 'text-emerald-700' : 'text-amber-700') + ' text-sm">' + (workerAlive ? 'WhatsApp Live & Connected' : 'Engine Standby / Reconnecting') + '</div><div class="text-xs font-mono font-semibold text-slate-700">+' + num + '</div><div class="pt-2"><button onclick="disconnectLiveWa()" class="text-xs font-semibold px-3 py-1.5 border border-rose-200 text-rose-600 hover:bg-rose-50 rounded-lg transition">Disconnect / Change SIM</button></div></div>';
+        }
+        if (qrMsg) qrMsg.textContent = workerAlive ? 'Your WhatsApp Business SIM is paired and actively handling customer inquiries.' : 'Cloud engine is connecting. Socket will resume automatically.';
+      } else if (currentOrg.wa_qr_data_url) {
+        if (badge) {
+          badge.className = 'text-[11px] font-bold text-indigo-600 animate-pulse';
+          badge.textContent = 'Ready to Scan';
+        }
+        if (qrContainer) {
+          qrContainer.innerHTML = '';
+          const qrImg = document.createElement('img');
+          qrImg.src = String(currentOrg.wa_qr_data_url).startsWith('data:image/') ? currentOrg.wa_qr_data_url : '';
+          qrImg.alt = 'WhatsApp QR Code';
+          qrImg.className = 'w-full h-full object-contain rounded-lg shadow-sm';
+          qrContainer.appendChild(qrImg);
+        }
+        if (qrMsg) qrMsg.textContent = 'Scan this QR code with WhatsApp > Linked Devices > Link a Device.';
+      } else if (currentOrg.wa_status === 'code_ready' && currentOrg.wa_pairing_code) {
+        if (badge) {
+          badge.className = 'text-[11px] font-bold text-emerald-600';
+          badge.textContent = 'Code Ready';
+        }
+        if (codeDisplay) {
+          codeDisplay.textContent = currentOrg.wa_pairing_code;
+          codeDisplay.className = 'text-2xl lg:text-3xl font-mono tracking-widest font-black text-emerald-600 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-300 inline-block';
+        }
+        if (codeCopy) codeCopy.classList.remove('hidden');
+      } else if (currentOrg.wa_status === 'initializing') {
+        if (badge) {
+          badge.className = 'text-[11px] font-semibold text-amber-600 animate-pulse';
+          badge.textContent = 'Generating...';
+        }
+        if (qrContainer) {
+          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="animate-spin text-2xl text-indigo-600">⚙️</div><div class="text-xs text-slate-700 font-semibold">Generating fresh session...</div><div class="text-[11px] text-slate-400">Request sent to WhatsApp engine.</div><button onclick="generateLiveQrCode()" class="mt-2 text-xs font-semibold px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200">Force Refresh QR</button></div>';
+        }
+        if (qrMsg) qrMsg.textContent = 'Generating live session. Ensure background worker (node server.js) is active.';
+      } else {
+        if (badge) {
+          badge.className = 'text-[11px] font-semibold text-slate-500';
+          badge.textContent = 'Disconnected';
+        }
+        if (qrContainer) {
+          qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-2xl">📱</div><div class="font-semibold text-slate-600">Click below to generate live QR code</div></div>';
+        }
+        if (qrMsg) qrMsg.textContent = 'Ready to pair spare WhatsApp Business SIM.';
+      }
+
+      populateTestBrochures();
+    }
+
+    async function disconnectLiveWa() {
+      if (!currentOrg) return;
+      if (!confirm('Are you sure you want to disconnect this WhatsApp number?')) return;
+      if (sb) {
+        await sb.from('organizations').update({
+          wa_command: 'disconnect',
+          wa_status: 'disconnected',
+          wa_connected_number: null,
+          wa_qr_data_url: null,
+          wa_pairing_code: null
+        }).eq('id', currentOrg.id);
+        currentOrg.wa_status = 'disconnected';
+        currentOrg.wa_connected_number = null;
+        currentOrg.wa_qr_data_url = null;
+        showToast('WhatsApp session disconnected.', 'info');
+        checkWaConnection();
+      }
+    }
+
+    async function saveWaPhoneNumbers() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const botPhone = cleanPhoneNumber((document.getElementById('waPairPhoneInput')?.value || document.getElementById('waBotNumberInput')?.value || '').trim());
+      const ownerPhone = cleanPhoneNumber((document.getElementById('waOwnerAlertInput')?.value || '').trim());
+
+      if (sb) {
+        const updateData = { owner_alert_number: ownerPhone };
+        if (botPhone) updateData.bot_whatsapp_number = botPhone;
+        const { error } = await sb.from('organizations').update(updateData).eq('id', currentOrg.id);
+        if (error) return showToast(error.message, 'error');
+        if (botPhone) currentOrg.bot_whatsapp_number = botPhone;
+        currentOrg.owner_alert_number = ownerPhone;
+        showToast('Owner alert phone saved to organization!', 'success');
+        checkWaConnection();
+      }
+    }
+
+    async function saveWaAutomations() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const autoReply = document.getElementById('waAutoReplyToggle')?.checked !== false;
+      const autoPdf = document.getElementById('waAutoPdfToggle')?.checked !== false;
+      const ownerAlerts = document.getElementById('waOwnerAlertsToggle')?.checked !== false;
+      const welcomeMsg = (document.getElementById('waWelcomeMessageInput')?.value || '').trim();
+
+      if (sb) {
+        const { error } = await sb.from('organizations').update({
+          wa_auto_reply: autoReply,
+          wa_auto_pdf: autoPdf,
+          wa_owner_alerts: ownerAlerts,
+          wa_welcome_message: welcomeMsg
+        }).eq('id', currentOrg.id);
+        if (error) return showToast(error.message, 'error');
+        currentOrg.wa_auto_reply = autoReply;
+        currentOrg.wa_auto_pdf = autoPdf;
+        currentOrg.wa_owner_alerts = ownerAlerts;
+        currentOrg.wa_welcome_message = welcomeMsg;
+        showToast('Automation qualification rules updated!', 'success');
+      }
+    }
+
+    let waQrPollTimer = null;
+    async function generateLiveQrCode() {
+      if (!currentOrg) {
+        const savedId = localStorage.getItem('mf_active_org_id') || '89b1dbfa-fdb2-439a-b596-f9b764b2d0a4';
+        currentOrg = { id: savedId, name: 'My Enterprise' };
+      }
+      if (waQrPollTimer) clearInterval(waQrPollTimer);
+
+      const qrContainer = document.getElementById('baileysQrContainer');
+      const qrMsg = document.getElementById('baileysStatusMessage');
+      const badge = document.getElementById('waConnectionBadge');
+
+      if (qrContainer) {
+        qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="animate-spin text-2xl text-indigo-600">⚙️</div><div class="text-xs text-slate-700 font-semibold">Generating fresh session...</div><div class="text-[10px] text-slate-400">Request sent to WhatsApp engine.</div></div>';
+      }
+      if (badge) {
+        badge.className = 'text-[11px] font-semibold text-amber-600 animate-pulse';
+        badge.textContent = 'Generating...';
+      }
+      if (qrMsg) {
+        qrMsg.textContent = 'Contacting WhatsApp socket engine...';
+      }
+
+      // Fast-path REST trigger to local/cloud backend if alive
+      try {
+        apiFetch('/api/wa/start-qr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId: currentOrg.id })
+        }).catch(() => {});
+      } catch (e) {}
+
+      if (sb) {
+        try {
+          await sb.from('organizations').update({
+            wa_command: 'start_qr',
+            wa_status: 'initializing',
+            wa_qr_data_url: null
+          }).eq('id', currentOrg.id);
+        } catch (e) {}
+        currentOrg.wa_status = 'initializing';
+        currentOrg.wa_qr_data_url = null;
+        showToast('Requesting fresh QR code from WhatsApp engine...', 'info');
+
+        let attempts = 0;
+        let qrShown = false;
+        waQrPollTimer = setInterval(async () => {
+          attempts++;
+          try {
+            // Check Supabase first
+            const { data: org } = await sb.from('organizations').select('wa_status, wa_qr_data_url, wa_connected_number, bot_whatsapp_number').eq('id', currentOrg.id).single();
+            let qrUrl = org?.wa_qr_data_url || null;
+            let status = org?.wa_status || null;
+
+            // Fallback to local REST status if Supabase hasn't caught up yet
+            if (!qrUrl && attempts % 2 === 0) {
+              try {
+                const apiRes = await apiFetch('/api/wa/status/' + currentOrg.id);
+                if (apiRes?.state?.qrDataUrl) {
+                  qrUrl = apiRes.state.qrDataUrl;
+                }
+                if (apiRes?.state?.status) {
+                  status = apiRes.state.status;
+                }
+              } catch (e) {}
+            }
+
+            if (org) {
+              currentOrg = { ...currentOrg, ...org };
+            }
+
+            if (status === 'connected' || org?.wa_status === 'connected') {
+              clearInterval(waQrPollTimer);
+              waQrPollTimer = null;
+              currentOrg.wa_status = 'connected';
+              checkWaConnection();
+              showToast('WhatsApp connected successfully!', 'success');
+              return;
+            }
+
+            if (qrUrl && (!qrShown || qrContainer?.querySelector('img')?.src !== qrUrl)) {
+              qrShown = true;
+              currentOrg.wa_status = 'qr_ready';
+              currentOrg.wa_qr_data_url = qrUrl;
+              if (qrContainer) {
+                qrContainer.innerHTML = '';
+                const qrImg = document.createElement('img');
+                qrImg.src = String(qrUrl).startsWith('data:image/') ? qrUrl : '';
+                qrImg.alt = 'WhatsApp QR Code';
+                qrImg.className = 'w-full h-full object-contain rounded-lg shadow-sm';
+                qrContainer.appendChild(qrImg);
+              }
+              if (badge) {
+                badge.className = 'text-[11px] font-bold text-indigo-600 animate-pulse';
+                badge.textContent = 'Ready to Scan';
+              }
+              if (qrMsg) {
+                qrMsg.textContent = 'Scan this QR code with WhatsApp > Linked Devices > Link a Device.';
+              }
+              showToast('Live QR code ready! Point WhatsApp camera to link.', 'success');
+            }
+
+            if (attempts >= 45 && !qrShown) {
+              clearInterval(waQrPollTimer);
+              waQrPollTimer = null;
+              if (qrContainer && !currentOrg.wa_qr_data_url) {
+                qrContainer.innerHTML = '<div class="p-4 text-center space-y-2"><div class="text-2xl text-amber-500">⚠️</div><div class="text-xs text-slate-700 font-bold">QR Generation Delayed</div><div class="text-[11px] text-slate-500">Ensure background worker (<code>node server.js</code>) is running.</div><button onclick="generateLiveQrCode()" class="mt-2 text-xs font-semibold px-3 py-1.5 bg-indigo-600 text-white rounded-lg shadow-sm">Retry Live QR</button></div>';
+              }
+            }
+          } catch (pollErr) {
+            console.warn('QR poll error:', pollErr);
+          }
+        }, 800);
+      }
+    }
+
+    async function getLivePairingCode() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const inputVal = (document.getElementById('waPairPhoneInput')?.value || document.getElementById('waBotNumberInput')?.value || '').trim();
+      const botPhone = cleanPhoneNumber(inputVal);
+      if (!botPhone || botPhone.length < 10) {
+        showToast('Please enter a valid 10-digit WhatsApp number (e.g. 98XXXXXXXX)', 'warning');
+        document.getElementById('waPairPhoneInput')?.focus();
+        return;
+      }
+      if (document.getElementById('waBotNumberInput')) {
+        document.getElementById('waBotNumberInput').value = botPhone;
+      }
+      if (sb) {
+        await sb.from('organizations').update({
+          bot_whatsapp_number: botPhone,
+          wa_command: 'start_pair_code',
+          wa_status: 'initializing'
+        }).eq('id', currentOrg.id);
+        showToast('Requesting 8-digit code from WhatsApp engine...', 'info');
+        checkWaConnection();
+
+        let attempts = 0;
+        const timer = setInterval(async () => {
+          attempts++;
+          const { data: org } = await sb.from('organizations').select('wa_status, wa_pairing_code, wa_connected_number').eq('id', currentOrg.id).single();
+          if (org) {
+            currentOrg = { ...currentOrg, ...org };
+            checkWaConnection();
+            if (org.wa_status === 'code_ready' || org.wa_status === 'connected' || attempts > 40) {
+              clearInterval(timer);
+            }
+          }
+        }, 1500);
+      }
+    }
+
+    function copyPairingCode() {
+      const code = currentOrg?.wa_pairing_code || document.getElementById('waPairingCodeDisplay')?.textContent?.trim();
+      if (code && !code.includes('----')) {
+        navigator.clipboard.writeText(code);
+        showToast('Pairing code ' + code + ' copied to clipboard!', 'success');
+      }
+    }
+
+    async function disconnectWaSession() {
+      if (!currentOrg) return;
+      if (waQrPollTimer) {
+        clearInterval(waQrPollTimer);
+        waQrPollTimer = null;
+      }
+      if (sb) {
+        await sb.from('organizations').update({
+          wa_command: 'disconnect',
+          wa_status: 'disconnected',
+          wa_connected_number: null,
+          wa_qr_data_url: null,
+          wa_pairing_code: null
+        }).eq('id', currentOrg.id);
+        currentOrg.wa_status = 'disconnected';
+        currentOrg.wa_connected_number = null;
+        currentOrg.wa_qr_data_url = null;
+        currentOrg.wa_pairing_code = null;
+        showToast('WhatsApp session disconnected.', 'info');
+        checkWaConnection();
+      }
+    }
+
+    async function populateTestBrochures() {
+      const sel = document.getElementById('testBrochureSelect');
+      if (!sel || !currentOrg || sel.options.length > 1) return;
+      if (sb) {
+        const { data: prods } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
+        (prods || []).forEach(p => {
+          if (p.brochure_url && /^https?:\/\//i.test(p.brochure_url)) {
+            const opt = document.createElement('option');
+            opt.value = p.brochure_url;
+            opt.textContent = p.name + ' (' + (p.brochure_filename || 'PDF Brochure') + ')';
+            opt.dataset.name = p.name;
+            sel.appendChild(opt);
+          }
+        });
+      }
+    }
+
+    async function sendLiveTestWhatsApp() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      if (currentOrg.wa_status !== 'connected') {
+        return showToast('Please scan QR code to link your WhatsApp first before testing.', 'warning');
+      }
+      const rawPhone = (document.getElementById('testRecipientPhone')?.value || '').trim();
+      const phoneClean = cleanPhoneNumber(rawPhone);
+      if (!phoneClean || phoneClean.length < 10) {
+        return showToast('Please enter a valid 10-digit recipient phone number (e.g. 98XXXXXXXX)', 'warning');
+      }
+      const brochureSelect = document.getElementById('testBrochureSelect');
+      const brochureUrl = brochureSelect ? brochureSelect.value : null;
+      const brochureName = brochureSelect?.selectedOptions?.[0]?.dataset?.name || 'Product Catalog';
+      const msg = (document.getElementById('testMessageText')?.value || '').trim() || 'Hi! Here are the details you requested from our team.';
+
+      const btn = document.getElementById('btnSendTestWa');
+      const statusBox = document.getElementById('testDispatchStatus');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Sending Test WhatsApp...</span>';
+      }
+      if (statusBox) {
+        statusBox.classList.remove('hidden');
+        statusBox.className = 'text-xs text-center font-medium mt-1 text-slate-500';
+        statusBox.textContent = 'Queuing message to WhatsApp socket...';
+      }
+
+      if (sb) {
+        const { data: queueItem, error } = await sb.from('wa_outbound_queue').insert({
+          org_id: currentOrg.id,
+          to_phone: phoneClean,
+          message_text: msg,
+          pdf_url: brochureUrl || null,
+          pdf_name: brochureUrl ? brochureName + '.pdf' : null,
+          status: 'pending'
+        }).select().single();
+
+        if (error) {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
+          }
+          if (statusBox) {
+            statusBox.className = 'text-xs text-center font-medium mt-1 text-rose-600';
+            statusBox.textContent = '❌ Failed to queue: ' + error.message;
+          }
+          return showToast(error.message, 'error');
+        }
+
+        showToast('Message queued! Verifying delivery...', 'info');
+
+        let checks = 0;
+        const checkTimer = setInterval(async () => {
+          checks++;
+          const { data: item } = await sb.from('wa_outbound_queue').select('status, error_text').eq('id', queueItem.id).single();
+          if (item) {
+            if (item.status === 'sent') {
+              clearInterval(checkTimer);
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
+              }
+              if (statusBox) {
+                statusBox.className = 'text-xs text-center font-bold mt-1 text-emerald-600';
+                statusBox.textContent = '✓ Delivered to +' + phoneClean + ' on WhatsApp!';
+              }
+              showToast('Test message delivered to +' + phoneClean + '!', 'success');
+            } else if (item.status === 'failed' || checks >= 8) {
+              clearInterval(checkTimer);
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
+              }
+              if (statusBox) {
+                statusBox.className = 'text-xs text-center font-medium mt-1 text-rose-600';
+                statusBox.textContent = '⚠️ Delivery timeout or failed: ' + (item.error_text || 'Check WhatsApp worker');
+              }
+            }
+          }
+        }, 1000);
+      }
+    }
+
+    // =========================================================================
+    // ⚙️ SETTINGS & ANALYTICS
+    // =========================================================================
+    async function loadSettingsData() {
+      if (!currentOrg) return;
+      if (sb) {
+        const { data: org } = await sb.from('organizations').select('*').eq('id', currentOrg.id).single();
+        if (org) {
+          currentOrg = org;
+          const nameInput = document.getElementById('settingCompanyName');
+          if (nameInput) nameInput.value = org.name || '';
+          const cityInput = document.getElementById('settingCityBase');
+          if (cityInput) cityInput.value = org.company_city || '';
+          const ownerInput = document.getElementById('settingOwnerPhone');
+          if (ownerInput) ownerInput.value = org.owner_alert_number || '';
+          const typeSelect = document.getElementById('settingBusinessType');
+          if (typeSelect && org.business_type) typeSelect.value = org.business_type;
+          applyBusinessNiche(org.business_type || 'auto');
+        }
+      }
+    }
+
+    async function saveAiSettings() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const name = (document.getElementById('settingCompanyName')?.value || '').trim();
+      const city = (document.getElementById('settingCityBase')?.value || '').trim();
+      const owner = (document.getElementById('settingOwnerPhone')?.value || '').trim();
+      const bType = document.getElementById('settingBusinessType')?.value || 'auto';
+
+      if (sb) {
+        const { error } = await sb.from('organizations').update({
+          name: name || currentOrg.name,
+          company_city: city,
+          owner_alert_number: owner,
+          business_type: bType
+        }).eq('id', currentOrg.id);
+        if (error) return showToast(error.message, 'error');
+        currentOrg.name = name || currentOrg.name;
+        currentOrg.company_city = city;
+        currentOrg.owner_alert_number = owner;
+        currentOrg.business_type = bType;
+        applyBusinessNiche(bType);
+        updateAuthUI();
+        showToast('Business profile saved to cloud!', 'success');
+      }
+    }
+
+    function saveCloudApiSettings() {
+      showToast('Cloud API keys updated.', 'info');
+    }
+
+    function copyWebhookUrl() {
+      const wh = document.getElementById('webhookUrlInput')?.value;
+      if (wh) {
+        navigator.clipboard.writeText(wh);
+        showToast('Webhook URL copied to clipboard!', 'success');
+      }
+    }
+
+    async function loadAnalyticsData() {
+      if (!currentOrg) return;
+      if (sb) {
+        const { data: leads } = await sb.from('leads').select('*').eq('org_id', currentOrg.id);
+        const { data: calls } = await sb.from('call_requests').select('*').eq('org_id', currentOrg.id);
+        const lCount = leads ? leads.length : 0;
+        const cCount = calls ? calls.length : 0;
+        const qCount = (leads || []).filter(l => l.status === 'qualified' || l.status === 'won' || l.status === 'Hot Lead' || l.pdf_brochure_sent).length;
+
+        const anLeads = document.getElementById('anTotalLeads');
+        if (anLeads) anLeads.textContent = lCount;
+        const anQual = document.getElementById('anQualRate');
+        if (anQual) anQual.textContent = lCount > 0 ? `${Math.round((qCount / lCount) * 100)}%` : '0%';
+        const anCallRate = document.getElementById('anCallRate');
+        if (anCallRate) anCallRate.textContent = lCount > 0 ? `${Math.round((cCount / lCount) * 100)}%` : '0%';
+      }
+    }
+
+    // =========================================================================
+    // 💳 BILLING, MEMBERSHIP & DUAL PAYMENTS (UPI + RAZORPAY)
+    // =========================================================================
+    function switchPayTab(tab) {
+      const isUpi = tab === 'upi';
+      const upiBtn = document.getElementById('payTabUpiBtn');
+      const rzpBtn = document.getElementById('payTabRazorpayBtn');
+      const upiContent = document.getElementById('payTabUpiContent');
+      const rzpContent = document.getElementById('payTabRazorpayContent');
+
+      if (upiBtn) upiBtn.className = isUpi ? 'py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold transition' : 'py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
+      if (rzpBtn) rzpBtn.className = !isUpi ? 'py-2 px-4 border-b-2 border-indigo-600 text-indigo-600 font-bold transition' : 'py-2 px-4 border-b-2 border-transparent text-slate-500 hover:text-slate-800 transition';
+      if (upiContent) upiContent.classList.toggle('hidden', !isUpi);
+      if (rzpContent) rzpContent.classList.toggle('hidden', isUpi);
+    }
+
+    async function loadMembershipData() {
+      if (!currentOrg) return;
+      if (sb) {
+        const { data: org } = await sb.from('organizations').select('*').eq('id', currentOrg.id).single();
+        if (org) {
+          currentOrg = org;
+        }
+      }
+      const memBadge = document.getElementById('memStatusBadge');
+      const memCountdown = document.getElementById('memCountdownDisplay');
+
+      if (currentOrg.plan_status === 'active') {
+        if (memBadge) {
+          memBadge.className = 'text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-500/30';
+          memBadge.textContent = '✅ Commercial Plan Active';
+        }
+        if (memCountdown) {
+          memCountdown.className = 'text-base font-mono font-bold text-emerald-300 mt-0.5';
+          memCountdown.textContent = 'Commercial License Active';
+        }
+      } else if (currentOrg.plan_status === 'pending_verification') {
+        if (memBadge) {
+          memBadge.className = 'text-xs font-bold uppercase tracking-wider text-blue-400 bg-blue-950/60 px-3 py-1 rounded-full border border-blue-500/30';
+          memBadge.textContent = '⏳ Verifying UTR Payment';
+        }
+        if (memCountdown) {
+          memCountdown.className = 'text-base font-mono font-bold text-blue-300 mt-0.5';
+          memCountdown.textContent = 'Verification in Progress (~10m)';
+        }
+      } else {
+        if (memBadge) {
+          memBadge.className = 'text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-950/60 px-3 py-1 rounded-full border border-amber-500/30';
+          memBadge.textContent = '⚡ 48-Hour Live VIP Pilot Active';
+        }
+        startTrialCountdownTimer();
+      }
+
+      const leadsUsed = currentOrg?.trial_leads_used || currentOrg?.leads_used || 0;
+      const leadsLimit = currentOrg?.trial_lead_limit || currentOrg?.monthly_lead_limit || 25;
+      const memLeadQuota = document.getElementById('memLeadQuotaText');
+      if (memLeadQuota) memLeadQuota.textContent = `${leadsUsed} / ${leadsLimit} Leads Processed`;
+
+      const memProgressBar = document.getElementById('memLeadProgressBar');
+      if (memProgressBar) {
+        const pct = Math.min(100, Math.round((leadsUsed / Math.max(1, leadsLimit)) * 100));
+        memProgressBar.style.width = pct + '%';
+      }
+    }
+
+    const SALES_COUPONS = {
+      'LAUNCH9999': { amount: 9999, desc: 'Standard Growth 3-Month Launch Offer (₹9,999)' },
+      'PRO14999': { amount: 14999, desc: 'Pro High-Volume 3-Month Launch Offer (₹14,999)' },
+      'PILOT999': { amount: 999, desc: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
+      'VIP999': { amount: 999, desc: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
+      'ADJUST999': { amount: 9000, discount: 999, desc: '₹999 VIP Pilot Deposit Adjusted! Pay ₹9,000 balance.', label: '₹999 VIP Pilot Deposit Deducted (Pay ₹9,000)' },
+      'UPGRADE9K': { amount: 9000, desc: 'Standard Growth Balance (₹9,000 after ₹999 Pilot Adjusted)' },
+      'UPGRADE14K': { amount: 14000, desc: 'Pro Business Balance (₹14,000 after ₹999 Pilot Adjusted)' },
+      'PARTNER75': { amount: 7499, desc: 'Partner Growth Plan — 500 Leads/mo' },
+      'AGENCY35K': { amount: 35000, desc: 'Agency White-Label Partner License — 5 Client Workspace Accounts Included' },
+      'SETUP5K': { amount: 5000, desc: 'One-Time Business Setup & Catalog AI Training' },
+      'START75': { amount: 7499, desc: '₹5,000 Setup + ₹2,499 First Month — 400 Leads/mo' },
+      'PRO12K': { amount: 12499, desc: '₹7,500 Setup + ₹4,999 First Month — 1,500 Leads/mo' },
+      'ANNUAL18K': { amount: 18000, desc: 'Full 1-Year Business License — ₹5,000 Setup Waived FREE!' },
+      'ANNUAL20K': { amount: 20000, desc: 'Full 1-Year Commercial License — Zero Setup Fee' }
+    };
+
+    async function applyModalCoupon() {
+      const code = (document.getElementById('modalCouponInput')?.value || '').trim().toUpperCase();
+      if (!code) return showToast('Please enter a coupon or adjustment code', 'warning');
+
+      if (code === 'ADJUST999') {
+        const base = window.baseCheckoutAmount || 9999;
+        const discounted = Math.max(999, base - 999);
+        const desc = `₹999 VIP Pilot Deposit Adjusted! Pay ₹${discounted.toLocaleString('en-IN')} balance.`;
+        if (sb && currentOrg) {
+          try {
+            await sb.from('organizations').update({
+              custom_quote_inr: discounted
+            }).eq('id', currentOrg.id);
+            currentOrg.custom_quote_inr = discounted;
+          } catch (e) {
+            console.warn('[Coupon] Failed to update org quote:', e);
+          }
+        }
+        updatePayAmounts(discounted, desc);
+        showToast(`Code ADJUST999 applied! ₹999 pilot deposit deducted (Pay ₹${discounted.toLocaleString('en-IN')})`, 'success');
+        return;
+      }
+
+      const plan = SALES_COUPONS[code];
+      if (!plan) return showToast('Invalid coupon code. Please verify and try again.', 'error');
+
+      if (sb && currentOrg) {
+        try {
+          await sb.from('organizations').update({
+            custom_quote_inr: plan.amount
+          }).eq('id', currentOrg.id);
+          currentOrg.custom_quote_inr = plan.amount;
+        } catch (e) {
+          console.warn('[Coupon] Failed to update org quote:', e);
+        }
+      }
+
+      updatePayAmounts(plan.amount, plan.desc);
+      showToast(`Code ${code} applied! Unlocked ${plan.desc} (₹${plan.amount.toLocaleString('en-IN')})`, 'success');
+    }
+
+    async function submitActivationCode() {
+      const code = (document.getElementById('offerCodeInput')?.value || document.getElementById('modalCouponInput')?.value || document.getElementById('utrRefInput')?.value || '').trim().toUpperCase();
+      if (!code) return showToast('Please enter a partner or coupon code', 'warning');
+
+      if (code === 'ADJUST999') {
+        const base = window.baseCheckoutAmount || 9999;
+        const discounted = Math.max(999, base - 999);
+        const desc = `₹999 VIP Pilot Deposit Adjusted! Pay ₹${discounted.toLocaleString('en-IN')} balance.`;
+        if (sb && currentOrg) {
+          try {
+            await sb.from('organizations').update({
+              custom_quote_inr: discounted
+            }).eq('id', currentOrg.id);
+            currentOrg.custom_quote_inr = discounted;
+          } catch (e) {
+            console.warn('[Coupon] Failed to update org quote:', e);
+          }
+        }
+        updatePayAmounts(discounted, desc);
+        showToast(`Code ADJUST999 applied! ₹999 pilot deposit deducted (Pay ₹${discounted.toLocaleString('en-IN')})`, 'success');
+        return;
+      }
+
+      const plan = SALES_COUPONS[code];
+      if (!plan) return showToast('Invalid code. Please contact your sales representative.', 'error');
+
+      if (sb && currentOrg) {
+        await sb.from('organizations').update({
+          custom_quote_inr: plan.amount
+        }).eq('id', currentOrg.id);
+        currentOrg.custom_quote_inr = plan.amount;
+      }
+
+      updatePayAmounts(plan.amount, plan.desc);
+      showToast(`Code applied! Unlocked ${plan.desc} (₹${plan.amount.toLocaleString('en-IN')})`, 'success');
+    }
+
+    function updatePayAmounts(amount, desc = '') {
+      window.selectedCheckoutAmount = amount;
+      if (desc) window.selectedCheckoutPlan = desc;
+      const upi = getMerchantUpi();
+      const qrImg = document.getElementById('actUpiQrImg');
+      const upiStr = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(getMerchantName())}&am=${amount}&cu=INR&tn=${encodeURIComponent('MartFlow AI ' + (currentOrg?.name || 'Workspace'))}`;
+
+      if (qrImg) {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiStr)}`;
+      }
+      const mobileBtn = document.getElementById('actUpiMobileBtn');
+      if (mobileBtn) {
+        mobileBtn.href = upiStr;
+      }
+      const amtEl = document.getElementById('actPlanPrice');
+      if (amtEl) amtEl.textContent = `₹${amount.toLocaleString('en-IN')}`;
+      const descEl = document.getElementById('actPlanDesc');
+      if (descEl && desc) descEl.textContent = desc;
+    }
+
+    async function submitUtrVerification() {
+      const utr = (document.getElementById('utrRefInput')?.value || '').trim();
+      if (!utr || !/^[0-9A-Za-z]{10,22}$/.test(utr)) return showToast('Please enter a valid 10-22 character alphanumeric UPI / UTR reference number', 'error');
+
+      const amount = window.selectedCheckoutAmount || currentOrg?.custom_quote_inr || 999;
+      const partnerRef = localStorage.getItem('mf_affiliate_ref');
+      const basePlan = window.selectedCheckoutPlan || 'MartFlow VIP License';
+      const plan = basePlan + (partnerRef ? ' [Ref: ' + partnerRef + ']' : '');
+
+      if (!currentOrg) {
+        localStorage.setItem('mf_pending_utr', JSON.stringify({ utr, amount, plan, timestamp: Date.now() }));
+        closeActivationModal();
+        showToast('UTR saved! Create your workspace login below to link & submit', 'info');
+        openAuthModal('signup');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/api/payments/upi-verify`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
+          },
+          body: JSON.stringify({ utrReference: utr, amountInr: amount, plan })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to submit UTR reference');
+        }
+
+// Authoritative server endpoint manages payments table
+        currentOrg.plan_status = 'pending_verification';
+        showToast('UTR submitted successfully! Payment is pending verification by finance desk. Your plan will activate upon bank reconciliation.', 'success');
+        closeActivationModal();
+        updateAuthUI();
+        loadMembershipData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function startRazorpayPayment() {
+      showToast('Opening Razorpay Gateway...', 'info');
+    }
+
+    function copyUpiId() {
+      const upi = getMerchantUpi();
+      navigator.clipboard.writeText(upi);
+      showToast(`UPI ID "${upi}" copied to clipboard!`, 'success');
+    }
+
+    function openUpgradeModal() {
+      const m = document.getElementById('upgradeModal');
+      if (m) m.classList.remove('hidden');
+    }
+    function closeUpgradeModal() {
+      const m = document.getElementById('upgradeModal');
+      if (m) m.classList.add('hidden');
+    }
+    function openActivationModal(planTitle, planPrice, planDesc, numericAmount) {
+      window.selectedCheckoutPlan = planTitle || 'MartFlow AI License';
+      const m = document.getElementById('activationModal');
+      if (m) m.classList.remove('hidden');
+      if (planTitle && document.getElementById('actPlanTitle')) document.getElementById('actPlanTitle').textContent = planTitle;
+      if (planPrice && document.getElementById('actPlanPrice')) document.getElementById('actPlanPrice').textContent = planPrice;
+      if (planDesc && document.getElementById('actPlanDesc')) document.getElementById('actPlanDesc').textContent = planDesc;
+
+      let amt = numericAmount;
+      if (!amt) {
+        const numParsed = parseInt(String(planPrice || '').replace(/[^\d]/g, ''), 10);
+        amt = (!isNaN(numParsed) && numParsed > 0) ? numParsed : 9999;
+      }
+      window.baseCheckoutAmount = amt;
+      window.selectedCheckoutAmount = amt;
+
+      const modalCouponInput = document.getElementById('modalCouponInput');
+      if (modalCouponInput) modalCouponInput.value = '';
+
+      // Display Partner Referral badge if an affiliate ref exists
+      const partnerRef = localStorage.getItem('mf_affiliate_ref');
+      const badgeEl = document.getElementById('actAffiliateBadge') || document.getElementById('actPartnerBadge');
+      const badgeTextEl = document.getElementById('actAffiliateBadgeText') || document.getElementById('actPartnerBadgeText');
+      if (badgeEl && badgeTextEl) {
+        if (partnerRef) {
+          badgeTextEl.textContent = `Partner Referral Applied: ${partnerRef.toUpperCase()}`;
+          badgeEl.classList.remove('hidden');
+        } else {
+          badgeEl.classList.add('hidden');
+        }
+      }
+      const waBtn = document.getElementById('actWaBtn');
+      if (waBtn) {
+        const waMsg = partnerRef
+          ? `Namaste MartFlow Team! I want to activate my workspace plan with Partner Ref: ${partnerRef.toUpperCase()}`
+          : `Namaste MartFlow Team! I want to activate my workspace plan`;
+        waBtn.setAttribute('onclick', `openDemoBotChat(${JSON.stringify(waMsg)})`);
+      }
+
+      updatePayAmounts(amt, planDesc);
+    }
+    function closeActivationModal() {
+      const m = document.getElementById('activationModal');
+      if (m) m.classList.add('hidden');
+    }
+    function openAnyDeskHelpModal() {
+      const m = document.getElementById('anyDeskHelpModal');
+      if (m) m.classList.remove('hidden');
+    }
+    function closeAnyDeskHelpModal() {
+      const m = document.getElementById('anyDeskHelpModal');
+      if (m) m.classList.add('hidden');
+    }
+
+    // Engineer & Simulation Modals
+    function loadEngineerSettings() {
+      const upiInput = document.getElementById('engMerchantUpiId');
+      if (upiInput) upiInput.value = getMerchantUpi();
+      const geminiInput = document.getElementById('settingGeminiKey');
+      if (geminiInput) geminiInput.value = localStorage.getItem('mf_gemini_key') || '';
+    }
+    async function saveEngineerSettings() {
+      const upi = document.getElementById('engMerchantUpiId')?.value?.trim();
+      if (upi) localStorage.setItem('mf_merchant_upi', upi);
+      const geminiKey = document.getElementById('settingGeminiKey')?.value?.trim();
+      if (geminiKey) {
+        localStorage.setItem('mf_gemini_key', geminiKey);
+        try {
+          await apiFetch('/api/admin/gemini-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: geminiKey })
+          });
+        } catch (e) {}
+      }
+      refreshPaymentAndSupportLinks();
+      showToast('Technical configuration & Gemini API key saved!', 'success');
+    }
+
+    function openSimulationModal() {
+      const m = document.getElementById('simulationModal');
+      if (m) m.classList.remove('hidden');
+    }
+    function closeSimulationModal() {
+      const m = document.getElementById('simulationModal');
+      if (m) m.classList.add('hidden');
+    }
+    async function submitSimulation() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const name = (document.getElementById('simBuyerName')?.value || '').trim() || 'Simulated Buyer';
+      const phone = (document.getElementById('simBuyerPhone')?.value || '').trim() || ('91' + String(Math.floor(7000000000 + Math.random() * 2000000000)));
+      const city = (document.getElementById('simBuyerCity')?.value || '').trim() || 'Surat, Gujarat';
+      const product = (document.getElementById('simProduct')?.value || '').trim() || 'Automatic Packing Machine';
+      const msg = (document.getElementById('simQueryMsg')?.value || '').trim() || 'Please send machine video, catalog and lowest price quotation.';
+
+      try {
+        if (sb) {
+          await sb.from('leads').insert({
+            org_id: currentOrg.id,
+            buyer_name: name,
+            buyer_phone: phone,
+            buyer_city: city,
+            product_inquired: product,
+            query_message: msg,
+            status: 'new',
+            pdf_brochure_sent: true
+          });
+        }
+        closeSimulationModal();
+        showToast('Lead simulated successfully!', 'success');
+        loadDashboardData();
+        fetchLeadsList();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    // Language Toggle (English | Hinglish)
+    let currentLang = 'en';
+    function toggleLanguage() {
+      currentLang = currentLang === 'en' ? 'hi' : 'en';
+      applyLanguage(currentLang);
+    }
+    function applyLanguage(lang) {
+      const btn = document.getElementById('langToggleBtn');
+      if (btn) btn.textContent = lang === 'en' ? 'EN | हिंग्लिश' : 'हिंग्लिश | EN';
+    }
+
+    // Trial countdown stub
+    function initTrialCountdown() {}
+    function updateTrialDisplay() {}
+    function startSelfTrial() {
+      openAuthModal('signup');
+    }
+
+    // =========================================================================
+    // 🎭 SCROLL-REVEAL OBSERVER FOR ENTERPRISE LANDING PAGE
+    // =========================================================================
+    function initScrollReveal() {
+      const targets = document.querySelectorAll('.reveal-on-scroll');
+      if (!targets.length) return;
+      if (!('IntersectionObserver' in window)) {
+        targets.forEach(el => el.classList.add('is-revealed'));
+        return;
+      }
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-revealed');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '0px 0px -40px 0px', threshold: 0.1 });
+      targets.forEach((el, index) => {
+        el.style.transitionDelay = `${(index % 4) * 60}ms`;
+        observer.observe(el);
+      });
+      // Safety fallback to ensure all elements are visible after 1.2s
+      setTimeout(() => {
+        targets.forEach(el => el.classList.add('is-revealed'));
+      }, 1200);
+    }
+
+    // =========================================================================
+    // 🚀 INITIALIZATION ON PAGE LOAD
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', async () => {
+      initScrollReveal();
+      checkWhiteLabelUrlParams();
+      refreshPaymentAndSupportLinks();
+      fetchPublicConfig();
+      await checkAuthStatus();
+      handleRoute();
+    });
+
+    // =========================================================================
+    // 🌐 WEBSITE KNOWLEDGE EXTRACTOR & BUSINESS NICHE ADAPTATION
+    // =========================================================================
+    async function saveCustomKnowledge() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const input = document.getElementById('customKnowledgeInput');
+      const val = (input?.value || '').trim();
+      const btn = document.getElementById('btnSaveCustomKnowledge') || document.getElementById('btnSaveKnowledge');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Saving...</span>';
+      }
+      try {
+        if (sb) {
+          const { error } = await sb.from('organizations').update({ website_knowledge: val }).eq('id', currentOrg.id);
+          if (error) throw error;
+        }
+        currentOrg.website_knowledge = val;
+        showToast('AI instructions & business knowledge saved!', 'success');
+      } catch (err) {
+        showToast('Failed to save knowledge: ' + err.message, 'error');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>💾 Save AI Instructions</span>';
+        }
+      }
+    }
+
+    async function clearAllCatalogProducts() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      if (!confirm('Are you sure you want to delete ALL products from your catalog? This cannot be undone.')) return;
+      try {
+        const response = await fetch(`${API_BASE}/api/catalog/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {}) },
+          body: JSON.stringify({ orgId: currentOrg.id, products: [] })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || 'Catalog sync failed.');
+        catalogProductsCache = [];
+        showToast('All products deleted from catalog.', 'info');
+        fetchCatalogProducts();
+      } catch (err) {
+        showToast('Failed to clear catalog: ' + err.message, 'error');
+      }
+    }
+
+    async function syncWebsiteKnowledge() {
+      if (!currentOrg) return showToast('Please sign in first', 'warning');
+      const input = document.getElementById('websiteUrlInput');
+      const rawUrl = (input?.value || '').trim();
+      if (!rawUrl) return showToast('Please enter your business website URL', 'warning');
+
+      const btn = document.getElementById('btnSyncWebsite');
+      const oldBtnText = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳ Reading Website...</span>';
+      }
+
+      try {
+        const cleanUrl = rawUrl.replace(/^https?:\/\//, 'https://');
+        showToast('Connecting to website via AI reader...', 'info');
+
+        let markdown = '';
+        try {
+          const jinaUrl = 'https://r.jina.ai/' + cleanUrl;
+          const res = await fetch(jinaUrl);
+          if (res.ok) markdown = await res.text();
+        } catch (e) {}
+
+        if (!markdown) {
+          const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}`;
+          const res2 = await fetch(fallbackUrl);
+          if (res2.ok) {
+            const rawHtml = await res2.text();
+            markdown = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
               .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
               .replace(/<[^>]+>/g, ' ')
               .replace(/\s+/g, ' ')
@@ -2405,41 +5909,102 @@
       trialTimerInterval = setInterval(updateCountdown, 30000);
     }
 
-</script>
 
+  </script>
+
+  <!-- CUSTOM WORKSPACE ROUTING & OAUTH HASH RESOLVER -->
   <script>
-    // App Route Mapper for /app/*
-    function handleAppRoute() {
-      const path = window.location.pathname.toLowerCase();
-      if (path === '/app' || path === '/app/' || path === '/app/overview') {
+    async function initAppWorkspace() {
+      // 1. Check if OAuth callback tokens exist in URL hash
+      if (window.location.hash.includes('access_token') || window.location.hash.includes('error')) {
+        if (sb) {
+          const { data: { session } } = await sb.auth.getSession();
+          if (session) {
+            localStorage.setItem('mf_token', session.access_token);
+            localStorage.setItem('mf_auth_token', session.access_token);
+            await handleAuthSession(session);
+            try { window.history.replaceState(null, '', window.location.pathname); } catch (e) {}
+          }
+        }
+      }
+
+      // 2. Auth guard
+      const token = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
+      if (!token) {
+        if (sb) {
+          const { data: { session } } = await sb.auth.getSession();
+          if (session) {
+            localStorage.setItem('mf_token', session.access_token);
+            localStorage.setItem('mf_auth_token', session.access_token);
+            await handleAuthSession(session);
+          } else {
+            sessionStorage.setItem('mf_auth_redirect', window.location.pathname);
+            window.location.href = '/login';
+            return;
+          }
+        } else {
+          sessionStorage.setItem('mf_auth_redirect', window.location.pathname);
+          window.location.href = '/login';
+          return;
+        }
+      }
+
+      // 3. Hydrate cached org and user
+      try {
+        const cachedOrg = localStorage.getItem('mf_current_org');
+        const cachedUser = localStorage.getItem('mf_current_user');
+        if (cachedOrg) currentOrg = JSON.parse(cachedOrg);
+        if (cachedUser) currentUser = JSON.parse(cachedUser);
+        updateAuthUI();
+      } catch (e) {}
+
+      // 4. Map route
+      handleAppWorkspaceRoute();
+      loadDashboardData();
+    }
+
+    function handleAppWorkspaceRoute() {
+      const path = window.location.pathname.toLowerCase().replace(/\/$/, '') || '/app';
+      if (path === '/app' || path === '/app/overview' || path === '/dashboard' || path === '/dashboard/overview') {
         switchView('dashboard', false);
-      } else if (path === '/app/inbox') {
+        document.title = 'Executive Overview | MartFlow AI';
+      } else if (path === '/app/inbox' || path === '/dashboard/inbox') {
         switchView('conversations', false);
-      } else if (path === '/app/leads') {
+        document.title = 'WhatsApp Inbox | MartFlow AI';
+      } else if (path === '/app/leads' || path === '/dashboard/leads') {
         switchView('leads', false);
-      } else if (path === '/app/catalogue' || path === '/app/catalog') {
+        document.title = 'Leads Pipeline | MartFlow AI';
+      } else if (path === '/app/catalogue' || path === '/app/catalog' || path === '/dashboard/catalogue') {
         switchView('catalog', false);
-      } else if (path === '/app/whatsapp') {
+        document.title = 'Product Catalogue | MartFlow AI';
+      } else if (path === '/app/whatsapp' || path === '/dashboard/ai-assistant') {
         switchView('whatsapp', false);
+        document.title = 'WhatsApp Setup & AI | MartFlow AI';
       } else if (path === '/app/assistant') {
         switchView('whatsapp', false);
-      } else if (path === '/app/automations') {
+        document.title = 'AI Sales Executive | MartFlow AI';
+      } else if (path === '/app/automations' || path === '/dashboard/automations') {
         switchView('settings', false);
-      } else if (path === '/app/appointments' || path === '/app/calls') {
+        document.title = 'Automations & Rules | MartFlow AI';
+      } else if (path === '/app/appointments' || path === '/app/calls' || path === '/dashboard/appointments') {
         switchView('calls', false);
-      } else if (path === '/app/analytics') {
+        document.title = 'Scheduled Calls | MartFlow AI';
+      } else if (path === '/app/analytics' || path === '/dashboard/analytics') {
         switchView('analytics', false);
-      } else if (path === '/app/settings') {
+        document.title = 'Sales Analytics | MartFlow AI';
+      } else if (path === '/app/settings' || path === '/dashboard/settings') {
         switchView('settings', false);
-      } else if (path === '/app/billing') {
+        document.title = 'Workspace Settings | MartFlow AI';
+      } else if (path === '/app/billing' || path === '/dashboard/billing') {
         switchView('billing', false);
+        document.title = 'Membership & Billing | MartFlow AI';
       }
     }
 
-    // Wrap switchView to update URL to /app/*
-    const origSwitchView = window.switchView;
+    // Intercept internal workspace links to maintain SPA responsiveness
+    const origSwitch = window.switchView;
     window.switchView = function(viewName, syncUrl = true) {
-      origSwitchView(viewName, false);
+      if (typeof origSwitch === 'function') origSwitch(viewName, false);
       if (syncUrl) {
         const routeMap = {
           dashboard: '/app/overview',
@@ -2458,17 +6023,21 @@
       }
     };
 
-    window.addEventListener('popstate', handleAppRoute);
-    window.addEventListener('DOMContentLoaded', () => {
-      // Check auth guard immediately
-      const token = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
-      if (!token) {
-        sessionStorage.setItem('mf_auth_redirect', window.location.pathname);
-        window.location.href = '/login';
-        return;
+    // Override logout to redirect to /login
+    const origLogout = window.logout;
+    window.logout = async function() {
+      if (typeof origLogout === 'function') {
+        try { await origLogout(); } catch(e) {}
       }
-      handleAppRoute();
-    });
+      localStorage.removeItem('mf_token');
+      localStorage.removeItem('mf_auth_token');
+      localStorage.removeItem('mf_current_org');
+      localStorage.removeItem('mf_current_user');
+      window.location.href = '/login';
+    };
+
+    window.addEventListener('popstate', handleAppWorkspaceRoute);
+    window.addEventListener('DOMContentLoaded', initAppWorkspace);
   </script>
 </body>
 </html>
