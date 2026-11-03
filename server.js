@@ -31,6 +31,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import apiRouter from './src/routes/api.js';
 import { authenticate, requireRole } from './src/middleware/authMiddleware.js';
+import { requireCatalogManager } from './src/middleware/catalogAccess.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
 import {
   backupSessionToSupabase,
@@ -2918,8 +2919,9 @@ app.get('/client', (req, res) => {
 });
 
 // Client Upload Catalog Endpoint (Authenticated Tenant-Scoped)
-app.post('/api/upload-catalog', authenticate, async (req, res) => {
+app.post('/api/upload-catalog', authenticate, requireCatalogManager, async (req, res) => {
   try {
+    if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') return res.status(503).json({ ok: false, error: 'File import is not available yet; add products manually.' });
     const { filename, fileBase64, productName, priceRange, keywords } = req.body;
     if (!filename || !fileBase64) {
       return res.status(400).json({ ok: false, error: 'Filename and file data required.' });
@@ -2940,7 +2942,7 @@ app.post('/api/upload-catalog', authenticate, async (req, res) => {
 });
 
 // AI Catalog Extraction Fallback Endpoint for unstructured text
-app.post('/api/catalog/extract-ai', authenticate, async (req, res) => {
+app.post('/api/catalog/extract-ai', authenticate, requireCatalogManager, async (req, res) => {
   try {
     const { rawText, fileName } = req.body;
     if (!rawText || !rawText.trim()) {
@@ -3151,40 +3153,6 @@ const supabaseAdmin = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_
     })
   : null;
 
-// Auto-clean legacy demo strings from Supabase on boot
-async function runStartupDataCleanup() {
-  if (!supabaseAdmin) return;
-  try {
-    // 1. Clean legacy organization names and welcome messages
-    await supabaseAdmin
-      .from('organizations')
-      .update({
-        name: 'MartFlow AI',
-        wa_welcome_message: 'Namaste! Welcome to MartFlow AI 👋 How can we help automate your business WhatsApp today?'
-      })
-      .eq('name', 'Apex Packaging Demo');
-
-    // 2. Clean legacy product names containing 'Free Trial'
-    const { data: legacyProducts } = await supabaseAdmin
-      .from('products')
-      .select('id, name')
-      .eq('sku', 'MF-801A')
-      .ilike('name', '%Free Trial%');
-
-    if (legacyProducts && legacyProducts.length > 0) {
-      for (const p of legacyProducts) {
-        await supabaseAdmin
-          .from('products')
-          .update({ name: '48-Hour Live VIP Business Pilot (₹999 — 100% Adjusted in Plan)' })
-          .eq('id', p.id);
-      }
-    }
-    addLog('[Startup Cleanup] Verified & cleaned legacy demo strings from Supabase.');
-  } catch (err) {
-    addLog(`[Startup Cleanup] Note: ${err.message}`);
-  }
-}
-
 async function initSupabaseWorker() {
   if (!supabaseAdmin) {
     addLog('[Supabase Worker] Supabase credentials not found in .env, worker running in local-only mode.');
@@ -3192,7 +3160,7 @@ async function initSupabaseWorker() {
   }
   const WORKER_ID = process.env.WORKER_ID || `worker-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
   addLog(`[Supabase Worker] Initializing Multi-Tenant Realtime & Command Engine (${WORKER_ID})...`);
-  await runStartupDataCleanup();
+  // Never rewrite customer organizations or products automatically at startup.
 
   // 1. Worker Heartbeat Loop (every 20s)
   async function sendHeartbeat() {

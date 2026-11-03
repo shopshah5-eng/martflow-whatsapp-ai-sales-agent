@@ -19,10 +19,11 @@ async function setup() {
 }
 function headers(token) { return { authorization: `Bearer ${token}`, 'content-type': 'application/json' }; }
 
-test('catalog sync requires owner and preserves chat, takeover and omitted products', async () => {
+test('catalog sync requires an explicit grant and preserves chat, takeover and omitted products', async () => {
   const { server, owner, url } = await setup();
   try {
     const org = owner.organization.id;
+    db.insert('catalog_management_grants', { organization_id: org, user_id: owner.user.id });
     const member = db.insert('profiles', { email: `m_${crypto.randomUUID()}@example.test` });
     db.insert('organization_members', { organization_id: org, user_id: member.id, role: 'member' });
     const conv = db.insert('conversations', { organization_id: org, mode: 'human' });
@@ -167,6 +168,7 @@ test('regression: failed catalog inserts fail visibly without non-transactional 
   const { server, owner, url } = await setup();
   const { setSupabaseAdmin } = await import('../src/services/aiService.js');
   try {
+    db.insert('catalog_management_grants', { organization_id: owner.organization.id, user_id: owner.user.id });
     setSupabaseAdmin({
       rpc: async (fnName) => {
         if (fnName === 'replace_tenant_catalog') {

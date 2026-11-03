@@ -47,28 +47,7 @@ export async function authenticate(req, res, next) {
           const { data, error } = await sb.auth.getUser(token);
           if (!error && data?.user?.id) {
             resolvedUserId = data.user.id;
-            let profile = await repository.getProfileById(resolvedUserId);
-            if (!profile) {
-              try {
-                const orgName = data.user.user_metadata?.company_name || (data.user.user_metadata?.full_name ? data.user.user_metadata.full_name + ' Enterprise' : 'My Enterprise');
-                const newOrg = await repository.createOrganization({
-                  name: orgName,
-                  slug: 'org-' + Date.now().toString(36),
-                  plan_status: 'trial'
-                });
-                if (newOrg?.id) {
-                  profile = await repository.createProfile({
-                    id: resolvedUserId,
-                    org_id: newOrg.id,
-                    email: data.user.email,
-                    full_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Member',
-                    role: 'owner'
-                  });
-                }
-              } catch (provErr) {
-                console.warn('Auto-provisioning notice in authMiddleware:', provErr.message);
-              }
-            }
+            const profile = await repository.getProfileById(resolvedUserId);
             if (profile && (profile.org_id || profile.organization_id)) {
               resolvedOrgId = profile.org_id || profile.organization_id;
               resolvedRole = profile.role || 'owner';

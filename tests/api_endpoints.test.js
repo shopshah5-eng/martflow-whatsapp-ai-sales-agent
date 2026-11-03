@@ -61,6 +61,9 @@ test('API ROUTES: Authenticated multi-tenant endpoints behave correctly', async 
     assert.equal(convData.ok, true);
     assert.ok(Array.isArray(convData.conversations));
 
+    // An explicit platform grant is required even in the test sandbox.
+    db.insert('catalog_management_grants', { organization_id: demo.organization.id, user_id: demo.user.id });
+
     // 5. Quick Add SKU
     const skuRes = await fetch(`${baseUrl}/api/catalog/quick-add`, {
       method: 'POST',

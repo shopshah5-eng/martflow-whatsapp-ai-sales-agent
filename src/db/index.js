@@ -20,6 +20,7 @@ class MultiTenantDB {
       invitations: new Map(),
       integration_connections: new Map(),
       catalog_files: new Map(),
+      catalog_management_grants: new Map(),
       products: new Map(),
       leads: new Map(),
       conversations: new Map(),
@@ -126,6 +127,13 @@ class MultiTenantDB {
     const table = this.tables[tableName];
     if (!table || !table.has(id)) return null;
     const current = table.get(id);
+    if (tableName === 'profiles' &&
+        ((Object.hasOwn(updates, 'org_id') && updates.org_id !== current.org_id) ||
+         (Object.hasOwn(updates, 'organization_id') && updates.organization_id !== current.organization_id))) {
+      for (const [grantId, grant] of this.tables.catalog_management_grants) {
+        if (grant.user_id === id) this.tables.catalog_management_grants.delete(grantId);
+      }
+    }
     const updated = {
       ...current,
       ...updates,
@@ -150,6 +158,15 @@ class MultiTenantDB {
   delete(tableName, id) {
     const table = this.tables[tableName];
     if (!table || !table.has(id)) return false;
+    const record = table.get(id);
+    if (tableName === 'organization_members' || tableName === 'profiles') {
+      for (const [grantId, grant] of this.tables.catalog_management_grants) {
+        if (grant.user_id === (tableName === 'profiles' ? id : record.user_id) &&
+            (tableName === 'profiles' || grant.organization_id === record.organization_id)) {
+          this.tables.catalog_management_grants.delete(grantId);
+        }
+      }
+    }
     const res = table.delete(id);
     this.persist();
     return res;

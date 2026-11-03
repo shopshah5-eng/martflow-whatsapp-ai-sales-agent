@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
 import { authenticate, requireRole } from '../middleware/authMiddleware.js';
+import { canManageCatalog, requireCatalogManager } from '../middleware/catalogAccess.js';
 import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
 import { CallSchedulerService } from '../services/callSchedulerService.js';
@@ -132,11 +133,15 @@ router.get('/auth/me', authenticate, async (req, res) => {
     // The repository already selects the configured authoritative store. Never
     // hide a production read failure with an unrelated local profile cache.
     const profile = await repository.getProfileById(req.userId);
+    // Missing grants/migration must never grant editing access or block sign-in.
+    let catalogManager = false;
+    try { catalogManager = await canManageCatalog(req); } catch (_) {}
     res.json({
       ok: true,
       user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name || profile.fullName, phone: profile.phone } : null,
       organization: req.organization,
-      role: req.role
+      role: req.role,
+      permissions: { canManageCatalog: catalogManager }
     });
   } catch (error) {
     res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to verify your account right now.' });
@@ -621,8 +626,9 @@ router.get('/catalog/products', authenticate, async (req, res) => {
   }
 });
 
-router.post('/catalog/upload', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+router.post('/catalog/upload', authenticate, requireCatalogManager, async (req, res) => {
   try {
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') return res.status(503).json({ ok: false, error: 'File import is not available yet; add products manually.' });
     const { filename, fileBase64 } = req.body;
     if (!filename || !fileBase64) {
       return res.status(400).json({ ok: false, error: 'filename and fileBase64 required.' });
@@ -640,10 +646,39 @@ router.post('/catalog/upload', authenticate, requireRole(['owner', 'admin']), as
   }
 });
 
-// Quick-Add SKU (10-second manual product addition)
-router.post('/catalog/quick-add', authenticate, async (req, res) => {
+// Only a platform superadmin may grant/revoke a user's catalogue capability.
+// The grant is limited to a workspace of which that user is already a member.
+router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin']), async (req, res) => {
   try {
-    const { name, priceRaw, model, specifications } = req.body;
+    const { orgId, userId, allow } = req.body || {};
+    if (typeof orgId !== 'string' || !orgId || typeof userId !== 'string' || !userId || typeof allow !== 'boolean') {
+      return res.status(400).json({ ok: false, error: 'orgId, userId and boolean allow are required.' });
+    }
+    if (allow && (!await repository.getOrganizationById(orgId) || !await repository.getMembership(userId, orgId))) {
+      return res.status(400).json({ ok: false, error: 'The user must already be a member of this workspace.' });
+    }
+    const sb = repository.getSupabase();
+    if (sb) {
+      const query = allow
+        ? sb.from('catalog_management_grants').upsert({ org_id: orgId, user_id: userId, granted_by: req.userId }, { onConflict: 'org_id,user_id' })
+        : sb.from('catalog_management_grants').delete().eq('org_id', orgId).eq('user_id', userId);
+      const { error } = await query;
+      if (error) throw new DatabaseUnavailableError(error.message);
+    } else {
+      const existing = db.findOne('catalog_management_grants', g => g.organization_id === orgId && g.user_id === userId);
+      if (allow && !existing) db.insert('catalog_management_grants', { organization_id: orgId, user_id: userId, granted_by: req.userId });
+      if (!allow && existing) db.delete('catalog_management_grants', existing.id);
+    }
+    res.json({ ok: true, orgId, userId, canManageCatalog: allow });
+  } catch (error) {
+    res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to change catalogue access.' });
+  }
+});
+
+// Quick-Add SKU (10-second manual product addition)
+router.post('/catalog/quick-add', authenticate, requireCatalogManager, async (req, res) => {
+  try {
+    const { name, priceRaw, model, specifications, sku } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ ok: false, error: 'Product name is required.' });
     }
@@ -653,10 +688,10 @@ router.post('/catalog/quick-add', authenticate, async (req, res) => {
       const { data, error } = await sb.from('products').insert({
         org_id: req.organizationId,
         name: name.trim(),
-        sku_code: `SKU-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+        sku: String(sku || `SKU-${crypto.randomBytes(4).toString('hex').toUpperCase()}`).slice(0, 200),
         category: 'Commercial Products',
-        model_specs: model || 'Standard Industrial',
-        price_raw: priceRaw || 'Contact factory for GST quote',
+        model_specs: String(model || '').slice(0, 600),
+        price_raw: String(priceRaw || '').slice(0, 80),
         is_active: true
       }).select().single();
       if (error) throw new DatabaseUnavailableError(error.message);
@@ -671,10 +706,11 @@ router.post('/catalog/quick-add', authenticate, async (req, res) => {
     const product = db.insert('products', {
       organization_id: req.organizationId,
       name: name.trim(),
-      sku: `SKU-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+      sku: String(sku || `SKU-${crypto.randomBytes(4).toString('hex').toUpperCase()}`).slice(0, 200),
       category: 'Machinery Equipment',
       model: model || 'Standard Industrial',
-      price_raw: priceRaw || 'Contact factory for GST quote',
+      model_specs: String(model || '').slice(0, 600),
+      price_raw: String(priceRaw || '').slice(0, 80),
       keywords: kw,
       specifications: specifications || { note: 'Direct factory entry' },
       confidence_score: 1.0
@@ -686,7 +722,52 @@ router.post('/catalog/quick-add', authenticate, async (req, res) => {
   }
 });
 
-router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+router.patch('/catalog/knowledge', authenticate, requireCatalogManager, async (req, res) => {
+  try {
+    const updates = {};
+    if (Object.hasOwn(req.body || {}, 'websiteKnowledge')) {
+      if (typeof req.body.websiteKnowledge !== 'string' || req.body.websiteKnowledge.length > 50000) return res.status(400).json({ ok: false, error: 'Knowledge must be text of at most 50,000 characters.' });
+      updates.website_knowledge = req.body.websiteKnowledge;
+    }
+    if (Object.hasOwn(req.body || {}, 'businessType')) {
+      if (typeof req.body.businessType !== 'string' || !/^[a-z0-9_-]{1,100}$/.test(req.body.businessType)) return res.status(400).json({ ok: false, error: 'Invalid business type.' });
+      updates.business_type = req.body.businessType;
+    }
+    if (!Object.keys(updates).length) return res.status(400).json({ ok: false, error: 'No catalogue setup changes supplied.' });
+    const organization = await repository.updateOrganizationScoped(req.organizationId, updates);
+    if (!organization) return res.status(404).json({ ok: false, error: 'Workspace not found.' });
+    invalidateCache(req.organizationId);
+    res.json({ ok: true });
+  } catch (error) { res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to update catalogue setup.' }); }
+});
+
+router.patch('/catalog/products/:id', authenticate, requireCatalogManager, async (req, res) => {
+  try {
+    const updates = {};
+    for (const [key, max] of Object.entries({ name: 500, sku: 200, price_raw: 80, model_specs: 600 })) {
+      if (Object.hasOwn(req.body || {}, key)) {
+        if (typeof req.body[key] !== 'string') return res.status(400).json({ ok: false, error: `Invalid ${key}.` });
+        updates[key] = req.body[key].trim().slice(0, max);
+      }
+    }
+    if (!Object.keys(updates).length || ('name' in updates && !updates.name)) return res.status(400).json({ ok: false, error: 'Valid product fields are required.' });
+    const sb = repository.getSupabase();
+    let product;
+    if (sb) {
+      const { data, error } = await sb.from('products').update(updates).eq('org_id', req.organizationId).eq('id', req.params.id).select().maybeSingle();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      product = data;
+    } else {
+      const existing = db.findOne('products', p => p.id === req.params.id && (p.organization_id === req.organizationId || p.org_id === req.organizationId));
+      if (existing) product = db.update('products', existing.id, updates);
+    }
+    if (!product) return res.status(404).json({ ok: false, error: 'Product not found.' });
+    invalidateCache(req.organizationId);
+    res.json({ ok: true, product });
+  } catch (error) { res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to update product.' }); }
+});
+
+router.delete('/catalog/products/:id', authenticate, requireCatalogManager, async (req, res) => {
   try {
     const sb = repository.getSupabase();
     if (sb) {
@@ -714,7 +795,7 @@ router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admi
 });
 
 // Real-Time Catalog Cache Invalidation & Instant AI Sync Endpoint
-router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'superadmin']), async (req, res) => {
+router.post('/catalog/sync', authenticate, requireCatalogManager, async (req, res) => {
   try {
     const { orgId, products, companyName, businessType, websiteKnowledge, catalogPdfName } = req.body || {};
     const targetOrgId = req.role === 'superadmin' && orgId ? orgId : req.organizationId;
@@ -735,7 +816,7 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
     const updates = {};
     if (companyName) updates.name = String(companyName).slice(0, 500);
     if (businessType && businessType !== 'auto') updates.business_type = businessType;
-    if (websiteKnowledge !== undefined && websiteKnowledge !== null && String(websiteKnowledge).trim().length > 0) {
+    if (websiteKnowledge !== undefined && websiteKnowledge !== null) {
       updates.website_knowledge = String(websiteKnowledge).slice(0, 50000);
     }
     if (catalogPdfName) updates.catalog_pdf_name = String(catalogPdfName).slice(0, 500);

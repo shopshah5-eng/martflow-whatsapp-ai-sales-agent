@@ -362,7 +362,8 @@ test('SECURITY SUITE: Cross-tenant negative access, SSRF, path traversal, and we
     });
     assert.equal(crossTenantRes.status, 403, 'Cross-tenant catalog mutation must be rejected with 403');
 
-    // 13c. Authenticated tenant updates own catalog
+    // 13c. Explicitly authorized tenant manager updates own catalog
+    db.insert('catalog_management_grants', { organization_id: user1.organization.id, user_id: user1.user.id });
     const syncRes = await fetch(`${baseUrl}/api/catalog/sync`, {
       method: 'POST',
       headers: {

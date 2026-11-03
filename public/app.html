@@ -665,7 +665,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">AI Knowledge Base & Catalog</h1>
-            <p class="text-xs text-slate-500 mt-0.5">Custom verified product catalog, technical specs, pricing, and automated brochure dispatch.</p>
+            <p class="text-xs text-slate-500 mt-0.5">View your product catalogue. Your authorized agency manages product details.</p>
           </div>
           <button id="btnQuickAddSku" onclick="openQuickAddModal()" class="text-xs font-semibold px-3.5 py-2 bg-[#087F5B] text-white rounded-lg hover:bg-[#066548] shadow-sm transition">
             + Quick Add SKU
@@ -679,22 +679,23 @@
               <div class="flex items-center space-x-2">
                 <span class="text-base">🧠</span>
                 <h2 class="text-base font-bold">Managed AI Knowledge Base</h2>
-                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Verified by Engineers</span>
+                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">Agency managed</span>
               </div>
-              <p class="text-xs text-slate-300">Your AI sales agent is custom-trained and verified on your verified products, pricing, and business knowledge.</p>
+              <p class="text-xs text-slate-300">View your products, prices and business information. Your authorized agency manages updates.</p>
             </div>
             <a id="btnRequestUpdateWa" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! Please update our catalog specifications')" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-xs shadow-sm transition whitespace-nowrap flex items-center space-x-1.5 shrink-0">
               <span>📲 Request Catalog / Price Update on WhatsApp →</span>
             </a>
           </div>
           <div class="flex items-center space-x-4 pt-2 border-t border-slate-800 text-xs text-slate-400">
-            <div><span class="text-white font-bold" id="lblTrainedItemsCount">0</span> Trained Products / Offerings</div>
+            <div><span class="text-white font-bold" id="lblTrainedItemsCount">0</span> Products / Offerings</div>
             <div>•</div>
-            <div id="lblManagedWebsiteDomain" class="text-indigo-300 font-mono">Domain: Auto-Synced</div>
+            <div id="lblManagedWebsiteDomain" class="text-indigo-300 font-mono">Account</div>
           </div>
         </div>
 
-        <!-- UPLOAD DROPZONE (CLICKABLE & DRAGGABLE - ADMIN ?admin=1) -->
+        <p class="text-xs text-slate-500">Catalogue setup is managed by your authorized agency. File imports and attachments are temporarily unavailable; authorized managers can add product details manually.</p>
+        <!-- UPLOAD DROPZONE (disabled until private file handling is available) -->
         <div id="catalogDropzone" onclick="document.getElementById('catalogFileInput').click()" ondragover="event.preventDefault(); this.classList.add('border-[#087F5B]', 'bg-emerald-50/20');" ondragleave="this.classList.remove('border-[#087F5B]', 'bg-emerald-50/20');" ondrop="handleCatalogDrop(event)" class="cursor-pointer bg-white border-2 border-dashed border-gray-300 rounded-xl p-6 lg:p-8 text-center hover:border-[#087F5B] transition shadow-sm">
           <input type="file" id="catalogFileInput" accept=".pdf,.xlsx,.xls,.csv" multiple class="hidden" onchange="handleCatalogFileSelected(event)">
           <div class="max-w-md mx-auto space-y-2 pointer-events-none">
@@ -716,6 +717,7 @@
 
         <!-- Optional Website Knowledge Sync (ADMIN ?admin=1) -->
         <div id="cardWebsiteSync" class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+          <div id="websiteSyncControls" class="hidden">
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-2">
               <span class="text-base">🌐</span>
@@ -731,7 +733,7 @@
             </button>
           </div>
           <div id="websiteSyncInfo" class="text-[10px] text-slate-400"></div>
-
+          </div>
           <div class="pt-3 border-t border-gray-100 space-y-2">
             <div class="flex items-center justify-between">
               <label class="block text-xs font-bold text-slate-800">Custom AI Instructions & Business Knowledge</label>
@@ -1962,6 +1964,7 @@
     let currentAuthToken = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token') || '';
     let currentOrg = null;
     let currentUser = null;
+    let catalogCanManage = false;
     let activeConversationId = null;
     let leadsSearchDebounceTimer = null;
 
@@ -2026,6 +2029,7 @@
     // 3. Central Safe API Fetch Wrapper (With fallback handler compatibility)
     async function apiFetch(url, options = {}) {
       const headers = { ...options.headers };
+      if (typeof options.body === 'string' && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
       if (currentAuthToken) {
         headers['Authorization'] = `Bearer ${currentAuthToken}`;
       }
@@ -2317,67 +2321,15 @@
         return;
       }
       currentAuthToken = session.access_token;
-
-      let data = null;
-      try {
-        data = await apiFetch('/api/auth/me');
-      } catch (err) {
-        console.warn('Backend /api/auth/me notice, verifying via Supabase:', err.message);
-      }
-
-      // Resilient Supabase direct verification fallback:
-      if (!data || !data.ok || !data.user || !data.organization) {
-        if (sb && session.user) {
-          try {
-            let { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
-            let org = null;
-            if (profile?.org_id) {
-              const { data: orgData } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
-              org = orgData;
-            }
-            if (!org) {
-              const newOrgId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('org_' + Date.now());
-              const orgName = session.user.user_metadata?.company_name || (session.user.user_metadata?.full_name ? session.user.user_metadata.full_name + ' Enterprise' : 'My Enterprise');
-              const { data: newOrg } = await sb.from('organizations').insert({
-                id: newOrgId,
-                name: orgName,
-                slug: 'org-' + Date.now().toString(36),
-                plan_status: 'trial'
-              }).select().maybeSingle();
-              org = newOrg || { id: newOrgId, name: orgName, plan_status: 'trial' };
-              const { data: newProf } = await sb.from('profiles').insert({
-                id: session.user.id,
-                org_id: org.id,
-                email: session.user.email,
-                full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Member',
-                role: 'owner'
-              }).select().maybeSingle();
-              profile = newProf || { id: session.user.id, email: session.user.email, full_name: session.user.user_metadata?.full_name, role: 'owner' };
-            }
-            if (org && profile) {
-              data = {
-                ok: true,
-                user: {
-                  id: session.user.id,
-                  email: session.user.email,
-                  fullName: profile.full_name || session.user.user_metadata?.full_name || session.user.email.split('@')[0],
-                  role: profile.role || 'owner'
-                },
-                organization: org,
-                role: profile.role || 'owner'
-              };
-            }
-          } catch (sbErr) {
-            console.warn('Direct Supabase session resolution notice:', sbErr.message);
-          }
-        }
-      }
-
-      if (!data || !data.ok || !data.user || !data.organization) {
+      // Verify active organization membership with the backend. Never create a
+      // workspace from the browser or trust profile/organization cache alone.
+      const data = await apiFetch('/api/auth/me');
+      if (!data.ok || !data.user || !data.organization) {
         throw new Error('Unable to verify your workspace membership.');
       }
       currentOrg = data.organization;
       currentUser = { ...data.user, role: data.role };
+      catalogCanManage = data.permissions?.canManageCatalog === true;
       localStorage.setItem('mf_token', currentAuthToken);
       localStorage.setItem('mf_auth_token', currentAuthToken);
       closeAuthModal();
@@ -2813,6 +2765,7 @@
     function clearWorkspaceState() {
       currentOrg = null;
       currentUser = null;
+      catalogCanManage = false;
       currentAuthToken = '';
       updateAuthUI();
       renderEmptyDashboardState();
@@ -2820,46 +2773,25 @@
 
     function checkAdminParam() {
       const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role);
-      const navEng = document.getElementById('nav-engineer');
-      const cardEng = document.getElementById('cardEngineerSettings');
-      const onbCard = document.getElementById('dashOnboardingCard');
-      const execBanner = document.getElementById('dashExecutiveBanner');
-      const simBtn = document.getElementById('btnSimLead');
-      const managedAiCard = document.getElementById('cardManagedAiKnowledge');
-      const dropzone = document.getElementById('catalogDropzone');
-      const webSync = document.getElementById('cardWebsiteSync');
-      const quickAdd = document.getElementById('btnQuickAddSku');
+      const isPlatformAdmin = currentUser?.role === 'superadmin';
+      const setHidden = (id, hidden) => document.getElementById(id)?.classList.toggle('hidden', hidden);
+      setHidden('nav-engineer', !isPlatformAdmin);
+      setHidden('cardEngineerSettings', !isPlatformAdmin);
+      setHidden('dashOnboardingCard', !isAdmin);
+      setHidden('dashExecutiveBanner', isAdmin);
+      setHidden('btnSimLead', !isAdmin);
+      setHidden('cardManagedAiKnowledge', catalogCanManage);
+      setHidden('btnQuickAddSku', !catalogCanManage);
+      setHidden('btnClearCatalog', !catalogCanManage);
+      // Private asset uploads and bulk replacement are unavailable until their
+      // storage and import workflows are secured; manual management remains available.
+      setHidden('catalogDropzone', true);
+      setHidden('catalogReplaceToggleWrapper', true);
+      setHidden('cardWebsiteSync', !catalogCanManage);
+      setHidden('websiteSyncControls', true);
       const navCatText = document.getElementById('navCatalogText');
-      const replaceWrap = document.getElementById('catalogReplaceToggleWrapper');
-      const clearCatBtn = document.getElementById('btnClearCatalog');
-
-      if (isAdmin) {
-        if (navEng) navEng.classList.toggle('hidden', currentUser?.role !== 'superadmin');
-        if (cardEng) cardEng.classList.toggle('hidden', currentUser?.role !== 'superadmin');
-        if (onbCard) onbCard.classList.remove('hidden');
-        if (execBanner) execBanner.classList.add('hidden');
-        if (simBtn) simBtn.classList.remove('hidden');
-        if (managedAiCard) managedAiCard.classList.add('hidden');
-        if (dropzone) dropzone.classList.remove('hidden');
-        if (webSync) webSync.classList.remove('hidden');
-        if (quickAdd) quickAdd.classList.remove('hidden');
-        if (replaceWrap) replaceWrap.classList.remove('hidden');
-        if (clearCatBtn) clearCatBtn.classList.remove('hidden');
-        if (navCatText) navCatText.textContent = 'Product Catalog';
-      } else {
-        if (navEng) navEng.classList.add('hidden');
-        if (cardEng) cardEng.classList.add('hidden');
-        if (onbCard) onbCard.classList.add('hidden');
-        if (execBanner) execBanner.classList.remove('hidden');
-        if (simBtn) simBtn.classList.add('hidden');
-        if (managedAiCard) managedAiCard.classList.remove('hidden');
-        if (dropzone) dropzone.classList.add('hidden');
-        if (webSync) webSync.classList.add('hidden');
-        if (quickAdd) quickAdd.classList.add('hidden');
-        if (replaceWrap) replaceWrap.classList.add('hidden');
-        if (clearCatBtn) clearCatBtn.classList.add('hidden');
-        if (navCatText) navCatText.textContent = 'AI Knowledge Base';
-      }
+      if (navCatText) navCatText.textContent = 'Product Catalogue';
+      for (const id of ['qaImageFile', 'qaPdfFile']) document.getElementById(id)?.closest('div')?.classList.add('hidden');
     }
 
     async function checkAuthStatus() {
@@ -2922,35 +2854,16 @@
       if (currentAuthToken) {
         try {
           const data = await apiFetch('/api/auth/me');
-          if (data && data.ok && data.user && data.organization) {
+          if (data.ok && data.user && data.organization) {
             currentUser = { ...data.user, role: data.role };
             currentOrg = data.organization;
+            catalogCanManage = data.permissions?.canManageCatalog === true;
             updateAuthUI();
             return;
           }
         } catch (error) {
           if (error.status !== 401 && error.status !== 403) throw error;
         }
-
-        // Direct Supabase token verification fallback:
-        if (sb) {
-          try {
-            const { data: userData } = await sb.auth.getUser(currentAuthToken);
-            if (userData?.user) {
-              const { data: profile } = await sb.from('profiles').select('*').eq('id', userData.user.id).maybeSingle();
-              if (profile?.org_id) {
-                const { data: org } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
-                if (org) {
-                  currentUser = { id: userData.user.id, email: userData.user.email, fullName: profile.full_name, role: profile.role || 'owner' };
-                  currentOrg = org;
-                  updateAuthUI();
-                  return;
-                }
-              }
-            }
-          } catch (e) {}
-        }
-
         localStorage.removeItem('mf_token');
         localStorage.removeItem('mf_auth_token');
         localStorage.removeItem('mf_current_org');
@@ -3239,12 +3152,10 @@
       const bType = (type || currentOrg?.business_type || 'auto').toLowerCase();
       const sel = document.getElementById('settingBusinessType');
       if (sel && sel.value !== bType) {
-        for (let i = 0; i < sel.options.length; i++) {
-          if (sel.options[i].value === bType) {
-            sel.selectedIndex = i;
-            break;
-          }
-        }
+        if (sel.tagName === 'SELECT') {
+          const option = Array.from(sel.options).find(item => item.value === bType);
+          if (option) sel.value = bType;
+        } else sel.value = bType;
       }
 
       // 0. Dashboard Title & Onboarding Card Subtitles
@@ -3803,18 +3714,8 @@
 
       try {
         let prods = [];
-        if (sb) {
-          const { data, error } = await sb
-            .from('products')
-            .select('*')
-            .eq('org_id', currentOrg.id)
-            .order('created_at', { ascending: false });
-          if (error) throw error;
-          prods = data || [];
-        } else {
-          const res = await apiFetch('/api/catalog');
-          prods = res.products || [];
-        }
+        const res = await apiFetch('/api/catalog/products');
+        prods = res.products || [];
 
         catalogProductsCache = prods;
 
@@ -3830,43 +3731,43 @@
           custKnowInput.value = currentOrg.website_knowledge || '';
         }
 
-        const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role);
+        const isAdmin = catalogCanManage;
 
         if (prods.length === 0) {
-          if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or drag & drop an Excel / PDF brochure above!</td></tr>';
+          if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in the catalogue yet. Contact your agency for setup.</td></tr>';
           return;
         }
 
         const rowsHtml = prods.map(p => {
           const price = p.price_raw || p.price_range || 'Contact for quote';
-          const imgHtml = p.image_url
-            ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600',textContent:'📦'}));" class="w-12 h-12 object-cover rounded-lg border border-gray-200 shadow-sm bg-white">`
-            : '<div class="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600">📦</div>';
-          const pdfHtml = p.brochure_url
-            ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Brochure')}</span></a>`
-            : '<span class="text-slate-400 text-[11px]">No PDF</span>';
+          // Existing private-bucket links are not public URLs. Do not expose or
+          // silently open unverified remote URLs until signed access is implemented.
+          const imgHtml = '<div class="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs">📦</div>';
+          const pdfHtml = '<span class="text-slate-400 text-[11px]">Unavailable</span>';
+          const productId = /^[A-Za-z0-9_-]+$/.test(String(p.id)) ? String(p.id) : '';
+
 
           return `
             <tr class="border-b border-gray-100 hover:bg-slate-50 transition text-xs">
               <td class="py-3 px-4">${imgHtml}</td>
               <td class="py-3 px-4 font-mono font-bold text-slate-700">${escapeHtml(p.sku || '-')}</td>
               <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(p.name)}</td>
-              <td class="py-3 px-4 text-slate-600 max-w-xs truncate cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductSpecs('${p.id}')" title="Click to edit specs">
+              <td class="py-3 px-4 text-slate-600 max-w-xs truncate" ${isAdmin && productId ? `onclick="inlineEditProductSpecs('${productId}')"` : ''}>
                 <span>${escapeHtml(p.model_specs || '-')}</span>
                 <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
               </td>
-              <td class="py-3 px-4 text-slate-800 font-semibold cursor-pointer hover:text-indigo-600 group" onclick="inlineEditProductPrice('${p.id}')" title="Click to edit price">
+              <td class="py-3 px-4 text-slate-800 font-semibold" ${isAdmin && productId ? `onclick="inlineEditProductPrice('${productId}')"` : ''}>
                 <span>${escapeHtml(price)}</span>
                 <span class="opacity-0 group-hover:opacity-100 text-[10px] text-indigo-500 ml-1">✎</span>
               </td>
               <td class="py-3 px-4">${pdfHtml}</td>
               <td class="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
-                <button onclick="openEditProductModal('${p.id}')" class="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition text-xs inline-flex items-center gap-1">
+                ${isAdmin && productId ? `<button onclick="openEditProductModal('${productId}')" class="text-indigo-600 hover:text-indigo-800 font-semibold p-1 hover:bg-indigo-50 rounded transition text-xs inline-flex items-center gap-1">
                   <span>✎</span>
                   <span>Edit</span>
-                </button>
-                ${isAdmin ? `
-                <button onclick="deleteCatalogProduct('${p.id}')" class="text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded transition text-xs inline-flex items-center gap-1">
+                </button>` : ''}
+                ${isAdmin && productId ? `
+                <button onclick="deleteCatalogProduct('${productId}')" class="text-rose-600 hover:text-rose-800 font-semibold p-1 hover:bg-rose-50 rounded transition text-xs inline-flex items-center gap-1">
                   <span>🗑️</span>
                   <span>Delete</span>
                 </button>` : ''}
@@ -3887,12 +3788,7 @@
       if (!confirm('Are you sure you want to remove this product from your catalog?')) return;
       if (!currentOrg) return;
       try {
-        if (sb) {
-          const { error } = await sb.from('products').delete().eq('id', id).eq('org_id', currentOrg.id);
-          if (error) throw error;
-        } else {
-          await apiFetch(`/api/catalog/${id}`, { method: 'DELETE' });
-        }
+        await apiFetch(`/api/catalog/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
         showToast('Product removed from catalog', 'success');
         fetchCatalogProducts();
       } catch (err) {
@@ -3901,6 +3797,7 @@
     }
 
     function openQuickAddModal() {
+      if (!catalogCanManage) return showToast('Catalogue editing is managed by your agency.', 'warning');
       const modal = document.getElementById('quickAddModal');
       if (modal) modal.classList.remove('hidden');
     }
@@ -3931,55 +3828,16 @@
       const oldBtnHtml = btn ? btn.innerHTML : '';
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = '<span>⏳ Uploading & Saving...</span>';
+        btn.innerHTML = '<span>⏳ Saving...</span>';
       }
 
       try {
-        let image_url = null;
-        let brochure_url = null;
-        let brochure_filename = null;
-
-        if (sb) {
-          // Upload Image to Supabase Storage if selected
-          if (imgFile) {
-            const ext = imgFile.name.split('.').pop() || 'png';
-            const imgPath = `${currentOrg.id}/images/${Date.now()}_${Math.random().toString(36).slice(2, 7)}.${ext}`;
-            const { error: imgErr } = await sb.storage.from('catalogs').upload(imgPath, imgFile, { upsert: true });
-            if (!imgErr) {
-              const { data: uData } = sb.storage.from('catalogs').getPublicUrl(imgPath);
-              image_url = uData?.publicUrl || null;
-            } else {
-              console.warn('Image upload error:', imgErr);
-            }
-          }
-
-          // Upload Brochure PDF to Supabase Storage if selected
-          if (pdfFile) {
-            const safeName = pdfFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const pdfPath = `${currentOrg.id}/brochures/${Date.now()}_${safeName}`;
-            const { error: pdfErr } = await sb.storage.from('catalogs').upload(pdfPath, pdfFile, { upsert: true });
-            if (!pdfErr) {
-              const { data: uData } = sb.storage.from('catalogs').getPublicUrl(pdfPath);
-              brochure_url = uData?.publicUrl || null;
-              brochure_filename = pdfFile.name;
-            } else {
-              console.warn('PDF upload error:', pdfErr);
-            }
-          }
-
-          const { error: insertErr } = await sb.from('products').insert({
-            org_id: currentOrg.id,
-            sku,
-            name,
-            price_raw,
-            model_specs,
-            image_url,
-            brochure_url,
-            brochure_filename,
-            is_active: true
-          });
-          if (insertErr) throw insertErr;
-        }
+        if (!catalogCanManage) throw new Error('Catalogue editing is managed by your agency.');
+        if (imgFile || pdfFile) throw new Error('File attachments are not available yet. Add the product details without files.');
+        await apiFetch('/api/catalog/quick-add', {
+          method: 'POST',
+          body: JSON.stringify({ name, sku, priceRaw: price_raw, model: model_specs })
+        });
 
         closeQuickAddModal();
         if (document.getElementById('qaProductName')) document.getElementById('qaProductName').value = '';
@@ -3989,7 +3847,7 @@
         if (imgInput) imgInput.value = '';
         if (pdfInput) pdfInput.value = '';
 
-        showToast(`Machine "${name}" added to verified catalog!`, 'success');
+        showToast(`Product "${name}" added to the catalogue.`, 'success');
         fetchCatalogProducts();
       } catch (err) {
         showToast(err.message, 'error');
@@ -4788,15 +4646,12 @@
         const { error } = await sb.from('organizations').update({
           name: name || currentOrg.name,
           company_city: city,
-          owner_alert_number: owner,
-          business_type: bType
+          owner_alert_number: owner
         }).eq('id', currentOrg.id);
         if (error) return showToast(error.message, 'error');
         currentOrg.name = name || currentOrg.name;
         currentOrg.company_city = city;
         currentOrg.owner_alert_number = owner;
-        currentOrg.business_type = bType;
-        applyBusinessNiche(bType);
         updateAuthUI();
         showToast('Business profile saved to cloud!', 'success');
       }
@@ -5257,29 +5112,13 @@
     // 🌐 WEBSITE KNOWLEDGE EXTRACTOR & BUSINESS NICHE ADAPTATION
     // =========================================================================
     async function saveCustomKnowledge() {
-      if (!currentOrg) return showToast('Please sign in first', 'warning');
-      const input = document.getElementById('customKnowledgeInput');
-      const val = (input?.value || '').trim();
-      const btn = document.getElementById('btnSaveCustomKnowledge') || document.getElementById('btnSaveKnowledge');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span>Saving...</span>';
-      }
+      if (!catalogCanManage) return showToast('Catalogue setup is managed by your agency.', 'warning');
+      const val = document.getElementById('customKnowledgeInput')?.value || '';
       try {
-        if (sb) {
-          const { error } = await sb.from('organizations').update({ website_knowledge: val }).eq('id', currentOrg.id);
-          if (error) throw error;
-        }
+        await apiFetch('/api/catalog/knowledge', { method: 'PATCH', body: JSON.stringify({ websiteKnowledge: val }) });
         currentOrg.website_knowledge = val;
-        showToast('AI instructions & business knowledge saved!', 'success');
-      } catch (err) {
-        showToast('Failed to save knowledge: ' + err.message, 'error');
-      } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = '<span>💾 Save AI Instructions</span>';
-        }
-      }
+        showToast('Business knowledge saved.', 'success');
+      } catch (error) { showToast('Failed to save knowledge: ' + error.message, 'error'); }
     }
 
     async function clearAllCatalogProducts() {
@@ -5302,69 +5141,7 @@
     }
 
     async function syncWebsiteKnowledge() {
-      if (!currentOrg) return showToast('Please sign in first', 'warning');
-      const input = document.getElementById('websiteUrlInput');
-      const rawUrl = (input?.value || '').trim();
-      if (!rawUrl) return showToast('Please enter your business website URL', 'warning');
-
-      const btn = document.getElementById('btnSyncWebsite');
-      const oldBtnText = btn ? btn.innerHTML : '';
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span>⏳ Reading Website...</span>';
-      }
-
-      try {
-        const cleanUrl = rawUrl.replace(/^https?:\/\//, 'https://');
-        showToast('Connecting to website via AI reader...', 'info');
-
-        let markdown = '';
-        try {
-          const jinaUrl = 'https://r.jina.ai/' + cleanUrl;
-          const res = await fetch(jinaUrl);
-          if (res.ok) markdown = await res.text();
-        } catch (e) {}
-
-        if (!markdown) {
-          const fallbackUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cleanUrl)}`;
-          const res2 = await fetch(fallbackUrl);
-          if (res2.ok) {
-            const rawHtml = await res2.text();
-            markdown = rawHtml.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-              .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-              .replace(/<[^>]+>/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-          }
-        }
-
-        if (!markdown) throw new Error('Could not read website content. Please check URL.');
-
-        const truncatedMarkdown = markdown.slice(0, 50000);
-
-        if (sb) {
-          const { error } = await sb.from('organizations').update({
-            website_url: cleanUrl,
-            website_knowledge: truncatedMarkdown,
-            website_synced_at: new Date().toISOString()
-          }).eq('id', currentOrg.id);
-          if (error) throw error;
-        }
-
-        currentOrg.website_url = cleanUrl;
-        currentOrg.website_knowledge = truncatedMarkdown;
-        currentOrg.website_synced_at = new Date().toISOString();
-
-        updateWebsiteSyncBadge();
-        showToast('Website knowledge base synced successfully! AI is now trained on your site.', 'success');
-      } catch (err) {
-        showToast('Website sync error: ' + err.message, 'error');
-      } finally {
-        if (btn) {
-          btn.disabled = false;
-          btn.innerHTML = oldBtnText;
-        }
-      }
+      showToast('Website import is not available yet. Paste business knowledge instead.', 'warning');
     }
 
     function updateWebsiteSyncBadge() {
@@ -5389,18 +5166,14 @@
     }
 
     async function saveBusinessType() {
-      if (!currentOrg) return;
+      if (!catalogCanManage) return showToast('Catalogue setup is managed by your agency.', 'warning');
       const type = document.getElementById('settingBusinessType')?.value || 'auto';
       try {
-        if (sb) {
-          await sb.from('organizations').update({ business_type: type }).eq('id', currentOrg.id);
-        }
+        await apiFetch('/api/catalog/knowledge', { method: 'PATCH', body: JSON.stringify({ businessType: type }) });
         currentOrg.business_type = type;
         applyNicheAdaptation(type);
-        showToast('Business niche updated to ' + type, 'success');
-      } catch (e) {
-        showToast(e.message, 'error');
-      }
+        showToast('Business type updated.', 'success');
+      } catch (error) { showToast(error.message, 'error'); }
     }
 
     function applyNicheAdaptation(type = 'auto') {
@@ -5615,184 +5388,8 @@
       if (file) return processCatalogFiles([file]);
     }
 
-    async function processCatalogFiles(fileList) {
-      if (!fileList?.length) return;
-      if (!currentOrg) return showToast('Please sign in first to upload catalogs.', 'warning');
-
-      const statusBox = document.getElementById('uploadStatusToast');
-      const statusMsg = document.getElementById('uploadStatusText');
-      const setStatus = (msg) => {
-        if (statusBox) statusBox.classList.remove('hidden');
-        if (statusMsg) statusMsg.textContent = msg;
-      };
-
-      try {
-        const shouldReplace = document.getElementById('replaceCatalogToggle')
-          ? document.getElementById('replaceCatalogToggle').checked
-          : true;
-
-        // Cache existing SKU images so uploading an Excel sheet NEVER wipes out existing PDF photos!
-        const existingBySku = new Map();
-        if (sb) {
-          const { data: oldRows } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
-          (oldRows || []).forEach(r => {
-            if (r.sku_code) existingBySku.set(String(r.sku_code).trim().toUpperCase(), r);
-          });
-        }
-
-        // Sort files so PDFs run FIRST (extracting photos + uploading PDF brochure), then Excel/CSV enriches/merges!
-        const sortedFiles = [...fileList].sort((a, b) => {
-          const aPdf = a.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
-          const bPdf = b.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
-          return aPdf - bPdf;
-        });
-
-        const mergedMap = new Map();
-        if (!shouldReplace) {
-          existingBySku.forEach((r, key) => {
-            mergedMap.set(key, {
-              sku_code: r.sku_code,
-              name: r.name,
-              model_specs: r.model_specs,
-              price_raw: r.price_raw,
-              moq: r.moq || 'Standard',
-              stock_status: r.stock_status || 'Available',
-              image_url: r.image_url || ''
-            });
-          });
-        }
-
-        let uploadedPdfUrl = currentOrg.catalog_pdf_url || '';
-        let uploadedPdfName = currentOrg.catalog_pdf_name || '';
-
-        for (const file of sortedFiles) {
-          const ext = file.name.split('.').pop().toLowerCase();
-          let fileItems = [];
-
-          if (ext === 'pdf') {
-            setStatus(`Uploading ${file.name} & cropping product photos...`);
-            if (sb) {
-              const storagePath = `org_${currentOrg.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-              const { error: upErr } = await sb.storage.from('catalogs').upload(storagePath, file, { contentType: 'application/pdf', upsert: true });
-              if (!upErr) {
-                const { data: pubUrlData } = sb.storage.from('catalogs').getPublicUrl(storagePath);
-                if (pubUrlData?.publicUrl) {
-                  uploadedPdfUrl = pubUrlData.publicUrl;
-                  uploadedPdfName = file.name;
-                  currentOrg.catalog_pdf_url = pubUrlData.publicUrl;
-                  currentOrg.catalog_pdf_name = file.name;
-                }
-              }
-            }
-            const arrayBuf = await file.arrayBuffer();
-            const { items, rawText } = await renderAndParsePdfWithImages(arrayBuf);
-            fileItems = items;
-
-            if (rawText && rawText.trim().length > 20) {
-              const truncatedKnowledge = rawText.slice(0, 50000);
-              currentOrg.website_knowledge = truncatedKnowledge;
-
-              // Infer clean brand name from file name if current name is generic
-              const cleanBrand = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').replace(/\bcatalog\b|\bbrochure\b|\bpdf\b/gi, '').trim();
-              if (cleanBrand && cleanBrand.length >= 3 && (!currentOrg.name || /martflow|my enterprise/i.test(currentOrg.name))) {
-                currentOrg.name = cleanBrand;
-              }
-
-              if (sb) {
-                try {
-                  await sb.from('organizations').update({
-                    name: currentOrg.name,
-                    website_knowledge: truncatedKnowledge,
-                    updated_at: new Date().toISOString()
-                  }).eq('id', currentOrg.id);
-                } catch (e) {}
-              }
-            }
-
-            if (fileItems.length === 0 && rawText.trim().length > 20) {
-              setStatus(`Extracting items from ${file.name} with AI...`);
-              const resp = await fetch(`${API_BASE}/api/catalog/extract-ai`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rawText, fileName: file.name })
-              }).catch(() => null);
-              if (resp && resp.ok) {
-                const j = await resp.json();
-                if (Array.isArray(j.items)) fileItems = j.items;
-              }
-            }
-          } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
-            setStatus(`Reading spreadsheet ${file.name}...`);
-            const buf = await file.arrayBuffer();
-            const wb = XLSX.read(buf, { type: 'array' });
-            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-            fileItems = rows.map((r, i) => ({
-              sku_code: String(r.SKU || r['SKU Code'] || r.Code || `ITEM-${101 + i}`).trim(),
-              name: String(r['Product Name'] || r.Name || r.Item || r.Title || '').trim(),
-              price_raw: String(r.Price || r.Rate || r.MRP || 'Ask for Price').trim(),
-              model_specs: String(r['Specifications & Details'] || r.Specifications || r.Specs || r.Description || 'Standard').trim(),
-              moq: String(r.MOQ || 'Standard').trim(),
-              stock_status: 'Available',
-              image_url: String(r['Image URL'] || r.Image || '').trim()
-            })).filter(x => x.name);
-          }
-
-          // Smart SKU Merge across PDF + Excel!
-          for (const item of fileItems) {
-            const key = (item.sku_code || item.name).trim().toUpperCase();
-            const prev = mergedMap.get(key);
-            const fallbackOldImg = existingBySku.get(key)?.image_url || '';
-            mergedMap.set(key, {
-              sku_code: item.sku_code || prev?.sku_code || 'ITEM',
-              name: item.name || prev?.name || '',
-              model_specs: (item.model_specs && item.model_specs.length >= (prev?.model_specs?.length || 0)) ? item.model_specs : (prev?.model_specs || item.model_specs),
-              price_raw: (item.price_raw && item.price_raw !== 'Ask for Price') ? item.price_raw : (prev?.price_raw || 'Ask for Price'),
-              moq: item.moq || prev?.moq || 'Standard',
-              stock_status: item.stock_status || prev?.stock_status || 'Available',
-              image_url: item.image_url || prev?.image_url || fallbackOldImg || ''
-            });
-          }
-        }
-
-        const finalItems = Array.from(mergedMap.values());
-        if (!finalItems.length) throw new Error('Could not detect items in the selected file(s).');
-
-        setStatus(`Saving ${finalItems.length} merged items & photos to live database...`);
-        const rowsToInsert = finalItems.map(item => ({
-          sku: item.sku_code || item.sku || 'ITEM',
-          name: item.name,
-          category: item.category || inferCategory(item.name, item.sku_code || item.sku),
-          model_specs: String(item.model_specs || '').substring(0, 600),
-          price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
-          image_url: item.image_url || '',
-          brochure_url: uploadedPdfUrl || item.brochure_url || '',
-          brochure_filename: uploadedPdfName || item.brochure_filename || '',
-          is_active: true
-        }));
-
-        // One authorized transactional write; never clear chat history.
-        const syncResponse = await fetch(`${API_BASE}/api/catalog/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {}) },
-          body: JSON.stringify({
-            orgId: currentOrg?.id, products: rowsToInsert,
-            websiteKnowledge: currentOrg?.website_knowledge || '',
-            companyName: currentOrg?.name || 'Our Company',
-            catalogPdfName: uploadedPdfName || ''
-          })
-        });
-        const syncResult = await syncResponse.json();
-        if (!syncResponse.ok || !syncResult.ok) throw new Error(syncResult.error || 'Catalog sync failed.');
-
-        await fetchCatalogProducts();
-        if (typeof updateCatalogBannerUI === 'function') updateCatalogBannerUI();
-        showToast(`✅ Synced ${finalItems.length} unique products with photos!`, 'success');
-      } catch (err) {
-        console.error('Catalog process error:', err);
-        showToast('Catalog upload error: ' + (err.message || err), 'error');
-      } finally {
-        setTimeout(() => { if (statusBox) statusBox.classList.add('hidden'); }, 1500);
-      }
+    async function processCatalogFiles(_fileList) {
+      showToast('File import is not available yet. Add products manually.', 'warning');
     }
 
     // =========================================================================
@@ -5806,10 +5403,7 @@
       const newPrice = prompt('Enter updated price specification:', currentPrice);
       if (newPrice === null || newPrice.trim() === currentPrice) return;
       try {
-        if (sb && currentOrg) {
-          const { error } = await sb.from('products').update({ price_raw: newPrice.trim() }).eq('id', id).eq('org_id', currentOrg.id);
-          if (error) throw error;
-        }
+        await apiFetch(`/api/catalog/products/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ price_raw: newPrice.trim() }) });
         showToast('Price updated to ' + newPrice.trim(), 'success');
         await fetchCatalogProducts();
       } catch (e) { showToast('Update failed: ' + e.message, 'error'); }
@@ -5821,10 +5415,7 @@
       const newSpecs = prompt('Enter updated specifications & details:', currentSpecs);
       if (newSpecs === null || newSpecs.trim() === currentSpecs) return;
       try {
-        if (sb && currentOrg) {
-          const { error } = await sb.from('products').update({ model_specs: newSpecs.trim() }).eq('id', id).eq('org_id', currentOrg.id);
-          if (error) throw error;
-        }
+        await apiFetch(`/api/catalog/products/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ model_specs: newSpecs.trim() }) });
         showToast('Specifications updated!', 'success');
         await fetchCatalogProducts();
       } catch (e) { showToast('Update failed: ' + e.message, 'error'); }
@@ -5859,15 +5450,7 @@
       if (!name) return showToast('Product name is required', 'error');
 
       try {
-        if (sb) {
-          const { error } = await sb.from('products').update({
-            sku,
-            name,
-            price_raw,
-            model_specs
-          }).eq('id', id).eq('org_id', currentOrg.id);
-          if (error) throw error;
-        }
+        await apiFetch(`/api/catalog/products/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ sku, name, price_raw, model_specs }) });
         closeEditProductModal();
         showToast('Product updated successfully!', 'success');
         fetchCatalogProducts();

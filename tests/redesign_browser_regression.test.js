@@ -7,7 +7,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 const html = name => fs.readFileSync(new URL(`../public/${name}.html`, import.meta.url), 'utf8');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-function openPage(name, { path = `/${name}`, token, cachedUser, apiRole = 'owner', authStatus = 200, supabase = null } = {}) {
+function openPage(name, { path = `/${name}`, token, cachedUser, apiRole = 'owner', authStatus = 200, supabase = null, canManageCatalog = false, products = [] } = {}) {
   const errors = [], calls = [], state = { clientCreations: 0 };
   const console = new VirtualConsole();
   console.on('jsdomError', e => {
@@ -29,8 +29,8 @@ function openPage(name, { path = `/${name}`, token, cachedUser, apiRole = 'owner
         const isMe = String(url).endsWith('/api/auth/me');
         const status = isMe ? authStatus : 200;
         const data = isMe
-          ? (status === 200 ? { ok: true, user: { id: 'user-1', fullName: 'Test Owner', email: 'owner@example.test' }, organization: { id: 'org-1', name: 'Test Company' }, role: apiRole } : { ok: false, error: 'Invalid session' })
-          : { ok: true, supabaseUrl: 'https://synthetic.supabase.test', supabaseAnonKey: 'synthetic-anon-key', leads: [], conversations: [], products: [], stats: {} };
+          ? (status === 200 ? { ok: true, user: { id: 'user-1', fullName: 'Test Owner', email: 'owner@example.test' }, organization: { id: 'org-1', name: 'Test Company' }, role: apiRole, permissions: { canManageCatalog } } : { ok: false, error: 'Invalid session' })
+          : { ok: true, supabaseUrl: 'https://synthetic.supabase.test', supabaseAnonKey: 'synthetic-anon-key', leads: [], conversations: [], products, stats: {} };
         return { ok: status === 200, status, headers: { get: () => 'application/json' }, json: async () => data, text: async () => JSON.stringify(data) };
       };
     }
@@ -308,5 +308,42 @@ test('dashboard and analytics use recorded results rather than fabricated perfor
   assert.equal(dom.window.document.getElementById('statCallsBooked').textContent, '1');
   assert.equal(dom.window.document.getElementById('anCallRate').textContent, '50%');
   assert.equal(dom.window.document.getElementById('anSpeedPct').textContent, 'N/A');
+  dom.window.close();
+});
+
+
+test('catalogue is view-only for client owners and editable for explicitly granted managers', async () => {
+  const products = [{ id: 'product-1', name: 'Widget', sku: 'SKU-1', price_raw: '100', model_specs: 'Size 5' }];
+  for (const allowed of [false, true]) {
+    const { dom, errors } = openPage('app', { path: '/app/catalogue', token: 'synthetic', apiRole: 'owner', canManageCatalog: allowed, products });
+    await wait(150);
+    await dom.window.fetchCatalogProducts();
+    const d = dom.window.document;
+    assert.equal(d.getElementById('btnQuickAddSku').classList.contains('hidden'), !allowed);
+    assert.match(d.getElementById('catalogTableBody').textContent, /Widget/);
+    assert.equal(d.getElementById('catalogTableBody').textContent.includes('Edit'), allowed);
+    assert.equal(d.getElementById('catalogDropzone').classList.contains('hidden'), true);
+    assert.deepEqual(errors, []);
+    dom.window.close();
+  }
+});
+
+
+test('catalogue manager submits manual details through authenticated JSON API', async () => {
+  const { dom, calls, errors } = openPage('app', { path: '/app/catalogue', token: 'synthetic', canManageCatalog: true });
+  await wait(150);
+  dom.window.applyBusinessNiche('machinery'); // hidden input is not a SELECT
+  const d = dom.window.document;
+  d.getElementById('qaProductName').value = 'Precision Widget';
+  d.getElementById('qaSku').value = 'A-42';
+  d.getElementById('qaPriceRaw').value = '100';
+  d.getElementById('qaModel').value = 'Size 5';
+  await dom.window.submitQuickAddProduct();
+  const call = calls.find(c => c.url === '/api/catalog/quick-add');
+  assert.ok(call);
+  assert.equal(call.options.headers['Content-Type'], 'application/json');
+  assert.equal(call.options.headers.Authorization, 'Bearer synthetic');
+  assert.deepEqual(JSON.parse(call.options.body), { name: 'Precision Widget', sku: 'A-42', priceRaw: '100', model: 'Size 5' });
+  assert.deepEqual(errors, []);
   dom.window.close();
 });

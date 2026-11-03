@@ -321,73 +321,15 @@
     // Verify a cached token against the server; a stale token must not cause a
     // login/workspace redirect loop or display a cached, unverified workspace.
     async function getAuthenticatedWorkspace(token) {
-      try {
-        const res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.ok && data.user && data.organization) {
-            return data;
-          }
-        }
-      } catch (err) {
-        console.warn('Backend workspace verification notice:', err.message);
+      const res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+      let data;
+      try { data = await res.json(); } catch (_) { throw new Error('The workspace service returned an invalid response.'); }
+      if (!res.ok || !data.ok || !data.user || !data.organization) {
+        const error = new Error(data.error || 'Could not verify your workspace.');
+        error.status = res.status;
+        throw error;
       }
-
-      // Authoritative Supabase Direct Verification Fallback:
-      // If the backend proxy returns 401 (e.g. backend revision mismatch),
-      // verify the session directly against the live Supabase instance.
-      if (sb) {
-        try {
-          const { data: userData, error: uErr } = await sb.auth.getUser(token);
-          const user = userData?.user;
-          if (user && !uErr) {
-            let { data: profile } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
-            let org = null;
-            if (profile?.org_id) {
-              const { data: orgData } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
-              org = orgData;
-            }
-            if (!org) {
-              const newOrgId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('org_' + Date.now());
-              const orgName = user.user_metadata?.company_name || (user.user_metadata?.full_name ? user.user_metadata.full_name + ' Enterprise' : 'My Enterprise');
-              const { data: newOrg } = await sb.from('organizations').insert({
-                id: newOrgId,
-                name: orgName,
-                slug: 'org-' + Date.now().toString(36),
-                plan_status: 'trial'
-              }).select().maybeSingle();
-              org = newOrg || { id: newOrgId, name: orgName, plan_status: 'trial' };
-              const { data: newProf } = await sb.from('profiles').insert({
-                id: user.id,
-                org_id: org.id,
-                email: user.email,
-                full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Member',
-                role: 'owner'
-              }).select().maybeSingle();
-              profile = newProf || { id: user.id, email: user.email, full_name: user.user_metadata?.full_name, role: 'owner' };
-            }
-            if (org && profile) {
-              return {
-                ok: true,
-                user: {
-                  id: user.id,
-                  email: user.email,
-                  fullName: profile.full_name || user.user_metadata?.full_name || user.email.split('@')[0],
-                  role: profile.role || 'owner'
-                },
-                organization: org,
-                role: profile.role || 'owner'
-              };
-            }
-          }
-        } catch (sbErr) {
-          console.warn('Supabase verification notice:', sbErr.message);
-        }
-      }
-
-      const error = new Error('Could not verify your workspace.');
-      error.status = 401;
-      throw error;
+      return data;
     }
 
     async function checkExistingAuth() {

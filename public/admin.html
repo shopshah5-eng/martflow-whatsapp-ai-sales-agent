@@ -296,6 +296,14 @@
 
     <!-- Admin Content View -->
     <div id="adminContent" class="hidden space-y-6">
+      <section class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3" aria-labelledby="catalog-access-title">
+        <h2 id="catalog-access-title" class="text-base font-bold text-slate-900">Catalogue manager access</h2>
+        <p class="text-xs text-slate-600">Grant access only to a verified agency owner or admin who is already a member of this workspace. Client accounts are view-only by default. Revocation takes effect on the next catalogue request.</p>
+        <label class="block text-xs font-semibold">Workspace ID <input id="catalogGrantOrg" class="block w-full border rounded-lg p-2 mt-1" autocomplete="off"></label>
+        <label class="block text-xs font-semibold">Existing user ID <input id="catalogGrantUser" class="block w-full border rounded-lg p-2 mt-1" autocomplete="off"></label>
+        <div class="flex gap-2"><button type="button" onclick="setCatalogPermission(true)" class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-xs">Grant access</button><button type="button" onclick="setCatalogPermission(false)" class="px-4 py-2 rounded-lg bg-rose-700 text-white text-xs">Revoke access</button></div>
+        <p id="catalogGrantStatus" role="status" class="text-xs text-slate-700"></p>
+      </section>
       <section id="view-engineer" class="view-panel space-y-6">
         <div>
           <div class="flex items-center space-x-2">
@@ -553,6 +561,19 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    async function setCatalogPermission(allow) {
+      const orgId = document.getElementById('catalogGrantOrg').value.trim();
+      const userId = document.getElementById('catalogGrantUser').value.trim();
+      const status = document.getElementById('catalogGrantStatus');
+      if (!orgId || !userId) { status.textContent = 'Enter the existing workspace and user IDs.'; return; }
+      if (!confirm(`${allow ? 'Grant' : 'Revoke'} catalogue access for this user in this workspace?`)) return;
+      status.textContent = 'Saving…';
+      try {
+        await apiFetch('/api/admin/catalog-permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, userId, allow }) });
+        status.textContent = allow ? 'Catalogue access granted.' : 'Catalogue access revoked.';
+      } catch (error) { status.textContent = 'Unable to change access: ' + error.message; }
     }
 
     function formatDisplayPhone(rawPhone) {
