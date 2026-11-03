@@ -8,7 +8,7 @@ const html = name => fs.readFileSync(new URL(`../public/${name}.html`, import.me
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function openPage(name, { path = `/${name}`, token, cachedUser, apiRole = 'owner', authStatus = 200, supabase = null } = {}) {
-  const errors = [], calls = [];
+  const errors = [], calls = [], state = { clientCreations: 0 };
   const console = new VirtualConsole();
   console.on('jsdomError', e => {
     // jsdom cannot perform a cross-document navigation; browsers can.
@@ -19,10 +19,11 @@ function openPage(name, { path = `/${name}`, token, cachedUser, apiRole = 'owner
     virtualConsole: console,
     beforeParse(window) {
       window.tailwind = { config: {} };
+      window.HTMLElement.prototype.scrollIntoView = function() {};
       window.IntersectionObserver = class { observe() {} unobserve() {} disconnect() {} };
       if (token) window.localStorage.setItem('mf_token', token);
       if (cachedUser) window.localStorage.setItem('mf_current_user', JSON.stringify(cachedUser));
-      if (supabase) window.supabase = { createClient: () => supabase };
+      if (supabase) window.supabase = { createClient: () => { state.clientCreations++; return supabase; } };
       window.fetch = async (url, options = {}) => {
         calls.push({ url: String(url), options });
         const isMe = String(url).endsWith('/api/auth/me');
@@ -34,7 +35,7 @@ function openPage(name, { path = `/${name}`, token, cachedUser, apiRole = 'owner
       };
     }
   });
-  return { dom, calls, errors };
+  return { dom, calls, errors, state };
 }
 
 test('every redesigned HTML page has valid inline JavaScript and unique IDs', () => {
@@ -187,5 +188,125 @@ test('mobile workspace drawer opens and closes without hiding navigation permane
   backdrop.click();
   assert.equal(sidebar.classList.contains('-translate-x-full'), true);
   assert.equal(backdrop.classList.contains('hidden'), true);
+  dom.window.close();
+});
+
+test('valid restored login on the home page navigates to the separate dashboard', async () => {
+  const { dom, calls, errors } = openPage('index', { path: '/', token: 'backend-token' });
+  let target;
+  dom.window.navigateFromLanding = value => { target = value; };
+  await wait(100);
+  assert.equal(target, '/app');
+  assert.ok(calls.some(c => c.url === '/api/auth/me' && c.options.headers.Authorization === 'Bearer backend-token'));
+  assert.deepEqual(errors, []);
+  dom.window.close();
+});
+
+test('home page rejects stale cached login instead of redirecting to a broken workspace', async () => {
+  const { dom } = openPage('index', { path: '/', token: 'expired', authStatus: 401 });
+  let target;
+  dom.window.navigateFromLanding = value => { target = value; };
+  await wait(100);
+  assert.equal(target, undefined);
+  assert.equal(dom.window.localStorage.getItem('mf_token'), null);
+  assert.equal(dom.window.document.getElementById('publicLandingPage').classList.contains('hidden'), false);
+  dom.window.close();
+});
+
+test('OAuth callbacks reaching the home page keep the PKCE code for login', async () => {
+  const { dom } = openPage('index', { path: '/?code=synthetic-code' });
+  let target;
+  dom.window.navigateFromLanding = value => { target = value; };
+  await wait(50);
+  assert.equal(target, '/login?code=synthetic-code');
+  dom.window.close();
+});
+
+test('authenticated visitors can still visit public information pages', async () => {
+  const { dom } = openPage('index', { path: '/features', token: 'synthetic' });
+  let target;
+  dom.window.navigateFromLanding = value => { target = value; };
+  await wait(100);
+  assert.equal(target, undefined);
+  dom.window.close();
+});
+
+test('password-recovery PKCE event redirects to workspace password settings', async () => {
+  let authListener;
+  const session = { access_token: 'recovery-token', user: { id: 'user-1', email: 'owner@example.test' } };
+  const client = { auth: {
+    onAuthStateChange: callback => { authListener = callback; },
+    getSession: async () => { authListener?.('PASSWORD_RECOVERY', session); return { data: { session } }; }
+  } };
+  const { dom } = openPage('login', { path: '/login?code=synthetic-recovery-code', supabase: client });
+  let target;
+  dom.window.navigateAfterAuth = value => { target = value; };
+  await wait(100);
+  assert.equal(target, '/app/settings');
+  dom.window.close();
+});
+
+test('dashboard shows unavailable data instead of fabricated zeroes when a query fails', async () => {
+  const client = { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({}) },
+    from: table => {
+      const query = { select: () => query, eq: () => {
+        if (table === 'organizations') return { single: async () => ({ data: null }) };
+        return Promise.resolve(table === 'leads' ? { data: null, error: { message: 'Database unavailable' } } : { data: [] });
+      } };
+      return query;
+    }
+  };
+  const { dom } = openPage('app', { token: 'synthetic', supabase: client });
+  await wait(150);
+  await dom.window.loadDashboardData();
+  assert.equal(dom.window.document.getElementById('statLeadsToday').textContent, '—');
+  assert.match(dom.window.document.getElementById('dashboardLeadsTable').textContent, /unavailable/i);
+  dom.window.close();
+});
+
+test('each page initializes at most one authentication client', async () => {
+  const client = { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({}) } };
+  for (const name of ['index', 'login', 'app']) {
+    const { dom, state } = openPage(name, { path: name === 'index' ? '/' : `/${name}`, supabase: client });
+    await wait(80);
+    assert.equal(state.clientCreations, 1, `${name} created multiple Supabase clients`);
+    dom.window.close();
+  }
+});
+
+test('workspace content is hidden until authentication is verified', async () => {
+  const { dom } = openPage('app', { token: 'valid' });
+  const workspace = dom.window.document.getElementById('appWorkspaceContainer');
+  assert.equal(workspace.classList.contains('hidden'), true);
+  await wait(100);
+  assert.equal(workspace.classList.contains('hidden'), false);
+  dom.window.close();
+});
+
+test('workspace ignores forged admin query parameters and uses the verified role', async () => {
+  for (const [role, expectedHidden] of [['owner', true], ['superadmin', false]]) {
+    const { dom } = openPage('app', { path: '/app?admin=1', token: 'synthetic', apiRole: role });
+    await wait(120);
+    assert.equal(dom.window.document.getElementById('nav-engineer').classList.contains('hidden'), expectedHidden);
+    assert.equal(dom.window.document.getElementById('cardEngineerSettings').classList.contains('hidden'), expectedHidden);
+    dom.window.close();
+  }
+});
+
+test('dashboard and analytics use recorded results rather than fabricated performance or call counts', async () => {
+  const leads = [{ id: 'l1', status: 'qualified', first_response_ms: 2000 }, { id: 'l2', status: 'new', pdf_brochure_sent: true }];
+  const calls = [{ lead_id: 'l1', status: 'confirmed' }, { lead_id: 'l2', status: 'requested' }];
+  const client = { auth: { getSession: async () => ({ data: { session: null } }), onAuthStateChange: () => ({}) },
+    from: table => { const q = { select: () => q, eq: () => Promise.resolve({ data: table === 'leads' ? leads : table === 'call_requests' ? calls : [] }) }; return q; }
+  };
+  const { dom } = openPage('app', { token: 'valid', supabase: client });
+  await wait(120);
+  await dom.window.loadDashboardData();
+  await dom.window.loadAnalyticsData();
+  assert.equal(dom.window.document.getElementById('statMedianResponse').textContent, '2.0s');
+  assert.equal(dom.window.document.getElementById('statQualifiedRate').textContent, '50%');
+  assert.equal(dom.window.document.getElementById('statCallsBooked').textContent, '1');
+  assert.equal(dom.window.document.getElementById('anCallRate').textContent, '50%');
+  assert.equal(dom.window.document.getElementById('anSpeedPct').textContent, 'N/A');
   dom.window.close();
 });

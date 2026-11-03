@@ -314,7 +314,7 @@
   <div id="toastContainer" class="fixed top-5 right-5 z-[100] flex flex-col space-y-2 pointer-events-none max-w-sm w-full"></div>
 
   <!-- WORKSPACE CONTENT & SIDEBAR -->
-    <div id="appWorkspaceContainer" class="flex-1 flex overflow-hidden relative">
+    <div id="appWorkspaceContainer" class="hidden flex-1 overflow-hidden relative">
 
     <!-- MOBILE BACKDROP OVERLAY -->
     <div id="mobileBackdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-900/50 z-30 hidden lg:hidden"></div>
@@ -510,12 +510,12 @@
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatLeadsToday" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Today's Enquiries</div>
             <div id="statLeadsToday" class="text-2xl font-bold text-slate-900 mt-1">0</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Asia/Kolkata date</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Your local date</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <div id="lblStatMedianResponse" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">PDF Reply Speed (<10s)</div>
+            <div id="lblStatMedianResponse" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Median First Response</div>
             <div id="statMedianResponse" class="text-2xl font-bold text-[#087F5B] mt-1">N/A</div>
-            <div class="text-[10px] text-slate-400 mt-0.5">Time to WhatsApp PDF</div>
+            <div class="text-[10px] text-slate-400 mt-0.5">Measured from recorded responses</div>
           </div>
           <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <div id="lblStatQualifiedRate" class="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">🔥 Hot Serious Buyers</div>
@@ -1096,16 +1096,16 @@
             <div>
               <div class="flex justify-between font-semibold text-slate-700 mb-1">
                 <span>Sub-10s Brochure Dispatch Rate</span>
-                <span id="anSpeedPct">100%</span>
+                <span id="anSpeedPct">N/A</span>
               </div>
               <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                <div class="h-full bg-emerald-500 w-full"></div>
+                <div class="h-full bg-emerald-500 w-0"></div>
               </div>
             </div>
             <div>
               <div class="flex justify-between font-semibold text-slate-700 mb-1">
                 <span>Direct WhatsApp Inbound Engagement</span>
-                <span id="anEngagePct">0%</span>
+                <span id="anEngagePct">N/A</span>
               </div>
               <div class="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
                 <div id="anEngageBar" class="h-full bg-[#087F5B] w-0 transition-all duration-500"></div>
@@ -1880,9 +1880,7 @@
     }
 
     // Central Supabase Client (declared with let so dynamic config update does not throw)
-    let sb = (window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined')
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-      : null;
+    let sb = null;
 
     async function fetchPublicConfig() {
       try {
@@ -1908,6 +1906,11 @@
         }
       } catch (e) {
         refreshPaymentAndSupportLinks();
+      } finally {
+        // One client per page avoids competing callback/session processing.
+        if (!sb && window.supabase && typeof window.supabase.createClient === 'function') {
+          try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (error) { console.warn('Authentication initialization failed:', error.message); }
+        }
       }
     }
 
@@ -1959,9 +1962,6 @@
     // =========================================================================
     // ⚡ CENTRAL SUPABASE CLIENT (Initialized above, refreshed dynamically)
     // =========================================================================
-    if (!sb && window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined') {
-      try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) {}
-    }
 
     // 1. Toast Notification System (Zero alerts)
     function showToast(message, type = 'info') {
@@ -2318,7 +2318,7 @@
         throw new Error('Unable to verify your workspace membership.');
       }
       currentOrg = data.organization;
-      currentUser = data.user;
+      currentUser = { ...data.user, role: data.role };
       localStorage.setItem('mf_token', currentAuthToken);
       localStorage.setItem('mf_auth_token', currentAuthToken);
       closeAuthModal();
@@ -2760,7 +2760,7 @@
     }
 
     function checkAdminParam() {
-      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+      const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role);
       const navEng = document.getElementById('nav-engineer');
       const cardEng = document.getElementById('cardEngineerSettings');
       const onbCard = document.getElementById('dashOnboardingCard');
@@ -2775,8 +2775,8 @@
       const clearCatBtn = document.getElementById('btnClearCatalog');
 
       if (isAdmin) {
-        if (navEng) navEng.classList.remove('hidden');
-        if (cardEng) cardEng.classList.remove('hidden');
+        if (navEng) navEng.classList.toggle('hidden', currentUser?.role !== 'superadmin');
+        if (cardEng) cardEng.classList.toggle('hidden', currentUser?.role !== 'superadmin');
         if (onbCard) onbCard.classList.remove('hidden');
         if (execBanner) execBanner.classList.add('hidden');
         if (simBtn) simBtn.classList.remove('hidden');
@@ -2806,23 +2806,27 @@
     async function checkAuthStatus() {
       checkAdminParam();
       if (sb) {
-        sb.auth.onAuthStateChange(async (event, session) => {
-          if (event === 'PASSWORD_RECOVERY') {
-            switchView('settings');
-            showToast('Please set your new account password in Settings.', 'info');
-            return;
-          }
-          if (session) {
-            try {
-              await handleAuthSession(session);
-              closeAuthModal();
-            } catch (error) {
-              clearWorkspaceState();
-              showToast('Unable to verify your workspace. Please try again.', 'error');
+        // Defer SDK and API calls outside the Supabase auth callback. Awaiting
+        // another Supabase call within this callback can deadlock session setup.
+        sb.auth.onAuthStateChange((event, session) => {
+          setTimeout(async () => {
+            if (event === 'PASSWORD_RECOVERY') {
+              switchView('settings');
+              showToast('Please set your new account password in Settings.', 'info');
+              return;
             }
-          } else if (event === 'SIGNED_OUT') {
-            clearWorkspaceState();
-          }
+            if (session) {
+              try {
+                await handleAuthSession(session);
+                closeAuthModal();
+              } catch (error) {
+                clearWorkspaceState();
+                showToast('Unable to verify your workspace. Please try again.', 'error');
+              }
+            } else if (event === 'SIGNED_OUT') {
+              clearWorkspaceState();
+            }
+          }, 0);
         });
 
         // If URL has OAuth callback tokens, process them and prevent premature login modal popup
@@ -2860,7 +2864,7 @@
         try {
           const data = await apiFetch('/api/auth/me');
           if (data.ok && data.user && data.organization) {
-            currentUser = data.user;
+            currentUser = { ...data.user, role: data.role };
             currentOrg = data.organization;
             updateAuthUI();
             return;
@@ -2886,6 +2890,7 @@
       const btnHeaderAi = document.getElementById('btnHeaderAiMode');
       const btnMobileSidebar = document.getElementById('btnMobileSidebar');
 
+      checkAdminParam();
       if (currentOrg && currentUser) {
         if (publicLanding) publicLanding.classList.add('hidden');
         if (workspaceContainer) {
@@ -2992,6 +2997,8 @@
             sb.from('products').select('*').eq('org_id', currentOrg.id),
             sb.from('call_requests').select('*').eq('org_id', currentOrg.id)
           ]);
+          const queryError = lRes.error || pRes.error || cRes.error;
+          if (queryError) throw new Error(queryError.message || 'Unable to load workspace data.');
           leads = lRes.data || [];
           products = pRes.data || [];
           calls = cRes.data || [];
@@ -3004,9 +3011,9 @@
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayLeads = leads.filter(l => new Date(l.created_at || l.createdAt) >= today).length;
-        const totalCalls = calls.length;
+        const totalCalls = calls.filter(c => c.status === 'confirmed').length;
         const totalProducts = products.length;
-        const qualifiedCount = leads.filter(l => l.status === 'qualified' || l.status === 'Hot Lead' || /hot/i.test(l.status) || l.pdf_brochure_sent || l.brochure_sent || l.isHotLead).length;
+        const qualifiedCount = leads.filter(l => l.status === 'qualified' || l.status === 'Hot Lead' || /hot/i.test(l.status) || l.isHotLead).length;
         const qualRate = totalLeads > 0 ? Math.round((qualifiedCount / totalLeads) * 100) : 0;
 
         // Update all dashboard KPI elements (matching HTML IDs directly)
@@ -3014,7 +3021,12 @@
         if (statToday) statToday.textContent = todayLeads;
 
         const statMedian = document.getElementById('statMedianResponse');
-        if (statMedian) statMedian.textContent = totalLeads > 0 ? '< 10s' : '0s';
+        const measured = leads.map(l => l.first_response_ms).filter(v => v !== null && v !== undefined && Number.isFinite(Number(v)) && Number(v) >= 0).map(Number).sort((a, b) => a - b);
+        if (statMedian) {
+          const mid = Math.floor(measured.length / 2);
+          const medianMs = measured.length ? (measured.length % 2 ? measured[mid] : (measured[mid - 1] + measured[mid]) / 2) : null;
+          statMedian.textContent = medianMs === null ? 'N/A' : `${(medianMs / 1000).toFixed(1)}s`;
+        }
 
         const statQual = document.getElementById('statQualifiedRate');
         if (statQual) statQual.textContent = qualRate + '%';
@@ -3035,15 +3047,25 @@
         renderDashboardLeadsTable(leads.slice(0, 5));
       } catch (err) {
         console.error('loadDashboardData error:', err);
-        renderEmptyDashboardState();
+        renderUnavailableDashboardState();
+        showToast('Unable to load dashboard data. Check your connection and try again.', 'error');
       }
+    }
+
+    function renderUnavailableDashboardState() {
+      for (const id of ['statLeadsToday', 'statMedianResponse', 'statQualifiedRate', 'statCallsBooked', 'statCatalogProducts']) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = '—';
+      }
+      const table = document.getElementById('dashboardLeadsTable');
+      if (table) table.textContent = 'Dashboard data is unavailable. Please refresh and try again.';
     }
 
     function renderEmptyDashboardState() {
       const statToday = document.getElementById('statLeadsToday');
       if (statToday) statToday.textContent = '0';
       const statMedian = document.getElementById('statMedianResponse');
-      if (statMedian) statMedian.textContent = '0s';
+      if (statMedian) statMedian.textContent = 'N/A';
       const statQual = document.getElementById('statQualifiedRate');
       if (statQual) statQual.textContent = '0%';
       const statCalls = document.getElementById('statCallsBooked');
@@ -3729,7 +3751,7 @@
           custKnowInput.value = currentOrg.website_knowledge || '';
         }
 
-        const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+        const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role);
 
         if (prods.length === 0) {
           if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or drag & drop an Excel / PDF brochure above!</td></tr>';
@@ -3989,7 +4011,7 @@
                   <td class="py-3 px-4 font-semibold text-slate-900">${escapeHtml(c.buyer_name || 'Buyer')}</td>
                   <td class="py-3 px-4 font-mono text-slate-600">+${escapeHtml(String(c.buyer_phone || '').replace(/\D/g, ''))}</td>
                   <td class="py-3 px-4 font-medium text-slate-800">${escapeHtml(c.product_interest || 'General')}</td>
-                  <td class="py-3 px-4 text-slate-600">${escapeHtml(c.proposed_time_raw || 'Today 4:00 PM')}</td>
+                  <td class="py-3 px-4 text-slate-600">${escapeHtml(c.proposed_time_raw || 'Not provided')}</td>
                   <td class="py-3 px-4">
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${c.status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">
                       ${escapeHtml(c.status || 'requested')}
@@ -4152,7 +4174,7 @@
 
       const hb = currentOrg.wa_worker_heartbeat;
       const workerAlive = hb && ((Date.now() - new Date(hb).getTime()) / 1000 < 45);
-      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+      const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role);
 
       // Bottom-left sidebar socket status
       const waDot = document.getElementById('waStatusDot');
@@ -4715,19 +4737,28 @@
 
     async function loadAnalyticsData() {
       if (!currentOrg) return;
-      if (sb) {
-        const { data: leads } = await sb.from('leads').select('*').eq('org_id', currentOrg.id);
-        const { data: calls } = await sb.from('call_requests').select('*').eq('org_id', currentOrg.id);
-        const lCount = leads ? leads.length : 0;
-        const cCount = calls ? calls.length : 0;
-        const qCount = (leads || []).filter(l => l.status === 'qualified' || l.status === 'won' || l.status === 'Hot Lead' || l.pdf_brochure_sent).length;
-
-        const anLeads = document.getElementById('anTotalLeads');
-        if (anLeads) anLeads.textContent = lCount;
-        const anQual = document.getElementById('anQualRate');
-        if (anQual) anQual.textContent = lCount > 0 ? `${Math.round((qCount / lCount) * 100)}%` : '0%';
-        const anCallRate = document.getElementById('anCallRate');
-        if (anCallRate) anCallRate.textContent = lCount > 0 ? `${Math.round((cCount / lCount) * 100)}%` : '0%';
+      const fields = ['anTotalLeads', 'anQualRate', 'anCallRate'];
+      try {
+        if (!sb) throw new Error('Analytics data is unavailable.');
+        const [leadResult, callResult] = await Promise.all([
+          sb.from('leads').select('*').eq('org_id', currentOrg.id),
+          sb.from('call_requests').select('*').eq('org_id', currentOrg.id)
+        ]);
+        if (leadResult.error || callResult.error) throw new Error('Analytics data is unavailable.');
+        const leads = leadResult.data || [], calls = callResult.data || [];
+        const count = leads.length;
+        const qualified = leads.filter(l => l.status === 'qualified' || l.status === 'won' || l.status === 'Hot Lead').length;
+        const leadIds = new Set(leads.map(l => l.id));
+        const confirmedLeadIds = new Set(calls.filter(c => c.status === 'confirmed' && leadIds.has(c.lead_id)).map(c => c.lead_id));
+        document.getElementById('anTotalLeads').textContent = count;
+        document.getElementById('anQualRate').textContent = count ? `${Math.round(qualified * 100 / count)}%` : 'N/A';
+        document.getElementById('anCallRate').textContent = count ? `${Math.round(confirmedLeadIds.size * 100 / count)}%` : 'N/A';
+      } catch (error) {
+        for (const id of fields) {
+          const element = document.getElementById(id);
+          if (element) element.textContent = '—';
+        }
+        showToast('Unable to load analytics. Please try again.', 'error');
       }
     }
 

@@ -221,19 +221,27 @@
     // Use the same runtime auth configuration as the backend/workspace.
     const SUPABASE_URL = "https://uriqhusalcdgdlgzgasp.supabase.co";
     const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE";
-    let sb = (window.supabase && typeof window.supabase.createClient === 'function')
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-      : null;
-
+    let sb = null;
     const authClientReady = (async () => {
+      if (!window.supabase || typeof window.supabase.createClient !== 'function') return;
+      let url = SUPABASE_URL, key = SUPABASE_ANON_KEY;
       try {
         const response = await fetch('/api/public-config');
         const config = await response.json();
-        if (response.ok && config.supabaseUrl && config.supabaseAnonKey && window.supabase) {
-          sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+        if (response.ok && config.supabaseUrl && config.supabaseAnonKey) {
+          url = config.supabaseUrl;
+          key = config.supabaseAnonKey;
         }
       } catch (error) {
-        // Pre-configured Supabase client is active as fallback
+        console.warn('Authentication configuration unavailable:', error.message);
+      }
+      sb = window.supabase.createClient(url, key);
+      // Supabase PKCE recovery callbacks may use ?code= instead of a hash.
+      // Register immediately so the recovered session opens password settings.
+      if (typeof sb.auth?.onAuthStateChange === 'function') {
+        sb.auth.onAuthStateChange((event) => {
+          if (event === 'PASSWORD_RECOVERY') sessionStorage.setItem('mf_auth_redirect', '/app/settings');
+        });
       }
     })();
 
@@ -308,6 +316,8 @@
       return stored;
     }
 
+    function navigateAfterAuth(target) { window.location.assign(target); }
+
     // Verify a cached token against the server; a stale token must not cause a
     // login/workspace redirect loop or display a cached, unverified workspace.
     async function getAuthenticatedWorkspace(token) {
@@ -341,7 +351,7 @@
         if (/(?:^|[&#])type=recovery(?:&|$)/.test(window.location.hash.slice(1))) {
           sessionStorage.setItem('mf_auth_redirect', '/app/settings');
         }
-        window.location.href = getSafeRedirectUrl();
+        navigateAfterAuth(getSafeRedirectUrl());
       } catch (e) {
         if (e.status === 401 || e.status === 403) {
           localStorage.removeItem('mf_token');
@@ -431,7 +441,7 @@
           showToast('Welcome back! Redirecting to workspace...', 'success');
           const redirectUrl = getSafeRedirectUrl();
           setTimeout(() => {
-            window.location.href = redirectUrl;
+            navigateAfterAuth(redirectUrl);
           }, 600);
         } else {
           throw new Error('Authentication failed. Please verify your email and password.');
@@ -544,7 +554,7 @@
           showToast(`Workspace "${companyName}" created successfully! Redirecting...`, 'success');
           const redirectUrl = getSafeRedirectUrl();
           setTimeout(() => {
-            window.location.href = redirectUrl;
+            navigateAfterAuth(redirectUrl);
           }, 700);
         }
       } catch (err) {

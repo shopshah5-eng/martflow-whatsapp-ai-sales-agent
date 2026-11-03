@@ -8,7 +8,7 @@ import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp, verifySessionToken } from '../auth/authService.js';
+import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
 import { authenticate, requireRole } from '../middleware/authMiddleware.js';
 import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
@@ -128,21 +128,19 @@ router.get('/ready', async (req, res) => {
 });
 
 router.get('/auth/me', authenticate, async (req, res) => {
-  let profile = null;
-  if (repository.getSupabase()) {
-    try {
-      profile = await repository.getProfileById(req.userId);
-    } catch (e) {}
+  try {
+    // The repository already selects the configured authoritative store. Never
+    // hide a production read failure with an unrelated local profile cache.
+    const profile = await repository.getProfileById(req.userId);
+    res.json({
+      ok: true,
+      user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name || profile.fullName, phone: profile.phone } : null,
+      organization: req.organization,
+      role: req.role
+    });
+  } catch (error) {
+    res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to verify your account right now.' });
   }
-  if (!profile) {
-    profile = db.findById('profiles', req.userId);
-  }
-  res.json({
-    ok: true,
-    user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name || profile.fullName, phone: profile.phone } : null,
-    organization: req.organization,
-    role: req.role
-  });
 });
 
 // ==========================================
@@ -901,29 +899,27 @@ const publicEnquiryLimiter = rateLimit({
 router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
   const { name, phone, productQuery, city, message } = req.body || {};
   const cleanPhone = String(phone || '').replace(/\D/g, '');
-  if (!cleanPhone || cleanPhone.length < 10) {
+  if (!/^\d{10,15}$/.test(cleanPhone)) {
     return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });
   }
 
   try {
     // Never put an anonymous demo enquiry into an unrelated customer's tenant.
-    let demoOrg = null;
-    try {
-      demoOrg = await repository.getOrganizationById('6fd354d9-3437-412d-856e-28bc19d44268');
-    } catch (_) {}
-    if (!demoOrg) {
-      demoOrg = db.findById('organizations', '6fd354d9-3437-412d-856e-28bc19d44268');
-    }
+    const demoOrg = await repository.getOrganizationById('6fd354d9-3437-412d-856e-28bc19d44268');
     if (!demoOrg) return res.status(503).json({ ok: false, error: 'Demo enquiries are currently unavailable.' });
     const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
-    const { lead } = LeadService.createOrDeduplicateLead(demoOrg.id, {
+    const leadInput = {
       buyer_name: name || 'Demo Buyer',
       buyer_phone: normPhone,
       buyer_city: city || 'Demo City',
       product_inquired: productQuery || 'Automatic Pouch Packing Machine',
+      query_message: message || 'Public Demo Website Inquiry',
       requirement: message || 'Public Demo Website Inquiry',
       source: 'Website Public Live Demo'
-    });
+    };
+    const lead = repository.isProduction && process.env.USE_LOCAL_DB !== 'true'
+      ? await repository.createLead(demoOrg.id, leadInput)
+      : LeadService.createOrDeduplicateLead(demoOrg.id, leadInput).lead;
     res.json({
       ok: true,
       lead: {
@@ -935,7 +931,7 @@ router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 500).json({ ok: false, error: 'Demo enquiries are currently unavailable.' });
   }
 });
 
@@ -948,7 +944,14 @@ const simulationLimiter = rateLimit({
 });
 
 // Rebuilt tenant-isolated, consent-based simulation endpoint
-router.post('/simulate-lead', simulationLimiter, async (req, res) => {
+router.post('/simulate-lead', simulationLimiter, (req, res, next) => {
+  // If credentials are supplied, they must pass the same live membership check
+  // as every other protected route; invalid credentials never become public demo.
+  if (req.headers.authorization || req.headers['x-session-token'] || req.headers['x-platform-admin-key']) {
+    return authenticate(req, res, next);
+  }
+  next();
+}, async (req, res) => {
   try {
     const { consent, phone, name, productQuery, productName, city, message, queryMessage } = req.body || {};
 
@@ -962,7 +965,7 @@ router.post('/simulate-lead', simulationLimiter, async (req, res) => {
 
     // 2. Validate WhatsApp phone number (minimum 10 digits)
     const cleanPhone = String(phone || '').replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 10) {
+    if (!/^\d{10,15}$/.test(cleanPhone)) {
       return res.status(400).json({
         ok: false,
         error: 'Valid 10-digit WhatsApp mobile number required.'
@@ -970,54 +973,16 @@ router.post('/simulate-lead', simulationLimiter, async (req, res) => {
     }
     const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
 
-    // 3. Resolve Target Tenant with Strict Isolation
-    let targetOrgId = null;
-    const authHeader = req.headers.authorization || '';
-    if (authHeader.startsWith('Bearer ')) {
-      const token = authHeader.slice(7).trim();
-      const payload = verifySessionToken(token);
-      if (payload?.organizationId) {
-        targetOrgId = payload.organizationId;
-      } else {
-        const sb = repository.getSupabase();
-        if (sb) {
-          try {
-            const { data } = await sb.auth.getUser(token);
-            if (data?.user?.id) {
-              const profile = await repository.getProfileById(data.user.id);
-              if (profile?.org_id || profile?.organization_id) {
-                targetOrgId = profile.org_id || profile.organization_id;
-              }
-            }
-          } catch (_) {}
-        }
-      }
-    }
-
-    // If unauthenticated, strictly scope to dedicated demo tenant (never fall back to another customer)
-    const DEMO_TENANT_ID = '6fd354d9-3437-412d-856e-28bc19d44268';
-    if (!targetOrgId) {
-      targetOrgId = DEMO_TENANT_ID;
-    }
-
-    let org = null;
-    try {
-      org = await repository.getOrganizationById(targetOrgId);
-    } catch (_) {}
-    if (!org) {
-      org = db.findById('organizations', targetOrgId);
-    }
-    if (!org) {
-      return res.status(503).json({
-        ok: false,
-        error: 'Simulation workspace is currently unavailable.'
-      });
-    }
+    // An authenticated request uses only its verified membership's tenant;
+    // an anonymous request uses only the dedicated demo tenant.
+    const targetOrgId = req.organizationId || '6fd354d9-3437-412d-856e-28bc19d44268';
+    const org = req.organization || await repository.getOrganizationById(targetOrgId);
+    if (!org) return res.status(503).json({ ok: false, error: 'Simulation workspace is currently unavailable.' });
 
     // 4. Verify Baileys WhatsApp Connection State for Target Tenant
     const waState = baileysManager.getState(targetOrgId);
     const isConnected = waState?.status === 'connected';
-    const connectedAccount = waState?.phone || baileysManager.getInstance(targetOrgId)?.sock?.user?.id?.split(':')[0]?.split('@')[0] || null;
+    const connectedAccount = waState?.connectedNumber || baileysManager.getInstance(targetOrgId)?.sock?.user?.id?.split(':')[0]?.split('@')[0] || null;
 
     // 5. Create Scoped Lead
     const buyerName = (name || 'Simulated Demo Buyer').trim();
@@ -1025,14 +990,18 @@ router.post('/simulate-lead', simulationLimiter, async (req, res) => {
     const buyerCity = (city || 'Demo City').trim();
     const reqText = (message || queryMessage || 'Simulated WhatsApp Lead Inquiry').trim();
 
-    const { lead } = LeadService.createOrDeduplicateLead(targetOrgId, {
+    const leadInput = {
       buyer_name: buyerName,
       buyer_phone: normPhone,
       buyer_city: buyerCity,
       product_inquired: query,
+      query_message: reqText,
       requirement: reqText,
       source: 'Isolated Consent-Based Simulator'
-    });
+    };
+    const lead = repository.isProduction && process.env.USE_LOCAL_DB !== 'true'
+      ? await repository.createLead(targetOrgId, leadInput)
+      : LeadService.createOrDeduplicateLead(targetOrgId, leadInput).lead;
 
     // 6. Honest Delivery Status (Real messages never sent without explicit manual approval)
     const deliveryStatus = isConnected ? 'simulated_connected' : 'simulated_offline';
@@ -1040,10 +1009,10 @@ router.post('/simulate-lead', simulationLimiter, async (req, res) => {
     res.json({
       ok: true,
       simulated: true,
-      consentVerified: true,
+      consentProvided: true,
       tenantId: targetOrgId,
       deliveryStatus,
-      connectedAccount,
+      ...(req.userId ? { connectedAccount } : {}),
       lead: {
         id: lead.id,
         name: lead.buyer_name,
@@ -1052,11 +1021,11 @@ router.post('/simulate-lead', simulationLimiter, async (req, res) => {
         status: lead.status
       },
       message: isConnected
-        ? 'Consent verified. Lead recorded in isolated tenant with active WhatsApp gateway (simulation mode; real message suppressed without operator approval).'
-        : 'Consent verified. Lead recorded in isolated demo tenant (WhatsApp gateway offline).'
+        ? 'Consent provided. Lead recorded in isolated tenant with active WhatsApp gateway (simulation mode; real message suppressed without operator approval).'
+        : 'Consent provided. Lead recorded in isolated demo tenant (WhatsApp gateway offline).'
     });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 500).json({ ok: false, error: 'Simulation is currently unavailable.' });
   }
 });
 

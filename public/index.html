@@ -1769,9 +1769,7 @@
     }
 
     // Central Supabase Client (declared with let so dynamic config update does not throw)
-    let sb = (window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined')
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-      : null;
+    let sb = null;
 
     async function fetchPublicConfig() {
       try {
@@ -1797,6 +1795,11 @@
         }
       } catch (e) {
         refreshPaymentAndSupportLinks();
+      } finally {
+        // One client per page avoids competing callback/session processing.
+        if (!sb && window.supabase && typeof window.supabase.createClient === 'function') {
+          try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (error) { console.warn('Authentication initialization failed:', error.message); }
+        }
       }
     }
 
@@ -1848,9 +1851,6 @@
     // =========================================================================
     // ⚡ CENTRAL SUPABASE CLIENT (Initialized above, refreshed dynamically)
     // =========================================================================
-    if (!sb && window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined') {
-      try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (e) {}
-    }
 
     // 1. Toast Notification System (Zero alerts)
     function showToast(message, type = 'info') {
@@ -5129,17 +5129,52 @@
     // =========================================================================
     // 🚀 INITIALIZATION ON PAGE LOAD
     // =========================================================================
+    // The landing page is not a workspace. Verify sessions before redirecting,
+    // rather than hiding the landing page for an in-page dashboard that no longer exists.
+    async function authenticatedLandingTarget() {
+      if (window.location.pathname !== '/') return null;
+      let token = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
+      if (sb) {
+        try {
+          const { data } = await sb.auth.getSession();
+          if (data?.session?.access_token) token = data.session.access_token;
+        } catch (error) { console.warn('Could not read authentication session:', error.message); }
+      }
+      if (!token) return null;
+      try {
+        const response = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+        const data = await response.json();
+        if (response.ok && data.ok && data.user && data.organization) {
+          localStorage.setItem('mf_token', token);
+          localStorage.setItem('mf_auth_token', token);
+          return '/app';
+        }
+        if (response.status === 401 || response.status === 403) {
+          for (const key of ['mf_token', 'mf_auth_token', 'mf_current_user', 'mf_current_org']) localStorage.removeItem(key);
+        }
+      } catch (error) {
+        console.warn('Could not verify the workspace session:', error.message);
+      }
+      return null;
+    }
+
+    function navigateFromLanding(target) { window.location.replace(target); }
+
     window.addEventListener('DOMContentLoaded', async () => {
-      if (window.location.hash.includes('access_token')) {
-        window.location.href = '/app' + window.location.hash;
+      const params = new URLSearchParams(window.location.search);
+      if (window.location.hash.includes('access_token') || params.has('code')) {
+        navigateFromLanding('/login' + window.location.search + window.location.hash);
         return;
       }
-
       initScrollReveal();
       checkWhiteLabelUrlParams();
       refreshPaymentAndSupportLinks();
-      fetchPublicConfig();
-      await checkAuthStatus();
+      await fetchPublicConfig();
+      const target = await authenticatedLandingTarget();
+      if (target) {
+        navigateFromLanding(target);
+        return;
+      }
       handleRoute();
     });
 
