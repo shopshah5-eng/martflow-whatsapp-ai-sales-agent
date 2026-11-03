@@ -3,6 +3,7 @@ import dns from 'dns';
 if (typeof dns.setDefaultResultOrder === 'function') {
   dns.setDefaultResultOrder('ipv4first');
 }
+import crypto from 'crypto';
 import express from 'express';
 import fs from 'fs';
 import path from 'path';
@@ -953,17 +954,18 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           }
 
           const res = Array.isArray(leadRows) ? leadRows[0] : leadRows;
-          if (!res || !res.lead_id) {
+          const leadId = res ? (res.out_lead_id || res.lead_id) : null;
+          if (!res || !leadId) {
             addLog(`[Quota/Lead Error] No lead returned from atomic reservation`);
             return;
           }
 
-          isBrandNewLead = Boolean(res.is_new);
+          isBrandNewLead = Boolean(res.out_is_new ?? res.is_new);
           sLead = {
-            id: res.lead_id,
+            id: leadId,
             buyer_name: pushName,
             buyer_phone: senderPhone,
-            quota_admitted: Boolean(res.quota_admitted)
+            quota_admitted: Boolean(res.out_quota_admitted ?? res.quota_admitted)
           };
 
           let { data: existingConv } = await supabaseAdmin
@@ -2621,19 +2623,19 @@ app.get('/api/status', authenticate, requireRole(['owner', 'admin', 'superadmin'
 });
 
 app.post('/api/config', authenticate, requireRole(['owner', 'admin']), (req, res) => {
-  const { companyName, cityBase, geminiApiKey, ownerAlertPhone, replyDelaySec, autoReplyEnabled, replyWithVoiceNotes } = req.body;
+  const { companyName, cityBase, ownerAlertPhone, replyDelaySec, autoReplyEnabled, replyWithVoiceNotes } = req.body;
   if (typeof companyName === 'string' && companyName.trim()) config.companyName = companyName.trim();
   if (typeof cityBase === 'string') config.cityBase = cityBase.trim();
-  if (typeof geminiApiKey === 'string' && !geminiApiKey.includes('...')) {
-    config.geminiApiKey = geminiApiKey.trim();
-  }
   if (typeof ownerAlertPhone === 'string') config.ownerAlertPhone = ownerAlertPhone.trim();
   if (replyDelaySec !== undefined) config.replyDelaySec = Math.max(0, Math.min(60, Number(replyDelaySec) || 0));
   if (typeof autoReplyEnabled === 'boolean') config.autoReplyEnabled = autoReplyEnabled;
   if (typeof replyWithVoiceNotes === 'boolean') config.replyWithVoiceNotes = replyWithVoiceNotes;
   saveConfig(config);
   addLog('Settings updated from dashboard.');
-  res.json({ ok: true, config });
+  const safeConfig = { ...config };
+  delete safeConfig.geminiApiKey;
+  safeConfig.hasGeminiKey = Boolean(config.geminiApiKey);
+  res.json({ ok: true, config: safeConfig });
 });
 
 // 1. Operator Live Demo Trigger + Public Simulator Form Endpoint
@@ -2696,41 +2698,38 @@ app.post(['/api/webhook/b2b', '/api/webhook/b2b/:key', '/api/webhook/indiamart',
 });
 
 // 3. Browser Dry-Run AI Chat Tester (Test AI replies with 0 WhatsApp messages!)
-let dryRunLead = {
-  name: '',
-  productName: '',
-  city: '',
-  requirement: '',
-  history: []
-};
+const dryRunSessions = new Map();
 
-app.post('/api/dry-run-chat', async (req, res) => {
+app.post('/api/dry-run-chat', authenticate, async (req, res) => {
+  const sessionKey = req.userId || req.organizationId || 'default';
   const { text, reset, customerName } = req.body;
-  if (reset) {
-    dryRunLead = {
+  if (reset || !dryRunSessions.has(sessionKey)) {
+    const fresh = {
       name: customerName ? customerName.trim() : '',
       productName: '',
       city: '',
       requirement: '',
       history: []
     };
-    return res.json({ ok: true, dryRunLead });
+    dryRunSessions.set(sessionKey, fresh);
+    if (reset) return res.json({ ok: true, dryRunLead: fresh });
   }
-  if (customerName) dryRunLead.name = customerName.trim();
+  const sessionLead = dryRunSessions.get(sessionKey);
+  if (customerName) sessionLead.name = customerName.trim();
   const inputMsg = text || req.body.message || '';
-  dryRunLead.history.push({ role: 'buyer', text: inputMsg, ts: new Date().toISOString() });
-  const result = await generateSalesReply({ lead: dryRunLead, incomingText: inputMsg });
-  if (result.extractedCustomerName && !dryRunLead.name) {
-    dryRunLead.name = result.extractedCustomerName;
+  sessionLead.history.push({ role: 'buyer', text: inputMsg, ts: new Date().toISOString() });
+  const result = await generateSalesReply({ lead: sessionLead, incomingText: inputMsg, organizationId: req.organizationId });
+  if (result.extractedCustomerName && !sessionLead.name) {
+    sessionLead.name = result.extractedCustomerName;
   }
-  if (result.extractedCity) dryRunLead.city = result.extractedCity;
+  if (result.extractedCity) sessionLead.city = result.extractedCity;
   if (result.extractedRequirement) {
-    dryRunLead.requirement = dryRunLead.requirement
-      ? `${dryRunLead.requirement} | ${result.extractedRequirement}`
+    sessionLead.requirement = sessionLead.requirement
+      ? `${sessionLead.requirement} | ${result.extractedRequirement}`
       : result.extractedRequirement;
   }
-  dryRunLead.history.push({ role: 'ai', text: result.reply, ts: new Date().toISOString() });
-  res.json({ ok: true, reply: result.reply, dryRunLead, isHotLead: result.isHotLead });
+  sessionLead.history.push({ role: 'ai', text: result.reply, ts: new Date().toISOString() });
+  res.json({ ok: true, reply: result.reply, dryRunLead: sessionLead, isHotLead: result.isHotLead });
 });
 
 // 4. Export Qualified Leads as Excel-Ready CSV (Tenant-Scoped with Formula Injection Protection)
@@ -2802,7 +2801,7 @@ app.post('/api/upload-catalog', authenticate, async (req, res) => {
 });
 
 // AI Catalog Extraction Fallback Endpoint for unstructured text
-app.post('/api/catalog/extract-ai', async (req, res) => {
+app.post('/api/catalog/extract-ai', authenticate, async (req, res) => {
   try {
     const { rawText, fileName } = req.body;
     if (!rawText || !rawText.trim()) {
@@ -2871,7 +2870,7 @@ Return a strict JSON object with this structure:
 });
 
 // Confirm available call time from Client Dashboard and notify both parties
-app.post('/api/callbacks/confirm-time', async (req, res) => {
+app.post('/api/callbacks/confirm-time', authenticate, async (req, res) => {
   try {
     const { leadId, confirmedTime } = req.body;
     let targetLead = null;
@@ -2898,7 +2897,7 @@ app.post('/api/callbacks/confirm-time', async (req, res) => {
 });
 
 // Trigger a Demo Call Request to test the 2-way WhatsApp prompt
-app.post('/api/callbacks/request-demo', async (req, res) => {
+app.post('/api/callbacks/request-demo', authenticate, async (req, res) => {
   try {
     const ownerDigits = normalizePhone(config.ownerAlertPhone || '');
     let lead = leads.find((l) => normalizePhone(l.phone) !== ownerDigits);

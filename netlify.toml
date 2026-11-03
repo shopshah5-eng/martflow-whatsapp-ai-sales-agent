@@ -8,3 +8,14 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
 
+# API requests rewrite / proxy
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+
+# Single Page Application HTML fallback
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

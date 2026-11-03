@@ -302,6 +302,92 @@ test('INTEGRATION: Durable Razorpay order creation, verification, and replay att
   }
 });
 
+test('INTEGRATION: Direct UPI submission, duplicate UTR rejection, and platform reconciliation', async () => {
+  const app = express();
+  app.use(express.json());
+  app.use('/api', apiRouter);
+  const server = app.listen(0);
+  const url = `http://127.0.0.1:${server.address().port}/api`;
+
+  const owner = await signUp({
+    email: `pay_direct_upi_${crypto.randomUUID()}@example.com`,
+    password: 'Password123!',
+    fullName: 'UPI Payment Tester',
+    companyName: 'UPI Payment Co'
+  });
+
+  try {
+    // 1. Direct UPI submit UTR -> 200 pending_verification
+    const testUtr = 'UTR' + Date.now() + 'ABC';
+    const upiSubmitResp = await fetch(`${url}/payments/upi-verify`, {
+      method: 'POST',
+      headers: headers(owner.token),
+      body: JSON.stringify({ utrReference: testUtr, amountInr: 9999 })
+    });
+    assert.equal(upiSubmitResp.status, 200);
+    const upiData = await upiSubmitResp.json();
+    assert.equal(upiData.ok, true);
+    assert.equal(upiData.status, 'pending_verification');
+    assert.ok(upiData.paymentId);
+
+    // 2. Duplicate UTR submission -> 409 Conflict
+    const upiDupResp = await fetch(`${url}/payments/upi-verify`, {
+      method: 'POST',
+      headers: headers(owner.token),
+      body: JSON.stringify({ utrReference: testUtr, amountInr: 9999 })
+    });
+    assert.equal(upiDupResp.status, 409);
+
+    // 3. Tenant owner cannot self-reconcile -> 403 Forbidden
+    const unauthReconcile = await fetch(`${url}/admin/payments/reconcile`, {
+      method: 'POST',
+      headers: headers(owner.token),
+      body: JSON.stringify({ paymentId: upiData.paymentId, status: 'verified' })
+    });
+    assert.equal(unauthReconcile.status, 403);
+
+    // 4. Platform finance admin with key can reconcile -> 200 and activates plan
+    const platformSecret = process.env.PLATFORM_ADMIN_SECRET || process.env.SESSION_SECRET;
+    const authReconcile = await fetch(`${url}/admin/payments/reconcile`, {
+      method: 'POST',
+      headers: {
+        ...headers(owner.token),
+        'x-platform-admin-key': platformSecret
+      },
+      body: JSON.stringify({ paymentId: upiData.paymentId, status: 'verified', notes: 'Verified in bank feed' })
+    });
+    assert.equal(authReconcile.status, 200);
+    const recData = await authReconcile.json();
+    assert.equal(recData.ok, true);
+    assert.equal(recData.activated, true);
+
+    const updatedOrg = db.findById('organizations', owner.organization.id);
+    assert.equal(updatedOrg.plan_status, 'active');
+  } finally {
+    server.close();
+  }
+});
+
+test('INTEGRATION: Stored procedures, ambiguous column error 42702 prevention, and immutability trigger', async () => {
+  const migrationSql = fs.readFileSync(path.resolve('scripts/production_safety_migration.sql'), 'utf8');
+  const schemaSql = fs.readFileSync(path.resolve('supabase_schema.sql'), 'utf8');
+
+  // Verify unambiguous output columns avoiding Error 42702
+  assert.ok(migrationSql.includes('RETURNS TABLE(out_lead_id UUID, out_quota_admitted BOOLEAN, out_is_new BOOLEAN)'), 'Migration must declare out_lead_id to prevent error 42702');
+  assert.ok(schemaSql.includes('RETURNS TABLE(out_lead_id UUID, out_quota_admitted BOOLEAN, out_is_new BOOLEAN)'), 'Schema must declare out_lead_id to prevent error 42702');
+  assert.ok(migrationSql.includes('RETURNING leads.id, leads.quota_admitted'), 'Migration must qualify RETURNING columns');
+  assert.ok(schemaSql.includes('RETURNING leads.id, leads.quota_admitted'), 'Schema must qualify RETURNING columns');
+
+  // Verify lead deduplication before creating unique index
+  assert.ok(migrationSql.includes('DELETE FROM public.leads a USING public.leads b'), 'Migration must deduplicate leads before index creation');
+
+  // Verify immutability trigger covers sensitive billing and worker fields
+  assert.ok(migrationSql.includes('check_org_billing_fields_immutability'), 'Migration must define immutability trigger');
+  assert.ok(migrationSql.includes('NEW.trial_ends_at IS DISTINCT FROM OLD.trial_ends_at'), 'Trigger must protect trial_ends_at');
+  assert.ok(migrationSql.includes('NEW.custom_quote_inr IS DISTINCT FROM OLD.custom_quote_inr'), 'Trigger must protect custom_quote_inr');
+  assert.ok(migrationSql.includes('NEW.wa_worker_id IS DISTINCT FROM OLD.wa_worker_id'), 'Trigger must protect wa_worker_id');
+});
+
 test('INTEGRATION: Multi-worker outbound queue atomic claiming avoids duplicate sends', async () => {
   // Simulate distributed queue table with pending status
   const queueStore = new Map();

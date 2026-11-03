@@ -6,6 +6,7 @@
 import crypto from 'crypto';
 import db from '../db/index.js';
 import { repository } from '../db/repository.js';
+import { createClient } from '@supabase/supabase-js';
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'martflow_sec_' + crypto.randomBytes(16).toString('hex');
 const OTP_STORE = new Map(); // phone -> { otp, expiresAt, attempts }
@@ -93,54 +94,72 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
     }
     const authUser = createData.user;
 
-    const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.random().toString(36).slice(2, 6);
-    const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
-    const { data: organization, error: orgErr } = await sb.from('organizations').insert({
-      name: companyName.trim(),
-      slug,
-      webhook_key: webhookKey,
-      industry: 'Machinery & Manufacturing',
-      plan_status: 'trial',
-      trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-      monthly_lead_limit: 25,
-      leads_used: 0
-    }).select().single();
+    try {
+      // Check if handle_new_user_provisioning trigger already provisioned org and profile
+      let profile = await repository.getProfileById(authUser.id);
+      let organization = profile && profile.org_id ? await repository.getOrganizationById(profile.org_id) : null;
 
-    if (orgErr) {
-      throw new Error(orgErr.message || 'Failed to create organization in database.');
-    }
+      if (!organization || !profile) {
+        // Fallback provisioning if schema trigger is absent
+        const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.random().toString(36).slice(2, 6);
+        const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
+        if (!organization) {
+          const { data: orgData, error: orgErr } = await sb.from('organizations').insert({
+            name: companyName.trim(),
+            slug,
+            webhook_key: webhookKey,
+            industry: 'Machinery & Manufacturing',
+            plan_status: 'trial',
+            trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+            monthly_lead_limit: 25,
+            leads_used: 0
+          }).select().single();
+          if (orgErr) throw new Error(orgErr.message || 'Failed to create organization in database.');
+          organization = orgData;
+        }
 
-    const { data: profile, error: profErr } = await sb.from('profiles').insert({
-      id: authUser.id,
-      org_id: organization.id,
-      email: cleanEmail,
-      full_name: fullName.trim(),
-      phone: phone ? phone.trim() : null,
-      role: 'owner',
-      is_email_verified: true,
-      is_phone_verified: false
-    }).select().single();
+        if (!profile) {
+          const { data: profData, error: profErr } = await sb.from('profiles').insert({
+            id: authUser.id,
+            org_id: organization.id,
+            email: cleanEmail,
+            full_name: fullName.trim(),
+            phone: phone ? phone.trim() : null,
+            role: 'owner',
+            is_email_verified: true,
+            is_phone_verified: false
+          }).select().single();
+          if (profErr) throw new Error(profErr.message || 'Failed to provision user profile.');
+          profile = profData;
+        }
+      }
 
-    if (profErr) {
-      throw new Error(profErr.message || 'Failed to provision user profile.');
-    }
+      const role = profile.role || 'owner';
+      const token = createSessionToken(profile.id, organization.id, role);
 
-    const token = createSessionToken(profile.id, organization.id, 'owner');
-
-    return {
-      user: {
-        id: profile.id,
-        email: profile.email,
-        fullName: profile.full_name,
-        phone: profile.phone
-      },
-      organization: {
-        id: organization.id,
-        name: organization.name,
-        slug: organization.slug
-      },
-      role: 'owner',
-      token
+      return {
+        user: {
+          id: profile.id,
+          email: profile.email,
+          fullName: profile.full_name,
+          phone: profile.phone
+        },
+        organization: {
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug
+        },
+        role,
+        token
+      };
+    } catch (provisionErr) {
+      // Clean up dangling auth.users entry on partial failure
+      try {
+        await sb.auth.admin.deleteUser(authUser.id);
+      } catch (delErr) {
+        console.error('[Auth Cleanup] Failed to delete dangling user:', delErr.message);
+      }
+      throw new Error(provisionErr.message || 'Failed to complete tenant provisioning.');
     };
   }
 
@@ -225,7 +244,16 @@ export async function login({ email, password }) {
       throw new Error('Primary authentication database is unavailable.');
     }
 
-    const { data: authData, error: authErr } = await sb.auth.signInWithPassword({
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const authClient = createClient(supabaseUrl, supabaseKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false
+      }
+    });
+
+    const { data: authData, error: authErr } = await authClient.auth.signInWithPassword({
       email: cleanEmail,
       password
     });

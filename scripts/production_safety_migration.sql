@@ -6,9 +6,24 @@ ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_id TEXT;
 ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_heartbeat TIMESTAMPTZ;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS quote_code TEXT;
 
+-- Deduplicate existing leads (keeping newest) before creating unique index
+DELETE FROM public.leads a USING public.leads b
+WHERE a.org_id = b.org_id
+  AND a.buyer_phone = b.buyer_phone
+  AND a.created_at < b.created_at;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_org_buyer_phone ON public.leads (org_id, buyer_phone);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay_payment_id ON public.payments (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_payments_razorpay_order_id ON public.payments (razorpay_order_id);
+
+-- Clean up permissive policies that may have been created by legacy scripts
+DROP POLICY IF EXISTS "whatsapp_sessions_allow_all" ON public.whatsapp_sessions;
+DROP POLICY IF EXISTS "Allow all wa_outbound_queue access" ON public.wa_outbound_queue;
+DROP POLICY IF EXISTS "Allow all call_requests access" ON public.call_requests;
+DROP POLICY IF EXISTS "Public Access Catalogs" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Uploads Catalogs" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Updates Catalogs" ON storage.objects;
+DROP POLICY IF EXISTS "Allow Deletes Catalogs" ON storage.objects;
 
 DROP FUNCTION IF EXISTS public.increment_leads_used(UUID);
 CREATE OR REPLACE FUNCTION public.reserve_lead_quota(p_org_id UUID)
@@ -29,6 +44,8 @@ END $$;
 REVOKE ALL ON FUNCTION public.reserve_lead_quota(UUID) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reserve_lead_quota(UUID) TO service_role;
 
+DROP FUNCTION IF EXISTS public.reserve_and_create_lead(UUID, TEXT, TEXT, TEXT, TEXT, BOOLEAN);
+
 CREATE OR REPLACE FUNCTION public.reserve_and_create_lead(
   p_org_id UUID,
   p_buyer_phone TEXT,
@@ -37,7 +54,7 @@ CREATE OR REPLACE FUNCTION public.reserve_and_create_lead(
   p_requirement TEXT DEFAULT NULL,
   p_bypass_quota BOOLEAN DEFAULT FALSE
 )
-RETURNS TABLE(lead_id UUID, quota_admitted BOOLEAN, is_new BOOLEAN)
+RETURNS TABLE(out_lead_id UUID, out_quota_admitted BOOLEAN, out_is_new BOOLEAN)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public AS $$
 DECLARE
   v_lead_id UUID;
@@ -46,39 +63,53 @@ DECLARE
   v_limit INT;
   v_trial_ends TIMESTAMPTZ;
   v_plan_status TEXT;
+  v_clean_phone TEXT;
   v_digits TEXT;
 BEGIN
-  v_digits := right(regexp_replace(COALESCE(p_buyer_phone, ''), '\D', '', 'g'), 10);
+  -- Normalize phone to digits
+  v_clean_phone := regexp_replace(COALESCE(p_buyer_phone, ''), '\D', '', 'g');
+  IF length(v_clean_phone) >= 10 THEN
+    v_digits := right(v_clean_phone, 10);
+  ELSE
+    v_digits := v_clean_phone;
+  END IF;
 
-  -- 1. Check if lead already exists for this org and phone (last 10 digits match)
-  SELECT id, leads.quota_admitted INTO v_lead_id, v_admitted
-  FROM public.leads
-  WHERE org_id = p_org_id
-    AND (buyer_phone = p_buyer_phone OR (length(v_digits) >= 10 AND right(regexp_replace(buyer_phone, '\D', '', 'g'), 10) = v_digits))
-  ORDER BY created_at DESC
+  -- 1. CRITICAL: Lock organization row FIRST before reading leads or checking quota
+  SELECT o.leads_used, o.monthly_lead_limit, o.trial_ends_at, o.plan_status
+  INTO v_leads_used, v_limit, v_trial_ends, v_plan_status
+  FROM public.organizations o
+  WHERE o.id = p_org_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Organization not found';
+  END IF;
+
+  -- 2. Check if lead already exists for this org and phone (while holding org lock)
+  SELECT l.id, l.quota_admitted INTO v_lead_id, v_admitted
+  FROM public.leads l
+  WHERE l.org_id = p_org_id
+    AND (
+      l.buyer_phone = p_buyer_phone
+      OR l.buyer_phone = v_clean_phone
+      OR (length(v_digits) >= 10 AND right(regexp_replace(l.buyer_phone, '\D', '', 'g'), 10) = v_digits)
+    )
+  ORDER BY l.created_at DESC
   LIMIT 1;
 
   IF v_lead_id IS NOT NULL THEN
     IF v_admitted = FALSE THEN
       IF p_bypass_quota THEN
         v_admitted := TRUE;
-        UPDATE public.leads SET quota_admitted = TRUE WHERE id = v_lead_id;
+        UPDATE public.leads SET quota_admitted = TRUE, updated_at = now() WHERE leads.id = v_lead_id;
       ELSE
-        SELECT o.leads_used, o.monthly_lead_limit, o.trial_ends_at, o.plan_status
-        INTO v_leads_used, v_limit, v_trial_ends, v_plan_status
-        FROM public.organizations o
-        WHERE o.id = p_org_id
-        FOR UPDATE;
-
-        IF FOUND THEN
-          IF (v_plan_status = 'active' AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 999999))
-             OR (v_plan_status = 'trial' AND (v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
-            UPDATE public.organizations
-            SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
-            WHERE id = p_org_id;
-            v_admitted := TRUE;
-            UPDATE public.leads SET quota_admitted = TRUE WHERE id = v_lead_id;
-          END IF;
+        IF (v_plan_status = 'active' AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 999999))
+           OR (v_plan_status = 'trial' AND (v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
+          UPDATE public.organizations
+          SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
+          WHERE organizations.id = p_org_id;
+          v_admitted := TRUE;
+          UPDATE public.leads SET quota_admitted = TRUE, updated_at = now() WHERE leads.id = v_lead_id;
         END IF;
       END IF;
     END IF;
@@ -87,38 +118,28 @@ BEGIN
     RETURN;
   END IF;
 
-  -- 2. Brand new lead: Check and reserve quota atomically
+  -- 3. Brand new lead: Check quota while holding org row lock
   IF p_bypass_quota THEN
     v_admitted := TRUE;
   ELSE
-    SELECT o.leads_used, o.monthly_lead_limit, o.trial_ends_at, o.plan_status
-    INTO v_leads_used, v_limit, v_trial_ends, v_plan_status
-    FROM public.organizations o
-    WHERE o.id = p_org_id
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'Organization not found';
-    END IF;
-
     IF (v_plan_status = 'active' AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 999999))
        OR (v_plan_status = 'trial' AND (v_trial_ends IS NULL OR v_trial_ends > now()) AND COALESCE(v_leads_used, 0) < COALESCE(v_limit, 25)) THEN
       UPDATE public.organizations
       SET leads_used = COALESCE(leads_used, 0) + 1, updated_at = now()
-      WHERE id = p_org_id;
+      WHERE organizations.id = p_org_id;
       v_admitted := TRUE;
     ELSE
       v_admitted := FALSE;
     END IF;
   END IF;
 
-  -- 3. Insert new lead with conflict resolution
+  -- 4. Insert new lead with conflict resolution
   INSERT INTO public.leads (
     org_id, buyer_name, buyer_phone, query_message, requirement, status, quota_admitted
   ) VALUES (
     p_org_id,
     COALESCE(p_buyer_name, 'Customer'),
-    p_buyer_phone,
+    CASE WHEN length(v_clean_phone) >= 10 THEN v_clean_phone ELSE p_buyer_phone END,
     p_query_message,
     COALESCE(p_requirement, p_query_message),
     'Hot Lead',
@@ -126,7 +147,7 @@ BEGIN
   )
   ON CONFLICT (org_id, buyer_phone) DO UPDATE
     SET updated_at = now()
-  RETURNING id, quota_admitted INTO v_lead_id, v_admitted;
+  RETURNING leads.id, leads.quota_admitted INTO v_lead_id, v_admitted;
 
   RETURN QUERY SELECT v_lead_id, v_admitted, TRUE;
 END $$;
@@ -190,6 +211,32 @@ CREATE POLICY products_tenant_select ON public.products FOR SELECT USING (org_id
 DROP POLICY IF EXISTS org_isolation_insert ON public.organizations;
 ALTER TABLE public.organizations ALTER COLUMN plan_status SET DEFAULT 'trial';
 ALTER TABLE public.organizations ALTER COLUMN monthly_lead_limit SET DEFAULT 25;
+
+-- Prevent privilege escalation: billing, quota, quote, worker, and security fields are immutable for authenticated tenants
+CREATE OR REPLACE FUNCTION public.check_org_billing_fields_immutability()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (auth.jwt() ->> 'role') = 'authenticated' THEN
+        IF NEW.plan_status IS DISTINCT FROM OLD.plan_status OR
+           NEW.trial_ends_at IS DISTINCT FROM OLD.trial_ends_at OR
+           NEW.custom_quote_inr IS DISTINCT FROM OLD.custom_quote_inr OR
+           NEW.quote_code IS DISTINCT FROM OLD.quote_code OR
+           NEW.monthly_lead_limit IS DISTINCT FROM OLD.monthly_lead_limit OR
+           NEW.leads_used IS DISTINCT FROM OLD.leads_used OR
+           NEW.webhook_key IS DISTINCT FROM OLD.webhook_key OR
+           NEW.wa_worker_id IS DISTINCT FROM OLD.wa_worker_id OR
+           NEW.wa_worker_heartbeat IS DISTINCT FROM OLD.wa_worker_heartbeat THEN
+            RAISE EXCEPTION 'Unauthorized: Billing, quota, security, and worker fields can only be updated via verified backend operations';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS trg_org_billing_immutability ON public.organizations;
+CREATE TRIGGER trg_org_billing_immutability
+    BEFORE UPDATE ON public.organizations
+    FOR EACH ROW EXECUTE FUNCTION public.check_org_billing_fields_immutability();
 
 CREATE OR REPLACE FUNCTION public.handle_new_user_provisioning()
 RETURNS TRIGGER

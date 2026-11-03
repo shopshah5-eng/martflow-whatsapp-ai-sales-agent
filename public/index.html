@@ -2773,9 +2773,8 @@
         try {
           const pending = JSON.parse(pendingUtrRaw);
           if (pending && pending.utr) {
-            localStorage.removeItem('mf_pending_utr');
             try {
-              await fetch(`${API_BASE}/api/payments/upi-verify`, {
+              const res = await fetch(`${API_BASE}/api/payments/upi-verify`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -2783,26 +2782,15 @@
                 },
                 body: JSON.stringify({ utrReference: pending.utr, amountInr: pending.amount || 999, plan: pending.plan })
               });
+              if (res.ok) {
+                localStorage.removeItem('mf_pending_utr');
+                currentOrg.plan_status = 'pending_verification';
+                showToast(`✅ Payment UTR ${escapeHtml(pending.utr)} linked! Payment is pending verification by finance desk.`, 'info');
+                if (typeof loadMembershipData === 'function') loadMembershipData();
+              }
             } catch (apiErr) {
               console.warn('API upi-verify sync error:', apiErr);
             }
-            if (sb) {
-              try {
-                await sb.from('payments').insert({
-                  org_id: currentOrg.id,
-                  amount_inr: pending.amount || 999,
-                  provider: 'upi_direct',
-                  utr_reference: pending.utr,
-                  status: 'pending_verification'
-                });
-                await sb.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', currentOrg.id);
-              } catch (sbErr) {
-                console.warn('Supabase pending payment insert:', sbErr);
-              }
-            }
-            currentOrg.plan_status = 'pending_verification';
-            showToast(`✅ Payment UTR ${escapeHtml(pending.utr)} linked! Payment is pending verification by finance desk.`, 'info');
-            if (typeof loadMembershipData === 'function') loadMembershipData();
           }
         } catch (e) {
           console.warn('Pending UTR auto-submit error:', e);
@@ -4648,7 +4636,12 @@
           badge.textContent = 'Ready to Scan';
         }
         if (qrContainer) {
-          qrContainer.innerHTML = '<img src="' + currentOrg.wa_qr_data_url + '" alt="WhatsApp QR Code" class="w-full h-full object-contain rounded-lg shadow-sm">';
+          qrContainer.innerHTML = '';
+          const qrImg = document.createElement('img');
+          qrImg.src = String(currentOrg.wa_qr_data_url).startsWith('data:image/') ? currentOrg.wa_qr_data_url : '';
+          qrImg.alt = 'WhatsApp QR Code';
+          qrImg.className = 'w-full h-full object-contain rounded-lg shadow-sm';
+          qrContainer.appendChild(qrImg);
         }
         if (qrMsg) qrMsg.textContent = 'Scan this QR code with WhatsApp > Linked Devices > Link a Device.';
       } else if (currentOrg.wa_status === 'code_ready' && currentOrg.wa_pairing_code) {
@@ -4828,7 +4821,12 @@
               currentOrg.wa_status = 'qr_ready';
               currentOrg.wa_qr_data_url = qrUrl;
               if (qrContainer) {
-                qrContainer.innerHTML = '<img src="' + qrUrl + '" alt="WhatsApp QR Code" class="w-full h-full object-contain rounded-lg shadow-sm">';
+                qrContainer.innerHTML = '';
+                const qrImg = document.createElement('img');
+                qrImg.src = String(qrUrl).startsWith('data:image/') ? qrUrl : '';
+                qrImg.alt = 'WhatsApp QR Code';
+                qrImg.className = 'w-full h-full object-contain rounded-lg shadow-sm';
+                qrContainer.appendChild(qrImg);
               }
               if (badge) {
                 badge.className = 'text-[11px] font-bold text-indigo-600 animate-pulse';
@@ -5168,7 +5166,7 @@
       'PRO14999': { amount: 14999, desc: 'Pro High-Volume 3-Month Launch Offer (₹14,999)' },
       'PILOT999': { amount: 999, desc: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
       'VIP999': { amount: 999, desc: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
-      'ADJUST999': { amount: 999, discount: 999, desc: '₹999 VIP Pilot Deposit Deducted!', label: '₹999 VIP Pilot Deposit Deducted!' },
+      'ADJUST999': { amount: 9000, discount: 999, desc: '₹999 VIP Pilot Deposit Adjusted! Pay ₹9,000 balance.', label: '₹999 VIP Pilot Deposit Deducted (Pay ₹9,000)' },
       'UPGRADE9K': { amount: 9000, desc: 'Standard Growth Balance (₹9,000 after ₹999 Pilot Adjusted)' },
       'UPGRADE14K': { amount: 14000, desc: 'Pro Business Balance (₹14,000 after ₹999 Pilot Adjusted)' },
       'PARTNER75': { amount: 7499, desc: 'Partner Growth Plan — 500 Leads/mo' },
@@ -5247,20 +5245,7 @@
           throw new Error(data.error || 'Failed to submit UTR reference');
         }
 
-        if (sb) {
-          try {
-            await sb.from('payments').insert({
-              org_id: currentOrg.id,
-              amount_inr: amount,
-              provider: 'upi_direct',
-              utr_reference: utr,
-              status: 'pending_verification'
-            });
-            await sb.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', currentOrg.id);
-          } catch (sbErr) {
-            console.warn('Supabase direct insert skipped:', sbErr);
-          }
-        }
+// Authoritative server endpoint manages payments table
         currentOrg.plan_status = 'pending_verification';
         showToast('UTR submitted successfully! Payment is pending verification by finance desk. Your plan will activate upon bank reconciliation.', 'success');
         closeActivationModal();

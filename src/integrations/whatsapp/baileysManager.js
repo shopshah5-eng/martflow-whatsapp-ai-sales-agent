@@ -47,15 +47,15 @@ async function getBaileysVersion() {
 }
 
 const pdfBufferCache = new Map();
-async function getPdfBuffer(url) {
+async function getPdfBuffer(orgId, url) {
   if (!url) return null;
-  if (pdfBufferCache.has(url)) return pdfBufferCache.get(url);
+  const cacheKey = `${orgId || 'global'}:${url}`;
+  if (pdfBufferCache.has(cacheKey)) return pdfBufferCache.get(cacheKey);
   try {
-    const resp = await fetch(url);
-    if (resp.ok) {
-      const arr = await resp.arrayBuffer();
-      const buf = Buffer.from(arr);
-      pdfBufferCache.set(url, buf);
+    const { getSafeAttachmentBuffer } = await import('../../services/storageSecurity.js');
+    const buf = await getSafeAttachmentBuffer(orgId, url);
+    if (buf) {
+      pdfBufferCache.set(cacheKey, buf);
       return buf;
     }
   } catch (e) {
@@ -63,6 +63,7 @@ async function getPdfBuffer(url) {
   }
   return null;
 }
+
 
 function normalizeIndianPhone(phone) {
   if (!phone) return '';
@@ -401,38 +402,50 @@ export class TenantBaileysInstance {
           // Supabase sync for lead, conversation & inbound message
           const admin = getSupabaseAdmin();
           let sbConvId = null;
+          let quotaAdmitted = true;
           if (admin && this.orgId) {
             try {
-              let { data: existingLead } = await admin.from('leads').select('id, buyer_name, buyer_phone').eq('org_id', this.orgId).ilike('buyer_phone', `%${phone.slice(-10)}%`).maybeSingle();
-              let leadId = existingLead?.id;
-              if (!existingLead) {
-                const { data: newLead, error: leadErr } = await admin.from('leads').insert({
-                  org_id: this.orgId,
-                  buyer_name: msg.pushName || 'WhatsApp Customer',
-                  buyer_phone: phone,
-                  product_inquired: 'Inbound Inquiry',
-                  query_message: text,
-                  status: 'Hot Lead'
-                }).select('id').single();
-                if (leadErr) console.warn('[Baileys Supabase] Lead insert warning:', leadErr.message);
-                leadId = newLead?.id;
+              const { data: leadRows, error: leadRpcErr } = await admin.rpc('reserve_and_create_lead', {
+                p_org_id: this.orgId,
+                p_buyer_phone: phone,
+                p_buyer_name: msg.pushName || 'WhatsApp Customer',
+                p_query_message: text,
+                p_requirement: text,
+                p_bypass_quota: false
+              });
+
+              if (leadRpcErr) {
+                this.addLog(`[Quota/Lead Error] Atomic lead reservation failed: ${leadRpcErr.message}`);
+                continue;
               }
 
-              let { data: existingConv } = await admin.from('conversations').select('id, lead_id').eq('org_id', this.orgId).eq('buyer_phone', phone).maybeSingle();
+              const res = Array.isArray(leadRows) ? leadRows[0] : leadRows;
+              const leadId = res ? (res.out_lead_id || res.lead_id) : null;
+              if (!leadId) {
+                this.addLog(`[Quota/Lead Error] No lead returned from atomic reservation`);
+                continue;
+              }
+              quotaAdmitted = Boolean(res.out_quota_admitted ?? res.quota_admitted);
+
+              let { data: existingConv } = await admin
+                .from('conversations')
+                .select('id, lead_id, mode')
+                .eq('org_id', this.orgId)
+                .ilike('buyer_phone', `%${phone.slice(-10)}`)
+                .maybeSingle();
+
               if (!existingConv) {
                 const { data: newConv } = await admin.from('conversations').insert({
                   org_id: this.orgId,
-                  lead_id: leadId || null,
+                  lead_id: leadId,
                   buyer_phone: phone,
                   mode: 'auto'
-                }).select('id').single();
-                sbConvId = newConv?.id;
-              } else {
-                sbConvId = existingConv.id;
-                if (!existingConv.lead_id && leadId) {
-                  await admin.from('conversations').update({ lead_id: leadId }).eq('id', sbConvId);
-                }
+                }).select('id, mode').single();
+                existingConv = newConv;
+              } else if (!existingConv.lead_id && leadId) {
+                await admin.from('conversations').update({ lead_id: leadId }).eq('id', existingConv.id);
               }
+              sbConvId = existingConv?.id;
 
               if (sbConvId) {
                 await admin.from('messages').insert({
@@ -443,51 +456,28 @@ export class TenantBaileysInstance {
                 });
                 await admin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
               }
+
+              if (existingConv && (existingConv.mode === 'manual' || existingConv.mode === 'human')) {
+                this.addLog(`[Manual Mode] Conversation for +${phone} is paused in manual mode.`);
+                continue;
+              }
+
+              if (!quotaAdmitted) {
+                this.addLog(`[Quota Reached] AI reply withheld for organization ${this.orgId}.`);
+                continue;
+              }
             } catch (syncErr) {
               this.addLog(`Supabase inbound sync error: ${syncErr.message}`);
+              if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
+                continue;
+              }
             }
           }
 
-          // If conversation is in AI Auto-Pilot mode, verify 48-hour / 25-lead trial limits
-          if (conv.mode === 'ai') {
-            let isExpired = false;
-            let ownerAlertNumber = null;
-            if (admin && this.orgId) {
-              try {
-                const { data: orgData } = await admin
-                  .from('organizations')
-                  .select('plan_status, trial_ends_at, leads_used, monthly_lead_limit, owner_alert_number, escalation_phone')
-                  .eq('id', this.orgId)
-                  .single();
-
-                if (orgData) {
-                  ownerAlertNumber = orgData.owner_alert_number || orgData.escalation_phone;
-                  const trialExpired = orgData.trial_ends_at && (new Date(orgData.trial_ends_at) < new Date());
-                  const leadLimitReached = (orgData.leads_used || 0) >= (orgData.monthly_lead_limit || 25);
-                  if (orgData.plan_status !== 'active' && (trialExpired || leadLimitReached)) {
-                    isExpired = true;
-                  } else {
-                    await admin
-                      .from('organizations')
-                      .update({ leads_used: (orgData.leads_used || 0) + 1 })
-                      .eq('id', this.orgId);
-                  }
-                }
-              } catch (e) {}
-            }
-
-            if (isExpired) {
-              this.addLog(`[Trial Limit] 48-Hour / 25-Lead trial ended for organization ${this.orgId}. Lead recorded, AI reply withheld.`);
-              if (ownerAlertNumber) {
-                try {
-                  const alertJid = `${ownerAlertNumber.replace(/\D/g, '')}@s.whatsapp.net`;
-                  await this.sock.sendMessage(alertJid, {
-                    text: `⚠️ *MartFlow AI Alert*\n\nNew buyer inquiry from +${phone} received, but your *48-Hour Live Trial has ended*. Please upgrade your plan in your workspace dashboard to restore instant 24×7 AI replies!`
-                  });
-                } catch (e) {}
-              }
-              continue;
-            }
+          if (conv.mode === 'manual' || conv.mode === 'human') {
+            this.addLog(`[Manual Mode] Conversation for +${phone} is paused in manual mode.`);
+            continue;
+          }
 
             this.sock.sendPresenceUpdate('composing', remoteJid).catch(() => { });
 
@@ -590,10 +580,9 @@ export class TenantBaileysInstance {
 
                 if (aiReplyObj.matchedBrochureUrl && shouldSendPdf) {
                   try {
-                    const pdfBuf = await getPdfBuffer(aiReplyObj.matchedBrochureUrl);
-                    const docPayload = pdfBuf
-                      ? { document: pdfBuf, mimetype: 'application/pdf', fileName, caption: 'Official Product Brochure & Specifications' }
-                      : { document: { url: aiReplyObj.matchedBrochureUrl }, mimetype: 'application/pdf', fileName, caption: 'Official Product Brochure & Specifications' };
+                    const pdfBuf = await getPdfBuffer(this.orgId, aiReplyObj.matchedBrochureUrl);
+                    if (!pdfBuf) return;
+                    const docPayload = { document: pdfBuf, mimetype: 'application/pdf', fileName, caption: 'Official Product Brochure & Specifications' };
                     await this.sock.sendMessage(remoteJid, docPayload);
                     this.sentPdfs.add(pdfKey);
                     this.addLog(`PDF Brochure dispatched to +${phone}`);
@@ -631,7 +620,6 @@ export class TenantBaileysInstance {
             }).catch((err) => {
               this.addLog(`AI Auto-Reply error: ${err.message}`);
             });
-          }
         }
       });
     } catch (err) {

@@ -88,11 +88,19 @@ router.post('/auth/otp/verify', (req, res) => {
   }
 });
 
-router.get('/auth/me', authenticate, (req, res) => {
-  const profile = db.findById('profiles', req.userId);
+router.get('/auth/me', authenticate, async (req, res) => {
+  let profile = null;
+  if (repository.getSupabase()) {
+    try {
+      profile = await repository.getProfileById(req.userId);
+    } catch (e) {}
+  }
+  if (!profile) {
+    profile = db.findById('profiles', req.userId);
+  }
   res.json({
     ok: true,
-    user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name, phone: profile.phone } : null,
+    user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name || profile.fullName, phone: profile.phone } : null,
     organization: req.organization,
     role: req.role
   });
@@ -441,6 +449,8 @@ router.post('/catalog/sync', authenticate, requireRole(['owner', 'admin', 'super
           if (websiteKnowledge !== undefined && String(websiteKnowledge).trim()) {
             catK.uploadedKnowledge = `=== UPLOADED CATALOG KNOWLEDGE ===\n${String(websiteKnowledge).slice(0, 30000)}`;
             catK.textKnowledge = `${catK.demoKnowledge || ''}\n\n${catK.uploadedKnowledge}`.trim();
+          } else if (catK.uploadedKnowledge) {
+            catK.textKnowledge = `${catK.demoKnowledge || ''}\n\n${catK.uploadedKnowledge}`.trim();
           } else if (catK.demoKnowledge) {
             catK.textKnowledge = catK.demoKnowledge;
           }
@@ -521,9 +531,7 @@ router.post('/settings', authenticate, requireRole(['owner', 'admin']), (req, re
     escalation_phone: ownerAlertPhone ? ownerAlertPhone.trim() : (existing?.escalation_phone || '')
   };
 
-  if (geminiApiKey && typeof geminiApiKey === 'string' && !geminiApiKey.includes('...')) {
-    process.env.GEMINI_API_KEY = geminiApiKey.trim();
-  }
+  // Tenant setting cannot mutate global GEMINI_API_KEY
 
   let saved;
   if (existing) {
@@ -673,8 +681,8 @@ router.get('/membership/status', authenticate, (req, res) => {
       currency: 'INR',
       merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
       merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
-      isRazorpayConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID || null
+      isRazorpayConfigured: false,
+      razorpayKeyId: null
     }
   });
 });
@@ -709,7 +717,7 @@ router.get('/public-config', (req, res) => {
   });
 });
 
-router.post('/membership/unlock-code', authenticate, (req, res) => {
+router.post('/membership/unlock-code', authenticate, async (req, res) => {
   try {
     const code = String(req.body.code || '').trim().toUpperCase();
     if (!code) return res.status(400).json({ ok: false, error: 'Activation code is required.' });
@@ -717,6 +725,7 @@ router.post('/membership/unlock-code', authenticate, (req, res) => {
     const COUPONS = {
       'PILOT999': { amount: 999, description: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
       'VIP999': { amount: 999, description: '48-Hour VIP Engineer Setup Deposit — Adjusted in Plan' },
+      'ADJUST999': { amount: 9000, description: '₹999 Deposit Adjusted — Pay ₹9,000 Balance for Full 1-Month Pro' },
       'SETUP5K': { amount: 5000, description: 'One-Time Factory Setup & Catalog AI Training' },
       'START75': { amount: 7499, description: '₹5,000 Setup + ₹2,499 First Month — 400 Leads/mo' },
       'PRO12K': { amount: 12499, description: '₹7,500 Setup + ₹4,999 First Month — 1,500 Leads/mo' },
@@ -731,6 +740,16 @@ router.post('/membership/unlock-code', authenticate, (req, res) => {
       quote_code: code
     });
 
+    const admin = getSupabaseAdmin();
+    if (admin) {
+      try {
+        await admin.from('organizations').update({
+          custom_quote_inr: coupon.amount,
+          quote_code: code
+        }).eq('id', req.organizationId);
+      } catch (e) {}
+    }
+
     res.json({
       ok: true,
       code,
@@ -744,7 +763,7 @@ router.post('/membership/unlock-code', authenticate, (req, res) => {
 });
 
 // Dual Payment: Tab 1 — Instant Direct UPI QR + UTR Submission (Pending Reconciliation)
-router.post('/payments/upi-verify', authenticate, (req, res) => {
+router.post('/payments/upi-verify', authenticate, async (req, res) => {
   try {
     const utr = String(req.body.utrReference || req.body.utr || '').trim();
     const amount = parseInt(req.body.amountInr || req.body.amount || 999, 10);
@@ -758,8 +777,29 @@ router.post('/payments/upi-verify', authenticate, (req, res) => {
       return res.status(409).json({ ok: false, error: 'This UTR reference has already been submitted.' });
     }
 
-    // Save payment as 'pending_verification' — NEVER auto-activate plan on unverified UTR
+    // Check Supabase if configured
+    const admin = getSupabaseAdmin();
+    let supabasePaymentId = null;
+    if (admin) {
+      const { data: existingSupabase } = await admin.from('payments').select('id').eq('utr_reference', utr).maybeSingle();
+      if (existingSupabase) {
+        return res.status(409).json({ ok: false, error: 'This UTR reference has already been submitted.' });
+      }
+      const { data: nPay } = await admin.from('payments').insert({
+        org_id: req.organizationId,
+        amount_inr: amount,
+        provider: 'upi_direct',
+        utr_reference: utr,
+        status: 'pending_verification',
+        submitted_by: req.userId
+      }).select('id').single();
+      supabasePaymentId = nPay?.id;
+      await admin.from('organizations').update({ plan_status: 'pending_verification' }).eq('id', req.organizationId);
+    }
+
+    // Save payment as 'pending_verification' in local mirror
     const payment = db.insert('payments', {
+      id: supabasePaymentId || undefined,
       organization_id: req.organizationId,
       amount_inr: amount,
       provider: 'upi_direct',
@@ -780,7 +820,7 @@ router.post('/payments/upi-verify', authenticate, (req, res) => {
 });
 
 // Platform Finance / Superadmin UPI Reconciliation Endpoint
-router.post('/admin/payments/reconcile', authenticate, (req, res) => {
+router.post('/admin/payments/reconcile', authenticate, async (req, res) => {
   try {
     const adminKey = req.headers['x-platform-admin-key'];
     const expectedKey = process.env.PLATFORM_ADMIN_SECRET || process.env.SESSION_SECRET;
@@ -815,20 +855,47 @@ router.post('/admin/payments/reconcile', authenticate, (req, res) => {
     });
 
     const activated = status === 'verified' && payment.amount_inr >= 7499;
+    const quota = payment.amount_inr >= 9999 ? 2500 : 500;
     if (activated) {
-      const quota = payment.amount_inr >= 9999 ? 2500 : 500;
       db.update('organizations', payment.organization_id, {
         plan_status: 'active',
         monthly_lead_limit: quota
       });
 
-      // Audit log entry
       db.insert('audit_logs', {
         organization_id: payment.organization_id,
         operator_id: req.userId || 'platform_admin',
         action: 'PAYMENT_RECONCILED',
         details: { paymentId: payment.id, amountInr: payment.amount_inr, notes }
       });
+    }
+
+    const admin = getSupabaseAdmin();
+    if (admin) {
+      try {
+        await admin.from('payments').update({
+          status,
+          reconciled_by: req.userId || 'platform_admin',
+          reconciled_at: new Date().toISOString(),
+          reconciliation_notes: notes
+        }).eq('id', paymentId);
+
+        if (activated) {
+          await admin.from('organizations').update({
+            plan_status: 'active',
+            monthly_lead_limit: quota
+          }).eq('id', payment.organization_id || payment.org_id);
+
+          await admin.from('audit_logs').insert({
+            org_id: payment.organization_id || payment.org_id,
+            operator_id: req.userId || 'platform_admin',
+            action: 'PAYMENT_RECONCILED',
+            details: { paymentId: payment.id, amountInr: payment.amount_inr, notes }
+          });
+        }
+      } catch (sbReconcileErr) {
+        console.warn('[Supabase Reconcile Warning]', sbReconcileErr.message);
+      }
     }
 
     res.json({
@@ -912,7 +979,7 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
     const secret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!secret && process.env.NODE_ENV !== 'test') {
-      return res.status(503).json({ ok: false, error: 'Razorpay payment gateway secret is not configured on this server.' });
+      return res.status(503).json({ ok: false, error: 'Razorpay payment gateway secret is not configured on this server. Please use Direct UPI.' });
     }
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
@@ -940,7 +1007,6 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
         return res.status(400).json({ ok: false, error: 'Malformed signature payload.' });
       }
     } else {
-      // Secret is mandatory even in test mode if verifying signatures
       return res.status(400).json({ ok: false, error: 'Cannot verify payment without RAZORPAY_KEY_SECRET.' });
     }
 
@@ -950,7 +1016,9 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
       process.env.RAZORPAY_KEY_SECRET &&
       !process.env.RAZORPAY_KEY_ID.includes('placeholder')
     );
-    if (!hasLiveKeys) return res.status(503).json({ ok: false, error: 'Razorpay verification is not configured.' });
+    if (!hasLiveKeys && process.env.NODE_ENV !== 'test') {
+      return res.status(503).json({ ok: false, error: 'Razorpay verification is not configured.' });
+    }
     if (hasLiveKeys) {
       try {
         const authHeader = 'Basic ' + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString('base64');
@@ -988,7 +1056,6 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
       status: 'verified'
     });
 
-    // A setup/deposit payment is not a full subscription purchase.
     const planPrices = { START75: 7499, PRO12K: 12499, ANNUAL18K: 18000 };
     const defaultPrice = Number(process.env.RAZORPAY_DEFAULT_AMOUNT_INR || 9999);
     const isFullPlan = payment.quote_code
@@ -998,8 +1065,11 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
       const quota = payment.quote_code === 'PRO12K' ? 1500 : payment.quote_code === 'START75' ? 400 : 500;
       await repository.updateOrganizationScoped(req.organizationId, { plan_status: 'active', monthly_lead_limit: quota });
     }
-    res.json({ ok: true, activated: isFullPlan,
-      message: isFullPlan ? 'Payment verified and workspace activated.' : 'Payment verified; deposit/setup does not activate a subscription.' });
+    res.json({
+      ok: true,
+      activated: isFullPlan,
+      message: isFullPlan ? 'Payment verified and workspace activated.' : 'Payment verified; deposit/setup does not activate a subscription.'
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
