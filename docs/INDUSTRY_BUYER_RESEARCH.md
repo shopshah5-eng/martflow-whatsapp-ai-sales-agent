@@ -122,3 +122,4 @@ Based on these verified behavioral insights, the following concrete architectura
 5. **JMK Research & Analytics:** "Financing and Credit Barriers in MSME Rooftop Solar Deployment in India." *JMK Industry Reports*, 2025. [Online]. Available: https://jmkresearch.com. Accessed: Nov 03, 2026.
 6. **AiSensy Technologies:** "The State of WhatsApp Commerce in Indian B2B Manufacturing: Open Rates, Voice Note Utilization, and Lead Velocity." *AiSensy B2B Report*, 2025. [Online]. Available: https://aisensy.com. Accessed: Nov 03, 2026.
 7. **Ministry of Micro, Small and Medium Enterprises (MSME):** "Annual Report 2024–2025: Digitisation, Market Linkages and Credit Growth in Indian Manufacturing." *Government of India Publications*, 2025.
+

@@ -8,11 +8,12 @@
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
 
-# API requests rewrite / proxy
+# API requests proxy to backend service
 [[redirects]]
   from = "/api/*"
-  to = "/api/:splat"
+  to = "https://martflow-whatsapp-ai-sales-agent.onrender.com/api/:splat"
   status = 200
+  force = true
 
 # Single Page Application HTML fallback
 [[redirects]]

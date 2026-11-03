@@ -84,6 +84,9 @@ export async function takeoverCustomer({ orgId, buyerPhone, takenBy = 'owner', d
         .ilike('buyer_phone', `%${cleanPhone.slice(-10)}`);
     } catch (e) {
       console.warn(`[TakeoverService] Supabase takeover error for ${maskPhone(cleanPhone)}:`, e.message);
+      if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
+        return { ok: false, error: 'Database service unavailable to persist manual takeover.' };
+      }
     }
   }
 
@@ -193,6 +196,8 @@ export async function isCustomerInManualMode({ orgId, buyerPhone, supabaseAdmin 
       }
     } catch (e) {
       console.warn(`[TakeoverService] Supabase check error for ${maskPhone(cleanPhone)}:`, e.message);
+      // FAIL CLOSED: If takeover verification fails due to database outage, gate customer from AI auto-reply
+      return { inManualMode: true, unknownMode: true, error: e.message };
     }
   }
 

@@ -46,10 +46,11 @@ export class LearningService {
     for (let i = 0; i < messages.length - 1; i++) {
       const q = (messages[i]?.text || messages[i]?.content || '').trim();
       const a = (messages[i + 1]?.text || messages[i + 1]?.content || '').trim();
-      const senderQ = messages[i]?.sender || messages[i]?.sender_type || 'buyer';
-      const senderA = messages[i + 1]?.sender || messages[i + 1]?.sender_type || 'seller';
+      const senderQ = String(messages[i]?.sender || messages[i]?.sender_type || 'buyer').toLowerCase();
+      const senderA = String(messages[i + 1]?.sender || messages[i + 1]?.sender_type || 'seller').toLowerCase();
+      const isHumanSeller = ['owner', 'seller', 'human', 'agent', 'rep', 'client'].includes(senderA);
 
-      if (senderQ === 'buyer' && (senderA === 'owner' || senderA === 'seller' || senderA === 'human')) {
+      if (senderQ === 'buyer' && isHumanSeller) {
         let topic = null;
         let fact = null;
 
@@ -190,10 +191,28 @@ export class LearningService {
   }
 
   /**
+   * Complete Tenant Opt-Out: Immediately purges all proposals, approved facts, and disables learning
+   */
+  static optOut(organizationId) {
+    if (!organizationId) throw new Error('organization_id is required');
+    db.update('organizations', organizationId, { learning_opt_in: false });
+    const existingSettings = db.findOne('ai_settings', (s) => s.organization_id === organizationId);
+    if (existingSettings) {
+      db.updateScoped('ai_settings', existingSettings.id, organizationId, { learning_opt_in: false });
+    }
+    // Delete all proposed and approved facts for this tenant immediately
+    db.deleteScoped('learning_proposals', organizationId, () => true);
+    db.deleteScoped('approved_facts', organizationId, () => true);
+    invalidateCache(organizationId);
+    return { ok: true, optedOut: true };
+  }
+
+  /**
    * Retrieve formatted knowledge string for injection into tenant AI prompt
    */
   static getApprovedKnowledgeString(organizationId) {
     if (!organizationId) return '';
+    if (!this.isLearningOptedIn(organizationId)) return '';
     const facts = db.findScoped('approved_facts', organizationId);
     if (!facts || facts.length === 0) return '';
     return '\nVERIFIED OPERATOR-APPROVED FACTS:\n' + facts.map((f) => `• [${f.topic}] ${f.fact}`).join('\n') + '\n';

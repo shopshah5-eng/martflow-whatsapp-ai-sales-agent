@@ -7,28 +7,69 @@ ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_heartbeat TI
 ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS quote_code TEXT;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS quote_code TEXT;
 
--- Deduplicate existing leads (keeping newest) before creating unique index,
--- safely remapping foreign key references from duplicate leads to the retained lead.
-UPDATE public.conversations c
-SET lead_id = b.id
-FROM public.leads a, public.leads b
-WHERE c.lead_id = a.id
-  AND a.org_id = b.org_id
-  AND a.buyer_phone = b.buyer_phone
-  AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id));
+-- Deduplicate existing leads (keeping newest) before creating unique index.
+-- Deterministic survivor remapping: computes exactly 1 survivor per duplicate group
+-- and remaps all foreign keys directly to it, preventing NULL references on 3+ duplicates.
+DO $$
+BEGIN
+  -- Remap dependent conversations directly to the single surviving lead
+  WITH ranked_leads AS (
+    SELECT id, org_id, buyer_phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY org_id, buyer_phone
+        ORDER BY created_at DESC, id DESC
+      ) AS survivor_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY org_id, buyer_phone
+        ORDER BY created_at DESC, id DESC
+      ) AS rn
+    FROM public.leads
+  ),
+  duplicates AS (
+    SELECT id AS dup_id, survivor_id
+    FROM ranked_leads
+    WHERE rn > 1
+  )
+  UPDATE public.conversations c
+  SET lead_id = d.survivor_id
+  FROM duplicates d
+  WHERE c.lead_id = d.dup_id;
 
-UPDATE public.call_requests cr
-SET lead_id = b.id
-FROM public.leads a, public.leads b
-WHERE cr.lead_id = a.id
-  AND a.org_id = b.org_id
-  AND a.buyer_phone = b.buyer_phone
-  AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id));
+  -- Remap dependent call_requests directly to the single surviving lead
+  WITH ranked_leads AS (
+    SELECT id, org_id, buyer_phone,
+      FIRST_VALUE(id) OVER (
+        PARTITION BY org_id, buyer_phone
+        ORDER BY created_at DESC, id DESC
+      ) AS survivor_id,
+      ROW_NUMBER() OVER (
+        PARTITION BY org_id, buyer_phone
+        ORDER BY created_at DESC, id DESC
+      ) AS rn
+    FROM public.leads
+  ),
+  duplicates AS (
+    SELECT id AS dup_id, survivor_id
+    FROM ranked_leads
+    WHERE rn > 1
+  )
+  UPDATE public.call_requests cr
+  SET lead_id = d.survivor_id
+  FROM duplicates d
+  WHERE cr.lead_id = d.dup_id;
 
-DELETE FROM public.leads a USING public.leads b
-WHERE a.org_id = b.org_id
-  AND a.buyer_phone = b.buyer_phone
-  AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id));
+  -- Delete all non-survivor duplicates transactionally
+  WITH ranked_leads AS (
+    SELECT id,
+      ROW_NUMBER() OVER (
+        PARTITION BY org_id, buyer_phone
+        ORDER BY created_at DESC, id DESC
+      ) AS rn
+    FROM public.leads
+  )
+  DELETE FROM public.leads
+  WHERE id IN (SELECT id FROM ranked_leads WHERE rn > 1);
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_org_buyer_phone ON public.leads (org_id, buyer_phone);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay_payment_id ON public.payments (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL;
@@ -42,6 +83,28 @@ DROP POLICY IF EXISTS "Public Access Catalogs" ON storage.objects;
 DROP POLICY IF EXISTS "Allow Uploads Catalogs" ON storage.objects;
 DROP POLICY IF EXISTS "Allow Updates Catalogs" ON storage.objects;
 DROP POLICY IF EXISTS "Allow Deletes Catalogs" ON storage.objects;
+DROP POLICY IF EXISTS "Tenant Catalog Upload Isolation" ON storage.objects;
+DROP POLICY IF EXISTS "Tenant Catalog Read Isolation" ON storage.objects;
+DROP POLICY IF EXISTS "Tenant Catalog Delete Isolation" ON storage.objects;
+
+-- Strict tenant-isolated storage policies for 'catalogs' bucket
+CREATE POLICY "Tenant Catalog Upload Isolation" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'catalogs'
+    AND (storage.foldername(name))[1] = public.current_user_org_id()::text
+  );
+
+CREATE POLICY "Tenant Catalog Read Isolation" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'catalogs'
+    AND (storage.foldername(name))[1] = public.current_user_org_id()::text
+  );
+
+CREATE POLICY "Tenant Catalog Delete Isolation" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'catalogs'
+    AND (storage.foldername(name))[1] = public.current_user_org_id()::text
+  );
 
 DROP FUNCTION IF EXISTS public.increment_leads_used(UUID);
 CREATE OR REPLACE FUNCTION public.reserve_lead_quota(p_org_id UUID)

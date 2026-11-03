@@ -15,9 +15,9 @@
 
 1. **Verify Environment Variables:**
    ```bash
-   # Ensure target environment is explicitly configured
-   echo $SUPABASE_URL
-   echo $SUPABASE_SERVICE_ROLE_KEY
+   # Verify environment configuration safely (without printing raw secret keys to stdout or logs)
+   [ -n "$SUPABASE_URL" ] && echo "SUPABASE_URL is set: ${SUPABASE_URL%%.*}..." || echo "SUPABASE_URL is missing"
+   [ -n "$SUPABASE_SERVICE_ROLE_KEY" ] && echo "SUPABASE_SERVICE_ROLE_KEY is configured" || echo "SUPABASE_SERVICE_ROLE_KEY is missing"
    ```
 2. **Take an Immutable Staging/Production Snapshot:**
    ```bash
@@ -37,6 +37,10 @@ Before applying any DDL or data migration, run the migration in non-destructive 
 ```bash
 node scripts/migrate_local_to_supabase.js --dry-run
 ```
+
+### Dry-Run Scope & Inherent Limitations:
+> [!IMPORTANT]
+> The `--dry-run` flag validates JSON schemas, entity referential integrity, and UUID translation mappings in isolated memory. **It does NOT test live PostgreSQL row locks (`FOR UPDATE`), database triggers (`trg_org_billing_immutability`), remote network latency, or live Row Level Security (RLS) policies**. A full test on a cloned staging database is required before production deployment.
 
 ### Verification Criteria:
 - [ ] Schema validation reports 0 syntax errors.
@@ -103,3 +107,4 @@ If unexpected regressions or unrecoverable schema conflicts occur during staging
    Revert the application deployment to the previous stable release commit.
 4. **Post-Restore Integrity Check:**
    Run `npm test` and verify that the database connection and core WhatsApp workers resume with clean socket credentials.
+

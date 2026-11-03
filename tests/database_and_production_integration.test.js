@@ -379,7 +379,7 @@ test('INTEGRATION: Stored procedures, ambiguous column error 42702 prevention, a
   assert.ok(schemaSql.includes('RETURNING leads.id, leads.quota_admitted'), 'Schema must qualify RETURNING columns');
 
   // Verify lead deduplication before creating unique index
-  assert.ok(migrationSql.includes('DELETE FROM public.leads a USING public.leads b'), 'Migration must deduplicate leads before index creation');
+  assert.ok(migrationSql.includes('DELETE FROM public.leads'), 'Migration must deduplicate leads before index creation');
 
   // Verify immutability trigger covers sensitive billing and worker fields
   assert.ok(migrationSql.includes('check_org_billing_fields_immutability'), 'Migration must define immutability trigger');

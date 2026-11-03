@@ -86,6 +86,37 @@ class TenantRepository {
     return db.update('organizations', orgId, updates);
   }
 
+  // --- AI Settings ---
+  async getAiSettings(orgId) {
+    if (!orgId) return null;
+    const sb = isUuid(orgId) ? this.getSupabase() : null;
+    if (sb) {
+      const { data, error } = await sb.from('ai_settings').select('*').eq('organization_id', orgId).maybeSingle();
+      if (error && error.code !== 'PGRST116') throw new DatabaseUnavailableError(error.message);
+      return data || null;
+    }
+    if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      return null;
+    }
+    return db.findOne('ai_settings', (s) => s.organization_id === orgId);
+  }
+
+  async upsertAiSettings(orgId, updates) {
+    if (!orgId) throw new Error('orgId is required');
+    const sb = isUuid(orgId) ? this.getSupabase() : null;
+    if (sb) {
+      const payload = { organization_id: orgId, ...updates, updated_at: new Date().toISOString() };
+      const { data, error } = await sb.from('ai_settings').upsert(payload, { onConflict: 'organization_id' }).select().maybeSingle();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      return data;
+    }
+    const existing = db.findOne('ai_settings', (s) => s.organization_id === orgId);
+    if (existing) {
+      return db.updateScoped('ai_settings', existing.id, orgId, updates);
+    }
+    return db.insert('ai_settings', { organization_id: orgId, ...updates });
+  }
+
   // Atomic quota check and increment
   async atomicIncrementLeadUsage(orgId, monthlyLimit) {
     if (!orgId) throw new Error('orgId is required');
@@ -195,6 +226,31 @@ class TenantRepository {
       return data?.[0] || null;
     }
     return db.findOne('leads', l => l.organization_id === orgId && (l.buyer_phone === cleanPhone || l.buyerPhone === cleanPhone));
+  }
+
+  async getLeadById(orgId, leadId) {
+    if (!orgId || !leadId) return null;
+    const sb = (isUuid(orgId) && isUuid(leadId)) ? this.getSupabase() : null;
+    if (sb) {
+      const { data, error } = await sb.from('leads').select('*').eq('org_id', orgId).eq('id', leadId).maybeSingle();
+      if (error && error.code !== 'PGRST116') throw new DatabaseUnavailableError(error.message);
+      return data || null;
+    }
+    if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      return null;
+    }
+    return db.findOne('leads', (l) => (l.org_id === orgId || l.organization_id === orgId) && l.id === leadId);
+  }
+
+  async updateLeadScoped(orgId, leadId, updates) {
+    if (!orgId || !leadId) throw new Error('orgId and leadId are required');
+    const sb = (isUuid(orgId) && isUuid(leadId)) ? this.getSupabase() : null;
+    if (sb) {
+      const { data, error } = await sb.from('leads').update({ ...updates, updated_at: new Date().toISOString() }).eq('org_id', orgId).eq('id', leadId).select().maybeSingle();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      return data;
+    }
+    return db.updateScoped('leads', leadId, orgId, updates);
   }
 
   async findDuplicateLead(orgId, buyerPhone, windowMs = 86400000) {

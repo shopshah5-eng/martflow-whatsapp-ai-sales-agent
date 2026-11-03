@@ -2273,6 +2273,15 @@
         </button>
       </div>
 
+      <!-- Partner / Affiliate Referral Badge -->
+      <div id="actPartnerBadge" class="hidden p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center justify-between">
+        <div class="flex items-center space-x-1.5">
+          <span>🤝</span>
+          <span id="actPartnerBadgeText">Partner Referral Applied</span>
+        </div>
+        <span class="text-[10px] bg-emerald-200/60 text-emerald-900 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Verified</span>
+      </div>
+
       <!-- 1-Click WhatsApp Direct Activation -->
       <div class="space-y-2 pt-1 border-t border-gray-100">
         <a id="actWaBtn" href="javascript:void(0)" onclick="openDemoBotChat('Namaste MartFlow Team! I want to activate my workspace plan')" class="block w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg text-center text-xs shadow-sm transition">
@@ -2479,6 +2488,22 @@
 
   <!-- SCRIPT ENGINE: SECURE, TESTED & ZERO-ALERT -->
   <script>
+    // Parse and persist Partner/Affiliate Referral Code (?ref= / ?partner=)
+    (function initAffiliateTracking() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref') || urlParams.get('partner');
+        if (refCode) {
+          const sanitizedRef = refCode.trim().replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32);
+          if (sanitizedRef) {
+            localStorage.setItem('mf_affiliate_ref', sanitizedRef);
+          }
+        }
+      } catch (e) {
+        console.warn('[Affiliate] Param parse error:', e);
+      }
+    })();
+
     // =========================================================================
     // ⚡ PRODUCTION SUPABASE, PAYMENT & SUPPORT CONFIGURATION
     // Auto-connected to live Supabase project: uriqhusalcdgdlgzgasp
@@ -2773,6 +2798,11 @@
         try {
           const pending = JSON.parse(pendingUtrRaw);
           if (pending && pending.utr) {
+            const partnerRef = localStorage.getItem('mf_affiliate_ref');
+            let planWithRef = pending.plan || 'MartFlow VIP License';
+            if (partnerRef && !planWithRef.includes('[Partner Ref:')) {
+              planWithRef = `${planWithRef} [Partner Ref: ${partnerRef}]`;
+            }
             try {
               const res = await fetch(`${API_BASE}/api/payments/upi-verify`, {
                 method: 'POST',
@@ -2780,7 +2810,7 @@
                   'Content-Type': 'application/json',
                   ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {})
                 },
-                body: JSON.stringify({ utrReference: pending.utr, amountInr: pending.amount || 999, plan: pending.plan })
+                body: JSON.stringify({ utrReference: pending.utr, amountInr: pending.amount || 999, plan: planWithRef })
               });
               if (res.ok) {
                 localStorage.removeItem('mf_pending_utr');
@@ -5221,7 +5251,9 @@
       if (!utr || !/^[0-9A-Za-z]{10,22}$/.test(utr)) return showToast('Please enter a valid 10-22 character alphanumeric UPI / UTR reference number', 'error');
 
       const amount = window.selectedCheckoutAmount || currentOrg?.custom_quote_inr || 999;
-      const plan = window.selectedCheckoutPlan || 'MartFlow VIP License';
+      const partnerRef = localStorage.getItem('mf_affiliate_ref');
+      const basePlan = window.selectedCheckoutPlan || 'MartFlow VIP License';
+      const plan = partnerRef ? `${basePlan} [Partner Ref: ${partnerRef}]` : basePlan;
 
       if (!currentOrg) {
         localStorage.setItem('mf_pending_utr', JSON.stringify({ utr, amount, plan, timestamp: Date.now() }));
@@ -5281,6 +5313,26 @@
       if (planTitle && document.getElementById('actPlanTitle')) document.getElementById('actPlanTitle').textContent = planTitle;
       if (planPrice && document.getElementById('actPlanPrice')) document.getElementById('actPlanPrice').textContent = planPrice;
       if (planDesc && document.getElementById('actPlanDesc')) document.getElementById('actPlanDesc').textContent = planDesc;
+
+      // Display Partner Referral badge if an affiliate ref exists
+      const partnerRef = localStorage.getItem('mf_affiliate_ref');
+      const badgeEl = document.getElementById('actPartnerBadge');
+      const badgeTextEl = document.getElementById('actPartnerBadgeText');
+      if (badgeEl && badgeTextEl) {
+        if (partnerRef) {
+          badgeTextEl.textContent = `Partner Referral Applied: ${partnerRef}`;
+          badgeEl.classList.remove('hidden');
+        } else {
+          badgeEl.classList.add('hidden');
+        }
+      }
+      const waBtn = document.getElementById('actWaBtn');
+      if (waBtn) {
+        const waMsg = partnerRef
+          ? `Namaste MartFlow Team! I want to activate my workspace plan with Partner Ref: ${partnerRef}`
+          : `Namaste MartFlow Team! I want to activate my workspace plan`;
+        waBtn.setAttribute('onclick', `openDemoBotChat(${JSON.stringify(waMsg)})`);
+      }
 
       let amt = numericAmount;
       if (!amt) {

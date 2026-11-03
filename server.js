@@ -54,6 +54,7 @@ import takeoverService, {
   parseOwnerCommand,
   maskPhone
 } from './src/services/takeoverService.js';
+import LearningService from './src/services/learningService.js';
 
 dotenv.config();
 
@@ -199,35 +200,6 @@ function normalizeIndianPhone(raw) {
 }
 const normalizePhone = normalizeIndianPhone;
 
-const LEARNINGS_FILE = path.join(__dirname, 'learnings_db.json');
-
-function loadLearnings() {
-  try {
-    if (fs.existsSync(LEARNINGS_FILE)) {
-      return JSON.parse(fs.readFileSync(LEARNINGS_FILE, 'utf8'));
-    }
-  } catch (e) {
-    console.error('Learnings load error:', e.message);
-  }
-  return {
-    lastUpdated: new Date().toISOString(),
-    totalLearningsCount: 0,
-    synonyms: {},
-    faqs: [],
-    customerPreferences: { popularModels: [], commonPackSizes: [] }
-  };
-}
-
-function saveLearnings(data) {
-  try {
-    fs.writeFileSync(LEARNINGS_FILE, JSON.stringify(data, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Learnings save error:', e.message);
-  }
-}
-
-let learnings = loadLearnings();
-
 const KNOWLEDGE_FILE = path.join(__dirname, 'catalog_knowledge.json');
 
 function loadCatalogKnowledge() {
@@ -363,78 +335,20 @@ function matchProduct(queryText = '') {
   return matches[0] || config.products[0];
 }
 
-// Autonomous learning loop: extracts customer terms, abbreviations, and verified FAQs
+// Safe Conversational Learning: Proposes verified knowledge rules strictly for consented tenants
 function analyzeAndLearnFromChat(lead, incomingText, aiResult) {
   try {
-    const text = String(incomingText || '').trim();
-    if (!text || text.length < 3) return;
-
-    let modified = false;
-    learnings = loadLearnings();
-    if (!learnings.synonyms) learnings.synonyms = {};
-    if (!learnings.faqs) learnings.faqs = [];
-
-    const lower = text.toLowerCase();
-    const currentProd = matchProduct(lead.productName || text);
-
-    // 1. Learn machinery model abbreviations / slang
-    const modelTerms = [
-      'bpt 500', 'bpt-500', 'collar plc', 'auger filler', 'pneumatic sealer',
-      'piston filler', 'servo filler', 'carton taper', 'box strapper', 'shrink tunnel',
-      'ffs machine', 'vffs', 'flow wrap', 'band sealer'
-    ];
-    for (const term of modelTerms) {
-      if (lower.includes(term) && !learnings.synonyms[term]) {
-        learnings.synonyms[term] = currentProd.name;
-        learnings.totalLearningsCount = (learnings.totalLearningsCount || 0) + 1;
-        modified = true;
-        addLog(`🧠 Self-Learning: Learned buyer model term "${term}" -> ${currentProd.name}`);
-      }
+    const orgId = lead?.org_id || lead?.organization_id;
+    if (!orgId || !LearningService.isLearningOptedIn(orgId)) {
+      return; // Fail safe: never extract unconsented knowledge or modify global databases
     }
-
-    // 2. Learn city phonetic spelling / typos
-    if (aiResult.extractedCity) {
-      const city = aiResult.extractedCity.trim();
-      const cityLower = city.toLowerCase();
-      const words = lower.split(/[\s,]+/);
-      for (const w of words) {
-        if (w.length >= 4 && w !== cityLower && (cityLower.startsWith(w.slice(0, 4)) || w.startsWith(cityLower.slice(0, 4)))) {
-          if (!learnings.synonyms[w]) {
-            learnings.synonyms[w] = city;
-            learnings.totalLearningsCount = (learnings.totalLearningsCount || 0) + 1;
-            modified = true;
-            addLog(`🧠 Self-Learning: Learned city typo "${w}" -> ${city}`);
-          }
-        }
-      }
-    }
-
-    // 3. Learn FAQs from technical questions
-    const faqTriggers = [
-      { key: 'single phase', query: 'single phase or 220v load' },
-      { key: 'compressor', query: 'air compressor requirement' },
-      { key: 'nitrogen', query: 'nitrogen flushing shelf life' },
-      { key: 'warranty', query: 'on-site warranty & technician' },
-      { key: 'gst', query: '18% GST input credit' }
-    ];
-    for (const ft of faqTriggers) {
-      if (lower.includes(ft.key)) {
-        const exists = learnings.faqs.some((f) => f.trigger.includes(ft.key));
-        if (!exists && aiResult.reply) {
-          learnings.faqs.push({
-            trigger: ft.query,
-            learnedAnswer: aiResult.reply.slice(0, 180)
-          });
-          learnings.totalLearningsCount = (learnings.totalLearningsCount || 0) + 1;
-          modified = true;
-          addLog(`🧠 Self-Learning: Saved customer FAQ answer for "${ft.key}".`);
-        }
-      }
-    }
-
-    if (modified) {
-      learnings.lastUpdated = new Date().toISOString();
-      saveLearnings(learnings);
+    const history = lead.history || [];
+    if (history.length >= 2) {
+      LearningService.proposeFactsFromConversation({
+        organizationId: orgId,
+        conversationId: lead.id,
+        messages: history
+      });
     }
   } catch (err) {
     console.error('Learning loop error:', err.message);
@@ -2036,6 +1950,20 @@ async function confirmCallSlotAndNotifyBoth({ lead, confirmedTime, confirmedBy }
   lead.status = `⏰ Call Scheduled: ${confirmedTime}`;
   lead.updatedAt = new Date().toISOString();
 
+  const orgId = lead.org_id || lead.organization_id;
+  let companyName = config.companyName;
+  let ownerPhone = config.ownerAlertPhone;
+  if (orgId) {
+    try {
+      const org = await repository.getOrganizationById(orgId) || db.findById('organizations', orgId);
+      const settings = await repository.getAiSettings(orgId) || db.findOne('ai_settings', (s) => s.organization_id === orgId);
+      if (org?.name) companyName = org.name;
+      if (org?.owner_alert_number || settings?.escalation_phone) {
+        ownerPhone = org.owner_alert_number || settings.escalation_phone;
+      }
+    } catch {}
+  }
+
   const customerPhone = normalizePhone(lead.phone);
   let customerNotified = false;
   let ownerNotified = false;
@@ -2050,7 +1978,7 @@ async function confirmCallSlotAndNotifyBoth({ lead, confirmedTime, confirmedBy }
         `📞 Hamari team aapko *${confirmedTime}* pe call karegi taaki aapke machine specs, delivery aur pricing pe direct baat ho sake.\n` +
         `_(Aap chahein toh is waqt direct call bhi connect kar sakte hain)._\n\n` +
         `Aapka machine catalog & running specs already shared hain. Dhanyawad!\n` +
-        `— *${config.companyName}*`;
+        `— *${companyName}*`;
 
       await sock.sendPresenceUpdate('composing', customerJid);
       await new Promise((r) => setTimeout(r, 800));
@@ -2090,7 +2018,7 @@ async function confirmCallSlotAndNotifyBoth({ lead, confirmedTime, confirmedBy }
   }
 
   // 2. Send complete customer details dossier back to the CLIENT (Owner)
-  const ownerDigits = normalizePhone(config.ownerAlertPhone);
+  const ownerDigits = normalizePhone(ownerPhone);
   if (sock && ownerDigits) {
     try {
       const ownerJid = await resolveWhatsAppJid(ownerDigits);
@@ -2121,6 +2049,22 @@ async function confirmCallSlotAndNotifyBoth({ lead, confirmedTime, confirmedBy }
   }
 
   saveLeads(leads);
+  if (orgId && lead.id) {
+    try {
+      await repository.updateLeadScoped(orgId, lead.id, {
+        callbackStatus: lead.callbackStatus,
+        scheduledCallTime: lead.scheduledCallTime,
+        status: lead.status
+      });
+      db.updateScoped('leads', lead.id, orgId, {
+        callbackStatus: lead.callbackStatus,
+        scheduledCallTime: lead.scheduledCallTime,
+        status: lead.status
+      });
+    } catch (e) {
+      console.warn('Failed to update lead scoped in storage:', e.message);
+    }
+  }
   return { ok: true, lead, confirmedTime, customerNotified, ownerNotified };
 }
 
@@ -2609,14 +2553,19 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/ready', async (req, res) => {
   let dbOk = false;
+  const isProduction = process.env.NODE_ENV === 'production';
+  const useLocal = process.env.USE_LOCAL_DB === 'true';
+
   try {
-    if (process.env.USE_LOCAL_DB === 'true' || !process.env.SUPABASE_URL) {
-      dbOk = db !== null;
-    } else if (supabaseAdmin) {
-      const { error } = await supabaseAdmin.from('organizations').select('id').limit(1);
-      dbOk = !error;
+    if (isProduction && !useLocal) {
+      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY || !supabaseAdmin) {
+        dbOk = false;
+      } else {
+        const { error } = await supabaseAdmin.from('organizations').select('id').limit(1);
+        dbOk = !error;
+      }
     } else {
-      dbOk = true;
+      dbOk = db !== null;
     }
   } catch (e) {
     dbOk = false;
@@ -2646,66 +2595,76 @@ app.get('/api/status', authenticate, requireRole(['owner', 'admin', 'superadmin'
   });
 });
 
-app.get('/api/config', authenticate, (req, res) => {
-  const org = db.findById('organizations', req.organizationId) || {};
-  const settings = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
-  res.json({
-    ok: true,
-    config: {
-      companyName: org.name || settings.company_name || 'MartFlow AI',
-      cityBase: org.company_city || settings.city_base || 'Delhi NCR',
-      ownerAlertPhone: org.owner_alert_number || settings.escalation_phone || '',
-      replyDelaySec: settings.reply_delay_sec ?? org.reply_delay_sec ?? 3,
-      autoReplyEnabled: org.auto_reply_enabled ?? settings.auto_reply_enabled ?? true,
-      replyWithVoiceNotes: org.reply_with_voice_notes ?? false,
-      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY)
-    }
-  });
+app.get('/api/config', authenticate, async (req, res) => {
+  try {
+    const org = await repository.getOrganizationById(req.organizationId) || db.findById('organizations', req.organizationId) || {};
+    const settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
+    res.json({
+      ok: true,
+      config: {
+        companyName: org.name || settings.company_name || 'MartFlow AI',
+        cityBase: org.company_city || settings.city_base || 'Delhi NCR',
+        ownerAlertPhone: org.owner_alert_number || settings.escalation_phone || '',
+        replyDelaySec: settings.reply_delay_sec ?? org.reply_delay_sec ?? 3,
+        autoReplyEnabled: org.auto_reply_enabled ?? settings.auto_reply_enabled ?? true,
+        replyWithVoiceNotes: org.reply_with_voice_notes ?? false,
+        hasGeminiKey: Boolean(process.env.GEMINI_API_KEY)
+      }
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
-app.post('/api/config', authenticate, requireRole(['owner', 'admin']), (req, res) => {
-  const { companyName, cityBase, ownerAlertPhone, replyDelaySec, autoReplyEnabled, replyWithVoiceNotes } = req.body;
-  const updates = {};
-  if (typeof companyName === 'string' && companyName.trim()) updates.name = companyName.trim();
-  if (typeof cityBase === 'string') updates.company_city = cityBase.trim();
-  if (typeof ownerAlertPhone === 'string') updates.owner_alert_number = ownerAlertPhone.trim();
-  if (replyDelaySec !== undefined) updates.reply_delay_sec = Math.max(0, Math.min(60, Number(replyDelaySec) || 0));
-  if (typeof autoReplyEnabled === 'boolean') {
-    updates.auto_reply_enabled = autoReplyEnabled;
-    updates.wa_auto_reply = autoReplyEnabled;
-  }
-  if (typeof replyWithVoiceNotes === 'boolean') updates.reply_with_voice_notes = replyWithVoiceNotes;
-
-  const org = db.update('organizations', req.organizationId, updates);
-
-  // Tenant settings isolated to authenticated organization — do not mutate process-global config.json
-  const existingSettings = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId);
-  const aiUpdates = {
-    company_name: updates.name || org?.name || 'Bharat Machinery',
-    city_base: updates.company_city || org?.company_city || 'Delhi NCR',
-    escalation_phone: updates.owner_alert_number || org?.owner_alert_number || '',
-    reply_delay_sec: updates.reply_delay_sec ?? existingSettings?.reply_delay_sec ?? 3,
-    auto_reply_enabled: updates.auto_reply_enabled ?? existingSettings?.auto_reply_enabled ?? true
-  };
-  if (existingSettings) {
-    db.updateScoped('ai_settings', existingSettings.id, req.organizationId, aiUpdates);
-  } else {
-    db.insert('ai_settings', { organization_id: req.organizationId, ...aiUpdates });
-  }
-
-  addLog(`Tenant settings updated for organization ${req.organizationId}.`);
-  res.json({
-    ok: true,
-    config: {
-      companyName: org?.name || aiUpdates.company_name,
-      cityBase: org?.company_city || aiUpdates.city_base,
-      ownerAlertPhone: org?.owner_alert_number || aiUpdates.escalation_phone,
-      replyDelaySec: aiUpdates.reply_delay_sec,
-      autoReplyEnabled: aiUpdates.auto_reply_enabled,
-      replyWithVoiceNotes: updates.reply_with_voice_notes ?? false,
-      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY)
+app.post('/api/config', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+  try {
+    const { companyName, cityBase, ownerAlertPhone, replyDelaySec, autoReplyEnabled, replyWithVoiceNotes } = req.body;
+    const updates = {};
+    if (typeof companyName === 'string' && companyName.trim()) updates.name = companyName.trim();
+    if (typeof cityBase === 'string') updates.company_city = cityBase.trim();
+    if (typeof ownerAlertPhone === 'string') updates.owner_alert_number = ownerAlertPhone.trim();
+    if (replyDelaySec !== undefined) updates.reply_delay_sec = Math.max(0, Math.min(60, Number(replyDelaySec) || 0));
+    if (typeof autoReplyEnabled === 'boolean') {
+      updates.auto_reply_enabled = autoReplyEnabled;
+      updates.wa_auto_reply = autoReplyEnabled;
     }
-  });
+    if (typeof replyWithVoiceNotes === 'boolean') updates.reply_with_voice_notes = replyWithVoiceNotes;
+
+    const org = await repository.updateOrganizationScoped(req.organizationId, updates);
+    db.update('organizations', req.organizationId, updates);
+
+    // Tenant settings isolated to authenticated organization — do not mutate process-global config.json
+    const existingSettings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId);
+    const aiUpdates = {
+      company_name: updates.name || org?.name || 'Bharat Machinery',
+      city_base: updates.company_city || org?.company_city || 'Delhi NCR',
+      escalation_phone: updates.owner_alert_number || org?.owner_alert_number || '',
+      reply_delay_sec: updates.reply_delay_sec ?? existingSettings?.reply_delay_sec ?? 3,
+      auto_reply_enabled: updates.auto_reply_enabled ?? existingSettings?.auto_reply_enabled ?? true
+    };
+    await repository.upsertAiSettings(req.organizationId, aiUpdates);
+    if (existingSettings?.id) {
+      db.updateScoped('ai_settings', existingSettings.id, req.organizationId, aiUpdates);
+    } else {
+      db.insert('ai_settings', { organization_id: req.organizationId, ...aiUpdates });
+    }
+
+    addLog(`Tenant settings updated for organization ${req.organizationId}.`);
+    res.json({
+      ok: true,
+      config: {
+        companyName: org?.name || aiUpdates.company_name,
+        cityBase: org?.company_city || aiUpdates.city_base,
+        ownerAlertPhone: org?.owner_alert_number || aiUpdates.escalation_phone,
+        replyDelaySec: aiUpdates.reply_delay_sec,
+        autoReplyEnabled: aiUpdates.auto_reply_enabled,
+        replyWithVoiceNotes: org?.reply_with_voice_notes ?? updates.reply_with_voice_notes ?? false,
+        hasGeminiKey: Boolean(process.env.GEMINI_API_KEY)
+      }
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
 // 1. Operator Live Demo Trigger + Public Simulator Form Endpoint
@@ -2942,22 +2901,35 @@ Return a strict JSON object with this structure:
 // Confirm available call time from Client Dashboard and notify both parties (Tenant-Scoped)
 app.post('/api/callbacks/confirm-time', authenticate, async (req, res) => {
   try {
+    if (!req.organizationId) {
+      return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
+    }
     const { leadId, confirmedTime } = req.body;
     let targetLead = null;
+
     if (leadId) {
-      targetLead = leads.find((l) => l.id === leadId && (!l.org_id || l.org_id === req.organizationId));
+      let existingLead = leads.find((l) => l.id === leadId);
+      if (!existingLead) {
+        existingLead = await repository.getLeadById(req.organizationId, leadId) || db.findById('leads', leadId);
+      }
+      if (!existingLead) {
+        return res.status(404).json({ ok: false, error: 'Lead not found.' });
+      }
+
+      const leadOrg = existingLead.org_id || existingLead.organization_id;
+      if (!leadOrg || leadOrg !== req.organizationId) {
+        return res.status(403).json({ ok: false, error: 'Unauthorized: Cannot access lead belonging to another organization.' });
+      }
+      targetLead = existingLead;
+    } else {
+      targetLead = leads.find((l) => (l.org_id === req.organizationId || l.organization_id === req.organizationId) && l.callbackStatus === 'awaiting_client_time');
       if (!targetLead) {
-        const dbLead = db.findById('leads', leadId);
-        if (dbLead && (!dbLead.org_id || dbLead.org_id === req.organizationId)) {
-          targetLead = dbLead;
-        }
+        targetLead = db.findOne('leads', (l) => (l.org_id === req.organizationId || l.organization_id === req.organizationId) && l.callbackStatus === 'awaiting_client_time');
       }
     }
+
     if (!targetLead) {
-      targetLead = leads.find((l) => l.callbackStatus === 'awaiting_client_time' && (!l.org_id || l.org_id === req.organizationId));
-    }
-    if (!targetLead) {
-      return res.status(404).json({ ok: false, error: 'No lead found for this organization to schedule call.' });
+      return res.status(404).json({ ok: false, error: 'No lead awaiting callback found for this organization.' });
     }
 
     const cleanTime = (confirmedTime || 'Today at 4:00 PM').trim();
@@ -2975,11 +2947,23 @@ app.post('/api/callbacks/confirm-time', authenticate, async (req, res) => {
 // Trigger a Demo Call Request to test the 2-way WhatsApp prompt
 app.post('/api/callbacks/request-demo', authenticate, async (req, res) => {
   try {
-    const ownerDigits = normalizePhone(config.ownerAlertPhone || '');
-    let lead = leads.find((l) => normalizePhone(l.phone) !== ownerDigits);
+    if (!req.organizationId) {
+      return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
+    }
+    const org = await repository.getOrganizationById(req.organizationId) || db.findById('organizations', req.organizationId) || {};
+    const settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
+    const ownerDigits = normalizePhone(org.owner_alert_number || settings.escalation_phone || config.ownerAlertPhone || '');
+
+    let lead = leads.find((l) => (l.org_id === req.organizationId || l.organization_id === req.organizationId) && normalizePhone(l.phone) !== ownerDigits);
+    if (!lead) {
+      const dbLead = db.findOne('leads', (l) => (l.org_id === req.organizationId || l.organization_id === req.organizationId) && normalizePhone(l.phone || l.buyer_phone) !== ownerDigits);
+      if (dbLead) lead = dbLead;
+    }
     if (!lead) {
       lead = {
         id: 'IM-' + Date.now().toString().slice(-6),
+        org_id: req.organizationId,
+        organization_id: req.organizationId,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         name: 'Rajesh Verma (Demo Buyer)',
@@ -3000,10 +2984,16 @@ app.post('/api/callbacks/request-demo', authenticate, async (req, res) => {
         ]
       };
       leads.unshift(lead);
+      db.insert('leads', lead);
     } else {
       lead.callbackStatus = 'awaiting_client_time';
       lead.callbackRequestedAt = new Date().toISOString();
       lead.status = '⏳ Awaiting Client Call Time';
+      db.updateScoped('leads', lead.id, req.organizationId, {
+        callbackStatus: lead.callbackStatus,
+        callbackRequestedAt: lead.callbackRequestedAt,
+        status: lead.status
+      });
     }
 
     if (ownerDigits && sock) {
@@ -3030,7 +3020,13 @@ app.post('/api/callbacks/request-demo', authenticate, async (req, res) => {
     }
 
     saveLeads(leads);
-    res.json({ ok: true, lead, message: 'Demo call request triggered. Check your WhatsApp!' });
+    res.json({
+      ok: true,
+      lead,
+      message: ownerDigits
+        ? `Demo call request sent to Owner WhatsApp (+${ownerDigits}). Reply to WhatsApp to confirm time!`
+        : `Demo lead created. Enter available time below to confirm call.`
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

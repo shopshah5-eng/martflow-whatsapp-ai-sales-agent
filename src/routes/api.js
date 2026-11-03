@@ -95,17 +95,24 @@ router.get('/health', (req, res) => {
 
 router.get('/ready', async (req, res) => {
   let dbOk = false;
+  const isProduction = process.env.NODE_ENV === 'production';
+  const useLocal = process.env.USE_LOCAL_DB === 'true';
+
   try {
-    if (process.env.USE_LOCAL_DB === 'true' || !process.env.SUPABASE_URL) {
-      dbOk = db !== null;
-    } else {
-      const admin = getSupabaseAdmin();
-      if (admin) {
-        const { error } = await admin.from('organizations').select('id').limit(1);
-        dbOk = !error;
+    if (isProduction && !useLocal) {
+      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        dbOk = false;
       } else {
-        dbOk = true;
+        const admin = getSupabaseAdmin();
+        if (admin) {
+          const { error } = await admin.from('organizations').select('id').limit(1);
+          dbOk = !error;
+        } else {
+          dbOk = false;
+        }
       }
+    } else {
+      dbOk = db !== null;
     }
   } catch (e) {
     dbOk = false;
@@ -217,6 +224,106 @@ router.post('/leads/:id/notes', authenticate, (req, res) => {
 });
 
 // ==========================================
+// 2b. CALLBACK SCHEDULING (TENANT-SCOPED)
+// ==========================================
+router.post('/callbacks/confirm-time', authenticate, async (req, res) => {
+  try {
+    if (!req.organizationId) {
+      return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
+    }
+    const { leadId, confirmedTime } = req.body;
+    let targetLead = null;
+
+    if (leadId) {
+      let existingLead = await repository.getLeadById(req.organizationId, leadId) || db.findById('leads', leadId);
+      if (!existingLead) {
+        return res.status(404).json({ ok: false, error: 'Lead not found.' });
+      }
+
+      const leadOrg = existingLead.org_id || existingLead.organization_id;
+      if (!leadOrg || leadOrg !== req.organizationId) {
+        return res.status(403).json({ ok: false, error: 'Unauthorized: Cannot access lead belonging to another organization.' });
+      }
+      targetLead = existingLead;
+    } else {
+      targetLead = db.findOne('leads', (l) => (l.org_id === req.organizationId || l.organization_id === req.organizationId) && l.callbackStatus === 'awaiting_client_time');
+    }
+
+    if (!targetLead) {
+      return res.status(404).json({ ok: false, error: 'No lead awaiting callback found for this organization.' });
+    }
+
+    const cleanTime = (confirmedTime || 'Today at 4:00 PM').trim();
+    targetLead.callbackStatus = 'scheduled';
+    targetLead.scheduledCallTime = cleanTime;
+    targetLead.status = `⏰ Call Scheduled: ${cleanTime}`;
+    targetLead.updatedAt = new Date().toISOString();
+
+    await repository.updateLeadScoped(req.organizationId, targetLead.id, {
+      callbackStatus: targetLead.callbackStatus,
+      scheduledCallTime: targetLead.scheduledCallTime,
+      status: targetLead.status
+    });
+    db.updateScoped('leads', targetLead.id, req.organizationId, {
+      callbackStatus: targetLead.callbackStatus,
+      scheduledCallTime: targetLead.scheduledCallTime,
+      status: targetLead.status
+    });
+
+    res.json({ ok: true, lead: targetLead, confirmedTime: cleanTime });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/callbacks/request-demo', authenticate, async (req, res) => {
+  try {
+    if (!req.organizationId) {
+      return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
+    }
+    const org = await repository.getOrganizationById(req.organizationId) || db.findById('organizations', req.organizationId) || {};
+    const settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
+    const ownerDigits = (org.owner_alert_number || settings.escalation_phone || '').replace(/\D/g, '');
+
+    let lead = db.findOne('leads', (l) => (l.org_id === req.organizationId || l.organization_id === req.organizationId) && (l.phone || l.buyer_phone || '').replace(/\D/g, '') !== ownerDigits);
+    if (!lead) {
+      lead = db.insert('leads', {
+        id: 'IM-' + Date.now().toString().slice(-6),
+        org_id: req.organizationId,
+        organization_id: req.organizationId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        name: 'Rajesh Verma (Demo Buyer)',
+        phone: '919781018975',
+        buyer_phone: '919781018975',
+        productName: 'Automatic Pouch Packing Machine',
+        requirement: 'BPT-500 Collar Type PLC Pouch Machine (50g spices)',
+        source: 'Live Demo Simulation',
+        status: '⏳ Awaiting Client Call Time',
+        callbackStatus: 'awaiting_client_time',
+        callbackRequestedAt: new Date().toISOString()
+      });
+    } else {
+      lead = db.updateScoped('leads', lead.id, req.organizationId, {
+        callbackStatus: 'awaiting_client_time',
+        callbackRequestedAt: new Date().toISOString(),
+        status: '⏳ Awaiting Client Call Time'
+      });
+    }
+
+    res.json({
+      ok: true,
+      message: ownerDigits
+        ? `Demo call request sent to Owner WhatsApp (+${ownerDigits}). Reply to WhatsApp to confirm time!`
+        : `Demo lead created. Enter available time below to confirm call.`,
+      lead
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ==========================================
 // 3. CONVERSATIONS INBOX ENDPOINTS
 // ==========================================
 router.get('/conversations', authenticate, (req, res) => {
@@ -301,6 +408,20 @@ router.post('/conversations/:id/reply', authenticate, async (req, res) => {
       delivery_status: 'sent',
       provider_message_id: sendResult.messageId
     });
+
+    // If tenant is opted in to conversational learning, propose verified facts from this human agent turn
+    if (LearningService.isLearningOptedIn(req.organizationId)) {
+      try {
+        const convMessages = db.findScoped('messages', req.organizationId, (m) => m.conversation_id === conv.id) || [];
+        LearningService.proposeFactsFromConversation({
+          organizationId: req.organizationId,
+          conversationId: conv.id,
+          messages: convMessages
+        });
+      } catch (learnErr) {
+        console.warn('Learning proposal extraction error:', learnErr.message);
+      }
+    }
 
     res.json({ ok: true, message: msgRecord });
   } catch (err) {
@@ -539,70 +660,84 @@ router.get('/analytics', authenticate, (req, res) => {
 // ==========================================
 // 8. SETTINGS & TEAM MANAGEMENT ENDPOINTS
 // ==========================================
-router.get('/settings', authenticate, (req, res) => {
-  const settings = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
-  res.json({
-    ok: true,
-    organization: req.organization,
-    settings
-  });
+router.get('/settings', authenticate, async (req, res) => {
+  try {
+    const org = await repository.getOrganizationById(req.organizationId) || req.organization || {};
+    const settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
+    res.json({
+      ok: true,
+      organization: org,
+      settings
+    });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
-router.post('/settings', authenticate, requireRole(['owner', 'admin']), (req, res) => {
-  const { companyName, cityBase, ownerAlertPhone, geminiApiKey } = req.body;
+router.post('/settings', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+  try {
+    const { companyName, cityBase, ownerAlertPhone, geminiApiKey } = req.body;
 
-  if (companyName && companyName.trim()) {
-    db.update('organizations', req.organizationId, { name: companyName.trim() });
+    if (companyName && companyName.trim()) {
+      await repository.updateOrganizationScoped(req.organizationId, { name: companyName.trim() });
+      db.update('organizations', req.organizationId, { name: companyName.trim() });
+    }
+
+    const existing = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId);
+    const updates = {
+      company_name: companyName ? companyName.trim() : (existing?.company_name || 'Bharat Machinery'),
+      city_base: cityBase ? cityBase.trim() : (existing?.city_base || 'Delhi NCR'),
+      escalation_phone: ownerAlertPhone ? ownerAlertPhone.trim() : (existing?.escalation_phone || '')
+    };
+
+    const saved = await repository.upsertAiSettings(req.organizationId, updates);
+    if (existing?.id) {
+      db.updateScoped('ai_settings', existing.id, req.organizationId, updates);
+    } else {
+      db.insert('ai_settings', { organization_id: req.organizationId, ...updates });
+    }
+
+    res.json({ ok: true, settings: saved });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
-
-  const existing = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId);
-  const updates = {
-    company_name: companyName ? companyName.trim() : (existing?.company_name || 'Bharat Machinery'),
-    city_base: cityBase ? cityBase.trim() : (existing?.city_base || 'Delhi NCR'),
-    escalation_phone: ownerAlertPhone ? ownerAlertPhone.trim() : (existing?.escalation_phone || '')
-  };
-
-  // Tenant setting cannot mutate global GEMINI_API_KEY
-
-  let saved;
-  if (existing) {
-    saved = db.updateScoped('ai_settings', existing.id, req.organizationId, updates);
-  } else {
-    saved = db.insert('ai_settings', { organization_id: req.organizationId, ...updates });
-  }
-
-  res.json({ ok: true, settings: saved });
 });
 
-router.post('/settings/whatsapp', authenticate, requireRole(['owner', 'admin']), (req, res) => {
-  const { wabaId, phoneId, token } = req.body;
-  const existing = db.findOne('integration_connections', (c) =>
-    c.organization_id === req.organizationId && c.provider === 'whatsapp_cloud'
-  );
+router.post('/settings/whatsapp', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+  try {
+    const { wabaId, phoneId, token } = req.body;
+    const existing = db.findOne('integration_connections', (c) =>
+      c.organization_id === req.organizationId && c.provider === 'whatsapp_cloud'
+    );
 
-  const creds = { wabaId, phoneNumberId: phoneId, token };
-  if (existing) {
-    db.updateScoped('integration_connections', existing.id, req.organizationId, {
-      credentials_encrypted: creds,
-      status: token ? 'connected' : 'disconnected'
-    });
-  } else {
-    db.insert('integration_connections', {
-      organization_id: req.organizationId,
-      provider: 'whatsapp_cloud',
-      credentials_encrypted: creds,
-      status: token ? 'connected' : 'disconnected'
-    });
+    const creds = { wabaId, phoneNumberId: phoneId, token };
+    if (existing) {
+      db.updateScoped('integration_connections', existing.id, req.organizationId, {
+        credentials_encrypted: creds,
+        status: token ? 'connected' : 'disconnected'
+      });
+    } else {
+      db.insert('integration_connections', {
+        organization_id: req.organizationId,
+        provider: 'whatsapp_cloud',
+        credentials_encrypted: creds,
+        status: token ? 'connected' : 'disconnected'
+      });
+    }
+
+    // Update organization WhatsApp settings
+    const orgUpdates = {
+      waba_phone_id: phoneId || null,
+      waba_token: token || null,
+      wa_mode: phoneId && token ? 'cloud_api' : 'qr'
+    };
+    await repository.updateOrganizationScoped(req.organizationId, orgUpdates);
+    db.update('organizations', req.organizationId, orgUpdates);
+
+    res.json({ ok: true, message: 'WhatsApp Cloud API settings saved successfully.' });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
-
-  // Update organization WhatsApp settings
-  db.update('organizations', req.organizationId, {
-    waba_phone_id: phoneId || null,
-    waba_token: token || null,
-    wa_mode: phoneId && token ? 'cloud_api' : 'qr'
-  });
-
-  res.json({ ok: true, message: 'WhatsApp Cloud API settings saved successfully.' });
 });
 
 router.get('/settings/team', authenticate, (req, res) => {
@@ -1149,6 +1284,15 @@ router.get('/learning/facts', authenticate, (req, res) => {
 router.delete('/learning/facts/:id', authenticate, requireRole(['owner', 'admin']), (req, res) => {
   try {
     const result = LearningService.deleteApprovedFact(req.organizationId, req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/learning/opt-out', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+  try {
+    const result = LearningService.optOut(req.organizationId);
     res.json(result);
   } catch (err) {
     res.status(err.statusCode || 500).json({ ok: false, error: err.message });
