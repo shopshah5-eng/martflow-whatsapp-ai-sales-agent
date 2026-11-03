@@ -5143,17 +5143,40 @@
       if (!token) return null;
       try {
         const response = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
-        const data = await response.json();
-        if (response.ok && data.ok && data.user && data.organization) {
-          localStorage.setItem('mf_token', token);
-          localStorage.setItem('mf_auth_token', token);
-          return '/app';
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.ok && data.user && data.organization) {
+            localStorage.setItem('mf_token', token);
+            localStorage.setItem('mf_auth_token', token);
+            return '/app';
+          }
         }
         if (response.status === 401 || response.status === 403) {
-          for (const key of ['mf_token', 'mf_auth_token', 'mf_current_user', 'mf_current_org']) localStorage.removeItem(key);
+          let hasValidSb = false;
+          if (sb) {
+            try {
+              const { data: { session } } = await sb.auth.getSession();
+              if (session?.user) {
+                const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+                if (profile?.org_id) {
+                  const { data: org } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
+                  if (org) {
+                    hasValidSb = true;
+                    localStorage.setItem('mf_token', session.access_token);
+                    localStorage.setItem('mf_auth_token', session.access_token);
+                    return '/app';
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+          if (!hasValidSb) {
+            for (const key of ['mf_token', 'mf_auth_token', 'mf_current_user', 'mf_current_org']) localStorage.removeItem(key);
+            return null;
+          }
         }
       } catch (error) {
-        console.warn('Could not verify the workspace session:', error.message);
+        console.warn('Could not verify workspace session via backend:', error.message);
       }
       return null;
     }

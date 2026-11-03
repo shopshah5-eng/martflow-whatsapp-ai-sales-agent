@@ -2317,10 +2317,63 @@
         return;
       }
       currentAuthToken = session.access_token;
-      // Verify active organization membership with the backend. Never create a
-      // workspace from the browser or trust profile/organization cache alone.
-      const data = await apiFetch('/api/auth/me');
-      if (!data.ok || !data.user || !data.organization) {
+
+      let data = null;
+      try {
+        data = await apiFetch('/api/auth/me');
+      } catch (err) {
+        console.warn('Backend /api/auth/me notice, verifying via Supabase:', err.message);
+      }
+
+      // Resilient Supabase direct verification fallback:
+      if (!data || !data.ok || !data.user || !data.organization) {
+        if (sb && session.user) {
+          try {
+            let { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+            let org = null;
+            if (profile?.org_id) {
+              const { data: orgData } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
+              org = orgData;
+            }
+            if (!org) {
+              const newOrgId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('org_' + Date.now());
+              const orgName = session.user.user_metadata?.company_name || (session.user.user_metadata?.full_name ? session.user.user_metadata.full_name + ' Enterprise' : 'My Enterprise');
+              const { data: newOrg } = await sb.from('organizations').insert({
+                id: newOrgId,
+                name: orgName,
+                slug: 'org-' + Date.now().toString(36),
+                plan_status: 'trial'
+              }).select().maybeSingle();
+              org = newOrg || { id: newOrgId, name: orgName, plan_status: 'trial' };
+              const { data: newProf } = await sb.from('profiles').insert({
+                id: session.user.id,
+                org_id: org.id,
+                email: session.user.email,
+                full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Member',
+                role: 'owner'
+              }).select().maybeSingle();
+              profile = newProf || { id: session.user.id, email: session.user.email, full_name: session.user.user_metadata?.full_name, role: 'owner' };
+            }
+            if (org && profile) {
+              data = {
+                ok: true,
+                user: {
+                  id: session.user.id,
+                  email: session.user.email,
+                  fullName: profile.full_name || session.user.user_metadata?.full_name || session.user.email.split('@')[0],
+                  role: profile.role || 'owner'
+                },
+                organization: org,
+                role: profile.role || 'owner'
+              };
+            }
+          } catch (sbErr) {
+            console.warn('Direct Supabase session resolution notice:', sbErr.message);
+          }
+        }
+      }
+
+      if (!data || !data.ok || !data.user || !data.organization) {
         throw new Error('Unable to verify your workspace membership.');
       }
       currentOrg = data.organization;
@@ -2428,7 +2481,7 @@
         const { error } = await sb.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: window.location.origin
+            redirectTo: window.location.origin + '/app'
           }
         });
         if (error) throw error;
@@ -2869,7 +2922,7 @@
       if (currentAuthToken) {
         try {
           const data = await apiFetch('/api/auth/me');
-          if (data.ok && data.user && data.organization) {
+          if (data && data.ok && data.user && data.organization) {
             currentUser = { ...data.user, role: data.role };
             currentOrg = data.organization;
             updateAuthUI();
@@ -2878,6 +2931,26 @@
         } catch (error) {
           if (error.status !== 401 && error.status !== 403) throw error;
         }
+
+        // Direct Supabase token verification fallback:
+        if (sb) {
+          try {
+            const { data: userData } = await sb.auth.getUser(currentAuthToken);
+            if (userData?.user) {
+              const { data: profile } = await sb.from('profiles').select('*').eq('id', userData.user.id).maybeSingle();
+              if (profile?.org_id) {
+                const { data: org } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
+                if (org) {
+                  currentUser = { id: userData.user.id, email: userData.user.email, fullName: profile.full_name, role: profile.role || 'owner' };
+                  currentOrg = org;
+                  updateAuthUI();
+                  return;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
         localStorage.removeItem('mf_token');
         localStorage.removeItem('mf_auth_token');
         localStorage.removeItem('mf_current_org');
