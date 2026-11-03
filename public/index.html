@@ -2225,13 +2225,24 @@
 
       <!-- TAB 1: INSTANT DIRECT UPI QR & UTR LOGGING -->
       <div id="payTabUpiContent" class="space-y-3 pt-1">
+        <!-- Compact Coupon / Pilot Adjustment Code Box -->
+        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 text-xs">
+          <label class="block font-semibold text-slate-700">Have a Coupon / Pilot Adjustment Code?</label>
+          <div class="flex space-x-2">
+            <input type="text" id="modalCouponInput" placeholder="e.g. ADJUST999 / PILOT999" class="flex-1 px-3 py-2 text-xs border border-gray-300 rounded-lg font-mono uppercase focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <button type="button" onclick="applyModalCoupon()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-xs transition shadow-xs shrink-0">
+              Apply
+            </button>
+          </div>
+        </div>
+
         <div class="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl text-center space-y-3">
           <div class="text-[11px] font-semibold uppercase tracking-wider text-indigo-900">Scan & Pay via GPay, PhonePe, Paytm, BHIM</div>
           <div class="bg-white p-2 rounded-xl inline-block border border-indigo-100 shadow-sm">
             <img id="actUpiQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dsaraitaj6-2%40okaxis%26pn%3DMartFlow%2520AI%26am%3D9999%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
           </div>
           <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
-            <span id="actUpiIdText" class="text-slate-600 font-semibold truncate">UPI ID: YOUR_REAL_UPI_ID</span>
+            <span id="actUpiIdText" class="text-slate-600 font-semibold truncate">UPI ID: saraitaj6-2@okaxis</span>
             <button onclick="copyUpiId()" class="text-indigo-600 hover:text-indigo-800 font-bold ml-2 shrink-0">Copy</button>
           </div>
           <a id="actUpiMobileBtn" href="#" class="block w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-800 transition">
@@ -2274,10 +2285,10 @@
       </div>
 
       <!-- Partner / Affiliate Referral Badge -->
-      <div id="actPartnerBadge" class="hidden p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center justify-between">
+      <div id="actAffiliateBadge" class="hidden p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center justify-between">
         <div class="flex items-center space-x-1.5">
           <span>🤝</span>
-          <span id="actPartnerBadgeText">Partner Referral Applied</span>
+          <span id="actAffiliateBadgeText">Partner Referral Applied</span>
         </div>
         <span class="text-[10px] bg-emerald-200/60 text-emerald-900 px-2 py-0.5 rounded-full uppercase tracking-wider font-bold">Verified</span>
       </div>
@@ -2805,8 +2816,8 @@
           if (pending && pending.utr) {
             const partnerRef = localStorage.getItem('mf_affiliate_ref');
             let planWithRef = pending.plan || 'MartFlow VIP License';
-            if (partnerRef && !planWithRef.includes('[Partner Ref:')) {
-              planWithRef = `${planWithRef} [Partner Ref: ${partnerRef}]`;
+            if (partnerRef && !planWithRef.includes('[Ref:') && !planWithRef.includes('[Partner Ref:')) {
+              planWithRef = `${planWithRef} [Ref: ${partnerRef}]`;
             }
             try {
               const res = await fetch(`${API_BASE}/api/payments/upi-verify`, {
@@ -5213,9 +5224,69 @@
       'ANNUAL20K': { amount: 20000, desc: 'Full 1-Year Commercial License — Zero Setup Fee' }
     };
 
+    async function applyModalCoupon() {
+      const code = (document.getElementById('modalCouponInput')?.value || '').trim().toUpperCase();
+      if (!code) return showToast('Please enter a coupon or adjustment code', 'warning');
+
+      if (code === 'ADJUST999') {
+        const base = window.baseCheckoutAmount || 9999;
+        const discounted = Math.max(999, base - 999);
+        const desc = `₹999 VIP Pilot Deposit Adjusted! Pay ₹${discounted.toLocaleString('en-IN')} balance.`;
+        if (sb && currentOrg) {
+          try {
+            await sb.from('organizations').update({
+              custom_quote_inr: discounted
+            }).eq('id', currentOrg.id);
+            currentOrg.custom_quote_inr = discounted;
+          } catch (e) {
+            console.warn('[Coupon] Failed to update org quote:', e);
+          }
+        }
+        updatePayAmounts(discounted, desc);
+        showToast(`Code ADJUST999 applied! ₹999 pilot deposit deducted (Pay ₹${discounted.toLocaleString('en-IN')})`, 'success');
+        return;
+      }
+
+      const plan = SALES_COUPONS[code];
+      if (!plan) return showToast('Invalid coupon code. Please verify and try again.', 'error');
+
+      if (sb && currentOrg) {
+        try {
+          await sb.from('organizations').update({
+            custom_quote_inr: plan.amount
+          }).eq('id', currentOrg.id);
+          currentOrg.custom_quote_inr = plan.amount;
+        } catch (e) {
+          console.warn('[Coupon] Failed to update org quote:', e);
+        }
+      }
+
+      updatePayAmounts(plan.amount, plan.desc);
+      showToast(`Code ${code} applied! Unlocked ${plan.desc} (₹${plan.amount.toLocaleString('en-IN')})`, 'success');
+    }
+
     async function submitActivationCode() {
-      const code = (document.getElementById('offerCodeInput')?.value || document.getElementById('utrRefInput')?.value || '').trim().toUpperCase();
+      const code = (document.getElementById('offerCodeInput')?.value || document.getElementById('modalCouponInput')?.value || document.getElementById('utrRefInput')?.value || '').trim().toUpperCase();
       if (!code) return showToast('Please enter a partner or coupon code', 'warning');
+
+      if (code === 'ADJUST999') {
+        const base = window.baseCheckoutAmount || 9999;
+        const discounted = Math.max(999, base - 999);
+        const desc = `₹999 VIP Pilot Deposit Adjusted! Pay ₹${discounted.toLocaleString('en-IN')} balance.`;
+        if (sb && currentOrg) {
+          try {
+            await sb.from('organizations').update({
+              custom_quote_inr: discounted
+            }).eq('id', currentOrg.id);
+            currentOrg.custom_quote_inr = discounted;
+          } catch (e) {
+            console.warn('[Coupon] Failed to update org quote:', e);
+          }
+        }
+        updatePayAmounts(discounted, desc);
+        showToast(`Code ADJUST999 applied! ₹999 pilot deposit deducted (Pay ₹${discounted.toLocaleString('en-IN')})`, 'success');
+        return;
+      }
 
       const plan = SALES_COUPONS[code];
       if (!plan) return showToast('Invalid code. Please contact your sales representative.', 'error');
@@ -5258,7 +5329,7 @@
       const amount = window.selectedCheckoutAmount || currentOrg?.custom_quote_inr || 999;
       const partnerRef = localStorage.getItem('mf_affiliate_ref');
       const basePlan = window.selectedCheckoutPlan || 'MartFlow VIP License';
-      const plan = partnerRef ? `${basePlan} [Partner Ref: ${partnerRef}]` : basePlan;
+      const plan = basePlan + (partnerRef ? ' [Ref: ' + partnerRef + ']' : '');
 
       if (!currentOrg) {
         localStorage.setItem('mf_pending_utr', JSON.stringify({ utr, amount, plan, timestamp: Date.now() }));
@@ -5319,13 +5390,24 @@
       if (planPrice && document.getElementById('actPlanPrice')) document.getElementById('actPlanPrice').textContent = planPrice;
       if (planDesc && document.getElementById('actPlanDesc')) document.getElementById('actPlanDesc').textContent = planDesc;
 
+      let amt = numericAmount;
+      if (!amt) {
+        const numParsed = parseInt(String(planPrice || '').replace(/[^\d]/g, ''), 10);
+        amt = (!isNaN(numParsed) && numParsed > 0) ? numParsed : 9999;
+      }
+      window.baseCheckoutAmount = amt;
+      window.selectedCheckoutAmount = amt;
+
+      const modalCouponInput = document.getElementById('modalCouponInput');
+      if (modalCouponInput) modalCouponInput.value = '';
+
       // Display Partner Referral badge if an affiliate ref exists
       const partnerRef = localStorage.getItem('mf_affiliate_ref');
-      const badgeEl = document.getElementById('actPartnerBadge');
-      const badgeTextEl = document.getElementById('actPartnerBadgeText');
+      const badgeEl = document.getElementById('actAffiliateBadge') || document.getElementById('actPartnerBadge');
+      const badgeTextEl = document.getElementById('actAffiliateBadgeText') || document.getElementById('actPartnerBadgeText');
       if (badgeEl && badgeTextEl) {
         if (partnerRef) {
-          badgeTextEl.textContent = `Partner Referral Applied: ${partnerRef}`;
+          badgeTextEl.textContent = `Partner Referral Applied: ${partnerRef.toUpperCase()}`;
           badgeEl.classList.remove('hidden');
         } else {
           badgeEl.classList.add('hidden');
@@ -5334,17 +5416,11 @@
       const waBtn = document.getElementById('actWaBtn');
       if (waBtn) {
         const waMsg = partnerRef
-          ? `Namaste MartFlow Team! I want to activate my workspace plan with Partner Ref: ${partnerRef}`
+          ? `Namaste MartFlow Team! I want to activate my workspace plan with Partner Ref: ${partnerRef.toUpperCase()}`
           : `Namaste MartFlow Team! I want to activate my workspace plan`;
         waBtn.setAttribute('onclick', `openDemoBotChat(${JSON.stringify(waMsg)})`);
       }
 
-      let amt = numericAmount;
-      if (!amt) {
-        const numParsed = parseInt(String(planPrice || '').replace(/[^\d]/g, ''), 10);
-        amt = (!isNaN(numParsed) && numParsed > 0) ? numParsed : 9999;
-      }
-      window.selectedCheckoutAmount = amt;
       updatePayAmounts(amt, planDesc);
     }
     function closeActivationModal() {
