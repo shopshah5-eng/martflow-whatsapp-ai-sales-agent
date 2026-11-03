@@ -147,7 +147,8 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
         organization: {
           id: organization.id,
           name: organization.name,
-          slug: organization.slug
+          slug: organization.slug,
+          webhook_key: organization.webhook_key
         },
         role,
         token
@@ -222,7 +223,8 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
     organization: {
       id: organization.id,
       name: organization.name,
-      slug: organization.slug
+      slug: organization.slug,
+      webhook_key: organization.webhook_key
     },
     role: 'owner',
     token

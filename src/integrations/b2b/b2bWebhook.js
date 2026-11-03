@@ -5,6 +5,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { LeadService } from '../../services/leadService.js';
 import db from '../../db/index.js';
 
@@ -55,11 +56,15 @@ export class B2BWebhook {
     );
 
     const validSecret = conn?.webhook_secret || org?.webhook_key;
-    if (validSecret && authToken && authToken !== validSecret) {
-      return {
-        status: 'unauthorized',
-        reason: 'Invalid B2B authentication token or signature.'
-      };
+    if (validSecret && authToken) {
+      const tokenBuf = Buffer.from(String(authToken));
+      const secretBuf = Buffer.from(String(validSecret));
+      if (tokenBuf.length !== secretBuf.length || !crypto.timingSafeEqual(tokenBuf, secretBuf)) {
+        return {
+          status: 'unauthorized',
+          reason: 'Invalid B2B authentication token or signature.'
+        };
+      }
     }
 
     // Deduplicate and insert lead
@@ -153,7 +158,7 @@ export class B2BWebhook {
   static async handleWebhookByKey(webhookKey, rawBody, authToken = null) {
     let org = db.findByWebhookKey ? db.findByWebhookKey(webhookKey) : null;
     if (!org) {
-      org = db.findOne('organizations', (o) => o.webhook_key === webhookKey || o.id === webhookKey);
+      org = db.findOne('organizations', (o) => o.webhook_key === webhookKey);
     }
     if (!org) {
       throw new Error(`Invalid or unregistered B2B webhook key: ${webhookKey}`);

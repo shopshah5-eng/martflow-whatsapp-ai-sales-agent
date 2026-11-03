@@ -4,13 +4,31 @@ ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS quota_admitted BOOLEAN NOT NUL
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS requirement TEXT;
 ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_id TEXT;
 ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS wa_worker_heartbeat TIMESTAMPTZ;
+ALTER TABLE public.organizations ADD COLUMN IF NOT EXISTS quote_code TEXT;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS quote_code TEXT;
 
--- Deduplicate existing leads (keeping newest) before creating unique index
+-- Deduplicate existing leads (keeping newest) before creating unique index,
+-- safely remapping foreign key references from duplicate leads to the retained lead.
+UPDATE public.conversations c
+SET lead_id = b.id
+FROM public.leads a, public.leads b
+WHERE c.lead_id = a.id
+  AND a.org_id = b.org_id
+  AND a.buyer_phone = b.buyer_phone
+  AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id));
+
+UPDATE public.call_requests cr
+SET lead_id = b.id
+FROM public.leads a, public.leads b
+WHERE cr.lead_id = a.id
+  AND a.org_id = b.org_id
+  AND a.buyer_phone = b.buyer_phone
+  AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id));
+
 DELETE FROM public.leads a USING public.leads b
 WHERE a.org_id = b.org_id
   AND a.buyer_phone = b.buyer_phone
-  AND a.created_at < b.created_at;
+  AND (a.created_at < b.created_at OR (a.created_at = b.created_at AND a.id < b.id));
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_leads_org_buyer_phone ON public.leads (org_id, buyer_phone);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_payments_razorpay_payment_id ON public.payments (razorpay_payment_id) WHERE razorpay_payment_id IS NOT NULL;

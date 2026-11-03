@@ -17,6 +17,7 @@ import { AIService, invalidateCache, getSupabaseAdmin } from '../services/aiServ
 import { WhatsAppAdapter } from '../integrations/whatsapp/whatsappAdapter.js';
 import { B2BWebhook } from '../integrations/b2b/b2bWebhook.js';
 import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
+import { LearningService } from '../services/learningService.js';
 import db from '../db/index.js';
 import { repository } from '../db/repository.js';
 
@@ -86,6 +87,36 @@ router.post('/auth/otp/verify', (req, res) => {
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
+});
+
+router.get('/health', (req, res) => {
+  res.json({ ok: true, status: 'healthy', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+router.get('/ready', async (req, res) => {
+  let dbOk = false;
+  try {
+    if (process.env.USE_LOCAL_DB === 'true' || !process.env.SUPABASE_URL) {
+      dbOk = db !== null;
+    } else {
+      const admin = getSupabaseAdmin();
+      if (admin) {
+        const { error } = await admin.from('organizations').select('id').limit(1);
+        dbOk = !error;
+      } else {
+        dbOk = true;
+      }
+    }
+  } catch (e) {
+    dbOk = false;
+  }
+  const isReady = dbOk;
+  res.status(isReady ? 200 : 503).json({
+    ok: isReady,
+    status: isReady ? 'ready' : 'degraded',
+    checks: { database: dbOk, uptime: process.uptime() },
+    timestamp: new Date().toISOString()
+  });
 });
 
 router.get('/auth/me', authenticate, async (req, res) => {
@@ -286,7 +317,7 @@ router.get('/whatsapp/status', authenticate, (req, res) => {
   res.json({ ok: true, status: state.status, phoneNumber: state.connectedNumber, waState: state });
 });
 
-router.post('/whatsapp/connect', authenticate, async (req, res) => {
+router.post('/whatsapp/connect', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const orgId = req.organizationId;
     await baileysManager.init(orgId);
@@ -296,7 +327,7 @@ router.post('/whatsapp/connect', authenticate, async (req, res) => {
   }
 });
 
-router.post('/whatsapp/disconnect', authenticate, async (req, res) => {
+router.post('/whatsapp/disconnect', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const orgId = req.organizationId;
     await baileysManager.disconnect(orgId);
@@ -314,7 +345,7 @@ router.get('/catalog/products', authenticate, (req, res) => {
   res.json({ ok: true, products });
 });
 
-router.post('/catalog/upload', authenticate, async (req, res) => {
+router.post('/catalog/upload', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const { filename, fileBase64 } = req.body;
     if (!filename || !fileBase64) {
@@ -611,7 +642,7 @@ router.post(['/webhook/b2b', '/webhook/indiamart'], async (req, res) => {
       return res.status(401).json({ status: 'unauthorized', error: 'Authentication required: Missing valid tenant webhook key or token.' });
     }
 
-    const org = db.findByWebhookKey(token) || db.findById('organizations', token);
+    const org = db.findByWebhookKey(token);
     if (!org) {
       return res.status(401).json({ status: 'unauthorized', error: 'Invalid tenant webhook token or key.' });
     }
@@ -1072,6 +1103,55 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+
+// ==========================================
+// 12. SAFE CONVERSATIONAL LEARNING & REVIEW QUEUE
+// ==========================================
+router.get('/learning/proposals', authenticate, (req, res) => {
+  try {
+    const proposals = LearningService.listProposals(req.organizationId, req.query);
+    res.json({ ok: true, proposals });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/learning/proposals/:id/approve', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+  try {
+    const result = LearningService.approveProposal(req.organizationId, req.params.id, req.userId);
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.post('/learning/proposals/:id/reject', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+  try {
+    const result = LearningService.rejectProposal(req.organizationId, req.params.id, req.userId, req.body?.reason);
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.get('/learning/facts', authenticate, (req, res) => {
+  try {
+    const facts = LearningService.listApprovedFacts(req.organizationId);
+    res.json({ ok: true, facts });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.delete('/learning/facts/:id', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+  try {
+    const result = LearningService.deleteApprovedFact(req.organizationId, req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 });
 

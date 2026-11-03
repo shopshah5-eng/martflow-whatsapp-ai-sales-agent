@@ -5553,7 +5553,7 @@
         if (info) {
           info.classList.remove('hidden');
           const dateStr = currentOrg.website_synced_at ? new Date(currentOrg.website_synced_at).toLocaleString() : 'Recently';
-          info.innerHTML = `<span class="font-bold text-slate-800">Synced:</span> ${dateStr} • <span class="font-mono text-indigo-700">${currentOrg.website_url}</span> (${Math.round((currentOrg.website_knowledge.length / 1024))} KB knowledge base)`;
+          info.innerHTML = `<span class="font-bold text-slate-800">Synced:</span> ${escapeHtml(dateStr)} • <span class="font-mono text-indigo-700">${escapeHtml(currentOrg.website_url)}</span> (${Math.round((currentOrg.website_knowledge.length / 1024))} KB knowledge base)`;
         }
       }
     }

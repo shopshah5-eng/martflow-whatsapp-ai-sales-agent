@@ -11,6 +11,7 @@ if (typeof dns.setDefaultResultOrder === 'function') {
 }
 import { createClient } from '@supabase/supabase-js';
 import db from '../db/index.js';
+import { LearningService } from './learningService.js';
 
 let _sbAdmin = null;
 export function getSupabaseAdmin() {
@@ -444,7 +445,8 @@ export class AIService {
 
     const catalogContext = this.getCatalogContext(products, `${lead.product_inquired || ''} ${incomingText}`);
 
-    const extraKnowledge = org.website_knowledge ? `\nBUSINESS & SERVICE KNOWLEDGE BASE:\n${org.website_knowledge.slice(0, 10000)}\n` : '';
+    const extraKnowledge = (org.website_knowledge ? `\nBUSINESS & SERVICE KNOWLEDGE BASE:\n${org.website_knowledge.slice(0, 10000)}\n` : '') +
+      LearningService.getApprovedKnowledgeString(organizationId);
 
     // 6. CALL GEMINI (WITH STATEFUL LIFECYCLE & PERSONA)
     const geminiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim();

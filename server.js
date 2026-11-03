@@ -2602,9 +2602,33 @@ app.get('/api/test-audio', async (req, res) => {
   }
 });
 
-// Render & Uptime Healthcheck Endpoint
+// Render & Uptime Healthcheck Endpoints (Liveness & Readiness Probes)
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, status: 'healthy', uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+app.get('/api/ready', async (req, res) => {
+  let dbOk = false;
+  try {
+    if (process.env.USE_LOCAL_DB === 'true' || !process.env.SUPABASE_URL) {
+      dbOk = db !== null;
+    } else if (supabaseAdmin) {
+      const { error } = await supabaseAdmin.from('organizations').select('id').limit(1);
+      dbOk = !error;
+    } else {
+      dbOk = true;
+    }
+  } catch (e) {
+    dbOk = false;
+  }
+  const storageOk = fs.existsSync(path.join(__dirname, 'catalogs'));
+  const isReady = dbOk && storageOk;
+  res.status(isReady ? 200 : 503).json({
+    ok: isReady,
+    status: isReady ? 'ready' : 'degraded',
+    checks: { database: dbOk, storage: storageOk, uptime: process.uptime() },
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.get('/api/status', authenticate, requireRole(['owner', 'admin', 'superadmin']), (req, res) => {
@@ -2622,20 +2646,66 @@ app.get('/api/status', authenticate, requireRole(['owner', 'admin', 'superadmin'
   });
 });
 
+app.get('/api/config', authenticate, (req, res) => {
+  const org = db.findById('organizations', req.organizationId) || {};
+  const settings = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
+  res.json({
+    ok: true,
+    config: {
+      companyName: org.name || settings.company_name || 'MartFlow AI',
+      cityBase: org.company_city || settings.city_base || 'Delhi NCR',
+      ownerAlertPhone: org.owner_alert_number || settings.escalation_phone || '',
+      replyDelaySec: settings.reply_delay_sec ?? org.reply_delay_sec ?? 3,
+      autoReplyEnabled: org.auto_reply_enabled ?? settings.auto_reply_enabled ?? true,
+      replyWithVoiceNotes: org.reply_with_voice_notes ?? false,
+      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY)
+    }
+  });
+});
+
 app.post('/api/config', authenticate, requireRole(['owner', 'admin']), (req, res) => {
   const { companyName, cityBase, ownerAlertPhone, replyDelaySec, autoReplyEnabled, replyWithVoiceNotes } = req.body;
-  if (typeof companyName === 'string' && companyName.trim()) config.companyName = companyName.trim();
-  if (typeof cityBase === 'string') config.cityBase = cityBase.trim();
-  if (typeof ownerAlertPhone === 'string') config.ownerAlertPhone = ownerAlertPhone.trim();
-  if (replyDelaySec !== undefined) config.replyDelaySec = Math.max(0, Math.min(60, Number(replyDelaySec) || 0));
-  if (typeof autoReplyEnabled === 'boolean') config.autoReplyEnabled = autoReplyEnabled;
-  if (typeof replyWithVoiceNotes === 'boolean') config.replyWithVoiceNotes = replyWithVoiceNotes;
-  saveConfig(config);
-  addLog('Settings updated from dashboard.');
-  const safeConfig = { ...config };
-  delete safeConfig.geminiApiKey;
-  safeConfig.hasGeminiKey = Boolean(config.geminiApiKey);
-  res.json({ ok: true, config: safeConfig });
+  const updates = {};
+  if (typeof companyName === 'string' && companyName.trim()) updates.name = companyName.trim();
+  if (typeof cityBase === 'string') updates.company_city = cityBase.trim();
+  if (typeof ownerAlertPhone === 'string') updates.owner_alert_number = ownerAlertPhone.trim();
+  if (replyDelaySec !== undefined) updates.reply_delay_sec = Math.max(0, Math.min(60, Number(replyDelaySec) || 0));
+  if (typeof autoReplyEnabled === 'boolean') {
+    updates.auto_reply_enabled = autoReplyEnabled;
+    updates.wa_auto_reply = autoReplyEnabled;
+  }
+  if (typeof replyWithVoiceNotes === 'boolean') updates.reply_with_voice_notes = replyWithVoiceNotes;
+
+  const org = db.update('organizations', req.organizationId, updates);
+
+  // Tenant settings isolated to authenticated organization — do not mutate process-global config.json
+  const existingSettings = db.findOne('ai_settings', (s) => s.organization_id === req.organizationId);
+  const aiUpdates = {
+    company_name: updates.name || org?.name || 'Bharat Machinery',
+    city_base: updates.company_city || org?.company_city || 'Delhi NCR',
+    escalation_phone: updates.owner_alert_number || org?.owner_alert_number || '',
+    reply_delay_sec: updates.reply_delay_sec ?? existingSettings?.reply_delay_sec ?? 3,
+    auto_reply_enabled: updates.auto_reply_enabled ?? existingSettings?.auto_reply_enabled ?? true
+  };
+  if (existingSettings) {
+    db.updateScoped('ai_settings', existingSettings.id, req.organizationId, aiUpdates);
+  } else {
+    db.insert('ai_settings', { organization_id: req.organizationId, ...aiUpdates });
+  }
+
+  addLog(`Tenant settings updated for organization ${req.organizationId}.`);
+  res.json({
+    ok: true,
+    config: {
+      companyName: org?.name || aiUpdates.company_name,
+      cityBase: org?.company_city || aiUpdates.city_base,
+      ownerAlertPhone: org?.owner_alert_number || aiUpdates.escalation_phone,
+      replyDelaySec: aiUpdates.reply_delay_sec,
+      autoReplyEnabled: aiUpdates.auto_reply_enabled,
+      replyWithVoiceNotes: updates.reply_with_voice_notes ?? false,
+      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY)
+    }
+  });
 });
 
 // 1. Operator Live Demo Trigger + Public Simulator Form Endpoint
@@ -2733,7 +2803,7 @@ app.post('/api/dry-run-chat', authenticate, async (req, res) => {
 });
 
 // 4. Export Qualified Leads as Excel-Ready CSV (Tenant-Scoped with Formula Injection Protection)
-app.get('/api/leads.csv', authenticate, (req, res) => {
+app.get('/api/leads.csv', authenticate, requireRole(['owner', 'admin', 'sales_manager']), (req, res) => {
   const headers = ['Lead ID', 'Time', 'Buyer Name', 'WhatsApp Mobile', 'Machine Interested', 'Buyer City', 'Requirement', 'Status', 'Source'];
   const sanitizeCell = (v) => {
     let s = String(v ?? '');
@@ -2869,19 +2939,25 @@ Return a strict JSON object with this structure:
   }
 });
 
-// Confirm available call time from Client Dashboard and notify both parties
+// Confirm available call time from Client Dashboard and notify both parties (Tenant-Scoped)
 app.post('/api/callbacks/confirm-time', authenticate, async (req, res) => {
   try {
     const { leadId, confirmedTime } = req.body;
     let targetLead = null;
     if (leadId) {
-      targetLead = leads.find((l) => l.id === leadId);
+      targetLead = leads.find((l) => l.id === leadId && (!l.org_id || l.org_id === req.organizationId));
+      if (!targetLead) {
+        const dbLead = db.findById('leads', leadId);
+        if (dbLead && (!dbLead.org_id || dbLead.org_id === req.organizationId)) {
+          targetLead = dbLead;
+        }
+      }
     }
     if (!targetLead) {
-      targetLead = leads.find((l) => l.callbackStatus === 'awaiting_client_time') || leads[0];
+      targetLead = leads.find((l) => l.callbackStatus === 'awaiting_client_time' && (!l.org_id || l.org_id === req.organizationId));
     }
     if (!targetLead) {
-      return res.status(404).json({ ok: false, error: 'No lead found to schedule call.' });
+      return res.status(404).json({ ok: false, error: 'No lead found for this organization to schedule call.' });
     }
 
     const cleanTime = (confirmedTime || 'Today at 4:00 PM').trim();
@@ -3274,14 +3350,14 @@ app.get('/api/wa/status/:orgId', authenticate, (req, res) => {
   res.json({ ok: true, state: inst.getState() });
 });
 
-app.post('/api/wa/start-qr', authenticate, async (req, res) => {
+app.post('/api/wa/start-qr', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   await inst.init(true);
   res.json({ ok: true, message: 'QR initialization started' });
 });
 
-app.post('/api/wa/pair-code', authenticate, async (req, res) => {
+app.post('/api/wa/pair-code', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   const orgId = req.organizationId;
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ ok: false, error: 'Phone number required' });
@@ -3294,7 +3370,7 @@ app.post('/api/wa/pair-code', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/wa/disconnect', authenticate, async (req, res) => {
+app.post('/api/wa/disconnect', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   await inst.disconnect();
