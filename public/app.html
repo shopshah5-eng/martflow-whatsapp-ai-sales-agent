@@ -2097,67 +2097,57 @@
     }
 
     function handleRoute(overridePath) {
-      const currentPath = overridePath || window.location.pathname || (window.location.hash ? window.location.hash.replace(/^#/, '') : '/');
-      const cleanPath = currentPath.toLowerCase().replace(/\/$/, '') || '/';
+      const currentPath = overridePath || window.location.pathname || (window.location.hash ? window.location.hash.replace(/^#/, '') : '/app');
+      const cleanPath = currentPath.toLowerCase().replace(/\/$/, '') || '/app';
 
       // 1. Auth routes
-      if (cleanPath === '/login' || cleanPath === '#/login') {
-        if (currentOrg && currentUser) {
-          return navigateTo('/dashboard/overview', true);
+      if (cleanPath === '/login' || cleanPath === '#/login' || cleanPath === '/signup' || cleanPath === '#/signup') {
+        if (!currentOrg || !currentUser) {
+          window.location.href = '/login';
+          return;
         }
-        showMarketingView();
-        openAuthModal('login', false);
-        document.title = 'Sign In | MartFlow AI';
-        return;
-      }
-      if (cleanPath === '/signup' || cleanPath === '#/signup') {
-        if (currentOrg && currentUser) {
-          return navigateTo('/dashboard/overview', true);
-        }
-        showMarketingView();
-        openAuthModal('signup', false);
-        document.title = 'Create Company Workspace | MartFlow AI';
-        return;
-      }
-      if (cleanPath === '/forgot-password' || cleanPath === '#/forgot-password') {
-        showMarketingView();
-        openAuthModal('recovery', false);
-        document.title = 'Reset Password | MartFlow AI';
-        return;
       }
 
-      // 2. Protected Dashboard routes
-      if (cleanPath.startsWith('/dashboard') || cleanPath === '/admin') {
-        if (!currentOrg && !currentUser) {
-          sessionStorage.setItem('mf_auth_redirect', cleanPath);
-          showToast('Please sign in to access your dashboard.', 'info');
-          return navigateTo('/login', true);
-        }
+      // 2. Protected App & Dashboard routes
+      showAppWorkspaceView();
 
-        showAppWorkspaceView();
-
-        if (cleanPath === '/dashboard' || cleanPath === '/dashboard/overview') {
-          switchView('dashboard', false);
-          document.title = 'Executive Overview | MartFlow AI';
-        } else if (cleanPath === '/dashboard/inbox') {
-          switchView('conversations', false);
-          document.title = 'WhatsApp Inbox | MartFlow AI';
-        } else if (cleanPath === '/dashboard/leads') {
-          switchView('leads', false);
-          document.title = 'Leads Pipeline | MartFlow AI';
-        } else if (cleanPath === '/dashboard/catalogue' || cleanPath === '/dashboard/catalog') {
-          switchView('catalog', false);
-          document.title = 'Product Catalogue | MartFlow AI';
-        } else if (cleanPath === '/dashboard/ai-assistant') {
-          switchView('whatsapp', false);
-          document.title = 'AI Assistant & Settings | MartFlow AI';
-        } else if (cleanPath === '/dashboard/automations') {
-          switchView('settings', false);
-          document.title = 'Automations & Rules | MartFlow AI';
-        } else if (cleanPath === '/dashboard/appointments' || cleanPath === '/dashboard/calls') {
-          switchView('calls', false);
-          document.title = 'Scheduled Calls | MartFlow AI';
-        } else if (cleanPath === '/dashboard/analytics') {
+      if (cleanPath === '/app' || cleanPath === '/app/overview' || cleanPath === '/dashboard' || cleanPath === '/dashboard/overview') {
+        switchView('dashboard', false);
+        document.title = 'Executive Overview | MartFlow AI';
+      } else if (cleanPath === '/app/inbox' || cleanPath === '/dashboard/inbox') {
+        switchView('conversations', false);
+        document.title = 'WhatsApp Inbox | MartFlow AI';
+      } else if (cleanPath === '/app/leads' || cleanPath === '/dashboard/leads') {
+        switchView('leads', false);
+        document.title = 'Leads Pipeline | MartFlow AI';
+      } else if (cleanPath === '/app/catalogue' || cleanPath === '/app/catalog' || cleanPath === '/dashboard/catalogue') {
+        switchView('catalog', false);
+        document.title = 'Product Catalogue | MartFlow AI';
+      } else if (cleanPath === '/app/whatsapp' || cleanPath === '/app/assistant' || cleanPath === '/dashboard/ai-assistant') {
+        switchView('whatsapp', false);
+        document.title = 'AI Assistant & Settings | MartFlow AI';
+      } else if (cleanPath === '/app/automations' || cleanPath === '/dashboard/automations') {
+        switchView('settings', false);
+        document.title = 'Automations & Rules | MartFlow AI';
+      } else if (cleanPath === '/app/appointments' || cleanPath === '/app/calls' || cleanPath === '/dashboard/appointments' || cleanPath === '/dashboard/calls') {
+        switchView('calls', false);
+        document.title = 'Scheduled Calls | MartFlow AI';
+      } else if (cleanPath === '/app/analytics' || cleanPath === '/dashboard/analytics') {
+        switchView('analytics', false);
+        document.title = 'Sales Analytics | MartFlow AI';
+      } else if (cleanPath === '/app/settings' || cleanPath === '/dashboard/settings') {
+        switchView('settings', false);
+        document.title = 'Workspace Settings | MartFlow AI';
+      } else if (cleanPath === '/app/billing' || cleanPath === '/dashboard/billing') {
+        switchView('billing', false);
+        document.title = 'Membership & Billing | MartFlow AI';
+      } else if (cleanPath === '/admin') {
+        window.location.href = '/admin';
+      } else {
+        switchView('dashboard', false);
+        document.title = 'Executive Overview | MartFlow AI';
+      }
+    }
           switchView('analytics', false);
           document.title = 'Sales Analytics | MartFlow AI';
         } else if (cleanPath === '/dashboard/settings') {

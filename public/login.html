@@ -283,13 +283,20 @@
       switchTab('login');
     }
 
+    function getSafeRedirectUrl() {
+      const stored = sessionStorage.getItem('mf_auth_redirect');
+      sessionStorage.removeItem('mf_auth_redirect');
+      if (!stored || stored === '/' || stored === '/index.html' || stored === '/login' || stored === '/signup' || stored === '/forgot-password' || stored.startsWith('/#')) {
+        return '/app';
+      }
+      return stored;
+    }
+
     // Auto-check if already logged in
     async function checkExistingAuth() {
       const existingToken = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
       if (existingToken) {
-        const redirectUrl = sessionStorage.getItem('mf_auth_redirect') || '/app';
-        sessionStorage.removeItem('mf_auth_redirect');
-        window.location.href = redirectUrl;
+        window.location.href = getSafeRedirectUrl();
         return;
       }
       if (sb) {
@@ -298,9 +305,7 @@
           if (session) {
             localStorage.setItem('mf_token', session.access_token);
             localStorage.setItem('mf_auth_token', session.access_token);
-            const redirectUrl = sessionStorage.getItem('mf_auth_redirect') || '/app';
-            sessionStorage.removeItem('mf_auth_redirect');
-            window.location.href = redirectUrl;
+            window.location.href = getSafeRedirectUrl();
           }
         } catch (e) {}
       }
@@ -394,8 +399,7 @@
           if (userData) localStorage.setItem('mf_current_user', JSON.stringify(userData));
 
           showToast('Welcome back! Redirecting to workspace...', 'success');
-          const redirectUrl = sessionStorage.getItem('mf_auth_redirect') || '/app';
-          sessionStorage.removeItem('mf_auth_redirect');
+          const redirectUrl = getSafeRedirectUrl();
           setTimeout(() => {
             window.location.href = redirectUrl;
           }, 600);
@@ -509,8 +513,7 @@
           if (userData) localStorage.setItem('mf_current_user', JSON.stringify(userData));
 
           showToast(`Workspace "${companyName}" created successfully! Redirecting...`, 'success');
-          const redirectUrl = sessionStorage.getItem('mf_auth_redirect') || '/app';
-          sessionStorage.removeItem('mf_auth_redirect');
+          const redirectUrl = getSafeRedirectUrl();
           setTimeout(() => {
             window.location.href = redirectUrl;
           }, 700);

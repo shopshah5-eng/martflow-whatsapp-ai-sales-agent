@@ -242,6 +242,12 @@
       transform: translateY(0);
     }
 
+    @media (max-width: 1023px) {
+      #publicNavLinks {
+        display: none !important;
+      }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       *, ::before, ::after {
         animation-duration: 0.01ms !important;
@@ -309,15 +315,11 @@
       </button>
 
       <div id="authActions" class="flex items-center space-x-2">
-        <button onclick="openDemoBotChat()" class="hidden md:inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#C2E2D7] bg-[#E6F4F0] text-[#087F5B] hover:bg-[#d8ede6] transition items-center space-x-1.5">
-          <svg class="w-3.5 h-3.5 text-[#087F5B] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-          <span>Live Demo</span>
-        </button>
         <a href="/login" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-300 text-slate-700 hover:bg-gray-50 transition">Log In</a>
-        <a href="/signup" class="hidden sm:inline-flex text-xs font-semibold px-4 py-1.5 rounded-lg bg-[#087F5B] text-white hover:bg-[#066649] shadow-xs transition items-center space-x-1.5">
-          <span>Start Free Trial</span>
+        <button onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="hidden sm:inline-flex text-xs font-semibold px-4 py-1.5 rounded-lg bg-[#087F5B] text-white hover:bg-[#066649] shadow-xs transition items-center space-x-1.5">
+          <span>Start ₹999 VIP Pilot</span>
           <svg class="w-3.5 h-3.5 text-white/90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
+        </button>
         <!-- Mobile Hamburger Menu Button (Phone / Tablet Only) -->
         <button id="btnPublicMobileMenu" onclick="togglePublicMobileMenu()" class="lg:hidden p-2 rounded-lg border border-gray-200 text-slate-700 hover:text-[#087F5B] hover:bg-slate-50 transition flex items-center justify-center shrink-0" aria-label="Toggle navigation menu">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
@@ -384,9 +386,9 @@
       </div>
 
       <div class="pt-6 border-t border-gray-100 space-y-3">
-        <a href="/signup" class="w-full py-3 bg-[#087F5B] hover:bg-[#066548] text-white font-bold text-center rounded-xl block shadow-sm text-xs">
-          Start 14-Day Free Trial →
-        </a>
+        <button onclick="togglePublicMobileMenu(); openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="w-full py-3 bg-[#087F5B] hover:bg-[#066548] text-white font-bold text-center rounded-xl block shadow-sm text-xs">
+          Start ₹999 VIP Pilot →
+        </button>
         <a href="/login" class="w-full py-2.5 border border-gray-200 text-slate-700 hover:bg-slate-50 font-semibold text-center rounded-xl block text-xs">
           Sign In to Workspace
         </a>
@@ -496,8 +498,8 @@
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </div>
             <div>
-              <div class="font-bold text-sm text-[#111827]">100% Catalogue Grounded</div>
-              <div class="text-xs text-[#64748B] mt-0.5">Strict zero-hallucination. Answers only what you sell with exact MOQ and pricing.</div>
+              <div class="font-bold text-sm text-[#111827]">Strict Product Grounding</div>
+              <div class="text-xs text-[#64748B] mt-0.5">AI responses grounded in your uploaded product information, with uncertain questions routed to your team.</div>
             </div>
           </div>
 
@@ -516,8 +518,8 @@
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
             </div>
             <div>
-              <div class="font-bold text-sm text-[#111827]">99.9% WhatsApp Gateway</div>
-              <div class="text-xs text-[#64748B] mt-0.5">Supports instant Baileys QR sync and official Meta WhatsApp Cloud API.</div>
+              <div class="font-bold text-sm text-[#111827]">Reliable WhatsApp Connectivity</div>
+              <div class="text-xs text-[#64748B] mt-0.5">High-availability WhatsApp connectivity via QR sync or Meta Cloud API, designed for reliable sales operations.</div>
             </div>
           </div>
 
@@ -828,7 +830,7 @@
                 <span class="text-3xl font-extrabold text-slate-900">₹999</span>
                 <span class="text-xs text-slate-500">/ setup deposit</span>
               </div>
-              <p class="text-[11px] text-slate-500">Live on YOUR business WhatsApp. Testing our demo bot is always free.</p>
+              <p class="text-[11px] text-slate-500">Live on your business WhatsApp number with full catalogue grounding.</p>
               <ul class="text-xs text-slate-600 space-y-2 pt-2 border-t border-slate-100">
                 <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg><span><strong>48 Hours Live</strong> on your number</span></li>
                 <li class="flex items-start space-x-2"><svg class="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg><span>Up to <strong>25 Real Inquiries</strong></span></li>
@@ -1316,7 +1318,7 @@
               <li><a href="javascript:void(0)" onclick="scrollToSection('pl-pricing')" class="text-slate-600 hover:text-[#087F5B] transition">Standard Growth Plan (₹9,999)</a></li>
               <li><a href="javascript:void(0)" onclick="scrollToSection('pl-pricing')" class="text-slate-600 hover:text-[#087F5B] transition">Pro High-Volume Plan (₹14,999)</a></li>
               <li><a href="javascript:void(0)" onclick="scrollToSection('pl-agency')" class="text-slate-600 hover:text-[#087F5B] transition">Agency White-Label License (₹35,000)</a></li>
-              <li><a href="javascript:void(0)" onclick="openDemoBotChat()" class="text-slate-600 hover:text-[#087F5B] transition">Test Live AI Demo Bot</a></li>
+              <li><a href="javascript:void(0)" onclick="openActivationModal('48-Hour Live VIP Pilot', '₹999 Setup Deposit', '48 Hours Live • Up to 25 Real Inquiries • 100% Adjusted in Plan!', 999)" class="text-slate-600 hover:text-[#087F5B] transition">Start Live VIP Pilot →</a></li>
             </ul>
           </div>
 
@@ -1387,12 +1389,7 @@
         <h2 class="text-lg lg:text-xl font-bold text-slate-900">Sign in to MartFlow AI</h2>
         <p class="text-xs text-slate-500">Access your organization's sales intelligence workspace.</p>
 
-        <!-- 1-Click Live AI Demo Bot Tester -->
-        <button onclick="openDemoBotChat()" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 text-emerald-800 font-bold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm">
-          <span>🤖 Test Live AI Sales Bot Now →</span>
-        </button>
-
-        <!-- Google / Gmail OAuth Button -->
+        <!-- Google OAuth Button -->
         <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-lg text-slate-700 font-semibold text-xs hover:bg-gray-50 transition flex items-center justify-center space-x-2 shadow-sm">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -1455,12 +1452,7 @@
         <h2 class="text-lg lg:text-xl font-bold text-slate-900">Create Company Workspace</h2>
         <p class="text-xs text-slate-500">Automate customer inquiries, brochures & call bookings on WhatsApp 24×7.</p>
 
-        <!-- 1-Click Live AI Demo Bot Tester -->
-        <button onclick="openDemoBotChat()" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 border border-emerald-400 text-emerald-800 font-bold rounded-lg text-xs transition flex items-center justify-center space-x-2 shadow-sm">
-          <span>🤖 Test Live AI Sales Bot Now →</span>
-        </button>
-
-        <!-- Google / Gmail OAuth Button -->
+        <!-- Google OAuth Button -->
         <button onclick="handleGoogleSignIn()" class="w-full py-2.5 px-4 bg-white border border-gray-300 rounded-lg text-slate-700 font-semibold text-xs hover:bg-gray-50 transition flex items-center justify-center space-x-2 shadow-sm">
           <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -1754,7 +1746,7 @@
 
     function openDemoBotChat(customMessage) {
       const deskNum = getDemoDeskNumber();
-      const defaultText = 'Hi MartFlow AI! I want to test the live B2B sales demo bot on WhatsApp.';
+      const defaultText = 'Hi MartFlow AI! I want to explore the B2B WhatsApp AI Sales Executive for my business.';
       const text = encodeURIComponent(customMessage || defaultText);
       window.open(`https://wa.me/${deskNum}?text=${text}`, '_blank');
     }
@@ -1998,29 +1990,22 @@
       const currentPath = overridePath || window.location.pathname || (window.location.hash ? window.location.hash.replace(/^#/, '') : '/');
       const cleanPath = currentPath.toLowerCase().replace(/\/$/, '') || '/';
 
-      // 1. Auth routes
-      if (cleanPath === '/login' || cleanPath === '#/login') {
-        if (currentOrg && currentUser) {
-          return navigateTo('/dashboard/overview', true);
-        }
-        showMarketingView();
-        openAuthModal('login', false);
-        document.title = 'Sign In | MartFlow AI';
+      // 1. Dedicated Application & Admin Routes
+      if (cleanPath.startsWith('/app') || cleanPath.startsWith('/dashboard')) {
+        window.location.href = '/app';
         return;
       }
-      if (cleanPath === '/signup' || cleanPath === '#/signup') {
-        if (currentOrg && currentUser) {
-          return navigateTo('/dashboard/overview', true);
-        }
-        showMarketingView();
-        openAuthModal('signup', false);
-        document.title = 'Create Company Workspace | MartFlow AI';
+      if (cleanPath === '/admin' || cleanPath.startsWith('/admin/')) {
+        window.location.href = '/admin';
         return;
       }
-      if (cleanPath === '/forgot-password' || cleanPath === '#/forgot-password') {
-        showMarketingView();
-        openAuthModal('recovery', false);
-        document.title = 'Reset Password | MartFlow AI';
+      if (cleanPath === '/login' || cleanPath === '#/login' || cleanPath === '/signup' || cleanPath === '#/signup' || cleanPath === '/forgot-password' || cleanPath === '#/forgot-password') {
+        const token = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
+        if (token) {
+          window.location.href = '/app';
+          return;
+        }
+        window.location.href = '/login';
         return;
       }
 
@@ -2383,7 +2368,8 @@
           if (data?.session) {
             await handleAuthSession(data.session);
             closeAuthModal();
-            showToast(`Workspace "${companyName}" created successfully!`, 'success');
+            showToast(`Workspace "${companyName}" created successfully! Redirecting...`, 'success');
+            setTimeout(() => { window.location.href = '/app'; }, 600);
           } else {
             showToast('Account created! Please log in.', 'success');
             toggleAuthMode('login');
@@ -2397,10 +2383,13 @@
           currentAuthToken = data.token;
           currentOrg = data.organization;
           currentUser = data.user;
+          localStorage.setItem('mf_token', data.token);
+          localStorage.setItem('mf_auth_token', data.token);
+          if (data.organization) localStorage.setItem('mf_current_org', JSON.stringify(data.organization));
+          if (data.user) localStorage.setItem('mf_current_user', JSON.stringify(data.user));
           closeAuthModal();
-          updateAuthUI();
-          showToast(`Workspace "${currentOrg.name}" created!`, 'success');
-          loadDashboardData();
+          showToast(`Workspace "${currentOrg.name}" created! Redirecting to workspace...`, 'success');
+          setTimeout(() => { window.location.href = '/app'; }, 600);
         }
       } catch (err) {
         showToast(err.message, 'error');
@@ -2433,10 +2422,13 @@
           currentAuthToken = data.token;
           currentOrg = data.organization;
           currentUser = data.user;
+          localStorage.setItem('mf_token', data.token);
+          localStorage.setItem('mf_auth_token', data.token);
+          if (data.organization) localStorage.setItem('mf_current_org', JSON.stringify(data.organization));
+          if (data.user) localStorage.setItem('mf_current_user', JSON.stringify(data.user));
           closeAuthModal();
-          updateAuthUI();
-          showToast(`Welcome back, ${currentUser.fullName}!`, 'success');
-          loadDashboardData();
+          showToast(`Welcome back, ${currentUser.fullName}! Redirecting...`, 'success');
+          setTimeout(() => { window.location.href = '/app'; }, 600);
         }
       } catch (err) {
         showToast(err.message, 'error');
@@ -2962,7 +2954,7 @@
           workspaceContainer.classList.add('hidden');
           workspaceContainer.classList.remove('flex');
         }
-        if (publicNavLinks) publicNavLinks.classList.remove('hidden');
+        if (publicNavLinks) { publicNavLinks.classList.add('hidden', 'lg:flex'); }
         if (btnMobileSidebar) btnMobileSidebar.classList.add('hidden');
         if (topOrgBadge) topOrgBadge.classList.add('hidden');
         if (btnHeaderAi) btnHeaderAi.classList.add('hidden');
