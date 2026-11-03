@@ -215,10 +215,13 @@ BEGIN
         IF NEW.plan_status IS DISTINCT FROM OLD.plan_status OR
            NEW.trial_ends_at IS DISTINCT FROM OLD.trial_ends_at OR
            NEW.custom_quote_inr IS DISTINCT FROM OLD.custom_quote_inr OR
-           NEW.quote_code IS DISTINCT FROM OLD.quote_code OR
            NEW.monthly_lead_limit IS DISTINCT FROM OLD.monthly_lead_limit OR
            NEW.leads_used IS DISTINCT FROM OLD.leads_used OR
            NEW.webhook_key IS DISTINCT FROM OLD.webhook_key OR
+           NEW.waba_token IS DISTINCT FROM OLD.waba_token OR
+           NEW.waba_phone_id IS DISTINCT FROM OLD.waba_phone_id OR
+           NEW.wa_command IS DISTINCT FROM OLD.wa_command OR
+           NEW.wa_command_payload IS DISTINCT FROM OLD.wa_command_payload OR
            NEW.wa_worker_id IS DISTINCT FROM OLD.wa_worker_id OR
            NEW.wa_worker_heartbeat IS DISTINCT FROM OLD.wa_worker_heartbeat THEN
             RAISE EXCEPTION 'Unauthorized: Billing, quota, security, and worker fields can only be updated via verified backend operations';
@@ -309,12 +312,20 @@ CREATE POLICY call_requests_isolation ON public.call_requests
     FOR ALL USING (org_id = public.current_user_org_id())
     WITH CHECK (org_id = public.current_user_org_id());
 
--- WhatsApp Outbound Queue Policy: Tenant-scoped access only
+-- WhatsApp Outbound Queue Policy: Tenant-scoped reads, mutations restricted to backend service
 ALTER TABLE public.wa_outbound_queue ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS wa_outbound_queue_isolation ON public.wa_outbound_queue;
-CREATE POLICY wa_outbound_queue_isolation ON public.wa_outbound_queue
-    FOR ALL USING (org_id = public.current_user_org_id())
-    WITH CHECK (org_id = public.current_user_org_id());
+CREATE POLICY wa_outbound_queue_select ON public.wa_outbound_queue
+    FOR SELECT USING (org_id = public.current_user_org_id());
+DROP POLICY IF EXISTS wa_outbound_queue_no_client_insert ON public.wa_outbound_queue;
+CREATE POLICY wa_outbound_queue_no_client_insert ON public.wa_outbound_queue
+    AS RESTRICTIVE FOR INSERT TO anon, authenticated WITH CHECK (false);
+DROP POLICY IF EXISTS wa_outbound_queue_no_client_update ON public.wa_outbound_queue;
+CREATE POLICY wa_outbound_queue_no_client_update ON public.wa_outbound_queue
+    AS RESTRICTIVE FOR UPDATE TO anon, authenticated USING (false) WITH CHECK (false);
+DROP POLICY IF EXISTS wa_outbound_queue_no_client_delete ON public.wa_outbound_queue;
+CREATE POLICY wa_outbound_queue_no_client_delete ON public.wa_outbound_queue
+    AS RESTRICTIVE FOR DELETE TO anon, authenticated USING (false);
 
 -- 13. Auto-Provisioning Trigger on New User Signup (Google OAuth / Email Magic Link)
 CREATE OR REPLACE FUNCTION public.handle_new_user_provisioning()

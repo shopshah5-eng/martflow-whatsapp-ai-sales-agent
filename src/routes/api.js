@@ -128,6 +128,49 @@ router.get('/ready', async (req, res) => {
   });
 });
 
+export function sanitizeOrganization(org, role = 'member') {
+  if (!org) return null;
+  const isPrivileged = role === 'owner' || role === 'admin' || role === 'superadmin';
+  const sanitized = {
+    id: org.id,
+    name: org.name,
+    slug: org.slug,
+    plan_status: org.plan_status,
+    plan: org.plan || org.plan_status,
+    trial_ends_at: org.trial_ends_at,
+    monthly_lead_limit: org.monthly_lead_limit,
+    leads_used: org.leads_used || 0,
+    trial_leads_used: org.trial_leads_used || org.leads_used || 0,
+    trial_lead_limit: org.trial_lead_limit || org.monthly_lead_limit || 25,
+    custom_quote_inr: org.custom_quote_inr,
+    company_city: org.company_city,
+    escalation_phone: org.escalation_phone,
+    business_type: org.business_type,
+    website_url: org.website_url,
+    website_knowledge: org.website_knowledge,
+    website_synced_at: org.website_synced_at,
+    wa_status: org.wa_status,
+    wa_connected_number: org.wa_connected_number,
+    bot_whatsapp_number: org.bot_whatsapp_number,
+    owner_alert_number: org.owner_alert_number,
+    wa_auto_reply: org.wa_auto_reply !== false,
+    auto_reply_enabled: org.auto_reply_enabled !== false,
+    wa_auto_pdf: org.wa_auto_pdf !== false,
+    wa_owner_alerts: org.wa_owner_alerts !== false,
+    wa_welcome_message: org.wa_welcome_message,
+    wa_worker_heartbeat: org.wa_worker_heartbeat,
+    wa_qr_data_url: org.wa_qr_data_url || null,
+    wa_pairing_code: org.wa_pairing_code || null,
+    is_unlimited: Boolean(org.is_unlimited),
+    created_at: org.created_at,
+    updated_at: org.updated_at
+  };
+  if (isPrivileged && org.webhook_key) {
+    sanitized.webhook_key = org.webhook_key;
+  }
+  return sanitized;
+}
+
 router.get('/auth/me', authenticate, async (req, res) => {
   try {
     // The repository already selects the configured authoritative store. Never
@@ -139,7 +182,7 @@ router.get('/auth/me', authenticate, async (req, res) => {
     res.json({
       ok: true,
       user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name || profile.fullName, phone: profile.phone } : null,
-      organization: req.organization,
+      organization: sanitizeOrganization(req.organization, req.role),
       role: req.role,
       permissions: { canManageCatalog: catalogManager }
     });
@@ -487,7 +530,7 @@ router.get('/conversations/:id/messages', authenticate, async (req, res) => {
   }
 });
 
-router.post('/conversations/:id/mode', authenticate, async (req, res) => {
+router.post('/conversations/:id/mode', authenticate, requireRole(['owner', 'admin', 'sales_manager', 'sales_rep']), async (req, res) => {
   try {
     const { mode } = req.body;
     if (!['ai', 'human'].includes(mode)) {
@@ -517,7 +560,7 @@ router.post('/conversations/:id/mode', authenticate, async (req, res) => {
   }
 });
 
-router.post('/conversations/:id/reply', authenticate, async (req, res) => {
+router.post('/conversations/:id/reply', authenticate, requireRole(['owner', 'admin', 'sales_manager', 'sales_rep']), async (req, res) => {
   try {
     const { message } = req.body;
     if (!message || !message.trim()) {
@@ -991,7 +1034,7 @@ router.get('/settings', authenticate, async (req, res) => {
     const settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
     res.json({
       ok: true,
-      organization: org,
+      organization: sanitizeOrganization(org, req.role),
       settings
     });
   } catch (err) {
@@ -1231,7 +1274,8 @@ router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
 
   try {
     // Never put an anonymous demo enquiry into an unrelated customer's tenant.
-    const demoOrg = await repository.getOrganizationById('6fd354d9-3437-412d-856e-28bc19d44268');
+    const targetOrgId = process.env.DEMO_TENANT_ID || '6fd354d9-3437-412d-856e-28bc19d44268';
+    const demoOrg = await repository.getOrganizationById(targetOrgId);
     if (!demoOrg) return res.status(503).json({ ok: false, error: 'Demo enquiries are currently unavailable.' });
     const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
     const leadInput = {

@@ -108,7 +108,7 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
             name: companyName.trim(),
             slug,
             webhook_key: webhookKey,
-            industry: 'Machinery & Manufacturing',
+            business_type: 'machinery',
             plan_status: 'trial',
             trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
             monthly_lead_limit: 25,
@@ -125,9 +125,7 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
             email: cleanEmail,
             full_name: fullName.trim(),
             phone: phone ? phone.trim() : null,
-            role: 'owner',
-            is_email_verified: true,
-            is_phone_verified: false
+            role: 'owner'
           }).select().single();
           if (profErr) throw new Error(profErr.message || 'Failed to provision user profile.');
           profile = profData;
