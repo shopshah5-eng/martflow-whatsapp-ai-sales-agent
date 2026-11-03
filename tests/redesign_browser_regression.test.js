@@ -413,3 +413,43 @@ test('homepage prevents duplicate submissions and keeps entered data when the AP
   assert.equal(d.getElementById('contactSubmit').disabled, false);
   dom.window.close();
 });
+
+test('login never falls back to a client profile after a rejected workspace verification', async () => {
+  let directLookups = 0;
+  const client = {
+    auth: { getSession: async () => ({ data: { session: null } }), getUser: async () => { directLookups++; return { data: { user: { id: 'attacker', email: 'x@example.test' } } }; } },
+    from: () => { directLookups++; throw new Error('direct lookup must not be used'); }
+  };
+  const { dom } = openPage('login', { authStatus: 403, supabase: client });
+  await wait(30);
+  await assert.rejects(dom.window.getAuthenticatedWorkspace('token'), /Could not verify/);
+  assert.equal(directLookups, 0);
+  dom.window.close();
+});
+
+test('manual reply keeps draft and reports queue failure, then reports queueing without claiming delivery', async () => {
+  const { dom } = openPage('app', { token: 'synthetic-token' });
+  await wait(100);
+  const w = dom.window;
+  let failQueue = true, queued = 0;
+  const chain = (table) => ({
+    select() { return this; }, eq() { return this; }, update() { return this; },
+    async single() { return { data: { buyer_phone: '919876543210' }, error: null }; },
+    async maybeSingle() { return { data: { id: 'conv-1' }, error: null }; },
+    async insert() { if (table === 'wa_outbound_queue') { queued++; return { error: failQueue ? new Error('queue denied') : null }; } return { error: null }; }
+  });
+  w.__testClient = { from: table => chain(table) };
+  w.eval("sb = window.__testClient; currentOrg = { id: 'org-1' }; activeConversationId = 'conv-1'");
+  w.selectConversation = async () => {};
+  const input = w.document.getElementById('chatComposerInput');
+  input.value = 'Hello';
+  await w.sendManualReply();
+  assert.equal(input.value, 'Hello');
+  assert.match(w.document.getElementById('toastContainer').textContent, /queueing could not be confirmed/i);
+  failQueue = false;
+  await w.sendManualReply();
+  assert.equal(input.value, '');
+  assert.equal(queued, 2);
+  assert.match(w.document.getElementById('toastContainer').textContent, /delivery is not yet confirmed/i);
+  dom.window.close();
+});

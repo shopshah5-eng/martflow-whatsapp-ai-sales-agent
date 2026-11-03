@@ -23,6 +23,8 @@ test('SECURITY & PRIVACY: Sensitive organization fields and role-based capabilit
     monthly_lead_limit: 100,
     leads_used: 15,
     business_type: 'machinery',
+    wa_qr_data_url: 'data:image/png;base64,c2VjcmV0',
+    wa_pairing_code: 'secret-code',
     wa_status: 'connected',
     wa_connected_number: '919876543210'
   };
@@ -33,12 +35,15 @@ test('SECURITY & PRIVACY: Sensitive organization fields and role-based capabilit
     assert.equal(sanitizedOwner.wa_command, undefined);
     assert.equal(sanitizedOwner.wa_command_payload, undefined);
     assert.equal(sanitizedOwner.webhook_key, 'whk_super_secret_key_123');
+    assert.equal(sanitizedOwner.wa_pairing_code, 'secret-code');
     assert.equal(sanitizedOwner.name, 'Acme Test Corp');
     assert.equal(sanitizedOwner.wa_connected_number, '919876543210');
 
     const sanitizedMember = sanitizeOrganization(rawOrg, 'member');
     assert.equal(sanitizedMember.waba_token, undefined);
     assert.equal(sanitizedMember.wa_command, undefined);
+    assert.equal(sanitizedMember.wa_pairing_code, undefined);
+    assert.equal(sanitizedMember.wa_qr_data_url, undefined);
     assert.equal(sanitizedMember.webhook_key, undefined); // non-admin does not get webhook_key
     assert.equal(sanitizedMember.name, 'Acme Test Corp');
   });

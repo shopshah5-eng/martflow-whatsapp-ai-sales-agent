@@ -33,7 +33,7 @@ router.post('/auth/signup', async (req, res) => {
     const result = await signUp(req.body);
     res.status(201).json({ ok: true, ...result });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 400).json({ ok: false, error: err.message });
   }
 });
 
@@ -159,14 +159,14 @@ export function sanitizeOrganization(org, role = 'member') {
     wa_owner_alerts: org.wa_owner_alerts !== false,
     wa_welcome_message: org.wa_welcome_message,
     wa_worker_heartbeat: org.wa_worker_heartbeat,
-    wa_qr_data_url: org.wa_qr_data_url || null,
-    wa_pairing_code: org.wa_pairing_code || null,
     is_unlimited: Boolean(org.is_unlimited),
     created_at: org.created_at,
     updated_at: org.updated_at
   };
-  if (isPrivileged && org.webhook_key) {
-    sanitized.webhook_key = org.webhook_key;
+  if (isPrivileged) {
+    sanitized.wa_qr_data_url = org.wa_qr_data_url || null;
+    sanitized.wa_pairing_code = org.wa_pairing_code || null;
+    if (org.webhook_key) sanitized.webhook_key = org.webhook_key;
   }
   return sanitized;
 }
@@ -1161,7 +1161,8 @@ router.get('/webhook/whatsapp', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
-  const secret = process.env.WHATSAPP_VERIFY_TOKEN || 'martflow_verify_secret';
+  const secret = process.env.WHATSAPP_VERIFY_TOKEN;
+  if (!secret) return res.status(503).send('WhatsApp verification is not configured.');
   const result = WhatsAppAdapter.verifyCloudWebhook(mode, token, challenge, secret);
   if (result.verified) {
     return res.status(200).send(result.challenge);
@@ -1274,7 +1275,8 @@ router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
 
   try {
     // Never put an anonymous demo enquiry into an unrelated customer's tenant.
-    const targetOrgId = process.env.DEMO_TENANT_ID || '6fd354d9-3437-412d-856e-28bc19d44268';
+    const targetOrgId = process.env.DEMO_TENANT_ID || (process.env.NODE_ENV !== 'production' ? '6fd354d9-3437-412d-856e-28bc19d44268' : null);
+    if (!targetOrgId) return res.status(503).json({ ok: false, error: 'Demo enquiries are currently unavailable.' });
     const demoOrg = await repository.getOrganizationById(targetOrgId);
     if (!demoOrg) return res.status(503).json({ ok: false, error: 'Demo enquiries are currently unavailable.' });
     const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
@@ -1345,7 +1347,8 @@ router.post('/simulate-lead', simulationLimiter, (req, res, next) => {
 
     // An authenticated request uses only its verified membership's tenant;
     // an anonymous request uses only the dedicated demo tenant.
-    const targetOrgId = req.organizationId || '6fd354d9-3437-412d-856e-28bc19d44268';
+    const targetOrgId = req.organizationId || process.env.DEMO_TENANT_ID || (process.env.NODE_ENV !== 'production' ? '6fd354d9-3437-412d-856e-28bc19d44268' : null);
+    if (!targetOrgId) return res.status(503).json({ ok: false, error: 'Simulation workspace is currently unavailable.' });
     const org = req.organization || await repository.getOrganizationById(targetOrgId);
     if (!org) return res.status(503).json({ ok: false, error: 'Simulation workspace is currently unavailable.' });
 

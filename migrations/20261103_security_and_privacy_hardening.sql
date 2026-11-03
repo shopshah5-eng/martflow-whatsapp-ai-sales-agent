@@ -26,11 +26,11 @@ CREATE OR REPLACE FUNCTION public.protect_sensitive_org_fields()
 RETURNS TRIGGER LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
   IF (auth.jwt() ->> 'role') IN ('anon', 'authenticated') AND (
-    NEW.webhook_key IS DISTINCT FROM OLD.webhook_key OR
-    NEW.waba_token IS DISTINCT FROM OLD.waba_token OR
-    NEW.waba_phone_id IS DISTINCT FROM OLD.waba_phone_id OR
-    NEW.wa_command IS DISTINCT FROM OLD.wa_command OR
-    NEW.wa_command_payload IS DISTINCT FROM OLD.wa_command_payload
+    to_jsonb(NEW)->'webhook_key' IS DISTINCT FROM to_jsonb(OLD)->'webhook_key' OR
+    to_jsonb(NEW)->'waba_token' IS DISTINCT FROM to_jsonb(OLD)->'waba_token' OR
+    to_jsonb(NEW)->'waba_phone_id' IS DISTINCT FROM to_jsonb(OLD)->'waba_phone_id' OR
+    to_jsonb(NEW)->'wa_command' IS DISTINCT FROM to_jsonb(OLD)->'wa_command' OR
+    to_jsonb(NEW)->'wa_command_payload' IS DISTINCT FROM to_jsonb(OLD)->'wa_command_payload'
   ) THEN
     RAISE EXCEPTION 'Sensitive organization credentials and worker commands cannot be modified directly';
   END IF;

@@ -3527,8 +3527,8 @@
                 <div class="text-xs font-bold text-slate-900 truncate">${escapeHtml(buyerName)}</div>
                 <div class="text-[11px] text-slate-500 font-mono">${escapeHtml(formattedPhone || ('+' + cleanPhone))}</div>
               </div>
-              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${c.mode === 'manual' ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}">
-                ${c.mode === 'manual' ? 'Manual' : 'AI Active'}
+              <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${(c.mode === 'manual' || c.mode === 'human') ? 'bg-amber-100 text-amber-800' : 'bg-indigo-100 text-indigo-700'}">
+                ${(c.mode === 'manual' || c.mode === 'human') ? 'Manual' : 'AI Active'}
               </span>
             </div>
           `;
@@ -3596,8 +3596,8 @@
 
           const btnMode = document.getElementById('btnChatModeToggle');
           if (btnMode) {
-            btnMode.textContent = conv.mode === 'manual' ? '⏸️ Manual (Human Mode)' : '🟢 Auto (AI Active)';
-            btnMode.className = conv.mode === 'manual'
+            btnMode.textContent = (conv.mode === 'manual' || conv.mode === 'human') ? '⏸️ Manual (Human Mode)' : '🟢 Auto (AI Active)';
+            btnMode.className = (conv.mode === 'manual' || conv.mode === 'human')
               ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300'
               : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
           }
@@ -3643,58 +3643,54 @@
     async function toggleChatMode() {
       if (!activeConversationId || !currentOrg) return;
       try {
-        if (sb) {
-          const { data: conv } = await sb.from('conversations').select('mode').eq('id', activeConversationId).single();
-          const currentMode = conv?.mode;
-          const isManual = currentMode === 'manual';
-          const newMode = isManual ? 'auto' : 'manual';
-          await sb.from('conversations').update({ mode: newMode, updated_at: new Date().toISOString() }).eq('id', activeConversationId);
-          const btnMode = document.getElementById('btnChatModeToggle');
-          if (btnMode) {
-            btnMode.textContent = newMode === 'manual' ? '⏸️ Manual (Human Mode)' : '🟢 Auto (AI Active)';
-            btnMode.className = newMode === 'manual'
-              ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300'
-              : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
-          }
-          showToast(newMode === 'manual' ? 'Switched to Manual (Human Mode) — AI paused' : 'Switched to Auto (AI Active)', 'info');
+        const details = await apiFetch(`/api/conversations/${encodeURIComponent(activeConversationId)}/messages`);
+        const mode = details.conversation?.mode;
+        const newMode = mode === 'manual' || mode === 'human' ? 'ai' : 'human';
+        await apiFetch(`/api/conversations/${encodeURIComponent(activeConversationId)}/mode`, {
+          method: 'POST', body: JSON.stringify({ mode: newMode })
+        });
+        const btnMode = document.getElementById('btnChatModeToggle');
+        if (btnMode) {
+          btnMode.textContent = newMode === 'human' ? '⏸️ Manual (Human Mode)' : '🟢 Auto (AI Active)';
+          btnMode.className = newMode === 'human'
+            ? 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300'
+            : 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300';
         }
+        showToast(newMode === 'human' ? 'Switched to Manual (Human Mode) — AI paused' : 'Switched to Auto (AI Active)', 'info');
       } catch (err) {
         showToast(err.message, 'error');
       }
     }
 
+    let manualReplyPending = false;
     async function sendManualReply() {
       const input = document.getElementById('chatComposerInput');
       const text = input ? input.value.trim() : '';
-      if (!text || !activeConversationId || !currentOrg) return;
-
-      input.value = '';
-      if (sb) {
-        await sb.from('messages').insert({
-          org_id: currentOrg.id,
-          conversation_id: activeConversationId,
-          sender: 'agent',
-          text
-        });
-
-        await sb.from('conversations').update({ mode: 'manual', updated_at: new Date().toISOString() }).eq('id', activeConversationId);
-        const btnMode = document.getElementById('btnChatModeToggle');
-        if (btnMode) {
-          btnMode.textContent = '⏸️ Manual (Human Mode)';
-          btnMode.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300';
-        }
-
-        const { data: conv } = await sb.from('conversations').select('buyer_phone').eq('id', activeConversationId).single();
-        if (conv?.buyer_phone) {
-          await sb.from('wa_outbound_queue').insert({
-            org_id: currentOrg.id,
-            to_phone: conv.buyer_phone,
-            message_text: text,
-            status: 'pending'
-          });
-        }
-        selectConversation(activeConversationId);
-        showToast('Manual reply sent & queued to WhatsApp!', 'success');
+      if (!text || !activeConversationId || !currentOrg || manualReplyPending) return;
+      if (!sb) return showToast('Messaging service is unavailable.', 'error');
+      const conversationId = activeConversationId;
+      manualReplyPending = true;
+      let saved = false;
+      try {
+        // Keep the draft and never report delivery when any database operation fails.
+        const convResult = await sb.from('conversations').select('buyer_phone').eq('id', conversationId).eq('org_id', currentOrg.id).single();
+        if (convResult.error) throw convResult.error;
+        if (!convResult.data?.buyer_phone) throw new Error('No phone number is linked to this conversation.');
+        const modeResult = await sb.from('conversations').update({ mode: 'human', updated_at: new Date().toISOString() }).eq('id', conversationId).eq('org_id', currentOrg.id).select('id').maybeSingle();
+        if (modeResult.error) throw modeResult.error;
+        if (!modeResult.data) throw new Error('Conversation not found.');
+        const messageResult = await sb.from('messages').insert({ org_id: currentOrg.id, conversation_id: conversationId, sender: 'agent', text });
+        if (messageResult.error) throw messageResult.error;
+        saved = true;
+        const queueResult = await sb.from('wa_outbound_queue').insert({ org_id: currentOrg.id, to_phone: convResult.data.buyer_phone, message_text: text, status: 'pending' });
+        if (queueResult.error) throw queueResult.error;
+        if (input.value.trim() === text) input.value = '';
+        try { await selectConversation(conversationId); } catch (_) { /* Queueing already succeeded; refresh separately. */ }
+        showToast('Reply queued; WhatsApp delivery is not yet confirmed.', 'info');
+      } catch (err) {
+        showToast(saved ? 'Reply was saved but queueing could not be confirmed. Check message status before retrying.' : (err.message || 'Could not queue reply. Your draft is retained.'), 'error');
+      } finally {
+        manualReplyPending = false;
       }
     }
 

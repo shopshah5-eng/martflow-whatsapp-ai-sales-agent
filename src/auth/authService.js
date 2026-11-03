@@ -66,100 +66,12 @@ export async function signUp({ email, password, fullName, companyName, phone }) 
     throw new Error('Password must be at least 8 characters long.');
   }
 
-  // Production Authoritative Supabase Path
-  if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') {
-    const sb = repository.getSupabase();
-    if (!sb) {
-      throw new Error('Primary authentication database is unavailable.');
-    }
-
-    const existing = await repository.getProfileByEmail(cleanEmail);
-    if (existing) {
-      throw new Error('An account with this email already exists. Please log in.');
-    }
-
-    const { data: createData, error: createErr } = await sb.auth.admin.createUser({
-      email: cleanEmail,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: fullName.trim(),
-        company_name: companyName.trim(),
-        phone: phone ? phone.trim() : null
-      }
-    });
-
-    if (createErr) {
-      throw new Error(createErr.message || 'Failed to create user account in authentication service.');
-    }
-    const authUser = createData.user;
-
-    try {
-      // Check if handle_new_user_provisioning trigger already provisioned org and profile
-      let profile = await repository.getProfileById(authUser.id);
-      let organization = profile && profile.org_id ? await repository.getOrganizationById(profile.org_id) : null;
-
-      if (!organization || !profile) {
-        // Fallback provisioning if schema trigger is absent
-        const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.random().toString(36).slice(2, 6);
-        const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
-        if (!organization) {
-          const { data: orgData, error: orgErr } = await sb.from('organizations').insert({
-            name: companyName.trim(),
-            slug,
-            webhook_key: webhookKey,
-            business_type: 'machinery',
-            plan_status: 'trial',
-            trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-            monthly_lead_limit: 25,
-            leads_used: 0
-          }).select().single();
-          if (orgErr) throw new Error(orgErr.message || 'Failed to create organization in database.');
-          organization = orgData;
-        }
-
-        if (!profile) {
-          const { data: profData, error: profErr } = await sb.from('profiles').insert({
-            id: authUser.id,
-            org_id: organization.id,
-            email: cleanEmail,
-            full_name: fullName.trim(),
-            phone: phone ? phone.trim() : null,
-            role: 'owner'
-          }).select().single();
-          if (profErr) throw new Error(profErr.message || 'Failed to provision user profile.');
-          profile = profData;
-        }
-      }
-
-      const role = profile.role || 'owner';
-      const token = createSessionToken(profile.id, organization.id, role);
-
-      return {
-        user: {
-          id: profile.id,
-          email: profile.email,
-          fullName: profile.full_name,
-          phone: profile.phone
-        },
-        organization: {
-          id: organization.id,
-          name: organization.name,
-          slug: organization.slug,
-          webhook_key: organization.webhook_key
-        },
-        role,
-        token
-      };
-    } catch (provisionErr) {
-      // Clean up dangling auth.users entry on partial failure
-      try {
-        await sb.auth.admin.deleteUser(authUser.id);
-      } catch (delErr) {
-        console.error('[Auth Cleanup] Failed to delete dangling user:', delErr.message);
-      }
-      throw new Error(provisionErr.message || 'Failed to complete tenant provisioning.');
-    };
+  // Do not mint a session for an email the user has not verified. Production
+  // signup must use the configured Supabase confirmation flow instead.
+  if (process.env.NODE_ENV === 'production') {
+    const err = new Error('Please register through the verified signup form.');
+    err.statusCode = 503;
+    throw err;
   }
 
   const existingUser = db.findOne('profiles', (p) => p.email === cleanEmail);
@@ -292,7 +204,7 @@ export async function login({ email, password }) {
         name: organization.name,
         slug: organization.slug,
         plan: organization.plan || 'starter',
-        webhook_key: organization.webhook_key
+        ...(['owner', 'admin', 'superadmin'].includes(membership.role) ? { webhook_key: organization.webhook_key } : {})
       },
       role: membership.role || 'member',
       token,
@@ -311,7 +223,7 @@ export async function login({ email, password }) {
     throw new Error('No active organization found for this user account.');
   }
 
-  const organization = db.findById('organizations', membership.role ? membership.organization_id : null) || db.findOne('organizations', () => true);
+  const organization = db.findById('organizations', membership.organization_id);
   if (!organization) {
     throw new Error('No active organization found for this user account.');
   }
@@ -337,7 +249,7 @@ export async function login({ email, password }) {
       name: organization.name,
       slug: organization.slug,
       plan: organization.plan,
-      webhook_key: organization.webhook_key
+      ...(['owner', 'admin', 'superadmin'].includes(membership.role) ? { webhook_key: organization.webhook_key } : {})
     },
     role: membership.role,
     token

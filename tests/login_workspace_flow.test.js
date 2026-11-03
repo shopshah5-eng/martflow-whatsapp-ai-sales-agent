@@ -71,9 +71,10 @@ test('simulator rejects invalid and revoked credentials rather than falling back
 
 test('production demo uses authoritative storage and never falls back to the local tenant store', async () => {
   const { repository } = await import('../src/db/repository.js');
-  const previous = { env: process.env.NODE_ENV, local: process.env.USE_LOCAL_DB, get: repository.getOrganizationById, create: repository.createLead };
+  const previous = { env: process.env.NODE_ENV, local: process.env.USE_LOCAL_DB, demo: process.env.DEMO_TENANT_ID, get: repository.getOrganizationById, create: repository.createLead };
   process.env.NODE_ENV = 'production'; delete process.env.USE_LOCAL_DB;
   const demoId = '6fd354d9-3437-412d-856e-28bc19d44268';
+  process.env.DEMO_TENANT_ID = demoId;
   let written;
   repository.getOrganizationById = async id => id === demoId ? { id, name: 'Synthetic Demo' } : null;
   repository.createLead = async (orgId, data) => { written = { orgId, data }; return { id: 'synthetic-lead', ...data, status: 'new' }; };
@@ -90,6 +91,7 @@ test('production demo uses authoritative storage and never falls back to the loc
   } finally {
     repository.getOrganizationById = previous.get; repository.createLead = previous.create;
     process.env.NODE_ENV = previous.env;
+    if (previous.demo === undefined) delete process.env.DEMO_TENANT_ID; else process.env.DEMO_TENANT_ID = previous.demo;
     if (previous.local === undefined) delete process.env.USE_LOCAL_DB; else process.env.USE_LOCAL_DB = previous.local;
     await new Promise(resolve => server.close(resolve));
   }

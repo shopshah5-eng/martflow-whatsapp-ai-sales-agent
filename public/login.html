@@ -318,42 +318,23 @@
 
     function navigateAfterAuth(target) { window.location.assign(target); }
 
-    // Verify a token against the server; if the backend service is updating,
-    // fall back to direct authoritative Supabase verification to prevent login loops.
+    // Workspace membership and capabilities must be verified by the backend.
+    // A direct profile lookup cannot replace the membership and permission checks.
     async function getAuthenticatedWorkspace(token) {
+      let res;
       try {
-        const res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.ok && data.user && data.organization) return data;
-        }
-      } catch (_) {}
-
-      // Resilient Supabase direct resolution fallback
-      if (sb) {
-        try {
-          const { data: userData } = await sb.auth.getUser(token);
-          if (userData?.user) {
-            const { data: profile } = await sb.from('profiles').select('*').eq('id', userData.user.id).maybeSingle();
-            let org = null;
-            if (profile?.org_id) {
-              const { data: orgData } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
-              org = orgData;
-            }
-            if (org) {
-              return {
-                ok: true,
-                user: { id: userData.user.id, email: userData.user.email, fullName: profile?.full_name || userData.user.email.split('@')[0] },
-                organization: org,
-                role: profile?.role || 'owner',
-                permissions: { canManageCatalog: true }
-              };
-            }
-          }
-        } catch (_) {}
+        res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+      } catch (_) {
+        const error = new Error('Could not verify your workspace. Please try again when the service is available.');
+        error.status = 503;
+        throw error;
       }
-      const error = new Error('Could not verify your workspace.');
-      error.status = 401;
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.ok && data.user && data.organization) return data;
+      }
+      const error = new Error('Could not verify your workspace. Please try again.');
+      error.status = res.ok ? 503 : res.status;
       throw error;
     }
 

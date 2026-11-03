@@ -719,11 +719,11 @@ CREATE OR REPLACE FUNCTION public.protect_managed_catalog_fields()
 RETURNS TRIGGER LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
   IF (auth.jwt() ->> 'role') IN ('anon', 'authenticated') AND (
-    NEW.website_knowledge IS DISTINCT FROM OLD.website_knowledge OR
-    NEW.business_type IS DISTINCT FROM OLD.business_type OR
-    NEW.website_url IS DISTINCT FROM OLD.website_url OR
-    NEW.website_synced_at IS DISTINCT FROM OLD.website_synced_at OR
-    NEW.catalog_pdf_name IS DISTINCT FROM OLD.catalog_pdf_name
+    to_jsonb(NEW)->'website_knowledge' IS DISTINCT FROM to_jsonb(OLD)->'website_knowledge' OR
+    to_jsonb(NEW)->'business_type' IS DISTINCT FROM to_jsonb(OLD)->'business_type' OR
+    to_jsonb(NEW)->'website_url' IS DISTINCT FROM to_jsonb(OLD)->'website_url' OR
+    to_jsonb(NEW)->'website_synced_at' IS DISTINCT FROM to_jsonb(OLD)->'website_synced_at' OR
+    to_jsonb(NEW)->'catalog_pdf_name' IS DISTINCT FROM to_jsonb(OLD)->'catalog_pdf_name'
   ) THEN
     RAISE EXCEPTION 'Catalogue knowledge is managed by the agency';
   END IF;

@@ -33,12 +33,10 @@ export async function authenticate(req, res, next) {
     const payload = verifySessionToken(token);
     let resolvedUserId = null;
     let resolvedOrgId = null;
-    let resolvedRole = null;
 
     if (payload) {
       resolvedUserId = payload.userId;
       resolvedOrgId = payload.organizationId;
-      resolvedRole = payload.role;
     } else {
       // Compatibility: Verify Supabase Auth JWT server-side
       const sb = repository.getSupabase();
@@ -50,7 +48,6 @@ export async function authenticate(req, res, next) {
             const profile = await repository.getProfileById(resolvedUserId);
             if (profile && (profile.org_id || profile.organization_id)) {
               resolvedOrgId = profile.org_id || profile.organization_id;
-              resolvedRole = profile.role || 'owner';
             }
           }
         } catch (e) {}
@@ -81,7 +78,7 @@ export async function authenticate(req, res, next) {
     // Inject verified tenant and user context from authoritative membership
     req.userId = resolvedUserId;
     req.organizationId = resolvedOrgId;
-    req.role = membership.role || resolvedRole || 'member';
+    req.role = membership.role || 'member';
     req.organization = organization;
 
     next();
