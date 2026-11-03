@@ -20,7 +20,7 @@ import { B2BWebhook } from '../integrations/b2b/b2bWebhook.js';
 import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
 import { LearningService } from '../services/learningService.js';
 import db from '../db/index.js';
-import { repository } from '../db/repository.js';
+import { repository, DatabaseUnavailableError } from '../db/repository.js';
 
 const router = express.Router();
 
@@ -146,10 +146,44 @@ router.get('/auth/me', authenticate, async (req, res) => {
 // ==========================================
 // 2. LEAD MANAGEMENT ENDPOINTS (TENANT SCOPED)
 // ==========================================
-router.get('/leads', authenticate, (req, res) => {
-  const { page, limit, search, status, city, sortBy, sortOrder } = req.query;
-  const result = LeadService.listLeads(req.organizationId, { page, limit, search, status, city, sortBy, sortOrder });
-  res.json({ ok: true, ...result });
+router.get('/leads', authenticate, async (req, res) => {
+  try {
+    const { page, limit, search, status, city, sortBy, sortOrder } = req.query;
+    const sb = repository.getSupabase();
+    if (sb) {
+      let query = sb.from('leads').select('*', { count: 'exact' }).eq('org_id', req.organizationId);
+      if (status) query = query.eq('status', status);
+      if (city) query = query.ilike('buyer_city', `%${city}%`);
+      if (search) {
+        query = query.or(`buyer_name.ilike.%${search}%,buyer_phone.ilike.%${search}%,product_inquired.ilike.%${search}%,buyer_city.ilike.%${search}%`);
+      }
+      const p = Math.max(1, Number(page) || 1);
+      const l = Math.max(1, Math.min(100, Number(limit) || 20));
+      const from = (p - 1) * l;
+      const to = from + l - 1;
+      const orderField = sortBy === 'name' ? 'buyer_name' : (sortBy || 'created_at');
+      query = query.order(orderField, { ascending: sortOrder === 'asc' }).range(from, to);
+      const { data, count, error } = await query;
+      if (error) throw new DatabaseUnavailableError(error.message);
+      return res.json({
+        ok: true,
+        leads: data || [],
+        pagination: {
+          page: p,
+          limit: l,
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / l) || 1
+        }
+      });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const result = LeadService.listLeads(req.organizationId, { page, limit, search, status, city, sortBy, sortOrder });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
 // Simulate Inbound Lead Modal
@@ -189,18 +223,41 @@ router.get('/leads/export.csv', authenticate, (req, res) => {
   res.send(csv);
 });
 
-router.get('/leads/:id', authenticate, (req, res) => {
-  const detail = LeadService.getLeadDetail(req.organizationId, req.params.id);
-  if (!detail) return res.status(404).json({ ok: false, error: 'Lead not found.' });
-  res.json({ ok: true, ...detail });
+router.get('/leads/:id', authenticate, async (req, res) => {
+  try {
+    const sb = repository.getSupabase();
+    if (sb) {
+      const lead = await repository.getLeadById(req.organizationId, req.params.id);
+      if (!lead) return res.status(404).json({ ok: false, error: 'Lead not found.' });
+      return res.json({ ok: true, lead });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const detail = LeadService.getLeadDetail(req.organizationId, req.params.id);
+    if (!detail) return res.status(404).json({ ok: false, error: 'Lead not found.' });
+    res.json({ ok: true, ...detail });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
-router.post('/leads/:id/status', authenticate, (req, res) => {
+router.post('/leads/:id/status', authenticate, async (req, res) => {
   try {
-    const updated = LeadService.updateLeadStatus(req.organizationId, req.params.id, req.body.status, req.userId);
+    const { status } = req.body;
+    const sb = repository.getSupabase();
+    if (sb) {
+      const updated = await repository.updateLeadScoped(req.organizationId, req.params.id, { status });
+      if (!updated) return res.status(404).json({ ok: false, error: 'Lead not found.' });
+      return res.json({ ok: true, lead: updated });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const updated = LeadService.updateLeadStatus(req.organizationId, req.params.id, status, req.userId);
     res.json({ ok: true, lead: updated });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 });
 
@@ -325,53 +382,134 @@ router.post('/callbacks/request-demo', authenticate, async (req, res) => {
 // ==========================================
 // 3. CONVERSATIONS INBOX ENDPOINTS
 // ==========================================
-router.get('/conversations', authenticate, (req, res) => {
-  const conversations = db.findScoped('conversations', req.organizationId);
-  const threads = conversations.map((conv) => {
-    const lead = db.findById('leads', conv.lead_id);
+router.get('/conversations', authenticate, async (req, res) => {
+  try {
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { data: convs, error: convErr } = await sb
+        .from('conversations')
+        .select('*, leads(*)')
+        .eq('org_id', req.organizationId)
+        .order('updated_at', { ascending: false });
+      if (convErr) throw new DatabaseUnavailableError(convErr.message);
+      const threads = (convs || []).map((conv) => {
+        const lead = conv.leads || {};
+        return {
+          id: conv.id,
+          leadId: conv.lead_id,
+          mode: conv.mode || 'ai',
+          isUnread: conv.is_unread,
+          buyerName: lead.buyer_name || 'B2B Buyer',
+          buyerPhone: lead.buyer_phone || conv.buyer_phone || '',
+          buyerCity: lead.buyer_city || '',
+          productInquired: lead.product_inquired || '',
+          status: lead.status || 'new',
+          lastMessage: conv.last_message_preview || 'No messages yet',
+          lastMessageAt: conv.updated_at || conv.created_at
+        };
+      });
+      return res.json({ ok: true, threads, conversations: threads });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const conversations = db.findScoped('conversations', req.organizationId);
+    const threads = conversations.map((conv) => {
+      const lead = db.findById('leads', conv.lead_id);
+      const messages = db.findScoped('messages', req.organizationId, (m) => m.conversation_id === conv.id)
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      const lastMsg = messages[messages.length - 1];
+
+      return {
+        id: conv.id,
+        leadId: conv.lead_id,
+        mode: conv.mode || 'ai',
+        isUnread: conv.is_unread,
+        buyerName: lead?.buyer_name || 'B2B Buyer',
+        buyerPhone: lead?.buyer_phone || '',
+        buyerCity: lead?.buyer_city || '',
+        productInquired: lead?.product_inquired || '',
+        status: lead?.status || 'new',
+        lastMessage: lastMsg ? lastMsg.content : 'No messages yet',
+        lastMessageAt: lastMsg ? lastMsg.created_at : conv.created_at
+      };
+    }).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
+
+    res.json({ ok: true, threads, conversations: threads });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.get('/conversations/:id/messages', authenticate, async (req, res) => {
+  try {
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { data: conv, error: convErr } = await sb
+        .from('conversations')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('org_id', req.organizationId)
+        .maybeSingle();
+      if (convErr) throw new DatabaseUnavailableError(convErr.message);
+      if (!conv) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+
+      const { data: messages, error: msgErr } = await sb
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conv.id)
+        .order('created_at', { ascending: true });
+      if (msgErr) throw new DatabaseUnavailableError(msgErr.message);
+
+      const lead = conv.lead_id ? await repository.getLeadById(req.organizationId, conv.lead_id) : null;
+      return res.json({ ok: true, conversation: conv, lead, messages: messages || [] });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const conv = db.findById('conversations', req.params.id);
+    if (!conv || conv.organization_id !== req.organizationId) {
+      return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+    }
+
     const messages = db.findScoped('messages', req.organizationId, (m) => m.conversation_id === conv.id)
       .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    const lastMsg = messages[messages.length - 1];
 
-    return {
-      id: conv.id,
-      leadId: conv.lead_id,
-      mode: conv.mode || 'ai',
-      isUnread: conv.is_unread,
-      buyerName: lead?.buyer_name || 'B2B Buyer',
-      buyerPhone: lead?.buyer_phone || '',
-      buyerCity: lead?.buyer_city || '',
-      productInquired: lead?.product_inquired || '',
-      status: lead?.status || 'new',
-      lastMessage: lastMsg ? lastMsg.content : 'No messages yet',
-      lastMessageAt: lastMsg ? lastMsg.created_at : conv.created_at
-    };
-  }).sort((a, b) => new Date(b.lastMessageAt) - new Date(a.lastMessageAt));
-
-  res.json({ ok: true, threads, conversations: threads });
+    const lead = db.findById('leads', conv.lead_id);
+    res.json({ ok: true, conversation: conv, lead, messages });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
-router.get('/conversations/:id/messages', authenticate, (req, res) => {
-  const conv = db.findById('conversations', req.params.id);
-  if (!conv || conv.organization_id !== req.organizationId) {
-    return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+router.post('/conversations/:id/mode', authenticate, async (req, res) => {
+  try {
+    const { mode } = req.body;
+    if (!['ai', 'human'].includes(mode)) {
+      return res.status(400).json({ ok: false, error: 'Mode must be "ai" or "human".' });
+    }
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { data: updated, error } = await sb
+        .from('conversations')
+        .update({ mode, updated_at: new Date().toISOString() })
+        .eq('id', req.params.id)
+        .eq('org_id', req.organizationId)
+        .select()
+        .maybeSingle();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      if (!updated) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+      return res.json({ ok: true, conversation: updated });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const updated = db.updateScoped('conversations', req.params.id, req.organizationId, { mode });
+    if (!updated) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+    res.json({ ok: true, conversation: updated });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
-
-  const messages = db.findScoped('messages', req.organizationId, (m) => m.conversation_id === conv.id)
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-
-  const lead = db.findById('leads', conv.lead_id);
-  res.json({ ok: true, conversation: conv, lead, messages });
-});
-
-router.post('/conversations/:id/mode', authenticate, (req, res) => {
-  const { mode } = req.body;
-  if (!['ai', 'human'].includes(mode)) {
-    return res.status(400).json({ ok: false, error: 'Mode must be "ai" or "human".' });
-  }
-  const updated = db.updateScoped('conversations', req.params.id, req.organizationId, { mode });
-  if (!updated) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
-  res.json({ ok: true, conversation: updated });
 });
 
 router.post('/conversations/:id/reply', authenticate, async (req, res) => {
@@ -460,9 +598,27 @@ router.post('/whatsapp/disconnect', authenticate, requireRole(['owner', 'admin']
 // ==========================================
 // 5. PRODUCT CATALOG ENDPOINTS (TENANT SCOPED)
 // ==========================================
-router.get('/catalog/products', authenticate, (req, res) => {
-  const products = CatalogService.listProducts(req.organizationId, req.query);
-  res.json({ ok: true, products });
+router.get('/catalog/products', authenticate, async (req, res) => {
+  try {
+    const sb = repository.getSupabase();
+    if (sb) {
+      let query = sb.from('products').select('*').eq('org_id', req.organizationId).neq('is_active', false);
+      if (req.query?.category) query = query.eq('category', req.query.category);
+      if (req.query?.search) {
+        query = query.or(`name.ilike.%${req.query.search}%,sku_code.ilike.%${req.query.search}%`);
+      }
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw new DatabaseUnavailableError(error.message);
+      return res.json({ ok: true, products: data || [] });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const products = CatalogService.listProducts(req.organizationId, req.query);
+    res.json({ ok: true, products });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
 router.post('/catalog/upload', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
@@ -485,11 +641,30 @@ router.post('/catalog/upload', authenticate, requireRole(['owner', 'admin']), as
 });
 
 // Quick-Add SKU (10-second manual product addition)
-router.post('/catalog/quick-add', authenticate, (req, res) => {
+router.post('/catalog/quick-add', authenticate, async (req, res) => {
   try {
     const { name, priceRaw, model, specifications } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ ok: false, error: 'Product name is required.' });
+    }
+
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { data, error } = await sb.from('products').insert({
+        org_id: req.organizationId,
+        name: name.trim(),
+        sku_code: `SKU-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
+        category: 'Commercial Products',
+        model_specs: model || 'Standard Industrial',
+        price_raw: priceRaw || 'Contact factory for GST quote',
+        is_active: true
+      }).select().single();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      invalidateCache(req.organizationId);
+      return res.json({ ok: true, product: data });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
     }
 
     const kw = name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
@@ -507,16 +682,34 @@ router.post('/catalog/quick-add', authenticate, (req, res) => {
 
     res.json({ ok: true, product });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 });
 
-router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+router.delete('/catalog/products/:id', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { data, error } = await sb
+        .from('products')
+        .delete()
+        .eq('id', req.params.id)
+        .eq('org_id', req.organizationId)
+        .select();
+      if (error) throw new DatabaseUnavailableError(error.message);
+      if (!data || data.length === 0) {
+        return res.status(404).json({ ok: false, error: 'Product not found or unauthorized' });
+      }
+      invalidateCache(req.organizationId);
+      return res.json({ ok: true, deleted: true });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
     CatalogService.deleteProduct(req.organizationId, req.params.id);
     res.json({ ok: true, deleted: true });
   } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
+    res.status(err.statusCode || 400).json({ ok: false, error: err.message });
   }
 });
 
@@ -651,9 +844,61 @@ router.post('/calls/confirm', authenticate, async (req, res) => {
 // ==========================================
 // 7. GENUINE ANALYTICS ENDPOINT (REAL DB RECORDS)
 // ==========================================
-router.get('/analytics', authenticate, (req, res) => {
-  const metrics = AnalyticsService.getDashboardMetrics(req.organizationId);
-  res.json({ ok: true, metrics });
+router.get('/analytics', authenticate, async (req, res) => {
+  try {
+    const sb = repository.getSupabase();
+    if (sb) {
+      const [leadsRes, callsRes] = await Promise.all([
+        sb.from('leads').select('*').eq('org_id', req.organizationId),
+        sb.from('call_requests').select('*').eq('org_id', req.organizationId)
+      ]);
+      if (leadsRes.error) throw new DatabaseUnavailableError(leadsRes.error.message);
+      if (callsRes.error) throw new DatabaseUnavailableError(callsRes.error.message);
+
+      const leads = leadsRes.data || [];
+      const calls = callsRes.data || [];
+      const totalLeads = leads.length;
+
+      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const leadsToday = leads.filter((l) => {
+        const leadDate = new Date(l.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+        return leadDate === todayStr;
+      }).length;
+
+      const responseTimes = leads.filter((l) => l.first_response_ms).map((l) => l.first_response_ms);
+      const medianResponseTimeMs = responseTimes.length
+        ? responseTimes.sort((a, b) => a - b)[Math.floor(responseTimes.length / 2)]
+        : null;
+
+      const qualifiedLeads = leads.filter((l) =>
+        ['qualified', 'awaiting_call', 'call_booked', 'converted'].includes(l.status)
+      ).length;
+      const confirmedCalls = calls.filter((c) => c.status === 'confirmed').length;
+      const qualificationRate = totalLeads > 0 ? Math.round((qualifiedLeads / totalLeads) * 100) : 0;
+      const callBookingRate = totalLeads > 0 ? Math.round((confirmedCalls / totalLeads) * 100) : 0;
+
+      return res.json({
+        ok: true,
+        metrics: {
+          totalLeads,
+          leadsToday,
+          medianResponseTimeMs,
+          medianResponseTimeFormatted: medianResponseTimeMs ? `${(medianResponseTimeMs / 1000).toFixed(1)}s` : 'N/A',
+          qualifiedLeads,
+          qualificationRate: `${qualificationRate}%`,
+          confirmedCalls,
+          callBookingRate: `${callBookingRate}%`
+        }
+      });
+    }
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+    const metrics = AnalyticsService.getDashboardMetrics(req.organizationId);
+    res.json({ ok: true, metrics });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
 });
 
 // ==========================================

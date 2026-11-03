@@ -307,6 +307,9 @@ body {
 
 /* Responsive Mobile Inbox layout transitions */
 @media (max-width: 1023px) {
+  #publicNavLinks {
+    display: none !important;
+  }
   .mobile-inbox-list {
     width: 100% !important;
     display: flex !important;

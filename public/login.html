@@ -515,7 +515,10 @@
               // Confirmation email flow
               showToast('Account created! Please check your email to confirm, then sign in.', 'success');
               switchTab('login');
-              if (btn) { btn.disabled = false; btn.textContent = 'Create Workspace & Start →'; }
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<span>Create Workspace & Start →</span>';
+              }
               return;
             }
           } catch (sbErr) {

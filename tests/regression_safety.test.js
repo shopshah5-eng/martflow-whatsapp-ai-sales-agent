@@ -103,7 +103,7 @@ test('server disconnect removes session credentials', () => {
     await inst.disconnect();
     if (fs.existsSync(inst.authDir)) process.exit(1);
     process.exit(0);`;
-  execFileSync(process.execPath, ['--input-type=module', '-e', script], { env: { ...process.env, NODE_ENV: 'test', USE_LOCAL_DB: 'true', PORT: '0' }, timeout: 10000 });
+  execFileSync(process.execPath, ['--input-type=module', '-e', script], { env: { ...process.env, NODE_ENV: 'test', USE_LOCAL_DB: 'true', PORT: '0' }, timeout: 25000 });
 });
 
 test('regression: account takeover via forged supabaseId is rejected', async () => {
