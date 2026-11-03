@@ -2518,7 +2518,7 @@
     const MERCHANT_NAME = "MartFlow AI Sales";
 
     function getDemoDeskNumber() {
-      return String.fromCharCode.apply(null, [57,49,57,49,49,53,55,52,56,52,53,55]);
+      return window.DEMO_BOT_WHATSAPP_LIVE || localStorage.getItem('mf_demo_bot_whatsapp') || String.fromCharCode.apply(null, [57,49,57,49,49,53,55,52,56,52,53,55]);
     }
 
     const SUPPORT_WHATSAPP = getDemoDeskNumber(); // Dynamic VIP Onboarding Desk
@@ -2534,6 +2534,7 @@
     window.MERCHANT_UPI_ID_LIVE = null;
     window.MERCHANT_NAME_LIVE = null;
     window.SUPPORT_WHATSAPP_LIVE = null;
+    window.DEMO_BOT_WHATSAPP_LIVE = null;
 
     function getMerchantUpi() {
       return localStorage.getItem('mf_merchant_upi') || window.MERCHANT_UPI_ID_LIVE || MERCHANT_UPI_ID;
@@ -2561,6 +2562,10 @@
           if (res.merchantUpiId) window.MERCHANT_UPI_ID_LIVE = res.merchantUpiId;
           if (res.merchantName) window.MERCHANT_NAME_LIVE = res.merchantName;
           if (res.supportWhatsapp) window.SUPPORT_WHATSAPP_LIVE = res.supportWhatsapp;
+          if (res.demoBotWhatsapp) {
+            window.DEMO_BOT_WHATSAPP_LIVE = res.demoBotWhatsapp;
+            localStorage.setItem('mf_demo_bot_whatsapp', res.demoBotWhatsapp);
+          }
           if (res.supabaseUrl && res.supabaseAnonKey && window.supabase) {
             try {
               sb = window.supabase.createClient(res.supabaseUrl, res.supabaseAnonKey);

@@ -123,18 +123,31 @@
       const btn = document.getElementById('subBtn');
       btn.disabled = true;
       btn.textContent = 'Sending to WhatsApp...';
-      const res = await fetch('/api/simulate-lead', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, productQuery, city, delaySec: 6 })
-      });
-      const data = await res.json();
-      btn.disabled = false;
-      btn.textContent = '⚡ Get Instant Quote & PDF on WhatsApp';
-      if (data.ok) {
-        document.getElementById('okBox').style.display = 'block';
-      } else {
-        alert(data.error || 'Something went wrong');
+      try {
+        let res = await fetch('/api/public/demo-enquiry', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, productQuery, city, delaySec: 6 })
+        });
+        if (!res.ok && res.status !== 429) {
+          res = await fetch('/api/simulate-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, phone, productQuery, city, delaySec: 6 })
+          });
+        }
+        const data = await res.json();
+        btn.disabled = false;
+        btn.textContent = '⚡ Get Instant Quote & PDF on WhatsApp';
+        if (data.ok) {
+          document.getElementById('okBox').style.display = 'block';
+        } else {
+          alert(data.error || 'Unable to submit enquiry. Please try again.');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = '⚡ Get Instant Quote & PDF on WhatsApp';
+        alert('Connection error. Please check your network and try again.');
       }
     }
   </script>

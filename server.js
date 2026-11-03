@@ -475,13 +475,13 @@ function resolvePhoneFromJid(remoteJid, altJid) {
     return normalizeIndianPhone(lidToPhoneMap[remoteJid]);
   }
 
-  // 4. Raw digits fallback if length matches valid phone
+  // 4. Raw digits fallback if length matches valid phone or WhatsApp LID (10 to 16 digits)
   const rawDigits = (remoteJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
-  if (rawDigits && rawDigits.length >= 10 && rawDigits.length <= 13) {
+  if (rawDigits && rawDigits.length >= 10 && rawDigits.length <= 16) {
     return normalizeIndianPhone(rawDigits);
   }
 
-  // Unresolved LID or invalid JID
+  // Unresolved JID
   return null;
 }
 
@@ -558,7 +558,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
   const altJid = msg.key.remoteJidAlt || msg.key.participant || '';
   const resolvedPhone = resolvePhoneFromJid(rawRemote, altJid);
-  const senderPhone = resolvedPhone ? normalizeIndianPhone(resolvedPhone) : '';
+  let senderPhone = resolvedPhone ? normalizeIndianPhone(resolvedPhone) : '';
   const rawPushName = (msg.pushName || '').trim();
   const pushName = rawPushName && !/^(buyer|unknown|\.|\+?\d+|user|iphone|android|customer|sir|whatsapp|demo|admin)$/i.test(rawPushName) ? rawPushName : 'Customer';
 
@@ -599,16 +599,25 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
   const botPhone = normalizeIndianPhone(activeSock?.user?.id?.split(':')[0] || freshOrg.wa_connected_number || '919115748457');
   const botPhoneDigits = botPhone.slice(-10);
-  const botLidUser = (activeSock?.user?.lid || '').split(':')[0].split('@')[0];
+  const botLidUser = (activeSock?.user?.lid || activeSock?.authState?.creds?.me?.lid || '').split(':')[0].split('@')[0];
   const recipientPhone = normalizeIndianPhone(rawRemote.split('@')[0]);
 
   // Bulletproof @lid & Typo-Tolerant WhatsApp Remote Control:
   // 1. Detect Bot Self-Chat reliably even with @lid JIDs:
   const isSelfChat = Boolean(msg.key.fromMe && (
     (botPhoneDigits && rawJid.includes(botPhoneDigits)) ||
-    (botLidUser && rawJid.split('@')[0] === botLidUser) ||
-    (recipientPhone === botPhone)
+    (botLidUser && (rawJid.split('@')[0] === botLidUser || rawJid.includes(botLidUser))) ||
+    (recipientPhone === botPhone) ||
+    (rawRemote && activeSock?.user?.id && rawRemote.split('@')[0] === activeSock.user.id.split(':')[0])
   ));
+
+  // If self-chat, senderPhone is authoritatively the bot's connected phone
+  if (isSelfChat && (!senderPhone || senderPhone === botLidUser || senderPhone.length < 10)) {
+    senderPhone = botPhone;
+  } else if (!senderPhone) {
+    const rawDigits = rawRemote.split('@')[0].replace(/\D/g, '');
+    senderPhone = rawDigits.length >= 10 ? rawDigits : `lid_${rawRemote.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+  }
 
   // 2. Detect Owner Main Phone:
   const isFromOwner = Boolean(
@@ -714,6 +723,24 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     }
   }
 
+  // OWNER CALL TIME CONFIRMATION HANDLER
+  if (isFromOwner && !ownerCmd.isOwnerCommand) {
+    let targetLead = leads.find((l) => (l.org_id === orgId || l.organization_id === orgId) && l.callbackStatus === 'awaiting_client_time');
+    const looksLikeTime = /(today|tomorrow|kal|aaj|pm|am|baje|\d{1,2}:\d{2}|abhi|now|sham|subah|afternoon|morning|evening)/i.test(incomingText);
+    if (targetLead && looksLikeTime) {
+      const confirmedTime = await parseClientConfirmedTime(incomingText);
+      await confirmCallSlotAndNotifyBoth({
+        lead: targetLead,
+        confirmedTime,
+        confirmedBy: `Owner WhatsApp (+${senderPhone})`
+      });
+      const confirmReply = `✅ *Call Slot Confirmed & Buyer Notified!* Scheduled for *${confirmedTime}*.`;
+      const sent = await activeSock.sendMessage(rawRemote, { text: confirmReply });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      return;
+    }
+  }
+
   // Intercept messages if this specific customer is currently held in Manual Takeover
   if (senderPhone) {
     const manualCheck = await isCustomerInManualMode({ orgId, buyerPhone: senderPhone, supabaseAdmin });
@@ -813,8 +840,14 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             mode: 'human',
             updated_at: new Date().toISOString()
           }).eq('org_id', orgId).ilike('buyer_phone', `%${recipientPhone.slice(-10)}`);
+          await takeoverCustomer({
+            orgId,
+            buyerPhone: recipientPhone,
+            takenBy: 'owner_manual_typing',
+            supabaseAdmin
+          });
         }
-        addLog(`[Human Takeover] Owner typed manually to customer +${recipientPhone}. Conversation set to human.`);
+        addLog(`[Human Takeover] Owner typed manually to customer +${recipientPhone}. Conversation set to human for 4h.`);
       } catch (e) {}
     }
     // Only return if not testing in bot self-chat
@@ -882,12 +915,19 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             quota_admitted: Boolean(res.out_quota_admitted ?? res.quota_admitted)
           };
 
-          let { data: existingConv } = await supabaseAdmin
-            .from('conversations')
-            .select('id, mode')
-            .eq('org_id', orgId)
-            .ilike('buyer_phone', `%${senderPhone.slice(-10)}`)
-            .maybeSingle();
+          let existingConv = null;
+          const phoneSearch = senderPhone && senderPhone.length >= 10 ? senderPhone.slice(-10) : senderPhone;
+          if (phoneSearch && phoneSearch.length >= 4) {
+            const { data } = await supabaseAdmin
+              .from('conversations')
+              .select('id, mode')
+              .eq('org_id', orgId)
+              .ilike('buyer_phone', `%${phoneSearch}`)
+              .order('updated_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            existingConv = data;
+          }
 
           if (!existingConv) {
             const { data: nConv } = await supabaseAdmin.from('conversations').insert({
@@ -926,8 +966,18 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
               }
             }
           } else if ((existingConv?.mode === 'manual' || existingConv?.mode === 'human') && !isFromOwner && !isSelfChat) {
-            addLog(`[Manual Mode] Conversation for +${senderPhone} is paused in manual mode.`);
-            return;
+            const activeCheck = await isCustomerInManualMode({ orgId, buyerPhone: senderPhone, supabaseAdmin });
+            if (activeCheck.inManualMode) {
+              addLog(`[Manual Mode] Conversation for +${senderPhone} is paused in active manual mode (${activeCheck.remainingMinutes || 0}m remaining).`);
+              return;
+            } else {
+              // Takeover expired -> auto-restore conversation to auto mode
+              existingConv.mode = 'auto';
+              if (supabaseAdmin && sbConvId) {
+                await supabaseAdmin.from('conversations').update({ mode: 'auto' }).eq('id', sbConvId);
+              }
+              addLog(`[Auto Resume] Manual takeover expired for +${senderPhone}. AI auto-reply resumed.`);
+            }
           }
 
           // Quota gate: if quota was not admitted, withhold AI reply
@@ -1000,7 +1050,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       }
     }
 
-    // Double-reply prevention: check if an AI reply was inserted in Supabase in last 8s
+    // Double-reply smoothing: if an AI reply was sent to this conversation recently,
+    // add a short natural delay so rapid follow-up inquiries are answered without being discarded!
     if (supabaseAdmin && sbConvId) {
       try {
         const { data: recentAiMsgs } = await supabaseAdmin
@@ -1012,10 +1063,10 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           .limit(1);
         if (recentAiMsgs && recentAiMsgs.length > 0) {
           const diffMs = Date.now() - new Date(recentAiMsgs[0].created_at).getTime();
-          const replyCooldownMs = (isFromOwner || isSelfChat) ? 1500 : 2500;
+          const replyCooldownMs = (isFromOwner || isSelfChat) ? 1000 : 2000;
           if (diffMs < replyCooldownMs) {
-            addLog(`[Deduplication] AI reply already sent for conversation ${sbConvId} ${diffMs}ms ago. Skipping duplicate.`);
-            return;
+            const waitMs = Math.max(300, replyCooldownMs - diffMs);
+            await new Promise((r) => setTimeout(r, waitMs));
           }
         }
       } catch (e) {}
@@ -1228,9 +1279,19 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
   if (!orgId) return;
   const sessionDir = path.join(process.cwd(), 'auth_info', orgId);
 
-  // 1. Cleanly close and removeAllListeners() on any existing socket for orgId
+  // 1. Cleanly check existing socket for orgId before closing
   if (orgSessions.has(orgId)) {
     const existing = orgSessions.get(orgId);
+    if (!forceNew && existing) {
+      if (existing.sock && existing.state?.status === 'connected') {
+        addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp socket already connected. Reusing session.`);
+        return;
+      }
+      if (existing.isConnecting || existing.state?.status === 'connecting') {
+        addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp socket currently connecting. Skipping duplicate initialization.`);
+        return;
+      }
+    }
     try {
       if (existing.sock) {
         existing.sock.ev.removeAllListeners();
@@ -1338,6 +1399,15 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
         sessionObj.state.lastEvent = `Live & Connected as +${sessionObj.state.connectedNumber}`;
         addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp CONNECTED successfully (+${sessionObj.state.connectedNumber})`);
 
+        // Register bot's own @lid in lidToPhoneMap for bulletproof self-chat and identity recognition
+        const myLid = newSock.user?.lid || state?.creds?.me?.lid;
+        if (myLid) {
+          const cleanLid = myLid.split(':')[0].split('@')[0] + '@lid';
+          lidToPhoneMap[cleanLid] = sessionObj.state.connectedNumber;
+          lidToPhoneMap[myLid] = sessionObj.state.connectedNumber;
+          lidToPhoneMap[myLid.split(':')[0]] = sessionObj.state.connectedNumber;
+        }
+
         if (supabaseAdmin) {
           await supabaseAdmin.from('organizations').update({
             wa_status: 'connected',
@@ -1365,10 +1435,6 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
           sessionObj.state.connectedNumber = null;
           sessionObj.state.lastEvent = 'Logged out from phone. Click Connect to scan again.';
           addLog(`🚨 [WATCHDOG CRITICAL] WhatsApp socket logged out for org ${orgId.slice(0, 8)}. Owner alerts are halted until re-scanned!`);
-          try {
-            fs.rmSync(sessionDir, { recursive: true, force: true });
-            await deleteRemoteSession(orgId);
-          } catch (e) {}
           if (supabaseAdmin) {
             await supabaseAdmin.from('organizations').update({
               wa_status: 'disconnected',
@@ -2667,17 +2733,105 @@ app.post('/api/config', authenticate, requireRole(['owner', 'admin']), async (re
   }
 });
 
-// 1. Operator Live Demo Trigger + Public Simulator Form Endpoint
-app.post('/api/simulate-lead', authenticate, async (req, res) => {
+// Rate limiting map for public demo enquiries (max 5 requests per IP per 10 minutes)
+const publicDemoRateLimit = new Map();
+
+function checkPublicDemoRateLimit(ip) {
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const maxRequests = 5;
+  const record = publicDemoRateLimit.get(ip) || [];
+  const valid = record.filter((ts) => now - ts < windowMs);
+  if (valid.length >= maxRequests) {
+    return false;
+  }
+  valid.push(now);
+  publicDemoRateLimit.set(ip, valid);
+  return true;
+}
+
+// 1. Dedicated Public Demo Enquiry Endpoint (Rate-Limited, Abuse-Protected)
+app.post('/api/public/demo-enquiry', async (req, res) => {
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+  if (!checkPublicDemoRateLimit(clientIp)) {
+    return res.status(429).json({
+      ok: false,
+      error: 'Demo enquiry limit reached for this IP (max 5 inquiries per 10 minutes). Please wait a few minutes or test via WhatsApp directly.'
+    });
+  }
+
+  const { name, phone, productQuery, city, message, delaySec } = req.body || {};
+  const cleanPhone = normalizeIndianPhone(phone);
+  if (!cleanPhone || cleanPhone.length < 10) {
+    return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });
+  }
+
+  try {
+    const lead = await processNewB2BLead({
+      name: (name && !/^(buyer|unknown|sir|rajesh)$/i.test(name.trim())) ? name.trim() : 'Demo Buyer',
+      phone: cleanPhone,
+      productQuery: productQuery || 'Automatic Pouch Packing Machine',
+      city: city || 'Direct Demo Inquiry',
+      message: message || '',
+      source: 'Website Public Live Demo',
+      customDelaySec: delaySec !== undefined ? Number(delaySec) : 5
+    });
+    res.json({
+      ok: true,
+      lead: {
+        id: lead.id,
+        name: lead.name,
+        phone: lead.phone,
+        productName: lead.productName,
+        status: lead.status
+      }
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Backward-compatible Simulator Endpoint: Authenticated Operator OR Rate-Limited Public Demo
+app.post('/api/simulate-lead', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authenticate(req, res, async () => {
+      try {
+        const { name, phone, productQuery, city, message, delaySec } = req.body;
+        const lead = await processNewB2BLead({
+          name: name || 'Rajesh Ji',
+          phone,
+          productQuery: productQuery || 'Automatic Pouch Packing Machine',
+          city: city || '',
+          message: message || '',
+          source: 'Live Demo Trigger',
+          customDelaySec: delaySec !== undefined ? Number(delaySec) : undefined
+        });
+        res.json({ ok: true, lead });
+      } catch (err) {
+        res.status(400).json({ ok: false, error: err.message });
+      }
+    });
+  }
+
+  // Unauthenticated fallback for public demo forms
+  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+  if (!checkPublicDemoRateLimit(clientIp)) {
+    return res.status(429).json({ ok: false, error: 'Too many demo requests. Please wait a few minutes.' });
+  }
   try {
     const { name, phone, productQuery, city, message, delaySec } = req.body;
+    const cleanPhone = normalizeIndianPhone(phone);
+    if (!cleanPhone || cleanPhone.length < 10) {
+      return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });
+    }
     const lead = await processNewB2BLead({
-      name: name || 'Rajesh Ji',
-      phone,
+      name: name || 'Demo Buyer',
+      phone: cleanPhone,
       productQuery: productQuery || 'Automatic Pouch Packing Machine',
       city: city || '',
       message: message || '',
-      source: 'Live Demo Trigger',
+      source: 'Live Demo Trigger (Public)',
       customDelaySec: delaySec !== undefined ? Number(delaySec) : undefined
     });
     res.json({ ok: true, lead });
@@ -2686,15 +2840,20 @@ app.post('/api/simulate-lead', authenticate, async (req, res) => {
   }
 });
 
-// Public Config Endpoint (exposes Supabase config, merchant UPI & support WhatsApp for live checkout)
+// Public Config Endpoint (exposes Supabase config, merchant UPI & live connected WhatsApp numbers)
 app.get('/api/public-config', (req, res) => {
+  const activeNumber = sock?.user?.id?.split(':')[0]?.split('@')[0] ||
+    orgSessions.get('6fd354d9-3437-412d-856e-28bc19d44268')?.state?.connectedNumber ||
+    process.env.SUPPORT_WHATSAPP || '919115748457';
+
   res.json({
     ok: true,
     supabaseUrl: process.env.SUPABASE_URL || 'https://uriqhusalcdgdlgzgasp.supabase.co',
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE',
-    merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
+    merchantUpiId: process.env.MERCHANT_UPI_ID || 'saraitaj6-2@okaxis',
     merchantName: process.env.MERCHANT_NAME || 'MartFlow AI Sales',
-    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || 'YOUR_REAL_WHATSAPP_91XXXXXXXXXX'
+    supportWhatsapp: activeNumber,
+    demoBotWhatsapp: activeNumber
   });
 });
 

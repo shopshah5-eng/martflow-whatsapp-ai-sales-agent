@@ -873,14 +873,55 @@ router.get('/billing', authenticate, (req, res) => {
 });
 
 router.get('/public-config', (req, res) => {
+  const defaultOrgId = '6fd354d9-3437-412d-856e-28bc19d44268';
+  const inst = baileysManager.getInstance(defaultOrgId);
+  const activeNumber = inst?.sock?.user?.id?.split(':')[0]?.split('@')[0] ||
+    inst?.state?.connectedNumber ||
+    process.env.SUPPORT_WHATSAPP || '919115748457';
+
   res.json({
     ok: true,
     supabaseUrl: process.env.SUPABASE_URL || 'https://uriqhusalcdgdlgzgasp.supabase.co',
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE',
-    merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
+    merchantUpiId: process.env.MERCHANT_UPI_ID || 'saraitaj6-2@okaxis',
     merchantName: process.env.MERCHANT_NAME || 'MartFlow AI Sales',
-    supportWhatsapp: process.env.SUPPORT_WHATSAPP || process.env.OWNER_PHONE || 'YOUR_REAL_WHATSAPP_91XXXXXXXXXX'
+    supportWhatsapp: activeNumber,
+    demoBotWhatsapp: activeNumber
   });
+});
+
+router.post('/public/demo-enquiry', async (req, res) => {
+  const { name, phone, productQuery, city, message } = req.body || {};
+  const cleanPhone = String(phone || '').replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 10) {
+    return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });
+  }
+
+  try {
+    const demoOrg = db.findOne('organizations', (o) => o.id === '6fd354d9-3437-412d-856e-28bc19d44268') ||
+                    db.find('organizations')[0] || { id: '6fd354d9-3437-412d-856e-28bc19d44268' };
+    const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+    const { lead } = LeadService.createOrDeduplicateLead(demoOrg.id, {
+      buyer_name: name || 'Demo Buyer',
+      buyer_phone: normPhone,
+      buyer_city: city || 'Demo City',
+      product_inquired: productQuery || 'Automatic Pouch Packing Machine',
+      requirement: message || 'Public Demo Website Inquiry',
+      source: 'Website Public Live Demo'
+    });
+    res.json({
+      ok: true,
+      lead: {
+        id: lead.id,
+        name: lead.buyer_name,
+        phone: lead.buyer_phone,
+        productName: lead.product_inquired,
+        status: lead.status
+      }
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
 });
 
 router.post('/membership/unlock-code', authenticate, async (req, res) => {
