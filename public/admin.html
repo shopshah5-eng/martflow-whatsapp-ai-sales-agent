@@ -295,7 +295,7 @@
     </div>
 
     <!-- Admin Content View -->
-    <div id="adminContent" class="space-y-6">
+    <div id="adminContent" class="hidden space-y-6">
       <section id="view-engineer" class="view-panel space-y-6">
         <div>
           <div class="flex items-center space-x-2">
@@ -603,7 +603,7 @@
 
     // Fallback handler stub for network boundaries / audit compatibility
     async function handleStaticDemoRequest(url, options = {}) {
-      return { ok: true, fallback: true };
+      throw new Error('The server is unavailable. Please check your connection and try again.');
     }
 
     // 4. View Switching & Drawer Navigation
@@ -1368,16 +1368,15 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            buyer_name: orgName,
-            buyer_phone: cleanPhone,
-            industry: industry,
-            product_name: `B2B Platform Consultation (${industry})`,
-            query_summary: requirement || 'New enterprise inquiry via contact desk'
+            name: orgName,
+            phone: cleanPhone,
+            productQuery: `B2B Platform Consultation (${industry})`,
+            message: requirement || 'New enterprise inquiry via contact desk'
           })
         });
         const data = await res.json().catch(() => ({}));
-        if (res.ok || data.success) {
-          showToast('✅ Inquiry received! Our B2B onboarding desk will WhatsApp you within 15 minutes.', 'success');
+        if (res.ok && data.ok) {
+          showToast('Inquiry received. No WhatsApp message has been sent by this form.', 'success');
           if (document.getElementById('contactOrgName')) document.getElementById('contactOrgName').value = '';
           if (document.getElementById('contactPhone')) document.getElementById('contactPhone').value = '';
           if (document.getElementById('contactRequirement')) document.getElementById('contactRequirement').value = '';
@@ -1385,7 +1384,7 @@
           showToast(data.error || 'Failed to submit inquiry. Please retry.', 'error');
         }
       } catch (err) {
-        showToast('✅ Inquiry recorded! Our engineering team will contact you on WhatsApp.', 'success');
+        showToast('Unable to submit your inquiry. Check your connection and try again.', 'error');
       }
     }
 
@@ -4490,38 +4489,21 @@
         return;
       }
 
-      // Check user role from stored user or api
-      let user = null;
-      try {
-        user = JSON.parse(localStorage.getItem('mf_current_user') || 'null');
-      } catch (e) {}
-
-      const isSuperadmin = user && (user.role === 'superadmin' || user.email?.includes('admin'));
+      // Only show the administration UI after the server verifies the role.
       const adminDenied = document.getElementById('adminAccessDenied');
       const adminContent = document.getElementById('adminContent');
-
-      if (!isSuperadmin) {
-        try {
-          const res = await fetch('/api/auth/me', {
-            headers: { 'Authorization': 'Bearer ' + token }
-          });
-          const data = await res.json();
-          if (data.ok && data.user && data.user.role === 'superadmin') {
-            if (adminDenied) adminDenied.classList.add('hidden');
-            if (adminContent) adminContent.classList.remove('hidden');
-            loadEngineerSettings();
-          } else {
-            if (adminDenied) adminDenied.classList.remove('hidden');
-            if (adminContent) adminContent.classList.add('hidden');
-          }
-        } catch (e) {
-          if (adminDenied) adminDenied.classList.remove('hidden');
-          if (adminContent) adminContent.classList.add('hidden');
-        }
-      } else {
-        if (adminDenied) adminDenied.classList.add('hidden');
-        if (adminContent) adminContent.classList.remove('hidden');
-        loadEngineerSettings();
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        const allowed = res.ok && data.ok && data.role === 'superadmin';
+        if (adminDenied) adminDenied.classList.toggle('hidden', allowed);
+        if (adminContent) adminContent.classList.toggle('hidden', !allowed);
+        if (allowed) loadEngineerSettings();
+      } catch (e) {
+        if (adminDenied) adminDenied.classList.remove('hidden');
+        if (adminContent) adminContent.classList.add('hidden');
       }
     });
   </script>

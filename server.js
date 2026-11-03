@@ -2791,55 +2791,6 @@ app.post('/api/public/demo-enquiry', async (req, res) => {
   }
 });
 
-// Backward-compatible Simulator Endpoint: Authenticated Operator OR Rate-Limited Public Demo
-app.post('/api/simulate-lead', async (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    return authenticate(req, res, async () => {
-      try {
-        const { name, phone, productQuery, city, message, delaySec } = req.body;
-        const lead = await processNewB2BLead({
-          name: name || 'Rajesh Ji',
-          phone,
-          productQuery: productQuery || 'Automatic Pouch Packing Machine',
-          city: city || '',
-          message: message || '',
-          source: 'Live Demo Trigger',
-          customDelaySec: delaySec !== undefined ? Number(delaySec) : undefined
-        });
-        res.json({ ok: true, lead });
-      } catch (err) {
-        res.status(400).json({ ok: false, error: err.message });
-      }
-    });
-  }
-
-  // Unauthenticated fallback for public demo forms
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
-  if (!checkPublicDemoRateLimit(clientIp)) {
-    return res.status(429).json({ ok: false, error: 'Too many demo requests. Please wait a few minutes.' });
-  }
-  try {
-    const { name, phone, productQuery, city, message, delaySec } = req.body;
-    const cleanPhone = normalizeIndianPhone(phone);
-    if (!cleanPhone || cleanPhone.length < 10) {
-      return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });
-    }
-    const lead = await processNewB2BLead({
-      name: name || 'Demo Buyer',
-      phone: cleanPhone,
-      productQuery: productQuery || 'Automatic Pouch Packing Machine',
-      city: city || '',
-      message: message || '',
-      source: 'Live Demo Trigger (Public)',
-      customDelaySec: delaySec !== undefined ? Number(delaySec) : undefined
-    });
-    res.json({ ok: true, lead });
-  } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
-  }
-});
-
 // Public Config Endpoint (exposes Supabase config, merchant UPI & live connected WhatsApp numbers)
 app.get('/api/public-config', (req, res) => {
   const activeNumber = sock?.user?.id?.split(':')[0]?.split('@')[0] ||
@@ -3535,7 +3486,7 @@ app.post('/api/wa/disconnect', authenticate, requireRole(['owner', 'admin']), as
 // ==============================================================================
 // MULTI-PAGE APPLICATION ROUTES (AUTHENTICATION & ARCHITECTURE SEPARATION)
 // ==============================================================================
-app.get(['/app', '/app/*'], (req, res) => {
+app.get(['/app', '/app/*', '/dashboard', '/dashboard/*'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'app.html'));
 });
 

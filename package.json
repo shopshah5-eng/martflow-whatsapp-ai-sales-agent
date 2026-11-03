@@ -24,5 +24,8 @@
     "pg": "^8.23.1",
     "pino": "^9.6.0",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.3"
   }
 }

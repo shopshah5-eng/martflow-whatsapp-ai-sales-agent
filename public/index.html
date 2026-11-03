@@ -1936,7 +1936,7 @@
 
     // Fallback handler stub for network boundaries / audit compatibility
     async function handleStaticDemoRequest(url, options = {}) {
-      return { ok: true, fallback: true };
+      throw new Error('The server is unavailable. Please check your connection and try again.');
     }
 
     // 4. View Switching & Drawer Navigation
@@ -2701,16 +2701,15 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            buyer_name: orgName,
-            buyer_phone: cleanPhone,
-            industry: industry,
-            product_name: `B2B Platform Consultation (${industry})`,
-            query_summary: requirement || 'New enterprise inquiry via contact desk'
+            name: orgName,
+            phone: cleanPhone,
+            productQuery: `B2B Platform Consultation (${industry})`,
+            message: requirement || 'New enterprise inquiry via contact desk'
           })
         });
         const data = await res.json().catch(() => ({}));
-        if (res.ok || data.success) {
-          showToast('✅ Inquiry received! Our B2B onboarding desk will WhatsApp you within 15 minutes.', 'success');
+        if (res.ok && data.ok) {
+          showToast('Inquiry received. No WhatsApp message has been sent by this form.', 'success');
           if (document.getElementById('contactOrgName')) document.getElementById('contactOrgName').value = '';
           if (document.getElementById('contactPhone')) document.getElementById('contactPhone').value = '';
           if (document.getElementById('contactRequirement')) document.getElementById('contactRequirement').value = '';
@@ -2718,7 +2717,7 @@
           showToast(data.error || 'Failed to submit inquiry. Please retry.', 'error');
         }
       } catch (err) {
-        showToast('✅ Inquiry recorded! Our engineering team will contact you on WhatsApp.', 'success');
+        showToast('Unable to submit your inquiry. Check your connection and try again.', 'error');
       }
     }
 

@@ -218,12 +218,20 @@
 
   <!-- Authentication Script -->
   <script>
-    const SUPABASE_URL = "https://uriqhusalcdgdlgzgasp.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVyaXFodXNhbGNkZ2RsZ3pnYXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzMzYwNDQsImV4cCI6MjEwODkxMjA0NH0.UTB-Ykce-bcxTrhhKvk1kNjxCH5uWsmB3yAyGJeZXkE";
-
-    let sb = (window.supabase && typeof window.supabase.createClient === 'function')
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-      : null;
+    // Use the same runtime auth configuration as the backend/workspace.
+    let sb = null;
+    const authClientReady = (async () => {
+      if (!window.supabase || typeof window.supabase.createClient !== 'function') return;
+      try {
+        const response = await fetch('/api/public-config');
+        const config = await response.json();
+        if (response.ok && config.supabaseUrl && config.supabaseAnonKey) {
+          sb = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+        }
+      } catch (error) {
+        console.warn('Authentication configuration unavailable:', error.message);
+      }
+    })();
 
     function showToast(message, type = 'info') {
       const container = document.getElementById('toastContainer');
@@ -236,7 +244,12 @@
         'bg-slate-900 text-slate-100 border-slate-700'
       }`;
       const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ';
-      toast.innerHTML = `<span class="text-sm font-bold">${icon}</span><span>${message}</span>`;
+      const iconNode = document.createElement('span');
+      iconNode.className = 'text-sm font-bold';
+      iconNode.textContent = icon;
+      const messageNode = document.createElement('span');
+      messageNode.textContent = String(message);
+      toast.append(iconNode, messageNode);
       container.appendChild(toast);
       requestAnimationFrame(() => toast.classList.remove('translate-y-2', 'opacity-0'));
       setTimeout(() => {
@@ -260,15 +273,15 @@
         if (mode === 'login') {
           tabBtnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-white text-slate-900 shadow-sm';
           tabBtnSignup.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-500 hover:text-slate-900';
-          window.history.replaceState(null, '', '/login');
+          window.history.replaceState(null, '', '/login' + window.location.search + window.location.hash);
         } else if (mode === 'signup') {
           tabBtnSignup.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all bg-white text-slate-900 shadow-sm';
           tabBtnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-500 hover:text-slate-900';
-          window.history.replaceState(null, '', '/signup');
+          window.history.replaceState(null, '', '/signup' + window.location.search + window.location.hash);
         } else if (mode === 'recovery') {
           tabBtnLogin.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-500 hover:text-slate-900';
           tabBtnSignup.className = 'flex-1 py-2 text-xs font-bold rounded-lg transition-all text-slate-500 hover:text-slate-900';
-          window.history.replaceState(null, '', '/forgot-password');
+          window.history.replaceState(null, '', '/forgot-password' + window.location.search + window.location.hash);
         }
       }
     }
@@ -286,34 +299,61 @@
     function getSafeRedirectUrl() {
       const stored = sessionStorage.getItem('mf_auth_redirect');
       sessionStorage.removeItem('mf_auth_redirect');
-      if (!stored || stored === '/' || stored === '/index.html' || stored === '/login' || stored === '/signup' || stored === '/forgot-password' || stored.startsWith('/#')) {
-        return '/app';
-      }
+      // Never navigate to an external, protocol-relative or arbitrary path.
+      if (!stored || !/^\/(?:app|dashboard|admin)(?:\/[^?#\\]*)?(?:\?[^#]*)?(?:#.*)?$/.test(stored)) return '/app';
       return stored;
     }
 
-    // Auto-check if already logged in
-    async function checkExistingAuth() {
-      const existingToken = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
-      if (existingToken) {
-        window.location.href = getSafeRedirectUrl();
-        return;
+    // Verify a cached token against the server; a stale token must not cause a
+    // login/workspace redirect loop or display a cached, unverified workspace.
+    async function getAuthenticatedWorkspace(token) {
+      const res = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+      let data;
+      try { data = await res.json(); } catch (_) { throw new Error('The workspace service returned an invalid response.'); }
+      if (!res.ok || !data.ok || !data.user || !data.organization) {
+        const error = new Error(data.error || 'Could not verify your workspace.');
+        error.status = res.status;
+        throw error;
       }
+      return data;
+    }
+
+    async function checkExistingAuth() {
+      await authClientReady;
+      let token = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
       if (sb) {
         try {
           const { data: { session } } = await sb.auth.getSession();
-          if (session) {
-            localStorage.setItem('mf_token', session.access_token);
-            localStorage.setItem('mf_auth_token', session.access_token);
-            window.location.href = getSafeRedirectUrl();
-          }
-        } catch (e) {}
+          if (session?.access_token) token = session.access_token;
+        } catch (e) { console.warn('Unable to read session:', e.message); }
+      }
+      if (!token) return;
+      try {
+        const data = await getAuthenticatedWorkspace(token);
+        localStorage.setItem('mf_token', token);
+        localStorage.setItem('mf_auth_token', token);
+        localStorage.setItem('mf_current_org', JSON.stringify(data.organization));
+        localStorage.setItem('mf_current_user', JSON.stringify(data.user));
+        if (/(?:^|[&#])type=recovery(?:&|$)/.test(window.location.hash.slice(1))) {
+          sessionStorage.setItem('mf_auth_redirect', '/app/settings');
+        }
+        window.location.href = getSafeRedirectUrl();
+      } catch (e) {
+        if (e.status === 401 || e.status === 403) {
+          localStorage.removeItem('mf_token');
+          localStorage.removeItem('mf_auth_token');
+          localStorage.removeItem('mf_current_org');
+          localStorage.removeItem('mf_current_user');
+        } else {
+          showToast('Could not verify your workspace. Check your connection and try again.', 'error');
+        }
       }
     }
     checkExistingAuth();
 
     async function handleLoginSubmit(event) {
       if (event) event.preventDefault();
+      await authClientReady;
       const email = (document.getElementById('loginEmail')?.value || '').trim();
       const password = document.getElementById('loginPassword')?.value;
       const btn = document.getElementById('btnLoginSubmit');
@@ -338,35 +378,21 @@
         if (sb) {
           try {
             const { data, error } = await sb.auth.signInWithPassword({ email, password });
-            if (!error && data?.session) {
+            if (error) throw error;
+            if (data?.session) {
               sessionToken = data.session.access_token;
               userData = {
                 id: data.session.user.id,
                 email: data.session.user.email,
                 fullName: data.session.user.user_metadata?.full_name || email.split('@')[0]
               };
-              // Fetch profile & org from Supabase
-              const { data: profile } = await sb.from('profiles').select('*, organizations(*)').eq('id', data.session.user.id).maybeSingle();
-              if (profile?.organizations) {
-                orgData = profile.organizations;
-              } else if (profile?.org_id) {
-                const { data: directOrg } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
-                orgData = directOrg;
-              }
-              if (!orgData) {
-                // Ensure default fallback org
-                orgData = {
-                  id: 'org_' + (profile?.org_id || data.session.user.id),
-                  name: data.session.user.user_metadata?.company_name || 'My Enterprise',
-                  plan_status: 'trial',
-                  monthly_lead_limit: 25,
-                  leads_used: 0
-                };
-              }
+              const verified = await getAuthenticatedWorkspace(sessionToken);
+              orgData = verified.organization;
+              userData = verified.user;
               authenticated = true;
             }
           } catch (sbErr) {
-            console.warn('Supabase auth attempt notice:', sbErr.message);
+            throw sbErr;
           }
         }
 
@@ -417,6 +443,7 @@
 
     async function handleSignupSubmit(event) {
       if (event) event.preventDefault();
+      await authClientReady;
       const fullName = (document.getElementById('signupFullName')?.value || '').trim();
       const companyName = (document.getElementById('signupCompany')?.value || '').trim() || 'My Enterprise';
       const email = (document.getElementById('signupEmail')?.value || '').trim();
@@ -458,29 +485,27 @@
                 data: { full_name: fullName, company_name: companyName, phone: '91' + phone }
               }
             });
-            if (!error && data?.session) {
+            if (error) throw error;
+            if (data?.session) {
               sessionToken = data.session.access_token;
               userData = {
                 id: data.session.user.id,
                 email: data.session.user.email,
                 fullName: fullName || email.split('@')[0]
               };
-              orgData = {
-                id: 'org_' + data.session.user.id,
-                name: companyName,
-                plan_status: 'trial',
-                monthly_lead_limit: 25,
-                leads_used: 0
-              };
+              const verified = await getAuthenticatedWorkspace(sessionToken);
+              orgData = verified.organization;
+              userData = verified.user;
               registered = true;
             } else if (!error && data?.user && !data.session) {
               // Confirmation email flow
               showToast('Account created! Please check your email to confirm, then sign in.', 'success');
               switchTab('login');
+              if (btn) { btn.disabled = false; btn.textContent = 'Create Workspace & Start →'; }
               return;
             }
           } catch (sbErr) {
-            console.warn('Supabase signup notice:', sbErr.message);
+            throw sbErr;
           }
         }
 
@@ -528,6 +553,7 @@
     }
 
     async function handleGoogleSignIn() {
+      await authClientReady;
       if (!sb) {
         showToast('Google sign-in is initializing. Please use business email.', 'info');
         return;
@@ -547,6 +573,7 @@
 
     async function handleRecoverySubmit(event) {
       if (event) event.preventDefault();
+      await authClientReady;
       const email = (document.getElementById('recoveryEmail')?.value || '').trim();
       const btn = document.getElementById('btnRecoverySubmit');
       if (!email) {
@@ -558,10 +585,9 @@
         btn.innerHTML = '<span>Sending instructions...</span>';
       }
       try {
-        if (sb) {
-          const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/login' });
-          if (error) throw error;
-        }
+        if (!sb) throw new Error('Password reset is unavailable. Please try again later.');
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/login' });
+        if (error) throw error;
         showToast('Password reset link sent to ' + email + '! Check your inbox.', 'success');
         setTimeout(() => switchTab('login'), 2000);
       } catch (err) {

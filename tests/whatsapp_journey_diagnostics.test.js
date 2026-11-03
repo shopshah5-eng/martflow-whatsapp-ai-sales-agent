@@ -24,40 +24,6 @@ test('WHATSAPP JOURNEY DIAGNOSTICS & FIX SUITE: Complete Flow Verification', asy
   app.use(express.json());
   app.use('/api', apiRouter);
 
-  // In-memory rate limiting map for test
-  const testRateLimits = new Map();
-  function checkRateLimit(ip) {
-    const now = Date.now();
-    const windowMs = 10 * 60 * 1000;
-    const maxRequests = 5;
-    const record = testRateLimits.get(ip) || [];
-    const valid = record.filter((ts) => now - ts < windowMs);
-    if (valid.length >= maxRequests) return false;
-    valid.push(now);
-    testRateLimits.set(ip, valid);
-    return true;
-  }
-
-  // Simulated server-level /api/simulate-lead hybrid router matching server.js
-  app.post('/api/simulate-lead', async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      return res.json({ ok: true, lead: { id: 'LEAD-AUTH-1', name: req.body.name || 'Auth Buyer' } });
-    }
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-    if (!checkRateLimit(clientIp)) {
-      return res.status(429).json({ ok: false, error: 'Too many demo requests. Please wait a few minutes.' });
-    }
-    const cleanPhone = normalizeIndianPhone(req.body.phone);
-    if (!cleanPhone || cleanPhone.length < 10) {
-      return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });
-    }
-    return res.json({
-      ok: true,
-      lead: { id: 'LEAD-PUB-1', name: req.body.name || 'Demo Buyer', phone: cleanPhone }
-    });
-  });
-
   const server = app.listen(0);
   const port = server.address().port;
   const baseUrl = `http://localhost:${port}`;
@@ -68,6 +34,8 @@ test('WHATSAPP JOURNEY DIAGNOSTICS & FIX SUITE: Complete Flow Verification', asy
     fullName: 'Test Owner',
     companyName: 'Test Flow Machinery'
   });
+
+  db.insert('organizations', { id: '6fd354d9-3437-412d-856e-28bc19d44268', name: 'Synthetic demo tenant' });
 
   await t.test('1. Public Demo Form Endpoint (/api/public/demo-enquiry) creates lead without auth', async () => {
     const res = await fetch(`${baseUrl}/api/public/demo-enquiry`, {
@@ -105,60 +73,25 @@ test('WHATSAPP JOURNEY DIAGNOSTICS & FIX SUITE: Complete Flow Verification', asy
     assert.match(body.error, /10-digit/i);
   });
 
-  await t.test('3. /api/simulate-lead accepts unauthenticated public requests and authenticated operator requests', async () => {
-    // Unauthenticated public request
-    const pubRes = await fetch(`${baseUrl}/api/simulate-lead`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Public Tester',
-        phone: '9811122233',
-        productQuery: 'Band Sealer'
-      })
-    });
-    assert.equal(pubRes.status, 200);
-    const pubBody = await pubRes.json();
-    assert.equal(pubBody.ok, true);
-    assert.equal(pubBody.lead.name, 'Public Tester');
-
-    // Authenticated operator request
-    const authRes = await fetch(`${baseUrl}/api/simulate-lead`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${tenant.token}`
-      },
-      body: JSON.stringify({
-        name: 'Operator Triggered Lead',
-        phone: '9811122244'
-      })
-    });
-    assert.equal(authRes.status, 200);
-    const authBody = await authRes.json();
-    assert.equal(authBody.ok, true);
+  await t.test('3. Unsafe legacy simulator fails closed for public and authenticated requests', async () => {
+    for (const token of [null, tenant.token]) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      const res = await fetch(`${baseUrl}/api/simulate-lead`, { method: 'POST', headers, body: JSON.stringify({ phone: '9811122233' }) });
+      assert.equal(res.status, 503);
+      assert.equal((await res.json()).ok, false);
+    }
   });
 
-  await t.test('4. Abuse protection: Rate limiting triggers 429 on excessive public enquiries', async () => {
-    const testIp = '198.51.100.99';
-    // Consume quota (5 requests)
-    for (let i = 0; i < 5; i++) {
-      checkRateLimit(testIp);
+  await t.test('4. Public enquiry rate limit rejects excessive requests', async () => {
+    // Two enquiries were already made above from this same client.
+    for (let i = 0; i < 3; i++) {
+      const res = await fetch(`${baseUrl}/api/public/demo-enquiry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: '9876543210' }) });
+      assert.equal(res.status, 200);
     }
-    // 6th request must be rejected
-    const res = await fetch(`${baseUrl}/api/simulate-lead`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-forwarded-for': testIp
-      },
-      body: JSON.stringify({
-        name: 'Flood Test',
-        phone: '9876543210'
-      })
-    });
+    const res = await fetch(`${baseUrl}/api/public/demo-enquiry`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: '9876543210' }) });
     assert.equal(res.status, 429);
-    const body = await res.json();
-    assert.match(body.error, /too many/i);
+    assert.match((await res.json()).error, /too many/i);
   });
 
   await t.test('5. /api/public-config exposes dynamic demoBotWhatsapp and supportWhatsapp', async () => {

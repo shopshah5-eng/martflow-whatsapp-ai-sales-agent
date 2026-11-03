@@ -4,6 +4,8 @@
 # Dedicated Architecture Routes
 /app/*            /app.html         200
 /app              /app.html         200
+/dashboard/*      /app.html         200
+/dashboard        /app.html         200
 /login            /login.html       200
 /signup           /login.html       200
 /forgot-password  /login.html       200

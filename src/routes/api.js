@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
@@ -890,7 +891,14 @@ router.get('/public-config', (req, res) => {
   });
 });
 
-router.post('/public/demo-enquiry', async (req, res) => {
+const publicEnquiryLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { ok: false, error: 'Too many demo requests. Please wait a few minutes.' }
+});
+router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
   const { name, phone, productQuery, city, message } = req.body || {};
   const cleanPhone = String(phone || '').replace(/\D/g, '');
   if (!cleanPhone || cleanPhone.length < 10) {
@@ -898,8 +906,9 @@ router.post('/public/demo-enquiry', async (req, res) => {
   }
 
   try {
-    const demoOrg = db.findOne('organizations', (o) => o.id === '6fd354d9-3437-412d-856e-28bc19d44268') ||
-                    db.find('organizations')[0] || { id: '6fd354d9-3437-412d-856e-28bc19d44268' };
+    // Never put an anonymous demo enquiry into an unrelated customer's tenant.
+    const demoOrg = db.findById('organizations', '6fd354d9-3437-412d-856e-28bc19d44268');
+    if (!demoOrg) return res.status(503).json({ ok: false, error: 'Demo enquiries are currently unavailable.' });
     const normPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
     const { lead } = LeadService.createOrDeduplicateLead(demoOrg.id, {
       buyer_name: name || 'Demo Buyer',
@@ -922,6 +931,11 @@ router.post('/public/demo-enquiry', async (req, res) => {
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
+});
+
+// The legacy simulator used an unscoped global socket and lead store.
+router.post('/simulate-lead', (req, res) => {
+  res.status(503).json({ ok: false, error: 'The legacy simulator is temporarily unavailable.' });
 });
 
 router.post('/membership/unlock-code', authenticate, async (req, res) => {

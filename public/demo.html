@@ -84,7 +84,7 @@
     <div class="top-bar">
       <span class="tag">LIVE B2B SPEED-TO-LEAD DEMO</span>
       <h1>Simulate an Inbound Buyer Enquiry</h1>
-      <p>Enter your WhatsApp number & pick a machine — check your WhatsApp in 8 seconds for the live PDF brochure + AI Sales Engineer!</p>
+      <p>Enter your contact details and pick a machine to submit a demo enquiry. WhatsApp delivery is not currently available through this form.</p>
     </div>
     <div class="body">
       <label>Your Name (Optional)</label>
@@ -103,9 +103,9 @@
       <label>Your City (Optional)</label>
       <input id="bCity" type="text" placeholder="e.g. Ludhiana / Delhi / Rajkot" />
 
-      <button onclick="submitEnquiry()" id="subBtn">⚡ Get Instant Quote & PDF on WhatsApp</button>
+      <button onclick="submitEnquiry()" id="subBtn">Submit demo enquiry</button>
       <div class="success" id="okBox">
-        ✅ Enquiry Received! Open your WhatsApp now — your PDF Catalog & AI Sales Assistant are arriving in ~8 seconds!
+        ✅ Enquiry received. No WhatsApp message has been sent by this form.
       </div>
     </div>
   </div>
@@ -122,23 +122,16 @@
       }
       const btn = document.getElementById('subBtn');
       btn.disabled = true;
-      btn.textContent = 'Sending to WhatsApp...';
+      btn.textContent = 'Submitting enquiry...';
       try {
         let res = await fetch('/api/public/demo-enquiry', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, phone, productQuery, city, delaySec: 6 })
         });
-        if (!res.ok && res.status !== 429) {
-          res = await fetch('/api/simulate-lead', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, phone, productQuery, city, delaySec: 6 })
-          });
-        }
         const data = await res.json();
         btn.disabled = false;
-        btn.textContent = '⚡ Get Instant Quote & PDF on WhatsApp';
+        btn.textContent = 'Submit demo enquiry';
         if (data.ok) {
           document.getElementById('okBox').style.display = 'block';
         } else {
@@ -146,7 +139,7 @@
         }
       } catch (err) {
         btn.disabled = false;
-        btn.textContent = '⚡ Get Instant Quote & PDF on WhatsApp';
+        btn.textContent = 'Submit demo enquiry';
         alert('Connection error. Please check your network and try again.');
       }
     }

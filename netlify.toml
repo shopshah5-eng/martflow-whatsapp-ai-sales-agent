@@ -20,6 +20,16 @@
   status = 200
 
 [[redirects]]
+  from = "/dashboard/*"
+  to = "/app.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard"
+  to = "/app.html"
+  status = 200
+
+[[redirects]]
   from = "/login"
   to = "/login.html"
   status = 200
