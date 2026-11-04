@@ -206,5 +206,22 @@ test('WHATSAPP JOURNEY DIAGNOSTICS & FIX SUITE: Complete Flow Verification', asy
     assert.ok(indexHtml.includes('/api/public/demo-enquiry'), 'the homepage must submit enquiries to the existing API');
   });
 
+  await t.test('10. Baileys pairing code retry: recovers from transient Connection Closed error on socket opening', async () => {
+    const { TenantBaileysInstance } = await import('../src/integrations/whatsapp/baileysManager.js');
+    const inst = new TenantBaileysInstance('test-pairing-org');
+    let calls = 0;
+    inst.init = async () => {};
+    inst.sock = {
+      requestPairingCode: async (phone) => {
+        calls++;
+        if (calls === 1) throw new Error('Connection Closed');
+        return '12345678';
+      }
+    };
+    const code = await inst.requestPairing('919876543210');
+    assert.strictEqual(code, '1234-5678');
+    assert.strictEqual(calls, 2);
+  });
+
   server.close();
 });

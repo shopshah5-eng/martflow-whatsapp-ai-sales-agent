@@ -690,14 +690,24 @@ export class TenantBaileysInstance {
       throw new Error('Valid phone number with country code is required (e.g. 9198XXXXXXXX)');
     }
     await this.init();
-    for (let i = 0; i < 25; i++) {
-      if (this.sock && typeof this.sock.requestPairingCode === 'function') break;
-      await new Promise(r => setTimeout(r, 200));
+    let rawCode = null;
+    let lastErr = null;
+    for (let attempt = 0; attempt < 15; attempt++) {
+      if (!this.sock || typeof this.sock.requestPairingCode !== 'function') {
+        await new Promise(r => setTimeout(r, 500));
+        continue;
+      }
+      try {
+        rawCode = await this.sock.requestPairingCode(clean);
+        if (rawCode) break;
+      } catch (err) {
+        lastErr = err;
+        await new Promise(r => setTimeout(r, 500));
+      }
     }
-    if (!this.sock || typeof this.sock.requestPairingCode !== 'function') {
-      throw new Error('WhatsApp engine is initializing, please retry in a few seconds.');
+    if (!rawCode) {
+      throw new Error(lastErr?.message || 'WhatsApp engine is initializing, please retry in a few seconds.');
     }
-    const rawCode = await this.sock.requestPairingCode(clean);
     const formatted = rawCode ? `${rawCode.slice(0, 4)}-${rawCode.slice(4)}` : rawCode;
     this.state.pairingCode = formatted;
     this.state.status = 'code_ready';
