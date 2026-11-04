@@ -331,6 +331,11 @@ body {
 /* =========================================================================
    PERMANENT REMOVAL OF NETLIFY INJECTED BADGE / DRAWER / FEEDBACK WIDGETS
    ========================================================================= */
+#nl-badge-frame,
+#nl-hud-frame,
+iframe#nl-badge-frame,
+iframe#nl-hud-frame,
+iframe[id^="nl-"],
 #netlify-badge,
 .netlify-badge,
 #netlify-drawer-iframe,
@@ -343,7 +348,9 @@ iframe[src*="netlify.com"],
 iframe[src*="netlify"],
 .netlify-feedback-drawer,
 [aria-label*="Netlify"],
-[title*="Netlify"] {
+[title*="Netlify"],
+[title*="Powered by Netlify"],
+script[src*="/.netlify/scripts/hud"] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -356,4 +363,5 @@ iframe[src*="netlify"],
   left: -99999px !important;
   top: -99999px !important;
   z-index: -99999 !important;
+  clip-path: path("M0 0Z") !important;
 }
