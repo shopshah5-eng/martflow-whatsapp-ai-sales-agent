@@ -20,6 +20,8 @@ import { WhatsAppAdapter } from '../integrations/whatsapp/whatsappAdapter.js';
 import { B2BWebhook } from '../integrations/b2b/b2bWebhook.js';
 import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
 import { LearningService } from '../services/learningService.js';
+import { ConversationMemoryService } from '../services/conversationMemoryService.js';
+import { FollowUpService } from '../services/followUpService.js';
 import db from '../db/index.js';
 import { repository, DatabaseUnavailableError } from '../db/repository.js';
 
@@ -63,6 +65,97 @@ router.post('/auth/demo-login', async (req, res) => {
 });
 
 // Google / Gmail OAuth Auto-Provisioning
+// Explicit, Transactional, Idempotent Workspace Provisioning
+router.post('/auth/provision', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : req.headers['x-session-token'];
+    if (!token) {
+      return res.status(401).json({ ok: false, error: 'Authentication token required.' });
+    }
+
+    const sb = repository.getSupabase();
+    if (!sb) {
+      if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+        throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+      }
+      return res.status(400).json({ ok: false, error: 'Workspace provisioning requires Supabase in production.' });
+    }
+
+    const { data: authData, error: authErr } = await sb.auth.getUser(token);
+    if (authErr || !authData?.user?.id) {
+      return res.status(401).json({ ok: false, error: 'Invalid or expired session token.' });
+    }
+
+    const user = authData.user;
+    const isConfirmed = Boolean(user.email_confirmed_at || user.confirmed_at || user.app_metadata?.provider === 'google');
+    if (!isConfirmed) {
+      return res.status(401).json({ ok: false, error: 'Email confirmation required before provisioning.' });
+    }
+
+    // Idempotency: Return existing workspace if user is already a member of one
+    const existingProfile = await repository.getProfileById(user.id);
+    if (existingProfile && (existingProfile.org_id || existingProfile.organization_id)) {
+      const existingOrgId = existingProfile.org_id || existingProfile.organization_id;
+      const existingOrg = await repository.getOrganizationById(existingOrgId);
+      const membership = await repository.getMembership(user.id, existingOrgId);
+      if (existingOrg && membership) {
+        return res.json({
+          ok: true,
+          provisioned: false,
+          user: { id: user.id, email: user.email, fullName: existingProfile.full_name, role: membership.role },
+          organization: sanitizeOrganization(existingOrg)
+        });
+      }
+    }
+
+    // Transactional provisioning
+    const userEmail = (user.email || '').toLowerCase().trim();
+    const fullName = req.body.fullName || user.user_metadata?.full_name || userEmail.split('@')[0] || 'User';
+    const companyName = req.body.companyName || user.user_metadata?.company_name || fullName + ' Enterprise';
+    const crypto = await import('crypto');
+    const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 40) + '-' + Math.random().toString(36).slice(2, 6);
+    const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
+
+    const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
+      name: companyName,
+      slug,
+      webhook_key: webhookKey,
+      plan_status: 'trial',
+      trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+      monthly_lead_limit: 25,
+      leads_used: 0,
+      wa_status: 'disconnected'
+    }).select().single();
+
+    if (orgErr || !newOrg?.id) {
+      return res.status(500).json({ ok: false, error: 'Failed to create organization: ' + (orgErr?.message || 'Unknown error') });
+    }
+
+    const { error: profileErr } = await sb.from('profiles').upsert({
+      id: user.id,
+      org_id: newOrg.id,
+      full_name: fullName,
+      email: userEmail,
+      role: 'owner'
+    });
+
+    if (profileErr) {
+      // Rollback orphaned organization
+      await sb.from('organizations').delete().eq('id', newOrg.id);
+      return res.status(500).json({ ok: false, error: 'Failed to link user profile: ' + profileErr.message });
+    }
+
+    return res.status(201).json({
+      ok: true,
+      provisioned: true,
+      user: { id: user.id, email: userEmail, fullName, role: 'owner' },
+      organization: sanitizeOrganization(newOrg)
+    });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
 router.post('/auth/google', async (req, res) => {
   try {
     const { token, idToken, credential, email, fullName } = req.body || {};
@@ -530,6 +623,47 @@ router.get('/conversations/:id/messages', authenticate, async (req, res) => {
   }
 });
 
+// --- Conversation Memory Endpoints ---
+router.get('/conversations/:id/memory', authenticate, async (req, res) => {
+  try {
+    const memory = await ConversationMemoryService.getMemory(req.organizationId, req.params.id);
+    res.json({ ok: true, memory });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.put('/conversations/:id/memory', authenticate, requireRole(['owner', 'admin', 'sales_manager']), async (req, res) => {
+  try {
+    const memory = await ConversationMemoryService.updateMemory(req.organizationId, req.params.id, req.body);
+    res.json({ ok: true, memory });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+router.delete('/conversations/:id/memory', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+  try {
+    const deleted = await ConversationMemoryService.deleteMemory(req.organizationId, req.params.id);
+    res.json({ ok: true, deleted });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
+  }
+});
+
+// --- Follow-Up Management Endpoints ---
+router.post('/follow-ups/opt-out', authenticate, async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ ok: false, error: 'Phone number is required.' });
+    FollowUpService.recordOptOut(req.organizationId, phone);
+    await FollowUpService.cancelPendingFollowUps(req.organizationId, phone, 'opt_out');
+    res.json({ ok: true, message: 'Opt-out registered and pending follow-ups cancelled.' });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 router.post('/conversations/:id/mode', authenticate, requireRole(['owner', 'admin', 'sales_manager', 'sales_rep']), async (req, res) => {
   try {
     const { mode } = req.body;
@@ -547,6 +681,9 @@ router.post('/conversations/:id/mode', authenticate, requireRole(['owner', 'admi
         .maybeSingle();
       if (error) throw new DatabaseUnavailableError(error.message);
       if (!updated) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+      if (mode === 'human' && updated?.buyer_phone) {
+        FollowUpService.cancelPendingFollowUps(req.organizationId, updated.buyer_phone, 'human_takeover');
+      }
       return res.json({ ok: true, conversation: updated });
     }
     if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
@@ -576,6 +713,9 @@ router.post('/conversations/:id/reply', authenticate, requireRole(['owner', 'adm
     if (!lead || !lead.buyer_phone) {
       return res.status(400).json({ ok: false, error: 'No phone number linked to this lead.' });
     }
+
+    // Cancel any pending automated follow-up upon human agent reply
+    FollowUpService.cancelPendingFollowUps(req.organizationId, lead.buyer_phone, 'human_takeover');
 
     // Send strictly via live Baileys socket belonging to this tenant
     const sendResult = await baileysManager.sendMessage(req.organizationId, lead.buyer_phone, message.trim());

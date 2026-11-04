@@ -44,54 +44,28 @@ export async function authenticate(req, res, next) {
         try {
           const { data, error } = await sb.auth.getUser(token);
           if (!error && data?.user?.id) {
+            // Unconfirmed identities must never be authenticated to a workspace
+            const isExplicitlyUnconfirmed = (data.user.email_confirmed_at === null && data.user.confirmed_at === null) &&
+              data.user.app_metadata?.provider !== 'google';
+            if (isExplicitlyUnconfirmed) {
+              return res.status(401).json({
+                ok: false,
+                error: 'Email confirmation required. Please verify your email before accessing your workspace.'
+              });
+            }
+
             resolvedUserId = data.user.id;
+            // Strict authorization: Look up profile strictly by verified user ID.
+            // Never reassign profiles or link accounts based only on an email match.
+            // Never create workspaces as a side effect of an ordinary authenticated request.
             const profile = await repository.getProfileById(resolvedUserId);
             if (profile && (profile.org_id || profile.organization_id)) {
               resolvedOrgId = profile.org_id || profile.organization_id;
-            } else {
-              // Verified Supabase user without an active organization link — auto-link or provision
-              const userEmail = data.user.email ? data.user.email.toLowerCase().trim() : '';
-              if (userEmail) {
-                const existingByEmail = await repository.getProfileByEmail(userEmail);
-                if (existingByEmail && (existingByEmail.org_id || existingByEmail.organization_id)) {
-                  resolvedOrgId = existingByEmail.org_id || existingByEmail.organization_id;
-                  try {
-                    await sb.from('profiles').update({ id: resolvedUserId }).eq('email', userEmail);
-                  } catch (_) {}
-                } else {
-                  // Provision new trial workspace for verified user
-                  const fullName = data.user.user_metadata?.full_name || userEmail.split('@')[0] || 'User';
-                  const companyName = data.user.user_metadata?.company_name || fullName + ' Enterprise';
-                  const crypto = await import('crypto');
-                  const slug = companyName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 40) + '-' + Math.random().toString(36).slice(2, 6);
-                  const webhookKey = 'whk_' + crypto.randomBytes(12).toString('hex');
-
-                  const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
-                    name: companyName,
-                    slug,
-                    webhook_key: webhookKey,
-                    plan_status: 'trial',
-                    trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-                    monthly_lead_limit: 25,
-                    leads_used: 0,
-                    wa_status: 'disconnected'
-                  }).select().single();
-
-                  if (!orgErr && newOrg?.id) {
-                    resolvedOrgId = newOrg.id;
-                    await sb.from('profiles').upsert({
-                      id: resolvedUserId,
-                      org_id: newOrg.id,
-                      full_name: fullName,
-                      email: userEmail,
-                      role: 'owner'
-                    });
-                  }
-                }
-              }
             }
           }
-        } catch (e) {}
+        } catch (e) {
+          if (e.statusCode) throw e;
+        }
       }
     }
 

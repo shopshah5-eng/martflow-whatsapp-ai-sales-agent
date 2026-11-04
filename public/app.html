@@ -2794,6 +2794,20 @@
       for (const id of ['qaImageFile', 'qaPdfFile']) document.getElementById(id)?.closest('div')?.classList.add('hidden');
     }
 
+        function detectOAuthCallback() {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const code = searchParams.get('code');
+      const accessToken = hashParams.get('access_token');
+      const error = searchParams.get('error') || hashParams.get('error');
+      const type = hashParams.get('type') || searchParams.get('type');
+      if (code || accessToken || error) {
+        return { hasCallback: true, code, accessToken, error, type };
+      }
+      return { hasCallback: false };
+    }
+
     async function checkAuthStatus() {
       checkAdminParam();
       if (sb) {
@@ -2821,7 +2835,8 @@
         });
 
         // If URL has OAuth callback tokens, process them and prevent premature login modal popup
-        if (window.location.hash.includes('access_token') || window.location.hash.includes('error') || window.location.search.includes('code=')) {
+        const _cbParams = detectOAuthCallback();
+        if (_cbParams.hasCallback) {
           let session = null;
           for (let attempt = 0; attempt < 6; attempt++) {
             const { data } = await sb.auth.getSession();
@@ -5509,7 +5524,7 @@
         await fetchPublicConfig();
         await checkAuthStatus();
         if (!currentOrg || !currentUser) {
-          if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+          if (detectOAuthCallback().hasCallback) {
             await new Promise(r => setTimeout(r, 1000));
             if (currentOrg && currentUser) {
               handleAppWorkspaceRoute();

@@ -218,7 +218,24 @@
 
   <!-- Authentication Script -->
   <script>
-    if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+        function detectOAuthCallback() {
+      const searchParams = new URLSearchParams(window.location.search);
+      const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+      const hashParams = new URLSearchParams(hash);
+      const code = searchParams.get('code');
+      const accessToken = hashParams.get('access_token');
+      const error = searchParams.get('error') || hashParams.get('error');
+      const type = hashParams.get('type') || searchParams.get('type');
+      if (code || accessToken || error) {
+        return { hasCallback: true, code, accessToken, error, type };
+      }
+      return { hasCallback: false };
+    }
+    const oauthCallback = detectOAuthCallback();
+    if (oauthCallback.hasCallback) {
+      if (oauthCallback.type === 'recovery') {
+        sessionStorage.setItem('mf_auth_redirect', '/app/settings');
+      }
       window.location.assign('/app' + window.location.search + window.location.hash);
     }
     // Use the same runtime auth configuration as the backend/workspace.
@@ -397,30 +414,24 @@
         let orgData = null;
         let userData = null;
 
-        // 1. Try Supabase Auth First
+        // 1. Supabase Authoritative Authentication
         if (sb) {
-          try {
-            const { data, error } = await sb.auth.signInWithPassword({ email, password });
-            if (error) throw error;
-            if (data?.session) {
-              sessionToken = data.session.access_token;
-              userData = {
-                id: data.session.user.id,
-                email: data.session.user.email,
-                fullName: data.session.user.user_metadata?.full_name || email.split('@')[0]
-              };
-              const verified = await getAuthenticatedWorkspace(sessionToken);
-              orgData = verified.organization;
-              userData = verified.user;
-              authenticated = true;
-            }
-          } catch (sbErr) {
-            console.warn("Supabase auth attempt:", sbErr.message);
+          const { data, error } = await sb.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          if (data?.session) {
+            sessionToken = data.session.access_token;
+            userData = {
+              id: data.session.user.id,
+              email: data.session.user.email,
+              fullName: data.session.user.user_metadata?.full_name || email.split('@')[0]
+            };
+            const verified = await getAuthenticatedWorkspace(sessionToken);
+            orgData = verified.organization;
+            userData = verified.user;
+            authenticated = true;
           }
-        }
-
-        // 2. If Supabase did not succeed, fall back to backend API
-        if (!authenticated) {
+        } else {
+          // Fall back to backend API ONLY when Supabase client is unconfigured
           try {
             const res = await fetch('/api/auth/login', {
               method: 'POST',
@@ -535,8 +546,8 @@
           }
         }
 
-        // 2. Fall back to backend API if Supabase did not register a direct session
-        if (!registered) {
+        // 2. Fall back to backend API ONLY if Supabase is unconfigured
+        if (!sb && !registered) {
           try {
             const res = await fetch('/api/auth/signup', {
               method: 'POST',

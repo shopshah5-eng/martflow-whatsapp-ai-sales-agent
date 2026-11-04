@@ -20,6 +20,8 @@ import {
 import { createClient } from '@supabase/supabase-js';
 import db from '../../db/index.js';
 import { AIService } from '../../services/aiService.js';
+import { ConversationMemoryService } from '../../services/conversationMemoryService.js';
+import { FollowUpService } from '../../services/followUpService.js';
 import {
   backupSessionToSupabase,
   debouncedBackupSession,
@@ -445,6 +447,8 @@ export class TenantBaileysInstance {
               } else if (!existingConv.lead_id && leadId) {
                 await admin.from('conversations').update({ lead_id: leadId }).eq('id', existingConv.id);
               }
+              // Process inbound message for opt-out keywords ('STOP') and cancel pending follow-up on reply
+              FollowUpService.handleInboundMessage(this.orgId, phone, text);
               sbConvId = existingConv?.id;
 
               if (sbConvId) {
@@ -481,9 +485,8 @@ export class TenantBaileysInstance {
 
             this.sock.sendPresenceUpdate('composing', remoteJid).catch(() => { });
 
-            const conversationHistory = db.findScoped('messages', this.orgId)
-              .filter((m) => m.conversation_id === conv.id)
-              .slice(-20);
+            // Retrieve latest tenant-scoped messages deterministically in chronological order
+            const conversationHistory = await ConversationMemoryService.getRecentHistory(this.orgId, conv.id, 20);
 
             AIService.generateSalesReply({
               organizationId: this.orgId,

@@ -112,11 +112,14 @@ export class WhatsAppAdapter {
         if ((conv.mode === 'ai' || conv.mode === 'auto' || !conv.mode) && org.wa_auto_reply !== false) {
           try {
             const { AIService } = await import('../../services/aiService.js');
+            const { ConversationMemoryService } = await import('../../services/conversationMemoryService.js');
+            const { FollowUpService } = await import('../../services/followUpService.js');
+            FollowUpService.handleInboundMessage(orgId, fromPhone, text);
             const aiReply = await AIService.generateSalesReply({
               organizationId: orgId,
               lead,
               incomingText: text,
-              conversationHistory: [{ sender_type: 'buyer', content: text }]
+              conversationHistory: await ConversationMemoryService.getRecentHistory(orgId, conv.id, 20)
             });
 
             if (aiReply && aiReply.reply) {

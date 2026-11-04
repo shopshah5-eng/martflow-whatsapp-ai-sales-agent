@@ -109,7 +109,21 @@ section{padding:86px 0}.heading{text-align:center;max-width:700px;margin:0 auto 
 <footer><div class="wrap"><div class="footgrid"><div><a class="brand" style="color:white" href="#top"><span class="mark">M</span>MartFlow AI</a><p class="footcopy">Your AI-powered B2B sales executive on WhatsApp. Help buyers get answers and help your team focus on opportunities.</p></div><div><h4>Product</h4><a href="#features">Features</a><a href="#how">How it works</a><a href="#industries">Industries</a><a href="#pricing">Pricing</a></div><div><h4>Company</h4><a href="#contact">Contact</a><a href="#faq">FAQ</a><a href="#how">About</a></div><div><h4>Account & policies</h4><a href="/login">Log in</a><a href="/signup">Create account</a><a href="#contact">Request privacy information</a><a href="/demo">Explore demo</a></div></div><div class="bottom">© <span id="copyrightYear">2026</span> MartFlow AI. All rights reserved.</div></div></footer>
 <script>
 'use strict';
-if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
+function detectOAuthCallback() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+  const hashParams = new URLSearchParams(hash);
+  const code = searchParams.get('code');
+  const accessToken = hashParams.get('access_token');
+  const error = searchParams.get('error') || hashParams.get('error');
+  const type = hashParams.get('type') || searchParams.get('type');
+  if (code || accessToken || error) {
+    return { hasCallback: true, code, accessToken, error, type };
+  }
+  return { hasCallback: false };
+}
+const oauthCallback = detectOAuthCallback();
+if (oauthCallback.hasCallback) {
   window.location.assign('/app' + window.location.search + window.location.hash);
 }
 function navigateFromLanding(target) { window.location.assign(target); }
@@ -138,6 +152,11 @@ toggle.addEventListener('click', (e) => {
   setMenuOpen(!links.classList.contains('open'));
 });
 links.querySelectorAll('a').forEach(a => a.addEventListener('click', () => setMenuOpen(false)));
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 860 && links.classList.contains('open')) {
+    setMenuOpen(false);
+  }
+});
 document.addEventListener('keydown', event => { if (event.key === 'Escape') setMenuOpen(false); });
 document.addEventListener('click', event => {
   if (links.classList.contains('open') && !links.contains(event.target) && !toggle.contains(event.target)) {
