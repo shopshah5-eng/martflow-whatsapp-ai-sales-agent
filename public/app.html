@@ -2821,7 +2821,7 @@
         });
 
         // If URL has OAuth callback tokens, process them and prevent premature login modal popup
-        if (window.location.hash.includes('access_token') || window.location.hash.includes('error')) {
+        if (window.location.hash.includes('access_token') || window.location.hash.includes('error') || window.location.search.includes('code=')) {
           let session = null;
           for (let attempt = 0; attempt < 6; attempt++) {
             const { data } = await sb.auth.getSession();
@@ -5509,7 +5509,7 @@
         await fetchPublicConfig();
         await checkAuthStatus();
         if (!currentOrg || !currentUser) {
-          if (window.location.hash.includes('access_token')) {
+          if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
             await new Promise(r => setTimeout(r, 1000));
             if (currentOrg && currentUser) {
               handleAppWorkspaceRoute();

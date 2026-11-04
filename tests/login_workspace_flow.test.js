@@ -43,7 +43,9 @@ test('real local login token carries through to the workspace dashboard', async 
     const token = loginPage.window.localStorage.getItem('mf_token');
     assert.ok(token);
     appPage = makePage('app', redirect, token);
-    await wait(200);
+    for (let i = 0; i < 20 && appPage.window.document.getElementById('topOrgName').textContent === 'Enterprise Workspace'; i++) {
+      await wait(100);
+    }
     assert.equal(appPage.window.document.getElementById('view-dashboard').classList.contains('hidden'), false);
     assert.equal(appPage.window.document.getElementById('topOrgName').textContent, 'Login Test Company');
     assert.deepEqual(errors, []);
