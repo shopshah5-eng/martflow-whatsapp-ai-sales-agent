@@ -1079,7 +1079,15 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       if (supabaseAdmin && sbConvId) {
         try {
           await supabaseAdmin.from('messages').delete().eq('conversation_id', sbConvId);
-        } catch (e) {}
+        } catch (e) {
+          addLog(`[Memory Warning] Failed to delete messages on reset: ${e.message}`);
+        }
+        try {
+          const { ConversationMemoryService } = await import('./src/services/conversationMemoryService.js');
+          await ConversationMemoryService.deleteMemory(orgId, sbConvId);
+        } catch (e) {
+          addLog(`[Memory Warning] Failed to delete memory summary on reset: ${e.message}`);
+        }
       }
       const resetGreeting = `🔄 *Chat & Memory Reset!*\n\nNamaste! Welcome to *${freshOrg.name || 'our sales desk'}*.\n\nBatayein, main aaj aapki kis requirement ya catalog details mein madad kar sakta hoon?`;
       const sentMsg = await activeSock.sendMessage(rawRemote, { text: resetGreeting });
@@ -1090,6 +1098,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
     // Fetch conversation history
     let convHistory = [];
+    let customerMemory = null;
     if (supabaseAdmin && sbConvId) {
       try {
         let msgQuery = supabaseAdmin
@@ -1107,19 +1116,29 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           .maybeSingle();
 
         if (latestProd?.created_at) {
-          // Do not drag in old industry history prior to latest catalog update
           const catalogEpoch = new Date(latestProd.created_at).getTime() - 1000;
           msgQuery = msgQuery.gte('created_at', new Date(catalogEpoch).toISOString());
         }
 
-        const { data: hist } = await msgQuery
-          .order('created_at', { ascending: true })
-          .limit(15);
-        if (hist) {
-          convHistory = hist.map(m => ({
+        // Fix oldest-15 bug: order DESC limit 20, then reverse to chronological order
+        const { data: hist, error: histErr } = await msgQuery
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (histErr) {
+          addLog(`[Memory Warning] Error loading latest messages: ${histErr.message}`);
+        } else if (hist) {
+          convHistory = hist.slice().reverse().map(m => ({
             role: m.sender === 'ai' ? 'ai' : 'buyer',
             text: m.text
           }));
+        }
+
+        // Fetch structured customer memory
+        try {
+          const { ConversationMemoryService } = await import('./src/services/conversationMemoryService.js');
+          customerMemory = await ConversationMemoryService.getMemory(orgId, sbConvId);
+        } catch (memErr) {
+          addLog(`[Memory Warning] Failed to load conversation memory: ${memErr.message}`);
         }
 
         // If customer asks about another industry, corrects the bot, or requests a fresh look, discard obsolete mismatched history
@@ -1149,6 +1168,19 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
         } catch (e) {}
       }
+    // Update conversation memory summary with verified customer requirement
+    if (supabaseAdmin && sbConvId) {
+      try {
+        const { ConversationMemoryService } = await import('./src/services/conversationMemoryService.js');
+        const buyerTextSample = (incomingText || '').trim().slice(0, 200);
+        await ConversationMemoryService.updateMemory(orgId, sbConvId, {
+          buyer_requirements: buyerTextSample,
+          summary_text: 'Customer asked: ' + buyerTextSample.slice(0, 80)
+        });
+      } catch (memUpdateErr) {
+        addLog(`[Memory Warning] Failed to update conversation memory: ${memUpdateErr.message}`);
+      }
+    }
       return; // ZERO sales pitch and ZERO PDF/photo!
     }
 
@@ -1160,7 +1192,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       org: freshOrg,
       lead: sLead || { name: pushName, phone: senderPhone },
       incomingText,
-      conversationHistory: convHistory
+      conversationHistory: convHistory,
+      customerMemory
     });
 
     if (!aiReplyObj || !aiReplyObj.reply) return;
@@ -1647,7 +1680,7 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
 // ============================================================================
 // CONCISE WHATSAPP AI SALES CLOSER (MAX 18–38 WORDS, BUSY FOUNDER PERSONA)
 // ============================================================================
-async function generateShortSalesReply({ organizationId, org, lead, incomingText, conversationHistory }) {
+async function generateShortSalesReply({ organizationId, org, lead, incomingText, conversationHistory, customerMemory }) {
   const geminiKey = (process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
   const orgName = org?.name || config.companyName || 'Leadsy AI';
   const cityBase = org?.city_base || org?.company_city || config.cityBase || 'Delhi NCR / Ludhiana';
@@ -1673,6 +1706,9 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
   }
   const extraKnowledge = orgKnowledge
     ? `\nBusiness & Service Knowledge Base:\n${orgKnowledge.slice(0, 10000)}\n`
+    : '';
+  const memoryContext = customerMemory?.summary_text
+    ? `\nVerified Customer Context:\n- Summary: ${customerMemory.summary_text}\n- Inquired: ${customerMemory.buyer_requirements || 'Standard'}\n`
     : '';
 
   const catalogContext = products.map((p, idx) => {
@@ -1710,7 +1746,7 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
     const systemInstruction = `You are a real, busy business founder/manager on WhatsApp for "${orgName}" (${cityBase}).
 Catalog & Pricing Knowledge:
 ${catalogContext || 'Standard verified offerings apply.'}
-${extraKnowledge}
+${extraKnowledge}${memoryContext}
 
 CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
 1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.

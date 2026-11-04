@@ -1439,7 +1439,7 @@
                 </div>
                 <div>
                   <label class="block font-semibold text-slate-700 mb-1">Merchant Display Name</label>
-                  <input type="text" id="engMerchantName" placeholder="MartFlow AI" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <input type="text" id="engMerchantName" placeholder="Leadsy AI" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
               </div>
 
@@ -1643,7 +1643,7 @@
         <div class="p-4 bg-[#F7FAF8] border border-[#E5EAE7] rounded-xl text-center space-y-3">
           <div class="text-[11px] font-semibold uppercase tracking-wider text-[#111827]">Scan & Pay via GPay, PhonePe, Paytm, BHIM</div>
           <div class="bg-white p-2 rounded-xl inline-block border border-[#E5EAE7] shadow-sm">
-            <img id="actUpiQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dsaraitaj6-2%40okaxis%26pn%3DMartFlow%2520AI%26am%3D9999%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
+            <img id="actUpiQrImg" src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dsaraitaj6-2%40okaxis%26pn%3DLeadsy%2520AI%26am%3D9999%26cu%3DINR" alt="Scan UPI QR Code" class="w-36 h-36 object-contain mx-auto">
           </div>
           <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-mono">
             <span id="actUpiIdText" class="text-slate-600 font-semibold truncate">UPI ID: saraitaj6-2@okaxis</span>
@@ -1854,7 +1854,7 @@
 
     // Real Admin Config Constants (Easily editable by user)
     const MERCHANT_UPI_ID = "saraitaj6-2@okaxis"; // Real Merchant UPI ID
-    const MERCHANT_NAME = "MartFlow AI Sales";
+    const MERCHANT_NAME = "Leadsy AI Sales";
 
     function getDemoDeskNumber() {
       return window.DEMO_BOT_WHATSAPP_LIVE || localStorage.getItem('mf_demo_bot_whatsapp') || String.fromCharCode.apply(null, [57,49,57,49,49,53,55,52,56,52,53,55]);
@@ -4872,7 +4872,7 @@
       if (desc) window.selectedCheckoutPlan = desc;
       const upi = getMerchantUpi();
       const qrImg = document.getElementById('actUpiQrImg');
-      const upiStr = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(getMerchantName())}&am=${amount}&cu=INR&tn=${encodeURIComponent('MartFlow AI ' + (currentOrg?.name || 'Workspace'))}`;
+      const upiStr = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(getMerchantName())}&am=${amount}&cu=INR&tn=${encodeURIComponent('Leadsy AI ' + (currentOrg?.name || 'Workspace'))}`;
 
       if (qrImg) {
         qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiStr)}`;

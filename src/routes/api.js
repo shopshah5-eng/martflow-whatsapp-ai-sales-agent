@@ -95,6 +95,9 @@ router.post('/auth/provision', async (req, res) => {
 
     // Idempotency: Return existing workspace if user is already a member of one
     const existingProfile = await repository.getProfileById(user.id);
+    if (existingProfile && existingProfile.role === 'revoked') {
+      return res.status(403).json({ ok: false, error: 'Access denied: account membership has been revoked.' });
+    }
     if (existingProfile && (existingProfile.org_id || existingProfile.organization_id)) {
       const existingOrgId = existingProfile.org_id || existingProfile.organization_id;
       const existingOrg = await repository.getOrganizationById(existingOrgId);

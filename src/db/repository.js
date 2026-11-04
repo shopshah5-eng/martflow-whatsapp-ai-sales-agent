@@ -183,7 +183,10 @@ class TenantRepository {
     if (sb) {
       const { data, error } = await sb.from('profiles').select('id, org_id, role').eq('id', userId).eq('org_id', orgId).maybeSingle();
       if (error) throw new DatabaseUnavailableError(error.message);
-      if (data) return { user_id: data.id, organization_id: data.org_id, role: data.role };
+      if (data) {
+        if (data.role === 'revoked') return null;
+        return { user_id: data.id, organization_id: data.org_id, role: data.role };
+      }
       if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
         return null;
       }
@@ -191,8 +194,10 @@ class TenantRepository {
     if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') {
       return null;
     }
-    return db.findOne('organization_members', m => m.user_id === userId && m.organization_id === orgId) ||
+    const mem = db.findOne('organization_members', m => m.user_id === userId && m.organization_id === orgId) ||
            db.findOne('profiles', p => (p.id === userId || p.user_id === userId) && (p.organization_id === orgId || p.org_id === orgId));
+    if (mem && mem.role === 'revoked') return null;
+    return mem;
   }
 
   // --- Leads ---

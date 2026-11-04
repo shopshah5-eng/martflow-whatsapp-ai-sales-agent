@@ -351,7 +351,7 @@
                 </div>
                 <div>
                   <label class="block font-semibold text-slate-700 mb-1">Merchant Display Name</label>
-                  <input type="text" id="engMerchantName" placeholder="MartFlow AI" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                  <input type="text" id="engMerchantName" placeholder="Leadsy AI" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
               </div>
 
@@ -410,7 +410,7 @@
 
     // Real Admin Config Constants (Easily editable by user)
     const MERCHANT_UPI_ID = "saraitaj6-2@okaxis"; // Real Merchant UPI ID
-    const MERCHANT_NAME = "MartFlow AI Sales";
+    const MERCHANT_NAME = "Leadsy AI Sales";
 
     function getDemoDeskNumber() {
       return window.DEMO_BOT_WHATSAPP_LIVE || localStorage.getItem('mf_demo_bot_whatsapp') || String.fromCharCode.apply(null, [57,49,57,49,49,53,55,52,56,52,53,55]);
@@ -3576,7 +3576,7 @@
       if (desc) window.selectedCheckoutPlan = desc;
       const upi = getMerchantUpi();
       const qrImg = document.getElementById('actUpiQrImg');
-      const upiStr = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(getMerchantName())}&am=${amount}&cu=INR&tn=${encodeURIComponent('MartFlow AI ' + (currentOrg?.name || 'Workspace'))}`;
+      const upiStr = `upi://pay?pa=${encodeURIComponent(upi)}&pn=${encodeURIComponent(getMerchantName())}&am=${amount}&cu=INR&tn=${encodeURIComponent('Leadsy AI ' + (currentOrg?.name || 'Workspace'))}`;
 
       if (qrImg) {
         qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiStr)}`;
