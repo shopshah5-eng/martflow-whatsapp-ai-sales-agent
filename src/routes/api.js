@@ -878,12 +878,49 @@ router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin
 router.get('/admin/clients', authenticate, async (req, res) => {
   try {
     const sb = repository.getSupabase();
+    // Helper to reliably fetch organizations and their profiles without PostgREST relationship ambiguity errors
+    async function fetchOrganizationsWithProfiles(sb, orgIds = null) {
+      // 1. Try explicit foreign key embedding first
+      try {
+        let q = sb.from('organizations')
+          .select('id, name, city_base, company_city, plan_status, created_at, profiles!profiles_org_id_fkey(id, email, full_name, role)')
+          .order('name');
+        if (Array.isArray(orgIds)) q = q.in('id', orgIds);
+        const { data: orgs, error } = await q;
+        if (!error && Array.isArray(orgs)) return orgs;
+      } catch (e) {
+        // Fallback to separate queries
+      }
+
+      // 2. Safe Fallback: Query organizations and profiles separately (avoids PGRST201 embedding conflicts)
+      let orgsQuery = sb.from('organizations')
+        .select('id, name, city_base, company_city, plan_status, created_at')
+        .order('name');
+      if (Array.isArray(orgIds)) orgsQuery = orgsQuery.in('id', orgIds);
+      const { data: orgs, error: orgErr } = await orgsQuery;
+      if (orgErr) throw new DatabaseUnavailableError(orgErr.message);
+      if (!orgs || orgs.length === 0) return [];
+
+      const foundOrgIds = orgs.map(o => o.id);
+      const { data: profiles } = await sb.from('profiles')
+        .select('id, email, full_name, role, org_id')
+        .in('org_id', foundOrgIds);
+
+      const profileMap = new Map();
+      for (const p of (profiles || [])) {
+        if (!profileMap.has(p.org_id)) profileMap.set(p.org_id, []);
+        profileMap.get(p.org_id).push(p);
+      }
+
+      return orgs.map(o => ({
+        ...o,
+        profiles: profileMap.get(o.id) || []
+      }));
+    }
+
     if (req.role === 'superadmin') {
       if (sb) {
-        const { data: orgs, error } = await sb.from('organizations')
-          .select('id, name, city_base, company_city, plan_status, created_at, profiles(id, email, full_name, role)')
-          .order('name');
-        if (error) throw new DatabaseUnavailableError(error.message);
+        const orgs = await fetchOrganizationsWithProfiles(sb);
         const clients = (orgs || []).map(o => {
           const profile = (Array.isArray(o.profiles) && o.profiles.length > 0)
             ? (o.profiles.find(p => p.role === 'owner') || o.profiles[0])
@@ -923,11 +960,7 @@ router.get('/admin/clients', authenticate, async (req, res) => {
     }
 
     if (sb) {
-      const { data: orgs, error } = await sb.from('organizations')
-        .select('id, name, city_base, company_city, plan_status, created_at, profiles(id, email, full_name, role)')
-        .in('id', orgIds)
-        .order('name');
-      if (error) throw new DatabaseUnavailableError(error.message);
+      const orgs = await fetchOrganizationsWithProfiles(sb, orgIds);
       const clients = (orgs || []).map(o => {
         const profile = (Array.isArray(o.profiles) && o.profiles.length > 0)
           ? (o.profiles.find(p => p.role === 'owner') || o.profiles[0])
