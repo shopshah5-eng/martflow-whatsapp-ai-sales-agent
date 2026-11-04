@@ -881,13 +881,24 @@ router.get('/admin/clients', authenticate, async (req, res) => {
     if (req.role === 'superadmin') {
       if (sb) {
         const { data: orgs, error } = await sb.from('organizations')
-          .select('id, name, city_base, company_city, plan_status, created_at')
+          .select('id, name, city_base, company_city, plan_status, created_at, profiles(id, email, full_name, role)')
           .order('name');
         if (error) throw new DatabaseUnavailableError(error.message);
-        const clients = (orgs || []).map(o => ({
-          ...o,
-          city_base: o.city_base || o.company_city || 'Unspecified'
-        }));
+        const clients = (orgs || []).map(o => {
+          const profile = (Array.isArray(o.profiles) && o.profiles.length > 0)
+            ? (o.profiles.find(p => p.role === 'owner') || o.profiles[0])
+            : null;
+          return {
+            id: o.id,
+            name: o.name,
+            city_base: o.city_base || o.company_city || 'Unspecified',
+            plan_status: o.plan_status,
+            created_at: o.created_at,
+            user_id: profile?.id || null,
+            user_email: profile?.email || null,
+            user_name: profile?.full_name || null
+          };
+        });
         return res.json({ ok: true, clients });
       }
       const orgs = db.find('organizations', () => true);
@@ -913,14 +924,25 @@ router.get('/admin/clients', authenticate, async (req, res) => {
 
     if (sb) {
       const { data: orgs, error } = await sb.from('organizations')
-        .select('id, name, city_base, company_city, plan_status, created_at')
+        .select('id, name, city_base, company_city, plan_status, created_at, profiles(id, email, full_name, role)')
         .in('id', orgIds)
         .order('name');
       if (error) throw new DatabaseUnavailableError(error.message);
-      const clients = (orgs || []).map(o => ({
-        ...o,
-        city_base: o.city_base || o.company_city || 'Unspecified'
-      }));
+      const clients = (orgs || []).map(o => {
+        const profile = (Array.isArray(o.profiles) && o.profiles.length > 0)
+          ? (o.profiles.find(p => p.role === 'owner') || o.profiles[0])
+          : null;
+        return {
+          id: o.id,
+          name: o.name,
+          city_base: o.city_base || o.company_city || 'Unspecified',
+          plan_status: o.plan_status,
+          created_at: o.created_at,
+          user_id: profile?.id || null,
+          user_email: profile?.email || null,
+          user_name: profile?.full_name || null
+        };
+      });
       return res.json({ ok: true, clients });
     }
 

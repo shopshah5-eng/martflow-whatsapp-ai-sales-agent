@@ -366,11 +366,40 @@
 
         <!-- Selected Client Info & Product Manager -->
         <div id="adminClientDetails" class="hidden space-y-4 pt-2">
-          <div class="bg-slate-50 border rounded-xl p-3 flex flex-wrap gap-4 text-xs text-slate-700">
-            <div><span class="text-slate-400">Client ID:</span> <span id="clientDisplayId" class="font-mono font-bold"></span></div>
-            <div><span class="text-slate-400">Name:</span> <span id="clientDisplayName" class="font-bold"></span></div>
-            <div><span class="text-slate-400">City:</span> <span id="clientDisplayCity"></span></div>
-            <div><span class="text-slate-400">Plan:</span> <span id="clientDisplayPlan" class="font-bold text-emerald-700"></span></div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-800 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm text-slate-900" id="clientDisplayName"></span>
+                <span id="clientDisplayPlan" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">ACTIVE</span>
+                <span class="text-[11px] text-slate-500">• City: <span id="clientDisplayCity" class="font-semibold text-slate-700"></span></span>
+              </div>
+              <button type="button" onclick="autoFillCatalogGrant()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#087F5B] hover:bg-[#066548] text-white rounded-lg text-xs font-bold transition shadow-xs">
+                ⚡ Auto-fill for Catalogue Access
+              </button>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workspace ID (Client ID)</span>
+                <div class="flex items-center justify-between mt-1 gap-1">
+                  <span id="clientDisplayId" class="font-mono font-bold text-slate-900 text-[11px] select-all break-all"></span>
+                  <button type="button" onclick="copyIdField('clientDisplayId', 'Workspace ID')" class="text-slate-400 hover:text-emerald-700 text-xs p-1" title="Copy Workspace ID">📋</button>
+                </div>
+              </div>
+              <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Registered Email ID</span>
+                <div class="flex items-center justify-between mt-1 gap-1">
+                  <span id="clientDisplayEmail" class="font-semibold text-slate-900 text-xs select-all break-all"></span>
+                  <button type="button" onclick="copyIdField('clientDisplayEmail', 'Owner Email')" class="text-slate-400 hover:text-emerald-700 text-xs p-1" title="Copy Email">📋</button>
+                </div>
+              </div>
+              <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs flex flex-col justify-between">
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Existing User ID</span>
+                <div class="flex items-center justify-between mt-1 gap-1">
+                  <span id="clientDisplayUserId" class="font-mono font-bold text-slate-900 text-[11px] select-all break-all"></span>
+                  <button type="button" onclick="copyIdField('clientDisplayUserId', 'User ID')" class="text-slate-400 hover:text-emerald-700 text-xs p-1" title="Copy User ID">📋</button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Client Products Table & Actions -->
@@ -695,7 +724,7 @@
             return;
           }
           dropdown.innerHTML = '<option value="">-- Choose an Authorized Client Workspace --</option>' +
-            currentAdminClients.map(c => `<option value="${c.id}">${c.name || 'Unnamed Client'} (${c.city_base || 'No city'}) [${c.id.slice(0, 8)}]</option>`).join('');
+            currentAdminClients.map(c => `<option value="${c.id}">${c.name || 'Unnamed Client'} — ${c.user_email || c.city_base || 'No email'} [${c.id.slice(0, 8)}]</option>`).join('');
           
           if (currentAdminClients.length === 1) {
             dropdown.value = currentAdminClients[0].id;
@@ -707,6 +736,27 @@
       } catch (e) {
         dropdown.innerHTML = '<option value="">Error loading clients: ' + (e.message || 'Network error') + '</option>';
       }
+    }
+
+    
+    function autoFillCatalogGrant() {
+      if (!selectedAdminClient) return alert('Please select a client workspace first.');
+      const orgInput = document.getElementById('catalogGrantOrg');
+      const userInput = document.getElementById('catalogGrantUser');
+      if (orgInput) orgInput.value = selectedAdminClient.id;
+      if (userInput) userInput.value = selectedAdminClient.user_id || selectedAdminClient.user_email || '';
+      showToast('Auto-filled Workspace ID & User ID for Catalogue Access!', 'success');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function copyIdField(elementId, fieldName) {
+      const val = (document.getElementById(elementId)?.textContent || '').trim();
+      if (!val || val.includes('No ')) return showToast('No ' + fieldName + ' to copy', 'warning');
+      navigator.clipboard.writeText(val).then(() => {
+        showToast('Copied ' + fieldName + ' to clipboard!', 'success');
+      }).catch(() => {
+        showToast('Selected: ' + val, 'info');
+      });
     }
 
     async function onAdminSelectClient() {
@@ -724,6 +774,10 @@
       document.getElementById('clientDisplayName').textContent = selectedAdminClient.name || 'Client Workspace';
       document.getElementById('clientDisplayCity').textContent = selectedAdminClient.city_base || 'Unspecified';
       document.getElementById('clientDisplayPlan').textContent = selectedAdminClient.plan_status ? selectedAdminClient.plan_status.toUpperCase() : 'ACTIVE';
+      const emailEl = document.getElementById('clientDisplayEmail');
+      if (emailEl) emailEl.textContent = selectedAdminClient.user_email || 'No email registered';
+      const userEl = document.getElementById('clientDisplayUserId');
+      if (userEl) userEl.textContent = selectedAdminClient.user_id || 'No user linked';
       loadAdminClientProducts(selectedAdminClient.id);
     }
 
