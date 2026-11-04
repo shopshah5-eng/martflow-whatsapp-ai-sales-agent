@@ -253,3 +253,80 @@ test('MEMORY ORDERING: Latest messages are returned in chronological order', asy
     db.delete('messages', `msg_${i}`);
   }
 });
+
+test('CONCURRENCY & RPC SERIALIZATION: Concurrent calls for same customer serialize under lock without duplicate lead or quota leak', async () => {
+  const pglite = new PGlite();
+  try {
+    await pglite.exec(`
+      CREATE ROLE anon;
+      CREATE ROLE authenticated;
+      CREATE ROLE service_role BYPASSRLS;
+      CREATE SCHEMA IF NOT EXISTS auth;
+      CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT '00000000-0000-4000-8000-000000000001'::uuid $$;
+      GRANT USAGE ON SCHEMA public, auth TO anon, authenticated, service_role;
+
+      CREATE TABLE public.organizations (
+        id UUID PRIMARY KEY,
+        name TEXT NOT NULL,
+        plan_status TEXT DEFAULT 'active',
+        monthly_lead_limit INT DEFAULT 10,
+        leads_used INT DEFAULT 0,
+        trial_ends_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE public.profiles (
+        id UUID PRIMARY KEY,
+        full_name TEXT
+      );
+      CREATE TABLE public.leads (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        organization_id UUID,
+        buyer_name TEXT,
+        buyer_phone TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+    `);
+
+    const orgId = '33333333-3333-4333-8333-333333333333';
+    await pglite.exec(`
+      INSERT INTO public.organizations (id, name, plan_status, monthly_lead_limit, leads_used)
+      VALUES ('${orgId}', 'Concurrent Test Org', 'active', 10, 0);
+    `);
+
+    const migrationSql = await readFile(new URL('../migrations/20261104_schema_reconciliation_and_hardening.sql', import.meta.url), 'utf8');
+    await pglite.exec(migrationSql);
+
+    await pglite.exec('SET ROLE service_role');
+
+    // Run 5 concurrent intake attempts for the same phone number
+    const results = await Promise.all([
+      pglite.query(`SELECT * FROM public.reserve_and_create_lead(p_org_id => '${orgId}'::uuid, p_buyer_phone => '9888877777', p_buyer_name => 'Buyer Concurrent 1')`),
+      pglite.query(`SELECT * FROM public.reserve_and_create_lead(p_org_id => '${orgId}'::uuid, p_buyer_phone => '9888877777', p_buyer_name => 'Buyer Concurrent 2')`),
+      pglite.query(`SELECT * FROM public.reserve_and_create_lead(p_org_id => '${orgId}'::uuid, p_buyer_phone => '9888877777', p_buyer_name => 'Buyer Concurrent 3')`),
+      pglite.query(`SELECT * FROM public.reserve_and_create_lead(p_org_id => '${orgId}'::uuid, p_buyer_phone => '9888877777', p_buyer_name => 'Buyer Concurrent 4')`),
+      pglite.query(`SELECT * FROM public.reserve_and_create_lead(p_org_id => '${orgId}'::uuid, p_buyer_phone => '9888877777', p_buyer_name => 'Buyer Concurrent 5')`)
+    ]);
+
+    const newFlags = results.map(r => r.rows[0].out_is_new);
+    const newCount = newFlags.filter(f => f === true).length;
+    const dupCount = newFlags.filter(f => f === false).length;
+
+    assert.equal(newCount, 1, 'Exactly one concurrent call must be marked as new lead');
+    assert.equal(dupCount, 4, 'Remaining concurrent calls must be marked as duplicate (out_is_new = false)');
+
+    const leadIds = new Set(results.map(r => r.rows[0].out_lead_id));
+    assert.equal(leadIds.size, 1, 'All concurrent calls must return the same deduplicated lead ID');
+
+    // Verify leads_used in organization is incremented by exactly 1
+    const orgCheck = await pglite.query(`SELECT leads_used FROM public.organizations WHERE id = '${orgId}'`);
+    assert.equal(orgCheck.rows[0].leads_used, 1, 'leads_used must be incremented by exactly 1 under concurrency');
+
+    // Verify only 1 row in leads table
+    const leadsCount = await pglite.query(`SELECT count(*)::int AS count FROM public.leads WHERE org_id = '${orgId}'`);
+    assert.equal(leadsCount.rows[0].count, 1, 'Exactly 1 row should exist in public.leads');
+  } finally {
+    await pglite.close();
+  }
+});

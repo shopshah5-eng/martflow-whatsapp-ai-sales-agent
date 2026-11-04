@@ -412,3 +412,192 @@ test('FOLLOW-UP: uncertain provider outcomes are marked uncertain_delivery and a
   assert.equal(record.status, 'uncertain_delivery');
   assert.match(record.notes, /Provider outcome ambiguous/);
 });
+
+test('FOLLOW-UP: worker disabled by default, consent requirement, durable opt-outs, and concurrent worker leasing', async () => {
+  // 1. Worker is disabled by default
+  assert.equal(FollowUpService.isWorkerEnabled(), false, 'Background follow-up worker must be disabled by default');
+
+  const orgId = 'consent-test-org-' + Date.now();
+  const phone = '9876500001';
+
+  // 2. Schedule without consent is rejected
+  const resNoConsent = await FollowUpService.scheduleOneTimeFollowUp({
+    orgId,
+    buyerPhone: phone,
+    consentRecorded: false
+  });
+  assert.equal(resNoConsent.scheduled, false);
+  assert.equal(resNoConsent.reason, 'missing_consent');
+
+  // 3. Schedule with positive consent succeeds
+  const resConsent = await FollowUpService.scheduleOneTimeFollowUp({
+    orgId,
+    buyerPhone: phone,
+    consentRecorded: true,
+    consentStatus: 'consented'
+  });
+  assert.equal(resConsent.scheduled, true);
+  assert.equal(resConsent.record.consent_recorded, true);
+
+  // 4. Concurrent worker leasing: claim due follow-ups
+  // Manually backdate scheduled_for to test claim
+  resConsent.record.scheduled_for = new Date(Date.now() - 1000).toISOString();
+  const claimed = await FollowUpService.claimDueFollowUps('worker-node-1', 5, 300);
+  assert.ok(claimed.length >= 1, 'Due follow-up must be claimed by worker');
+  const claimedRecord = claimed.find(c => c.id === resConsent.record.id);
+  assert.ok(claimedRecord, 'Claimed record must match test follow-up');
+  assert.equal(claimedRecord.status, 'processing');
+  assert.equal(claimedRecord.worker_id, 'worker-node-1');
+  assert.ok(claimedRecord.lease_expires_at, 'Lease expiration must be populated');
+
+  // 5. Durable opt-out check
+  await FollowUpService.recordOptOut(orgId, phone, 'test_opt_out');
+  assert.equal(FollowUpService.isOptedOut(orgId, phone), true);
+  assert.equal(await FollowUpService.isDurableOptedOut(orgId, phone), true);
+});
+
+test('CUSTOMER MEMORY: updates on enquiry, visibility on DB error, and tenant isolation', async () => {
+  const { repository, DatabaseUnavailableError } = await import('../src/db/repository.js');
+  const orgA = 'mem-org-a-' + Date.now();
+  const orgB = 'mem-org-b-' + Date.now();
+  const convId = 'conv-mem-' + Date.now();
+
+  // 1. Update memory for Tenant A
+  const memA = await ConversationMemoryService.updateMemory(orgA, convId, {
+    buyer_requirements: 'Looking for 3 units of Automatic Pouch Packing Machine',
+    summary_text: 'Customer asked: Looking for 3 units',
+    answered_questions: ['Packaging Machinery'],
+    consent_status: 'consented'
+  });
+  assert.equal(memA.org_id, orgA);
+  assert.equal(memA.buyer_requirements, 'Looking for 3 units of Automatic Pouch Packing Machine');
+
+  // 2. Tenant isolation: Tenant B querying convId gets null
+  const memB = await ConversationMemoryService.getMemory(orgB, convId);
+  assert.equal(memB, null, 'Tenant B must not see Tenant A memory');
+
+  // 3. Retrieval for Tenant A succeeds
+  const retrievedA = await ConversationMemoryService.getMemory(orgA, convId);
+  assert.equal(retrievedA.buyer_requirements, 'Looking for 3 units of Automatic Pouch Packing Machine');
+
+  // 4. Memory deletion removes record
+  const deleted = await ConversationMemoryService.deleteMemory(orgA, convId);
+  assert.equal(deleted, true);
+  const afterDelete = await ConversationMemoryService.getMemory(orgA, convId);
+  assert.equal(afterDelete, null, 'Deleted memory must no longer exist');
+
+  // 5. Database errors are not silently swallowed
+  const origGetSupabase = repository.getSupabase;
+  try {
+    repository.getSupabase = () => ({
+      from: () => ({
+        upsert: () => ({
+          select: () => ({
+            single: async () => ({ data: null, error: { message: 'Database connection refused' } })
+          })
+        }),
+        delete: () => ({
+          eq: () => ({
+            eq: async () => ({ error: { message: 'Foreign key violation or table locked' } })
+          })
+        })
+      })
+    });
+
+    await assert.rejects(
+      ConversationMemoryService.updateMemory(orgA, convId, { buyer_requirements: 'Fail test' }),
+      DatabaseUnavailableError,
+      'Database errors during memory update must propagate visibly'
+    );
+
+    await assert.rejects(
+      ConversationMemoryService.deleteMemory(orgA, convId),
+      DatabaseUnavailableError,
+      'Database errors during memory deletion must propagate visibly'
+    );
+  } finally {
+    repository.getSupabase = origGetSupabase;
+  }
+});
+
+test('PROVISIONING: existing profile with missing or inactive membership fails closed with 403', async () => {
+  const { repository } = await import('../src/db/repository.js');
+  const originalGetSupabase = repository.getSupabase;
+  const originalGetProfileById = repository.getProfileById;
+  const originalGetMembership = repository.getMembership;
+  const originalGetOrganizationById = repository.getOrganizationById;
+
+  const app = express();
+  app.use(express.json());
+  app.use('/api', apiRouter);
+
+  try {
+    const testUserId = 'user-inactive-mem-' + Date.now();
+    const testOrgId = 'org-inactive-mem-' + Date.now();
+
+    repository.getSupabase = () => ({
+      auth: {
+        getUser: async () => ({
+          data: {
+            user: {
+              id: testUserId,
+              email: 'inactive@example.test',
+              email_confirmed_at: new Date().toISOString()
+            }
+          },
+          error: null
+        })
+      }
+    });
+
+    // Profile already has an assigned org_id
+    repository.getProfileById = async (id) => {
+      if (id === testUserId) {
+        return { id: testUserId, org_id: testOrgId, role: 'member', full_name: 'Existing Member' };
+      }
+      return null;
+    };
+
+    // But membership in organization is missing or inactive
+    repository.getMembership = async (userId, orgId) => null;
+    repository.getOrganizationById = async (orgId) => ({ id: orgId, name: 'Inactive Org' });
+
+    const server = app.listen(0);
+    const port = server.address().port;
+
+    const res = await fetch(`http://127.0.0.1:${port}/api/auth/provision`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer valid-test-token'
+      },
+      body: JSON.stringify({ companyName: 'Attempt New Org' })
+    });
+
+    assert.equal(res.status, 403, 'Must return 403 when profile has an assigned workspace but membership is missing or inactive');
+    const body = await res.json();
+    assert.equal(body.ok, false);
+    assert.match(body.error, /inactive or unassigned/);
+
+    server.close();
+  } finally {
+    repository.getSupabase = originalGetSupabase;
+    repository.getProfileById = originalGetProfileById;
+    repository.getMembership = originalGetMembership;
+    repository.getOrganizationById = originalGetOrganizationById;
+  }
+});
+
+test('AI PROMPT GROUNDING: system instruction is strictly industry-neutral and free from unverified apparel/garments claims', async () => {
+  const serverJsContent = fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8');
+
+  // Verify apparel-specific claims were removed from system instruction
+  assert.ok(!serverJsContent.includes('the outfit/item in the video/ad'), 'Must not hardcode apparel-specific "outfit" in system instruction');
+  assert.ok(!serverJsContent.includes('colour/print stock quantity'), 'Must not hardcode "colour/print stock" in general stock rule');
+  assert.ok(!serverJsContent.includes('live rack availability & fresh matching colours'), 'Must not claim rack availability or colours in general stock rule');
+  assert.ok(!serverJsContent.includes('via our Main Dispatch Team'), 'Must not invent ungrounded dispatch teams');
+
+  // Verify the new industry-neutral rule is present
+  assert.ok(serverJsContent.includes('AD, MEDIA & LIVE INQUIRY RULE:'), 'Must contain industry-neutral AD, MEDIA & LIVE INQUIRY RULE');
+  assert.ok(serverJsContent.includes('share the relevant category price range or model range strictly from the active catalog'), 'Must ground price in active catalog');
+});

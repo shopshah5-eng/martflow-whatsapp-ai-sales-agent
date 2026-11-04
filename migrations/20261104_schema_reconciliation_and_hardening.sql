@@ -78,11 +78,18 @@ BEGIN
         v_digits := v_clean_phone;
     END IF;
 
-    v_product := COALESCE(p_product_inquired, p_requirement, 'General Inquiry');
-    v_message := COALESCE(p_query_message, p_requirement, '');
-    v_pdf_sent := COALESCE(p_pdf_brochure_sent, FALSE);
+    -- 1. Lock organization record FIRST for atomic serialization to prevent concurrent duplicate intake & quota double-counting
+    SELECT o.monthly_lead_limit, o.leads_used, o.plan_status, o.trial_ends_at
+    INTO v_limit, v_used, v_plan_status, v_trial_ends
+    FROM public.organizations o
+    WHERE o.id = p_org_id
+    FOR UPDATE;
 
-    -- Deduplication: Check if lead already exists for this tenant & phone
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Organization not found';
+    END IF;
+
+    -- 2. Deduplication under organization lock: Check if lead already exists for this tenant & phone
     SELECT l.id, l.quota_admitted INTO v_existing_id, v_existing_admitted
     FROM public.leads l
     WHERE l.org_id = p_org_id
@@ -97,17 +104,6 @@ BEGIN
     IF v_existing_id IS NOT NULL THEN
         RETURN QUERY SELECT v_existing_id, COALESCE(v_existing_admitted, TRUE), FALSE;
         RETURN;
-    END IF;
-
-    -- Lock organization record for atomic quota evaluation
-    SELECT o.monthly_lead_limit, o.leads_used, o.plan_status, o.trial_ends_at
-    INTO v_limit, v_used, v_plan_status, v_trial_ends
-    FROM public.organizations o
-    WHERE o.id = p_org_id
-    FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Organization not found';
     END IF;
 
     IF p_bypass_quota THEN
@@ -229,6 +225,10 @@ CREATE TABLE IF NOT EXISTS public.follow_up_schedules (
     status TEXT NOT NULL DEFAULT 'scheduled',
     template_name TEXT,
     requires_template BOOLEAN DEFAULT TRUE,
+    consent_recorded BOOLEAN NOT NULL DEFAULT FALSE,
+    consent_status TEXT NOT NULL DEFAULT 'consented',
+    worker_id TEXT,
+    lease_expires_at TIMESTAMPTZ,
     attempts INT DEFAULT 0,
     cancellation_reason TEXT,
     cancelled_at TIMESTAMPTZ,
@@ -251,6 +251,31 @@ CREATE POLICY follow_up_schedules_tenant_select ON public.follow_up_schedules
 
 DROP POLICY IF EXISTS follow_up_schedules_no_client_write ON public.follow_up_schedules;
 CREATE POLICY follow_up_schedules_no_client_write ON public.follow_up_schedules
+    AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
+
+-- 8. Durable Opt-Outs Table (Global & Tenant Customer Compliance)
+CREATE TABLE IF NOT EXISTS public.durable_opt_outs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES public.organizations(id) ON DELETE CASCADE,
+    buyer_phone TEXT NOT NULL,
+    reason TEXT DEFAULT 'buyer_opt_out',
+    opted_out_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT uq_durable_opt_outs_tenant_phone UNIQUE (org_id, buyer_phone)
+);
+
+ALTER TABLE public.durable_opt_outs ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS durable_opt_outs_tenant_select ON public.durable_opt_outs;
+CREATE POLICY durable_opt_outs_tenant_select ON public.durable_opt_outs
+    FOR SELECT TO authenticated
+    USING (org_id IN (
+        SELECT p.org_id
+        FROM public.profiles p
+        WHERE p.id = auth.uid()
+    ));
+
+DROP POLICY IF EXISTS durable_opt_outs_no_client_write ON public.durable_opt_outs;
+CREATE POLICY durable_opt_outs_no_client_write ON public.durable_opt_outs
     AS RESTRICTIVE FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);
 
 COMMIT;

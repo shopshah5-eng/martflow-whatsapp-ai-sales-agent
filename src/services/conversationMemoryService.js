@@ -1,5 +1,5 @@
 /**
- * MartFlow AI — Conversation Memory Service
+ * Leadsy AI — Conversation Memory Service
  * Private, tenant-isolated conversation memory and message history.
  *
  * Enforces:
@@ -7,7 +7,8 @@
  * 2. Deterministic retrieval of the LATEST messages in chronological order (DESC limit, then reverse).
  * 3. Concise, correctable context summaries (buyer requirements, answered topics, consent status).
  * 4. Staff review, correction, and deletion controls for privacy and retention.
- * 5. Zero training on private customer conversations.
+ * 5. Fails visibly on database failures rather than silently swallowing errors.
+ * 6. Zero training on private customer conversations.
  */
 
 import { repository, DatabaseUnavailableError } from '../db/repository.js';
@@ -17,6 +18,13 @@ import db from '../db/index.js';
 const LOCAL_MEMORY_STORE = new Map();
 
 export class ConversationMemoryService {
+  /**
+   * Clear local memory store (for test resets).
+   */
+  static clearLocalStore() {
+    LOCAL_MEMORY_STORE.clear();
+  }
+
   /**
    * Retrieve the latest N messages for a conversation in chronological order.
    * Fixes the historical bug where ascending queries with limits truncated recent messages.
@@ -82,22 +90,21 @@ export class ConversationMemoryService {
 
     const sb = repository.getSupabase();
     if (sb) {
-      try {
-        const { data, error } = await sb
-          .from('conversation_memories')
-          .select('*')
-          .eq('org_id', orgId)
-          .eq('conversation_id', conversationId)
-          .maybeSingle();
+      const { data, error } = await sb
+        .from('conversation_memories')
+        .select('*')
+        .eq('org_id', orgId)
+        .eq('conversation_id', conversationId)
+        .maybeSingle();
 
-        if (error && error.code !== 'PGRST116') {
-          // Table may not yet be migrated in staging; fallback gracefully
-          return LOCAL_MEMORY_STORE.get(`${orgId}:${conversationId}`) || null;
-        }
-        return data || null;
-      } catch (_) {
-        return LOCAL_MEMORY_STORE.get(`${orgId}:${conversationId}`) || null;
+      if (error && error.code !== 'PGRST116') {
+        throw new DatabaseUnavailableError(`Database error reading memory: ${error.message}`);
       }
+      if (data) {
+        LOCAL_MEMORY_STORE.set(`${orgId}:${conversationId}`, data);
+        return data;
+      }
+      return null;
     }
 
     return LOCAL_MEMORY_STORE.get(`${orgId}:${conversationId}`) || null;
@@ -126,23 +133,24 @@ export class ConversationMemoryService {
 
     const sb = repository.getSupabase();
     if (sb) {
-      try {
-        const payload = {
-          org_id: orgId,
-          conversation_id: conversationId,
-          ...cleanUpdates
-        };
-        const { data, error } = await sb
-          .from('conversation_memories')
-          .upsert(payload, { onConflict: 'org_id,conversation_id' })
-          .select()
-          .single();
+      const payload = {
+        org_id: orgId,
+        conversation_id: conversationId,
+        ...cleanUpdates
+      };
+      const { data, error } = await sb
+        .from('conversation_memories')
+        .upsert(payload, { onConflict: 'org_id,conversation_id' })
+        .select()
+        .single();
 
-        if (!error && data) {
-          LOCAL_MEMORY_STORE.set(`${orgId}:${conversationId}`, data);
-          return data;
-        }
-      } catch (_) {}
+      if (error) {
+        throw new DatabaseUnavailableError(`Database error updating memory: ${error.message}`);
+      }
+      if (data) {
+        LOCAL_MEMORY_STORE.set(`${orgId}:${conversationId}`, data);
+        return data;
+      }
     }
 
     const record = {
@@ -168,13 +176,15 @@ export class ConversationMemoryService {
 
     const sb = repository.getSupabase();
     if (sb) {
-      try {
-        await sb
-          .from('conversation_memories')
-          .delete()
-          .eq('org_id', orgId)
-          .eq('conversation_id', conversationId);
-      } catch (_) {}
+      const { error } = await sb
+        .from('conversation_memories')
+        .delete()
+        .eq('org_id', orgId)
+        .eq('conversation_id', conversationId);
+
+      if (error) {
+        throw new DatabaseUnavailableError(`Database error deleting memory: ${error.message}`);
+      }
     }
     return true;
   }

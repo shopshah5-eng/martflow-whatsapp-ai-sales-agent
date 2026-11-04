@@ -549,7 +549,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   const isVideo = Boolean(content?.videoMessage);
   const isLocation = Boolean(content?.locationMessage);
 
-  // Download image buffer if buyer sent a photo / outfit screenshot
+  // Download image buffer if buyer sent a photo / product screenshot
   let imageBase64 = null;
   let imageMime = 'image/jpeg';
   if (isImage) {
@@ -579,7 +579,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
   if (!incomingText) {
     if (isImage) {
-      incomingText = '[Customer sent a product/outfit photo screenshot — identify the matching category, share wholesale/price range & MOQ, and ask quantity/city]';
+      incomingText = '[Customer sent a product photo screenshot — identify the matching category from active catalog, share pricing/range & MOQ if applicable, and ask desired specifications/quantity/city]';
     } else if (isVideo) {
       incomingText = content?.videoMessage?.caption || '[Customer shared a video/reel inquiry — ask screenshot or desired quantity & share matching category range]';
     } else if (isLocation) {
@@ -1285,6 +1285,21 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         });
         await supabaseAdmin.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', sbConvId);
       } catch (e) {}
+
+      // Update conversation memory on ordinary customer enquiry
+      try {
+        const { ConversationMemoryService } = await import('./src/services/conversationMemoryService.js');
+        const buyerTextSample = (incomingText || '').trim().slice(0, 200);
+        const answeredTopic = aiReplyObj?.matchedCategory || (aiReplyObj?.reply ? aiReplyObj.reply.slice(0, 60) : 'General Inquiry');
+        await ConversationMemoryService.updateMemory(orgId, sbConvId, {
+          buyer_requirements: buyerTextSample,
+          summary_text: `Customer asked: ${buyerTextSample.slice(0, 80)}`,
+          answered_questions: [answeredTopic],
+          consent_status: 'consented'
+        });
+      } catch (memUpdateErr) {
+        addLog(`[Memory Warning] Failed to update conversation memory: ${memUpdateErr.message}`);
+      }
     }
 
     // Wire aiResult.isCallRequest into hot alert priority path
@@ -1818,10 +1833,10 @@ Catalog & Pricing Knowledge:
 ${catalogContext || 'Standard verified offerings apply.'}
 ${extraKnowledge}${memoryContext}${adPromptContext}
 
-AD REEL & LIVE STOCK RULE:
-(a) If the customer asks about "the outfit/item in the video/ad" WITHOUT sharing a photo or specific name (and no Clicked Ad Info is present), politely share our main category price range in 1 line and ask them to send a quick screenshot + required sets/quantity.
-(b) Never blindly guarantee exact colour/print stock quantity or promise exact godown stock availability, and NEVER ask the customer to pay before owner confirmation.
-(c) Confirm our category price/MOQ, note that fresh matching designs are also ready, tell the buyer we are confirming live rack availability & fresh matching colours via our Main Dispatch Team once they share required sets & city, and hand off serious buyers to our Main Team on WhatsApp for live stock photos/video call.
+AD, MEDIA & LIVE INQUIRY RULE:
+(a) If the customer asks about an item in a video, reel, or advertisement WITHOUT sharing a photo or specific product name (and no Clicked Ad Info is present), share the relevant category price range or model range strictly from the active catalog in 1 concise line, and ask them to share a quick screenshot or specify their target model/specifications and required quantity.
+(b) Never fabricate stock numbers, warehouse locations, dispatch promises, dispatch teams, or unverified availability unless explicitly stated in "Catalog & Pricing Knowledge" or "Business & Service Knowledge Base".
+(c) Never promise unverified stock or ask the buyer for upfront payment before owner/technical confirmation. If specific specs, batch size, or custom requirements are needed, ask the customer for their quantity and delivery city, then hand off serious inquiries to the owner/sales manager.
 
 CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
 1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.

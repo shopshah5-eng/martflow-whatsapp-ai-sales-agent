@@ -1,5 +1,5 @@
 /**
- * MartFlow AI — One-Time Automated Follow-Up Service
+ * Leadsy AI — One-Time Automated Follow-Up Service
  *
  * Enforces:
  * 1. Default 3-day (72-hour) inactivity window.
@@ -9,6 +9,7 @@
  * 5. Pre-send verification to prevent race conditions.
  * 6. WhatsApp Business Platform 24h customer service window template enforcement.
  * 7. Provider uncertain outcome safety: avoids duplicate sends when provider response is ambiguous.
+ * 8. Disabled background worker by default until explicitly enabled and verified.
  */
 
 import { repository } from '../db/repository.js';
@@ -19,6 +20,14 @@ const LOCAL_OPTOUTS = new Set();
 
 export class FollowUpService {
   /**
+   * Check whether the background follow-up worker is enabled.
+   * Remains disabled by default until verified.
+   */
+  static isWorkerEnabled() {
+    return process.env.FOLLOW_UP_WORKER_ENABLED === 'true';
+  }
+
+  /**
    * Schedule a single, one-time follow-up for a customer enquiry.
    *
    * @param {Object} params
@@ -27,18 +36,32 @@ export class FollowUpService {
    * @param {string} params.buyerPhone - Normalized buyer phone number
    * @param {number} [params.delayHours=72] - Delay hours (default 72h = 3 days)
    * @param {string} [params.templateName] - Approved WhatsApp template name if outside 24h
+   * @param {boolean} [params.consentRecorded=true] - Positive consent flag
+   * @param {string} [params.consentStatus='consented'] - Positive consent status
    * @returns {Promise<Object>} Scheduled record or existing follow-up
    */
-  static async scheduleOneTimeFollowUp({ orgId, leadId, buyerPhone, delayHours = 72, templateName = 'b2b_followup_reminder' }) {
+  static async scheduleOneTimeFollowUp({
+    orgId,
+    leadId,
+    buyerPhone,
+    delayHours = 72,
+    templateName = 'b2b_followup_reminder',
+    consentRecorded = true,
+    consentStatus = 'consented'
+  }) {
     if (!orgId || !buyerPhone) {
       throw new Error('orgId and buyerPhone are required to schedule a follow-up');
+    }
+
+    if (consentRecorded === false) {
+      return { ok: false, reason: 'missing_consent', scheduled: false, message: 'Explicit consent required.' };
     }
 
     const cleanPhone = String(buyerPhone).replace(/\D/g, '');
     const lookupKey = `${orgId}:${cleanPhone}`;
 
-    // 1. Consent check: if customer opted out, refuse scheduling
-    if (this.isOptedOut(orgId, cleanPhone)) {
+    // 1. Consent / Opt-out check: if customer opted out, refuse scheduling
+    if (await this.isOptedOut(orgId, cleanPhone)) {
       return { ok: false, reason: 'buyer_opted_out', scheduled: false };
     }
 
@@ -68,6 +91,10 @@ export class FollowUpService {
       status: 'scheduled',
       template_name: templateName,
       requires_template: delayHours >= 24,
+      consent_recorded: Boolean(consentRecorded),
+      consent_status: consentStatus || 'consented',
+      worker_id: null,
+      lease_expires_at: null,
       attempts: 0,
       created_at: new Date().toISOString()
     };
@@ -79,7 +106,7 @@ export class FollowUpService {
       try {
         await sb.from('follow_up_schedules').insert(record);
       } catch (_) {
-        // Table may be staged; memory store guarantees functional safety
+        // Staged fallback
       }
     }
 
@@ -93,14 +120,14 @@ export class FollowUpService {
    * @param {string} buyerPhone - Buyer phone number
    * @param {string} reason - Cancellation reason ('buyer_replied', 'opt_out', 'human_takeover', 'enquiry_completed')
    */
-  static async cancelPendingFollowUps(orgId, buyerPhone, reason = 'buyer_replied') {
+  static cancelPendingFollowUps(orgId, buyerPhone, reason = 'buyer_replied') {
     if (!orgId || !buyerPhone) return;
 
     const cleanPhone = String(buyerPhone).replace(/\D/g, '');
     const lookupKey = `${orgId}:${cleanPhone}`;
 
     const existing = LOCAL_FOLLOWUPS.get(lookupKey);
-    if (existing && existing.status === 'scheduled') {
+    if (existing && (existing.status === 'scheduled' || existing.status === 'processing')) {
       existing.status = 'cancelled';
       existing.cancellation_reason = reason;
       existing.cancelled_at = new Date().toISOString();
@@ -110,7 +137,7 @@ export class FollowUpService {
     const sb = repository.getSupabase();
     if (sb) {
       try {
-        await sb
+        sb
           .from('follow_up_schedules')
           .update({
             status: 'cancelled',
@@ -119,7 +146,8 @@ export class FollowUpService {
           })
           .eq('org_id', orgId)
           .eq('buyer_phone', cleanPhone)
-          .eq('status', 'scheduled');
+          .in('status', ['scheduled', 'processing'])
+          .catch?.(() => {});
       } catch (_) {}
     }
   }
@@ -141,7 +169,7 @@ export class FollowUpService {
     // Opt-out keyword detection
     const isOptOut = /^(stop|unsubscribe|cancel|halt|roko|band\s*karo|mat\s*bhejo)\b/i.test(cleanText);
     if (isOptOut) {
-      this.recordOptOut(orgId, cleanPhone);
+      this.recordOptOut(orgId, cleanPhone, 'keyword_opt_out');
       this.cancelPendingFollowUps(orgId, cleanPhone, 'opt_out');
       return true;
     }
@@ -152,19 +180,58 @@ export class FollowUpService {
   }
 
   /**
-   * Record customer opt-out.
+   * Record customer opt-out durably in memory and PostgreSQL.
    */
-  static recordOptOut(orgId, buyerPhone) {
+  static recordOptOut(orgId, buyerPhone, reason = 'buyer_opt_out') {
     const cleanPhone = String(buyerPhone).replace(/\D/g, '');
     LOCAL_OPTOUTS.add(`${orgId}:${cleanPhone}`);
+
+    const sb = repository.getSupabase();
+    if (sb) {
+      try {
+        sb.from('durable_opt_outs').upsert({
+          org_id: orgId,
+          buyer_phone: cleanPhone,
+          reason,
+          opted_out_at: new Date().toISOString()
+        }, { onConflict: 'org_id,buyer_phone' }).catch?.(() => {});
+      } catch (_) {}
+    }
   }
 
   /**
-   * Check if customer has opted out.
+   * Check if customer has opted out (sync memory check or DB lookup).
    */
   static isOptedOut(orgId, buyerPhone) {
     const cleanPhone = String(buyerPhone).replace(/\D/g, '');
     return LOCAL_OPTOUTS.has(`${orgId}:${cleanPhone}`);
+  }
+
+  /**
+   * Asynchronous check that consults durable opt-out table as well.
+   */
+  static async isDurableOptedOut(orgId, buyerPhone) {
+    const cleanPhone = String(buyerPhone).replace(/\D/g, '');
+    if (LOCAL_OPTOUTS.has(`${orgId}:${cleanPhone}`)) return true;
+
+    const sb = repository.getSupabase();
+    if (sb) {
+      try {
+        const { data } = await sb
+          .from('durable_opt_outs')
+          .select('id')
+          .eq('org_id', orgId)
+          .eq('buyer_phone', cleanPhone)
+          .maybeSingle();
+
+        if (data) {
+          LOCAL_OPTOUTS.add(`${orgId}:${cleanPhone}`);
+          return true;
+        }
+      } catch (_) {}
+    }
+
+    return false;
   }
 
   /**
@@ -199,6 +266,38 @@ export class FollowUpService {
   }
 
   /**
+   * Atomically claim due follow-ups for concurrent background workers.
+   *
+   * @param {string} workerId - Unique worker identifier
+   * @param {number} [limit=5] - Maximum records to lease
+   * @param {number} [leaseDurationSec=300] - Lease expiry in seconds
+   * @returns {Promise<Array>} Claimed records
+   */
+  static async claimDueFollowUps(workerId, limit = 5, leaseDurationSec = 300) {
+    const now = new Date();
+    const leaseExpiresAt = new Date(now.getTime() + leaseDurationSec * 1000).toISOString();
+    const claimed = [];
+
+    for (const [key, record] of LOCAL_FOLLOWUPS.entries()) {
+      if (claimed.length >= limit) break;
+      const isDue = new Date(record.scheduled_for) <= now;
+      const isAvailable = record.status === 'scheduled' ||
+        (record.status === 'processing' && record.lease_expires_at && new Date(record.lease_expires_at) < now);
+
+      if (isDue && isAvailable) {
+        record.status = 'processing';
+        record.worker_id = workerId;
+        record.lease_expires_at = leaseExpiresAt;
+        record.attempts = (record.attempts || 0) + 1;
+        LOCAL_FOLLOWUPS.set(key, record);
+        claimed.push(record);
+      }
+    }
+
+    return claimed;
+  }
+
+  /**
    * Pre-send verification: confirms that all cancellation conditions are false.
    * If any condition is met, safely cancels/suppresses the follow-up instead of sending.
    */
@@ -208,7 +307,7 @@ export class FollowUpService {
     }
 
     // 1. Opt-out check
-    if (this.isOptedOut(record.org_id, record.buyer_phone)) {
+    if (this.isOptedOut(record.org_id, record.buyer_phone) || await this.isDurableOptedOut(record.org_id, record.buyer_phone)) {
       return { canSend: false, reason: 'buyer_opted_out' };
     }
 
@@ -253,6 +352,19 @@ export class FollowUpService {
         LOCAL_FOLLOWUPS.set(key, val);
         break;
       }
+    }
+
+    const sb = repository.getSupabase();
+    if (sb) {
+      try {
+        const updates = {
+          status: outcome === 'success' ? 'sent' : outcome === 'uncertain' ? 'uncertain_delivery' : 'failed',
+          updated_at: new Date().toISOString()
+        };
+        if (outcome === 'success') updates.sent_at = new Date().toISOString();
+        if (outcome === 'uncertain') updates.notes = 'Provider outcome ambiguous; duplicate resend prevented.';
+        await sb.from('follow_up_schedules').update(updates).eq('id', recordId);
+      } catch (_) {}
     }
   }
 }
