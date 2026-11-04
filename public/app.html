@@ -268,6 +268,23 @@
       background-color: #FFFFFF;
     }
   </style>
+
+  <style>
+    #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], [id^="netlify-"], [class*="netlify-drawer"], netlify-drawer, iframe[src*="netlify"] {
+      display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important;
+    }
+  </style>
+  <script>
+    (function() {
+      function purgeNetlify() {
+        document.querySelectorAll('#netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"]').forEach(el => el.remove());
+      }
+      document.addEventListener('DOMContentLoaded', purgeNetlify);
+      window.addEventListener('load', purgeNetlify);
+      setInterval(purgeNetlify, 1000);
+    })();
+  </script>
+
 </head>
 <body class="bg-white text-slate-900 antialiased h-screen flex flex-col overflow-hidden">
 
@@ -301,6 +318,11 @@
       </button>
 
       <!-- User Profile & Sign Out -->
+      <!-- SUPER ADMIN QUICK ACCESS BUTTON (Header) -->
+      <a href="/admin" id="headerSuperAdminBtn" class="hidden inline-flex items-center space-x-1.5 py-1.5 px-3 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition shadow-sm">
+        <span>👑</span>
+        <span>Super Admin</span>
+      </a>
       <div id="userProfileBadge" class="flex items-center space-x-2.5">
         <div class="hidden md:flex flex-col text-right">
           <span id="userNameTop" class="text-xs font-bold text-slate-800">Business Owner</span>
@@ -380,6 +402,14 @@
           <span id="navBillingBadge" class="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">TRIAL</span>
         </button>
 
+        <!-- SUPER ADMIN PORTAL (Sidebar) -->
+        <a href="/admin" id="nav-superadmin" class="nav-item w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-amber-950 bg-amber-100/90 hover:bg-amber-200 border border-amber-300 transition shadow-xs hidden">
+          <div class="flex items-center space-x-3">
+            <span class="text-xs">👑</span>
+            <span class="font-bold text-xs">Super Admin Portal</span>
+          </div>
+          <span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-600 text-white">MASTER</span>
+        </a>
         <button onclick="navigateTo('/admin')" id="nav-engineer" class="nav-item w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-[#087F5B] bg-[#F7FAF8] hover:bg-indigo-100 transition hidden">
           <span class="text-xs">🛠️</span>
           <span class="font-semibold text-xs">Engineer Console</span>
@@ -2778,10 +2808,15 @@
     }
 
     function checkAdminParam() {
-      const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role);
-      const isPlatformAdmin = currentUser?.role === 'superadmin';
+      const userEmail = (currentUser?.email || '').trim().toLowerCase();
+      const isPlatformAdmin = currentUser?.role === 'superadmin' || 
+                              userEmail === 'tanmayithakur267@gmail.com' || 
+                              userEmail === 'tanmayithakur26@gmail.com';
+      const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role) || isPlatformAdmin;
       const setHidden = (id, hidden) => document.getElementById(id)?.classList.toggle('hidden', hidden);
       setHidden('nav-engineer', !isPlatformAdmin);
+      setHidden('nav-superadmin', !isPlatformAdmin);
+      setHidden('headerSuperAdminBtn', !isPlatformAdmin);
       setHidden('cardEngineerSettings', !isPlatformAdmin);
       setHidden('dashOnboardingCard', !isAdmin);
       setHidden('dashExecutiveBanner', isAdmin);

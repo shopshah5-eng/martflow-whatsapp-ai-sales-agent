@@ -326,3 +326,34 @@ body {
 }
 
 
+
+
+/* =========================================================================
+   PERMANENT REMOVAL OF NETLIFY INJECTED BADGE / DRAWER / FEEDBACK WIDGETS
+   ========================================================================= */
+#netlify-badge,
+.netlify-badge,
+#netlify-drawer-iframe,
+[data-netlify-drawer],
+[id^="netlify-"],
+[class*="netlify-drawer"],
+netlify-drawer,
+div:has(> iframe[src*="netlify"]),
+iframe[src*="netlify.com"],
+iframe[src*="netlify"],
+.netlify-feedback-drawer,
+[aria-label*="Netlify"],
+[title*="Netlify"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  position: absolute !important;
+  left: -99999px !important;
+  top: -99999px !important;
+  z-index: -99999 !important;
+}

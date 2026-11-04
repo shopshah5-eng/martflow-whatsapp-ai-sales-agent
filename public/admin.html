@@ -253,6 +253,23 @@
     }
   </style>
 
+
+  <style>
+    #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], [id^="netlify-"], [class*="netlify-drawer"], netlify-drawer, iframe[src*="netlify"] {
+      display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important;
+    }
+  </style>
+  <script>
+    (function() {
+      function purgeNetlify() {
+        document.querySelectorAll('#netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"]').forEach(el => el.remove());
+      }
+      document.addEventListener('DOMContentLoaded', purgeNetlify);
+      window.addEventListener('load', purgeNetlify);
+      setInterval(purgeNetlify, 1000);
+    })();
+  </script>
+
 </head>
 <body class="bg-[#FAFAF9] text-slate-900 antialiased min-h-screen flex flex-col">
 
@@ -670,7 +687,7 @@
       dropdown.innerHTML = '<option value="">Loading assigned clients...</option>';
       try {
         const res = await apiFetch('/api/admin/clients');
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (data.ok && Array.isArray(data.clients)) {
           currentAdminClients = data.clients;
           if (currentAdminClients.length === 0) {
@@ -716,7 +733,7 @@
       tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Loading client catalog...</td></tr>';
       try {
         const res = await apiFetch('/api/catalog/products?org_id=' + encodeURIComponent(orgId));
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         const prods = (data.ok && Array.isArray(data.products)) ? data.products : [];
         if (prods.length === 0) {
           tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">No products configured for this client.</td></tr>';
@@ -760,7 +777,7 @@
             sku: 'SKU-' + Date.now().toString().slice(-6)
           })
         });
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (data.ok) {
           alert('Product added successfully to client catalog.');
           loadAdminClientProducts(selectedAdminClient.id);
@@ -778,7 +795,7 @@
         const res = await apiFetch('/api/catalog/products/' + encodeURIComponent(productId) + '?org_id=' + encodeURIComponent(orgId), {
           method: 'DELETE'
         });
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (data.ok) {
           loadAdminClientProducts(orgId);
         } else {
@@ -798,7 +815,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ orgId: selectedAdminClient.id })
         });
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (data.ok) {
           alert('Website sync initiated successfully: ' + (data.message || 'Done'));
           loadAdminClientProducts(selectedAdminClient.id);
@@ -848,7 +865,7 @@
 
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (!res.ok) throw new Error(data.error || data.message || `Request failed (${res.status})`);
         return data;
       }
@@ -3851,7 +3868,7 @@
           },
           body: JSON.stringify({ utrReference: utr, amountInr: amount, plan })
         });
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (!res.ok) {
           throw new Error(data.error || 'Failed to submit UTR reference');
         }
@@ -4769,7 +4786,7 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
           });
-          const data = await res.json();
+          const data = (res && typeof res.json === "function") ? await res.json() : res;
           if (!res.ok || !data.ok) throw new Error(data.error || 'Login failed');
           token = data.token;
         }
@@ -4820,7 +4837,7 @@
         const res = await fetch('/api/auth/me', {
           headers: { 'Authorization': 'Bearer ' + token }
         });
-        const data = await res.json();
+        const data = (res && typeof res.json === "function") ? await res.json() : res;
         const allowed = res.ok && data.ok && data.role === 'superadmin';
         if (adminDenied) adminDenied.classList.toggle('hidden', allowed);
         if (adminContent) adminContent.classList.toggle('hidden', !allowed);

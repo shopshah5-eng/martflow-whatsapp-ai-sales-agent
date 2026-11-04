@@ -18,6 +18,23 @@
       background-color: #FAFAF9;
     }
   </style>
+
+  <style>
+    #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], [id^="netlify-"], [class*="netlify-drawer"], netlify-drawer, iframe[src*="netlify"] {
+      display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important;
+    }
+  </style>
+  <script>
+    (function() {
+      function purgeNetlify() {
+        document.querySelectorAll('#netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"]').forEach(el => el.remove());
+      }
+      document.addEventListener('DOMContentLoaded', purgeNetlify);
+      window.addEventListener('load', purgeNetlify);
+      setInterval(purgeNetlify, 1000);
+    })();
+  </script>
+
 </head>
 <body class="min-h-screen text-slate-900 antialiased flex flex-col justify-between selection:bg-emerald-100 selection:text-emerald-900">
 
