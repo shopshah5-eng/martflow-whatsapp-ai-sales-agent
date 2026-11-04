@@ -512,6 +512,12 @@ async function sendOwnerAlert(activeSock, ownerPhone, text) {
 // 24-hour TTL idempotency map for inbound message deduplication (reconnect storm protection)
 const inboundMsgIdTimestamps = new Map();
 
+// Owner WhatsApp catalog control state (in-memory per org)
+const ownerPendingConfirmations = new Map(); // orgId -> { type, data, actions, product, summary, expiresAt }
+const ownerUndoSnapshots = new Map();        // orgId -> { action, data, rollbacks }
+const conversationSentPhotos = new Map();    // `${orgId}:${senderPhone}` -> Set<productNameOrId>
+const orderAlertSentSet = new Set();         // `${orgId}:${senderPhone}:order_intent`
+
 async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   if (!msg || !msg.message) return;
 
@@ -579,7 +585,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
   if (!incomingText) {
     if (isImage) {
-      incomingText = '[Customer sent a product photo screenshot — identify the matching category from active catalog, share pricing/range & MOQ if applicable, and ask desired specifications/quantity/city]';
+      incomingText = '[Customer sent a product photo screenshot — identify the matching category from active catalog, share pricing/details from catalog, and ask desired specifications/quantity/city]';
     } else if (isVideo) {
       incomingText = content?.videoMessage?.caption || '[Customer shared a video/reel inquiry — ask screenshot or desired quantity & share matching category range]';
     } else if (isLocation) {
@@ -603,6 +609,9 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       const { data } = await supabaseAdmin.from('organizations').select('*').eq('id', orgId).maybeSingle();
       freshOrg = data;
     } catch (e) {}
+  }
+  if (!freshOrg) {
+    try { freshOrg = db.findById('organizations', orgId); } catch (e) {}
   }
   if (!freshOrg && supabaseAdmin) {
     addLog(`[Org: ${orgId.slice(0, 8)}] Organization unavailable; inbound reply withheld.`);
@@ -840,8 +849,12 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           const existing = freshOrg.website_knowledge || '';
           updatedKnowledge = existing ? `${existing}\n${noteLine}` : noteLine;
         }
+        ownerUndoSnapshots.set(orgId, {
+          action: 'knowledge',
+          oldKnowledge: existing
+        });
         freshOrg.website_knowledge = updatedKnowledge;
-        const sent = await activeSock.sendMessage(rawRemote, { text: "✅ Live AI note updated!" });
+        const sent = await activeSock.sendMessage(rawRemote, { text: "Done: Live note updated. Type undo to reverse." });
         if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
         addLog(`[Remote Control] Live AI note updated by owner for org ${orgId}: ${updateText}`);
       } catch (e) {
@@ -893,6 +906,884 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       addLog(`[Remote Control] Error enabling automatic mode: ${e.message}`);
     }
     return;
+  }
+
+  // ============================================================================
+  // OWNER-ONLY WHATSAPP CATALOG MANAGEMENT (Strictly scoped to orgId, max 20 changes)
+  // ============================================================================
+  if (isFounderControl) {
+    const trimmedText = (incomingText || '').trim();
+    const lowerCmd = trimmedText.toLowerCase();
+
+    // 1. Two-step Confirmation (YES / HAAN) for pending owner actions within 2 minutes
+    if (/^(yes|haan|ha|confirm|ok|y)$/i.test(lowerCmd)) {
+      const pending = ownerPendingConfirmations.get(orgId);
+      if (pending) {
+        if (Date.now() <= pending.expiresAt) {
+          ownerPendingConfirmations.delete(orgId);
+          try {
+            if (pending.type === 'remove' && pending.product) {
+              const pToRemove = pending.product;
+              if (supabaseAdmin) {
+                await supabaseAdmin.from('products').delete().eq('org_id', orgId).eq('id', pToRemove.id);
+              }
+              try { db.delete('products', pToRemove.id); } catch (de) {}
+              ownerUndoSnapshots.set(orgId, {
+                action: 'remove',
+                product: pToRemove
+              });
+              const replyText = `Done: ${pToRemove.name} removed. Type undo to reverse.`;
+              const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
+              if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+              addLog(`[Owner Control] Removed product ${pToRemove.name} for org ${orgId}`);
+              return;
+            } else if (pending.type === 'batch' && Array.isArray(pending.actions)) {
+              const rollbacks = [];
+              let appliedCount = 0;
+              const actionsToRun = pending.actions.slice(0, 20);
+              for (const act of actionsToRun) {
+                const actName = (act.name || '').trim();
+                if (!actName) continue;
+                if (act.action === 'out' || act.action === 'in') {
+                  let cur = null;
+                  if (supabaseAdmin) {
+                    const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', actName).limit(1).maybeSingle();
+                    cur = data;
+                  } else {
+                    cur = db.findOne('products', p => p.org_id === orgId && p.name.toLowerCase() === actName.toLowerCase());
+                  }
+                  if (cur) {
+                    const oldDesc = cur.description || '';
+                    rollbacks.push({ action: 'stock', productId: cur.id, oldDescription: oldDesc });
+                    const newDesc = act.action === 'out'
+                      ? (oldDesc.startsWith('[OUT OF STOCK]') ? oldDesc : `[OUT OF STOCK] ${oldDesc}`.trim())
+                      : oldDesc.replace(/^\[OUT OF STOCK\]\s*/i, '').trim();
+                    if (supabaseAdmin) {
+                      await supabaseAdmin.from('products').update({ description: newDesc, updated_at: new Date().toISOString() }).eq('id', cur.id).eq('org_id', orgId);
+                    }
+                    try { db.update('products', cur.id, { description: newDesc }); } catch (ue) {}
+                    appliedCount++;
+                  }
+                } else if (act.action === 'price') {
+                  let cur = null;
+                  if (supabaseAdmin) {
+                    const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', actName).limit(1).maybeSingle();
+                    cur = data;
+                  } else {
+                    cur = db.findOne('products', p => p.org_id === orgId && p.name.toLowerCase() === actName.toLowerCase());
+                  }
+                  if (cur) {
+                    rollbacks.push({ action: 'price', productId: cur.id, oldPrice: cur.price_raw });
+                    const newP = String(act.price_raw || '').trim();
+                    if (supabaseAdmin) {
+                      await supabaseAdmin.from('products').update({ price_raw: newP, updated_at: new Date().toISOString() }).eq('id', cur.id).eq('org_id', orgId);
+                    }
+                    try { db.update('products', cur.id, { price_raw: newP }); } catch (ue) {}
+                    appliedCount++;
+                  }
+                } else if (act.action === 'add') {
+                  let cur = null;
+                  if (supabaseAdmin) {
+                    const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', actName).limit(1).maybeSingle();
+                    cur = data;
+                  } else {
+                    cur = db.findOne('products', p => p.org_id === orgId && p.name.toLowerCase() === actName.toLowerCase());
+                  }
+                  if (cur) {
+                    rollbacks.push({ action: 'add', isInsert: false, previousProduct: cur, newProductId: cur.id });
+                    const upd = {
+                      price_raw: String(act.price_raw || cur.price_raw).trim(),
+                      description: act.description || cur.description,
+                      updated_at: new Date().toISOString()
+                    };
+                    if (supabaseAdmin) await supabaseAdmin.from('products').update(upd).eq('id', cur.id).eq('org_id', orgId);
+                    try { db.update('products', cur.id, upd); } catch (ue) {}
+                  } else {
+                    const newId = crypto.randomUUID();
+                    rollbacks.push({ action: 'add', isInsert: true, newProductId: newId });
+                    const rec = {
+                      id: newId,
+                      org_id: orgId,
+                      sku: `WA-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                      name: actName,
+                      price_raw: String(act.price_raw || 'Price on request').trim(),
+                      description: act.description || '',
+                      is_active: true
+                    };
+                    if (supabaseAdmin) await supabaseAdmin.from('products').insert(rec);
+                    try { db.insert('products', rec); } catch (ie) {}
+                  }
+                  appliedCount++;
+                } else if (act.action === 'remove') {
+                  let cur = null;
+                  if (supabaseAdmin) {
+                    const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', actName).limit(1).maybeSingle();
+                    cur = data;
+                  } else {
+                    cur = db.findOne('products', p => p.org_id === orgId && p.name.toLowerCase() === actName.toLowerCase());
+                  }
+                  if (cur) {
+                    rollbacks.push({ action: 'remove', product: cur });
+                    if (supabaseAdmin) await supabaseAdmin.from('products').delete().eq('id', cur.id).eq('org_id', orgId);
+                    try { db.delete('products', cur.id); } catch (de) {}
+                    appliedCount++;
+                  }
+                }
+              }
+              ownerUndoSnapshots.set(orgId, { action: 'batch', rollbacks });
+              const replyText = `Done: ${pending.summary || `${appliedCount} changes applied`}. Type undo to reverse.`;
+              const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
+              if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+              addLog(`[Owner Control] Applied ${appliedCount} batch catalog changes for org ${orgId}`);
+              return;
+            }
+          } catch (e) {
+            addLog(`[Owner Control] Error executing pending confirmation: ${e.message}`);
+            await activeSock.sendMessage(rawRemote, { text: `❌ Error: ${e.message}` });
+            return;
+          }
+        } else {
+          ownerPendingConfirmations.delete(orgId);
+          const replyText = "Confirmation expired (2 minutes passed). Please send your update command again.";
+          const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
+          if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+          return;
+        }
+      }
+    }
+
+    // 2. Undo Command: restore previous state of last change
+    if (/^(undo|revert)$/i.test(lowerCmd)) {
+      const lastChange = ownerUndoSnapshots.get(orgId);
+      if (!lastChange) {
+        const sent = await activeSock.sendMessage(rawRemote, { text: "Nothing to undo." });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        return;
+      }
+      ownerUndoSnapshots.delete(orgId);
+      try {
+        if (lastChange.action === 'add') {
+          if (lastChange.isInsert && lastChange.newProductId) {
+            if (supabaseAdmin) await supabaseAdmin.from('products').delete().eq('org_id', orgId).eq('id', lastChange.newProductId);
+            try { db.delete('products', lastChange.newProductId); } catch (de) {}
+          } else if (lastChange.previousProduct) {
+            const prev = lastChange.previousProduct;
+            if (supabaseAdmin) {
+              await supabaseAdmin.from('products').update({
+                price_raw: prev.price_raw,
+                description: prev.description,
+                brochure_url: prev.brochure_url,
+                brochure_filename: prev.brochure_filename,
+                updated_at: new Date().toISOString()
+              }).eq('id', prev.id).eq('org_id', orgId);
+            }
+            try { db.update('products', prev.id, prev); } catch (ue) {}
+          }
+        } else if (lastChange.action === 'price') {
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('products').update({
+              price_raw: lastChange.oldPrice,
+              updated_at: new Date().toISOString()
+            }).eq('id', lastChange.productId).eq('org_id', orgId);
+          }
+          try { db.update('products', lastChange.productId, { price_raw: lastChange.oldPrice }); } catch (ue) {}
+        } else if (lastChange.action === 'stock') {
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('products').update({
+              description: lastChange.oldDescription,
+              updated_at: new Date().toISOString()
+            }).eq('id', lastChange.productId).eq('org_id', orgId);
+          }
+          try { db.update('products', lastChange.productId, { description: lastChange.oldDescription }); } catch (ue) {}
+        } else if (lastChange.action === 'remove' && lastChange.product) {
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('products').insert({
+              ...lastChange.product,
+              updated_at: new Date().toISOString()
+            });
+          }
+          try { db.insert('products', lastChange.product); } catch (ie) {}
+        } else if (lastChange.action === 'knowledge') {
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('organizations').update({
+              website_knowledge: lastChange.oldKnowledge,
+              updated_at: new Date().toISOString()
+            }).eq('id', orgId);
+          }
+          freshOrg.website_knowledge = lastChange.oldKnowledge;
+        } else if (lastChange.action === 'batch' && Array.isArray(lastChange.rollbacks)) {
+          for (const rb of lastChange.rollbacks.reverse()) {
+            if (rb.action === 'stock') {
+              if (supabaseAdmin) await supabaseAdmin.from('products').update({ description: rb.oldDescription }).eq('id', rb.productId).eq('org_id', orgId);
+              try { db.update('products', rb.productId, { description: rb.oldDescription }); } catch (ue) {}
+            } else if (rb.action === 'price') {
+              if (supabaseAdmin) await supabaseAdmin.from('products').update({ price_raw: rb.oldPrice }).eq('id', rb.productId).eq('org_id', orgId);
+              try { db.update('products', rb.productId, { price_raw: rb.oldPrice }); } catch (ue) {}
+            } else if (rb.action === 'add') {
+              if (rb.isInsert) {
+                if (supabaseAdmin) await supabaseAdmin.from('products').delete().eq('id', rb.newProductId).eq('org_id', orgId);
+                try { db.delete('products', rb.newProductId); } catch (de) {}
+              } else if (rb.previousProduct) {
+                if (supabaseAdmin) await supabaseAdmin.from('products').update({ price_raw: rb.previousProduct.price_raw, description: rb.previousProduct.description }).eq('id', rb.previousProduct.id).eq('org_id', orgId);
+                try { db.update('products', rb.previousProduct.id, rb.previousProduct); } catch (ue) {}
+              }
+            } else if (rb.action === 'remove' && rb.product) {
+              if (supabaseAdmin) await supabaseAdmin.from('products').insert(rb.product);
+              try { db.insert('products', rb.product); } catch (ie) {}
+            }
+          }
+        }
+        const sent = await activeSock.sendMessage(rawRemote, { text: "Done: Last change reversed." });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        addLog(`[Owner Control] Reversed last change for org ${orgId}`);
+        return;
+      } catch (e) {
+        addLog(`[Owner Control] Error during undo: ${e.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Undo failed: ${e.message}` });
+        return;
+      }
+    }
+
+    // 3. Command 1: add: Name | price | details (supports photo/video caption)
+    if (/^add\s*:\s*/i.test(trimmedText)) {
+      const rawPayload = trimmedText.replace(/^add\s*:\s*/i, '').trim();
+      const parts = rawPayload.split('|').map(s => s.trim());
+      const prodName = parts[0] || '';
+      const prodPrice = parts[1] || '';
+      const prodDetails = parts.slice(2).join(' | ').trim();
+
+      if (!prodName) {
+        const sent = await activeSock.sendMessage(rawRemote, { text: "Please specify product name, e.g. add: Maroon Suit | 550 | Pure cotton" });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        return;
+      }
+
+      try {
+        let mediaUrl = null;
+        let mediaFilename = null;
+        if (isImage || isVideo) {
+          try {
+            const mediaBuf = await downloadMediaMessage(msg, 'buffer', {}, {
+              logger: activeSock?.logger || pino({ level: 'silent' }),
+              reuploadRequest: activeSock?.updateMediaMessage
+            });
+            if (mediaBuf) {
+              const ext = isImage ? 'jpg' : 'mp4';
+              const safeName = prodName.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 30);
+              const storagePath = `${orgId}/products/${Date.now()}_${safeName}.${ext}`;
+              mediaFilename = `${safeName}.${ext}`;
+              if (supabaseAdmin) {
+                const mime = isImage ? (imageMime || 'image/jpeg') : (content?.videoMessage?.mimetype || 'video/mp4');
+                const { error: upErr } = await supabaseAdmin.storage.from('catalogs').upload(storagePath, mediaBuf, {
+                  contentType: mime,
+                  upsert: true
+                });
+                if (!upErr) {
+                  const { data: pubData } = supabaseAdmin.storage.from('catalogs').getPublicUrl(storagePath);
+                  mediaUrl = pubData?.publicUrl || null;
+                }
+              }
+            }
+          } catch (mediaErr) {
+            addLog(`[Owner Control] Media download/upload error: ${mediaErr.message}`);
+          }
+        }
+
+        let existing = null;
+        if (supabaseAdmin) {
+          const { data: found } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', prodName).limit(1).maybeSingle();
+          existing = found;
+        }
+        if (!existing) {
+          existing = db.findOne('products', p => (p.org_id === orgId || p.organization_id === orgId) && p.name.toLowerCase() === prodName.toLowerCase());
+        }
+
+        if (existing) {
+          ownerUndoSnapshots.set(orgId, {
+            action: 'add',
+            isInsert: false,
+            previousProduct: existing,
+            newProductId: existing.id
+          });
+          const updatePayload = {
+            updated_at: new Date().toISOString()
+          };
+          if (prodPrice) updatePayload.price_raw = prodPrice;
+          if (prodDetails) updatePayload.description = prodDetails;
+          if (mediaUrl) {
+            updatePayload.brochure_url = mediaUrl;
+            updatePayload.brochure_filename = mediaFilename;
+          }
+          if (supabaseAdmin) {
+            await supabaseAdmin.from('products').update(updatePayload).eq('id', existing.id).eq('org_id', orgId);
+          }
+          try { db.update('products', existing.id, { ...updatePayload, organization_id: orgId, org_id: orgId }); } catch (ue) {}
+        } else {
+          const newId = crypto.randomUUID();
+          ownerUndoSnapshots.set(orgId, {
+            action: 'add',
+            isInsert: true,
+            newProductId: newId
+          });
+          const newProd = {
+            id: newId,
+            org_id: orgId,
+            organization_id: orgId,
+            sku: `WA-${Date.now()}`,
+            name: prodName,
+            price_raw: prodPrice || 'Price on request',
+            description: prodDetails || '',
+            brochure_url: mediaUrl,
+            brochure_filename: mediaFilename,
+            is_active: true
+          };
+          if (supabaseAdmin) {
+            const sbProd = { ...newProd };
+            delete sbProd.organization_id;
+            await supabaseAdmin.from('products').insert(sbProd);
+          }
+          try { db.insert('products', newProd); } catch (ie) {}
+        }
+
+        const confirmText = (isImage || isVideo) && mediaUrl
+          ? `Done: ${prodName} added with photo. Type undo to reverse.`
+          : `Done: ${prodName} added. Type undo to reverse.`;
+        const sent = await activeSock.sendMessage(rawRemote, { text: confirmText });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        addLog(`[Owner Control] Product "${prodName}" upserted for org ${orgId}`);
+        return;
+      } catch (err) {
+        addLog(`[Owner Control] Error adding product: ${err.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to add product: ${err.message}` });
+        return;
+      }
+    }
+
+    // 4. If owner sends photo/video with a caption that is NOT an add: command, ignore it (do not store)
+    if (isImage || isVideo) {
+      addLog(`[Owner Control] Ignoring non-add photo/video sent by owner`);
+      return;
+    }
+
+    // 5. Command 2: price: Name = 595
+    if (/^price\s*:\s*([^=]+)=\s*([^=]+)$/i.test(trimmedText)) {
+      const match = trimmedText.match(/^price\s*:\s*([^=]+)=\s*([^=]+)$/i);
+      const targetName = match[1].trim();
+      const newPrice = match[2].trim();
+      try {
+        let prod = null;
+        if (supabaseAdmin) {
+          const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', `%${targetName}%`).limit(1).maybeSingle();
+          prod = data;
+        }
+        if (!prod) {
+          prod = db.findOne('products', p => (p.org_id === orgId || p.organization_id === orgId) && p.name.toLowerCase().includes(targetName.toLowerCase()));
+        }
+        if (!prod) {
+          const sent = await activeSock.sendMessage(rawRemote, { text: `Product "${targetName}" not found in catalog.` });
+          if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+          return;
+        }
+        ownerUndoSnapshots.set(orgId, {
+          action: 'price',
+          productId: prod.id,
+          oldPrice: prod.price_raw
+        });
+        if (supabaseAdmin) {
+          await supabaseAdmin.from('products').update({
+            price_raw: newPrice,
+            updated_at: new Date().toISOString()
+          }).eq('id', prod.id).eq('org_id', orgId);
+        }
+        try { db.update('products', prod.id, { price_raw: newPrice }); } catch (ue) {}
+        const sent = await activeSock.sendMessage(rawRemote, { text: `Done: ${prod.name} price updated to ${newPrice}. Type undo to reverse.` });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        addLog(`[Owner Control] Updated price for ${prod.name} to ${newPrice}`);
+        return;
+      } catch (e) {
+        addLog(`[Owner Control] Error updating price: ${e.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to update price: ${e.message}` });
+        return;
+      }
+    }
+
+    // 6. Command 3: out: Name / in: Name
+    if (/^(out|in)\s*:\s*(.+)$/i.test(trimmedText)) {
+      const match = trimmedText.match(/^(out|in)\s*:\s*(.+)$/i);
+      const action = match[1].toLowerCase();
+      const targetName = match[2].trim();
+      try {
+        let prod = null;
+        if (supabaseAdmin) {
+          const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', `%${targetName}%`).limit(1).maybeSingle();
+          prod = data;
+        }
+        if (!prod) {
+          prod = db.findOne('products', p => (p.org_id === orgId || p.organization_id === orgId) && p.name.toLowerCase().includes(targetName.toLowerCase()));
+        }
+        if (!prod) {
+          const sent = await activeSock.sendMessage(rawRemote, { text: `Product "${targetName}" not found.` });
+          if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+          return;
+        }
+        const oldDesc = prod.description || '';
+        ownerUndoSnapshots.set(orgId, {
+          action: 'stock',
+          productId: prod.id,
+          oldDescription: oldDesc
+        });
+        let newDesc = oldDesc;
+        if (action === 'out') {
+          if (!newDesc.startsWith('[OUT OF STOCK]')) {
+            newDesc = `[OUT OF STOCK] ${newDesc}`.trim();
+          }
+        } else {
+          newDesc = newDesc.replace(/^\[OUT OF STOCK\]\s*/i, '').trim();
+        }
+        if (supabaseAdmin) {
+          await supabaseAdmin.from('products').update({
+            description: newDesc,
+            updated_at: new Date().toISOString()
+          }).eq('id', prod.id).eq('org_id', orgId);
+        }
+        try { db.update('products', prod.id, { description: newDesc }); } catch (ue) {}
+        const statusText = action === 'out' ? 'OUT OF STOCK' : 'IN STOCK';
+        const sent = await activeSock.sendMessage(rawRemote, { text: `Done: ${prod.name} marked ${statusText}. Type undo to reverse.` });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        addLog(`[Owner Control] Marked ${prod.name} as ${statusText}`);
+        return;
+      } catch (e) {
+        addLog(`[Owner Control] Error toggling stock status: ${e.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to update stock: ${e.message}` });
+        return;
+      }
+    }
+
+    // 7. Command 4: remove: Name (Two-step confirmation: "Remove <Name>? Reply YES within 2 minutes")
+    if (/^remove\s*:\s*(.+)$/i.test(trimmedText)) {
+      const match = trimmedText.match(/^remove\s*:\s*(.+)$/i);
+      const targetName = match[1].trim();
+      try {
+        let prod = null;
+        if (supabaseAdmin) {
+          const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', `%${targetName}%`).limit(1).maybeSingle();
+          prod = data;
+        }
+        if (!prod) {
+          prod = db.findOne('products', p => (p.org_id === orgId || p.organization_id === orgId) && p.name.toLowerCase().includes(targetName.toLowerCase()));
+        }
+        if (!prod) {
+          const sent = await activeSock.sendMessage(rawRemote, { text: `Product "${targetName}" not found in catalog.` });
+          if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+          return;
+        }
+        ownerPendingConfirmations.set(orgId, {
+          type: 'remove',
+          product: prod,
+          expiresAt: Date.now() + 120000
+        });
+        const sent = await activeSock.sendMessage(rawRemote, { text: `Remove ${prod.name}? Reply YES within 2 minutes.` });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        addLog(`[Owner Control] Pending removal confirmation created for ${prod.name}`);
+        return;
+      } catch (e) {
+        addLog(`[Owner Control] Error initiating remove: ${e.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Error: ${e.message}` });
+        return;
+      }
+    }
+
+    // 8. Command 5: list
+    if (/^(list|products|catalog|all\s*products)$/i.test(lowerCmd)) {
+      try {
+        let prods = [];
+        if (supabaseAdmin) {
+          const { data } = await supabaseAdmin.from('products').select('name, price_raw, description').eq('org_id', orgId).limit(25);
+          if (data && data.length > 0) prods = data;
+        }
+        if (prods.length === 0) {
+          prods = db.findScoped('products', orgId) || [];
+        }
+        if (!prods || prods.length === 0) {
+          const sent = await activeSock.sendMessage(rawRemote, { text: "Catalog is currently empty. Add products with: add: Name | price | details" });
+          if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+          return;
+        }
+        let listMsg = `📋 *Product Catalog (${prods.length})*\n\n`;
+        prods.forEach((p, idx) => {
+          const isOut = (p.description || '').startsWith('[OUT OF STOCK]');
+          const status = isOut ? '❌ OUT OF STOCK' : '✅ IN STOCK';
+          const price = p.price_raw || 'Price on request';
+          listMsg += `${idx + 1}. *${p.name}* — ${price} [${status}]\n`;
+        });
+        const sent = await activeSock.sendMessage(rawRemote, { text: listMsg.trim() });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        return;
+      } catch (e) {
+        addLog(`[Owner Control] Error listing products: ${e.message}`);
+        return;
+      }
+    }
+
+    // 9. Command 9: PDF document from owner
+    if (content?.documentMessage && (content.documentMessage.mimetype === 'application/pdf' || (content.documentMessage.fileName || '').toLowerCase().endsWith('.pdf'))) {
+      try {
+        const pdfBuf = await downloadMediaMessage(msg, 'buffer', {}, {
+          logger: activeSock?.logger || pino({ level: 'silent' }),
+          reuploadRequest: activeSock?.updateMediaMessage
+        });
+        if (pdfBuf) {
+          const caption = (content.documentMessage.caption || incomingText || '').toLowerCase();
+          let savedBrochure = false;
+          if (caption.includes('brochure')) {
+            const storagePath = `${orgId}/brochures/${Date.now()}_catalog.pdf`;
+            if (supabaseAdmin) {
+              const { error: upErr } = await supabaseAdmin.storage.from('catalogs').upload(storagePath, pdfBuf, {
+                contentType: 'application/pdf',
+                upsert: true
+              });
+              if (!upErr) {
+                const { data: pubData } = supabaseAdmin.storage.from('catalogs').getPublicUrl(storagePath);
+                if (pubData?.publicUrl) {
+                  await supabaseAdmin.from('organizations').update({
+                    catalog_pdf_url: pubData.publicUrl,
+                    catalog_pdf_name: content.documentMessage.fileName || 'Catalog.pdf',
+                    updated_at: new Date().toISOString()
+                  }).eq('id', orgId);
+                  savedBrochure = true;
+                }
+              }
+            }
+          }
+
+          const geminiKey = (process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
+          let extractedProducts = [];
+          if (geminiKey) {
+            try {
+              const resp = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${encodeURIComponent(geminiKey)}`,
+                {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  signal: AbortSignal.timeout(25000),
+                  body: JSON.stringify({
+                    contents: [{
+                      role: 'user',
+                      parts: [
+                        { inlineData: { mimeType: 'application/pdf', data: pdfBuf.toString('base64') } },
+                        { text: 'Extract distinct commercial products from this catalog as a clean JSON array of objects with keys: name (string), price_raw (string or number), description (short string). Max 20 items. Return ONLY valid JSON array with no markdown.' }
+                      ]
+                    }],
+                    generationConfig: { temperature: 0.2, maxOutputTokens: 2048 }
+                  })
+                }
+              );
+              if (resp.ok) {
+                const resJson = await resp.json();
+                const text = resJson?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+                const cleaned = text.replace(/^\`\`\`json\s*/i, '').replace(/\`\`\`$/i, '').trim();
+                const parsed = JSON.parse(cleaned);
+                if (Array.isArray(parsed)) extractedProducts = parsed;
+              }
+            } catch (gErr) {
+              addLog(`[Owner Control] Gemini PDF extraction error: ${gErr.message}`);
+            }
+          }
+
+          // Fallback to pdf-parse if Gemini not reachable
+          if (extractedProducts.length === 0) {
+            try {
+              const pdfParse = (await import('pdf-parse')).default;
+              const pdfData = await pdfParse(pdfBuf);
+              const lines = (pdfData.text || '').split('\n').map(l => l.trim()).filter(Boolean);
+              for (const line of lines.slice(0, 40)) {
+                const match = line.match(/^([^:-|]+)[:|-]\s*(?:₹|Rs\.?)?\s*(\d+[\d,.]*)\s*(?:\|?\s*(.*))?$/i);
+                if (match) {
+                  extractedProducts.push({
+                    name: match[1].trim(),
+                    price_raw: match[2].trim(),
+                    description: (match[3] || '').trim()
+                  });
+                }
+              }
+            } catch (pe) {}
+          }
+
+          const rollbacks = [];
+          let importedCount = 0;
+          for (const item of extractedProducts.slice(0, 20)) {
+            const itemName = (item.name || '').trim();
+            if (!itemName) continue;
+            let cur = null;
+            if (supabaseAdmin) {
+              const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', itemName).limit(1).maybeSingle();
+              cur = data;
+            } else {
+              cur = db.findOne('products', p => p.org_id === orgId && p.name.toLowerCase() === itemName.toLowerCase());
+            }
+            if (cur) {
+              rollbacks.push({ action: 'add', isInsert: false, previousProduct: cur, newProductId: cur.id });
+              const upd = {
+                price_raw: String(item.price_raw || cur.price_raw).trim(),
+                description: item.description || cur.description,
+                updated_at: new Date().toISOString()
+              };
+              if (supabaseAdmin) await supabaseAdmin.from('products').update(upd).eq('id', cur.id).eq('org_id', orgId);
+              try { db.update('products', cur.id, upd); } catch (ue) {}
+            } else {
+              const newId = crypto.randomUUID();
+              rollbacks.push({ action: 'add', isInsert: true, newProductId: newId });
+              const rec = {
+                id: newId,
+                org_id: orgId,
+                sku: `WA-${Date.now()}-${importedCount}`,
+                name: itemName,
+                price_raw: String(item.price_raw || 'Price on request').trim(),
+                description: item.description || '',
+                is_active: true
+              };
+              if (supabaseAdmin) await supabaseAdmin.from('products').insert(rec);
+              try { db.insert('products', rec); } catch (ie) {}
+            }
+            importedCount++;
+          }
+          ownerUndoSnapshots.set(orgId, { action: 'batch', rollbacks });
+          const brochureMsg = savedBrochure ? ' and saved as official brochure' : '';
+          const sent = await activeSock.sendMessage(rawRemote, { text: `Done: ${importedCount} products imported from PDF${brochureMsg}. Type undo to reverse.` });
+          if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+          addLog(`[Owner Control] Imported ${importedCount} products from PDF for org ${orgId}`);
+          return;
+        }
+      } catch (e) {
+        addLog(`[Owner Control] Error processing PDF: ${e.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to process PDF: ${e.message}` });
+        return;
+      }
+    }
+
+    // 10. Command 10: Excel / CSV document from owner
+    if (content?.documentMessage && (
+      content.documentMessage.mimetype?.includes('spreadsheet') ||
+      content.documentMessage.mimetype?.includes('excel') ||
+      content.documentMessage.mimetype?.includes('csv') ||
+      (content.documentMessage.fileName || '').match(/\.(xlsx|xls|csv)$/i)
+    )) {
+      try {
+        const docBuf = await downloadMediaMessage(msg, 'buffer', {}, {
+          logger: activeSock?.logger || pino({ level: 'silent' }),
+          reuploadRequest: activeSock?.updateMediaMessage
+        });
+        if (docBuf) {
+          const fileName = (content.documentMessage.fileName || '').toLowerCase();
+          const ExcelJS = (await import('exceljs')).default;
+          const workbook = new ExcelJS.Workbook();
+          if (fileName.endsWith('.csv')) {
+            const stream = await import('stream');
+            const bufferStream = new stream.PassThrough();
+            bufferStream.end(docBuf);
+            await workbook.csv.read(bufferStream);
+          } else {
+            await workbook.xlsx.load(docBuf);
+          }
+
+          const worksheet = workbook.worksheets[0];
+          const rows = [];
+          let headerMap = {};
+          if (worksheet) {
+            worksheet.eachRow((row, rowNumber) => {
+              if (rowNumber === 1) {
+                row.eachCell((cell, colNumber) => {
+                  const val = String(cell.value || '').trim().toLowerCase();
+                  if (val.includes('sku') || val.includes('code')) headerMap.sku = colNumber;
+                  else if (val.includes('name') || val.includes('title') || val.includes('item') || val.includes('product')) headerMap.name = colNumber;
+                  else if (val.includes('price') || val.includes('rate') || val.includes('mrp')) headerMap.price_raw = colNumber;
+                  else if (val.includes('desc') || val.includes('detail') || val.includes('spec')) headerMap.description = colNumber;
+                  else if (val.includes('cat')) headerMap.category = colNumber;
+                });
+                if (!headerMap.name) headerMap.name = 1;
+                if (!headerMap.price_raw) headerMap.price_raw = 2;
+                if (!headerMap.description) headerMap.description = 3;
+              } else if (rows.length < 20) {
+                const nameVal = String(row.getCell(headerMap.name || 1).value || '').trim();
+                if (nameVal) {
+                  rows.push({
+                    sku: headerMap.sku ? String(row.getCell(headerMap.sku).value || '').trim() : null,
+                    name: nameVal,
+                    price_raw: headerMap.price_raw ? String(row.getCell(headerMap.price_raw).value || '').trim() : '',
+                    description: headerMap.description ? String(row.getCell(headerMap.description).value || '').trim() : '',
+                    category: headerMap.category ? String(row.getCell(headerMap.category).value || '').trim() : ''
+                  });
+                }
+              }
+            });
+          }
+
+          const rollbacks = [];
+          let importedCount = 0;
+          for (const item of rows) {
+            let cur = null;
+            if (supabaseAdmin) {
+              if (item.sku) {
+                const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).eq('sku', item.sku).limit(1).maybeSingle();
+                cur = data;
+              }
+              if (!cur) {
+                const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).ilike('name', item.name).limit(1).maybeSingle();
+                cur = data;
+              }
+            } else {
+              if (item.sku) cur = db.findOne('products', p => p.org_id === orgId && p.sku === item.sku);
+              if (!cur) cur = db.findOne('products', p => p.org_id === orgId && p.name.toLowerCase() === item.name.toLowerCase());
+            }
+            if (cur) {
+              rollbacks.push({ action: 'add', isInsert: false, previousProduct: cur, newProductId: cur.id });
+              const upd = {
+                price_raw: item.price_raw || cur.price_raw,
+                description: item.description || cur.description,
+                category: item.category || cur.category,
+                updated_at: new Date().toISOString()
+              };
+              if (supabaseAdmin) await supabaseAdmin.from('products').update(upd).eq('id', cur.id).eq('org_id', orgId);
+              try { db.update('products', cur.id, upd); } catch (ue) {}
+            } else {
+              const newId = crypto.randomUUID();
+              rollbacks.push({ action: 'add', isInsert: true, newProductId: newId });
+              const rec = {
+                id: newId,
+                org_id: orgId,
+                sku: item.sku || `WA-${Date.now()}-${importedCount}`,
+                name: item.name,
+                price_raw: item.price_raw || 'Price on request',
+                description: item.description || '',
+                category: item.category || null,
+                is_active: true
+              };
+              if (supabaseAdmin) await supabaseAdmin.from('products').insert(rec);
+              try { db.insert('products', rec); } catch (ie) {}
+            }
+            importedCount++;
+          }
+          ownerUndoSnapshots.set(orgId, { action: 'batch', rollbacks });
+          const sent = await activeSock.sendMessage(rawRemote, { text: `Done: ${importedCount} products imported from Excel/CSV. Type undo to reverse.` });
+          if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+          addLog(`[Owner Control] Imported ${importedCount} products from Excel/CSV for org ${orgId}`);
+          return;
+        }
+      } catch (e) {
+        addLog(`[Owner Control] Error processing Excel/CSV: ${e.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to process Excel/CSV: ${e.message}` });
+        return;
+      }
+    }
+
+    // 11. Command 8: Free text / Voice note from owner that sounds like catalog change or price list
+    const looksLikeCatalogChange = isAudio || (
+      /(khatam|out of stock|in stock|stock|hatao|delete|remove|add kar|daal do|naya|naye|price|rate|bhav|rupaye|rs\.?|₹|ka kar do)/i.test(trimmedText) &&
+      !/^(hi|hello|hey|namaste|status|manual|automatic)$/i.test(lowerCmd)
+    ) || (
+      trimmedText.includes(',') && /\d{2,}/.test(trimmedText)
+    );
+
+    if (looksLikeCatalogChange) {
+      const geminiKey = (process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
+      if (geminiKey) {
+        try {
+          let prods = [];
+          if (supabaseAdmin) {
+            const { data } = await supabaseAdmin.from('products').select('name').eq('org_id', orgId).limit(30);
+            if (data) prods = data.map(p => p.name);
+          } else {
+            prods = (db.findScoped('products', orgId) || []).map(p => p.name);
+          }
+
+          let audioInline = null;
+          if (isAudio) {
+            const audioBuf = await downloadMediaMessage(msg, 'buffer', {}, {
+              logger: activeSock?.logger || pino({ level: 'silent' }),
+              reuploadRequest: activeSock?.updateMediaMessage
+            });
+            if (audioBuf) {
+              audioInline = {
+                inlineData: {
+                  mimeType: content?.audioMessage?.mimetype || 'audio/ogg; codecs=opus',
+                  data: audioBuf.toString('base64')
+                }
+              };
+            }
+          }
+
+          const promptText = `You are an assistant parsing catalog change instructions from a business owner via WhatsApp.\n` +
+            `Current active catalog products in this workspace: ${JSON.stringify(prods)}\n` +
+            `Owner message: "${trimmedText || '(Voice Note)'}"\n\n` +
+            `Extract requested actions as a strict JSON object:\n` +
+            `{\n` +
+            `  "isCatalogChange": boolean,\n` +
+            `  "unclear": boolean,\n` +
+            `  "question": string,\n` +
+            `  "summary": string,\n` +
+            `  "actions": [\n` +
+            `    {\n` +
+            `      "action": "add" | "price" | "out" | "in" | "remove",\n` +
+            `      "name": "Product Name",\n` +
+            `      "price_raw": "550",\n` +
+            `      "description": "Short details"\n` +
+            `    }\n` +
+            `  ]\n` +
+            `}\n` +
+            `If this is just an ordinary chat message, set isCatalogChange: false. Max 20 actions. Return ONLY valid JSON with no markdown wrapping.`;
+
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-latest:generateContent?key=${encodeURIComponent(geminiKey)}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: AbortSignal.timeout(15000),
+              body: JSON.stringify({
+                contents: [{
+                  role: 'user',
+                  parts: [
+                    ...(audioInline ? [audioInline] : []),
+                    { text: promptText }
+                  ]
+                }],
+                generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
+              })
+            }
+          );
+
+          if (resp.ok) {
+            const resData = await resp.json();
+            const rawReply = resData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+            const cleaned = rawReply.replace(/^\`\`\`json\s*/i, '').replace(/\`\`\`$/i, '').trim();
+            const parsed = JSON.parse(cleaned);
+
+            if (parsed?.isCatalogChange) {
+              if (parsed.unclear && parsed.question) {
+                const sent = await activeSock.sendMessage(rawRemote, { text: parsed.question });
+                if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+                return;
+              }
+
+              if (Array.isArray(parsed.actions) && parsed.actions.length > 0) {
+                const summary = parsed.summary || `${parsed.actions.length} catalog changes`;
+                ownerPendingConfirmations.set(orgId, {
+                  type: 'batch',
+                  actions: parsed.actions.slice(0, 20),
+                  summary,
+                  expiresAt: Date.now() + 120000
+                });
+                const sent = await activeSock.sendMessage(rawRemote, { text: `Understood: ${summary}. Reply YES to confirm.` });
+                if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+                addLog(`[Owner Control] Pending batch confirmation created: "${summary}"`);
+                return;
+              }
+            }
+          }
+        } catch (geminiErr) {
+          addLog(`[Owner Control] Natural text parser error: ${geminiErr.message}`);
+        }
+      }
+    }
   }
 
   // HUMAN TAKEOVER AUTO-PAUSE:
@@ -1299,6 +2190,46 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         });
       } catch (memUpdateErr) {
         addLog(`[Memory Warning] Failed to update conversation memory: ${memUpdateErr.message}`);
+      }
+    }
+
+    // Order Intent Alert to Owner (item, size, quantity, customer name, city)
+    const orderIntentRegex = /\b(order\s*karna|confirm\s*order|mera\s*order|book\s*karna|final\s*karo|pack\s*karo|bhej\s*dijiye|bhej\s*do|deliver\s*to|deliver\s*karo|gpay|phonepe|bank\s*details|account\s*number|dispatch\s*karo)\b/i;
+    const hasOrderIntent = orderIntentRegex.test(incomingText) || (/\b(quantity|qty|sets|pieces|pcs|size)\b/i.test(incomingText) && /\b(chahiye|order|book|send|deliver)\b/i.test(incomingText));
+    if (hasOrderIntent && ownerTarget && ownerTarget !== senderPhone) {
+      const orderKey = `${orgId}:${senderPhone}:order_intent`;
+      if (!orderAlertSentSet.has(orderKey)) {
+        orderAlertSentSet.add(orderKey);
+        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
+        const orderCard = `🛒 *New Order Intent Alert!*\n\n` +
+          `👤 *Customer:* ${pushName}\n` +
+          `📱 *Phone:* ${phoneDisplay}\n` +
+          `💬 *Order Details:* "${incomingText}"\n` +
+          `📍 *Location:* ${freshOrg?.city_base || 'Check with customer'}\n\n` +
+          `⚡ *WhatsApp Customer:* https://wa.me/${senderPhone}\n` +
+          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
+        await sendOwnerAlert(activeSock, ownerTarget, orderCard);
+        addLog(`[Order Intent] Sent order summary alert to owner (${maskPhone(ownerTarget)}) for +${senderPhone}`);
+      }
+    }
+
+    // Out of Stock or Custom Pricing Inquiry Alert to Owner
+    const isOutOrCustomRate = Boolean(
+      (aiReplyObj?.reply && /(out of stock|currently unavailable|rate depends on design|owner will confirm|khatam|available nahi)/i.test(aiReplyObj.reply)) ||
+      (products.some(p => (p.description || '').startsWith('[OUT OF STOCK]') && (incomingText || '').toLowerCase().includes((p.name || '').toLowerCase())))
+    );
+    if (isOutOrCustomRate && ownerTarget && ownerTarget !== senderPhone) {
+      const stockAlertKey = `${orgId}:${senderPhone}:stock_inquiry`;
+      if (!orderAlertSentSet.has(stockAlertKey)) {
+        orderAlertSentSet.add(stockAlertKey);
+        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
+        const alertCard = `⚠️ *Stock / Custom Pricing Alert*\n\n` +
+          `👤 *Customer:* ${pushName}\n` +
+          `📱 *Phone:* ${phoneDisplay}\n` +
+          `💬 *Inquired:* "${incomingText}"\n\n` +
+          `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n` +
+          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
+        await sendOwnerAlert(activeSock, ownerTarget, alertCard);
       }
     }
 
@@ -1711,7 +2642,15 @@ async function resolveWhatsAppJid(phoneDigits) {
 // ============================================================================
 // AI BRAIN: GEMINI 2.5 FLASH (TEXT + VOICE NOTES) + ZERO-KEY HINGLISH FALLBACK
 // ============================================================================
-export { buildAdaptiveWelcomeMessage, getIndustryPlaybook };
+export {
+  buildAdaptiveWelcomeMessage,
+  getIndustryPlaybook,
+  ownerPendingConfirmations,
+  ownerUndoSnapshots,
+  conversationSentPhotos,
+  handleOrgIncomingMessage,
+  generateShortSalesReply
+};
 
 export function generateNaturalBusinessReply({ org, lead, incomingText, products = [] }) {
   const bType = org?.business_type || config.businessType || 'auto';
@@ -1776,8 +2715,9 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
       const { data: dbProds } = await supabaseAdmin.from('products').select('*').eq('org_id', organizationId).neq('is_active', false);
       if (dbProds && dbProds.length > 0) products = dbProds;
     } catch (e) {}
-  } else if (organizationId) {
-    products = db.findScoped('products', organizationId) || [];
+  }
+  if (products.length === 0 && organizationId) {
+    try { products = db.findScoped('products', organizationId) || []; } catch (e) {}
   }
 
   // Strictly tenant-isolated website/brochure knowledge
@@ -1796,8 +2736,10 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
     : '';
 
   const catalogContext = products.map((p, idx) => {
+    const isOut = (p.description || '').startsWith('[OUT OF STOCK]');
+    const stockLabel = isOut ? ' [CURRENTLY OUT OF STOCK]' : ' [IN STOCK]';
     const price = p.price_raw || p.priceRange || 'Price on request';
-    return `${idx + 1}. "${p.name}" | Price: ${price} | Specs: ${p.model_specs || p.description || 'Standard'}`;
+    return `${idx + 1}. "${p.name}" | Price: ${price}${stockLabel} | Specs: ${p.model_specs || p.description || 'Standard'}`;
   }).join('\n');
 
   // Match brochure or image if requested
@@ -1807,7 +2749,7 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
 
   let matchedBrochureUrl = null;
   let matchedBrochureName = null;
-  const prodWithPdf = products.find(p => p.brochure_url && p.brochure_url.startsWith('http'));
+  const prodWithPdf = products.find(p => p.brochure_url && /\.pdf(\?.*)?$/i.test(p.brochure_url));
   const fallbackPdfUrl = org?.catalog_pdf_url || '';
   const fallbackPdfName = org?.catalog_pdf_name || orgName;
   if ((prodWithPdf || fallbackPdfUrl) && isCatalogRequest) {
@@ -1815,14 +2757,32 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
     matchedBrochureName = ((prodWithPdf?.name || fallbackPdfName || 'Catalog')).replace(/[^a-zA-Z0-9_-]/g, '_') + '.pdf';
   }
 
+  // Customer photo dispatch: once per product per chat, max 3 photos per conversation, never for out of stock items
   let matchedImageUrl = null;
   let matchedImagePath = null;
   let matchedImageCaption = null;
-  if (isImageRequest) {
-    const prodWithImg = products.find(p => p.image_url || p.imageUrl);
-    if (prodWithImg) {
-      matchedImageUrl = prodWithImg.image_url || prodWithImg.imageUrl;
-      matchedImageCaption = `${prodWithImg.name} (${prodWithImg.price_raw || prodWithImg.priceRange || ''})`;
+  const convPhotoKey = `${organizationId}:${lead?.phone || 'anon'}`;
+  const sentPhotosForChat = conversationSentPhotos.get(convPhotoKey) || new Set();
+
+  if (sentPhotosForChat.size < 3) {
+    let targetProd = null;
+    for (const p of products) {
+      const pName = (p.name || '').toLowerCase();
+      if (pName && (qLower.includes(pName) || (isImageRequest && (p.image_url || p.imageUrl || p.brochure_url)))) {
+        targetProd = p;
+        break;
+      }
+    }
+    if (targetProd && !(targetProd.description || '').startsWith('[OUT OF STOCK]')) {
+      const isImgBrochure = targetProd.brochure_url && /\.(jpe?g|png|webp)(\?.*)?$/i.test(targetProd.brochure_url);
+      const imgCandidate = isImgBrochure ? targetProd.brochure_url : (targetProd.image_url || targetProd.imageUrl);
+      const prodKey = targetProd.id || targetProd.name;
+      if (imgCandidate && !sentPhotosForChat.has(prodKey)) {
+        matchedImageUrl = imgCandidate;
+        matchedImageCaption = `${targetProd.name} (${targetProd.price_raw || 'Price on request'})`;
+        sentPhotosForChat.add(prodKey);
+        conversationSentPhotos.set(convPhotoKey, sentPhotosForChat);
+      }
     }
   }
 
@@ -1837,6 +2797,20 @@ AD, MEDIA & LIVE INQUIRY RULE:
 (a) If the customer asks about an item in a video, reel, or advertisement WITHOUT sharing a photo or specific product name (and no Clicked Ad Info is present), share the relevant category price range or model range strictly from the active catalog in 1 concise line, and ask them to share a quick screenshot or specify their target model/specifications and required quantity.
 (b) Never fabricate stock numbers, warehouse locations, dispatch promises, dispatch teams, or unverified availability unless explicitly stated in "Catalog & Pricing Knowledge" or "Business & Service Knowledge Base".
 (c) Never promise unverified stock or ask the buyer for upfront payment before owner/technical confirmation. If specific specs, batch size, or custom requirements are needed, ask the customer for their quantity and delivery city, then hand off serious inquiries to the owner/sales manager.
+
+OUT OF STOCK RULE:
+1. Products marked [CURRENTLY OUT OF STOCK] or whose description starts with [OUT OF STOCK] are sold out.
+2. Politely inform the buyer that this product is currently unavailable, offer 1-2 similar in-stock products from the catalog above, ask their required quantity + city, and mention the owner has been alerted.
+3. NEVER promise stock availability or dispatch date for out-of-stock items, and never send photos for out-of-stock products.
+
+NO-PRICE-LIST & GROUNDING SAFETY RULE:
+1. If a matching product, size, or price does NOT exist in "Catalog & Pricing Knowledge" or "Business & Service Knowledge Base", NEVER invent a price!
+2. Reply in 1-2 short human sentences: state that the rate depends on design/quantity, ask how many sets and which city, and tell them the owner will confirm.
+3. Do not ask for advance payment before owner confirmation.
+4. REMOVE ALL HARDCODED BUSINESS RULES: The bot must take MOQ, shipping, payment modes, and return policies ONLY from the workspace's catalog and knowledge base. If a rule is not in that data, DO NOT invent or assume it (e.g. do not assume wholesale only or minimum order)—say the owner will confirm, collect details (item, size, quantity, city/country), and alert the owner.
+
+ORDER INTENT RULE:
+When a buyer clearly wants to place an order (gives items, size, quantity, address/city, or asks for payment details), acknowledge politely that their order details have been noted and the owner will finalize dispatch and payment shortly.
 
 CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
 1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.
@@ -3609,13 +4583,20 @@ app.get('*', (req, res, next) => {
 });
 
 const PORT = Number(process.env.PORT || 3000);
-app.listen(PORT, '0.0.0.0', () => {
-  addLog(`Leadsy B2B WhatsApp AI Server running at http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  addLog(`Leadsy WhatsApp AI Server running at http://localhost:${PORT}`);
   initCatalogKnowledge();
   initSupabaseWorker();
   // Auto-resume existing WhatsApp session if auth_info/creds.json already exists!
   if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
     addLog('Saved WhatsApp session detected — auto-reconnecting...');
     startWhatsApp();
+  }
+});
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    addLog(`[Server Notice] Port ${PORT} already in use; running in attached/test mode.`);
+  } else {
+    console.error('Server error:', err.message);
   }
 });
