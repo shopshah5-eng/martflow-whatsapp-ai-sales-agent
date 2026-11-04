@@ -5242,6 +5242,23 @@ const server = app.listen(PORT, '0.0.0.0', () => {
     }
   }, 60 * 60 * 1000);
   if (typeof syncIntervalTimer.unref === 'function') syncIntervalTimer.unref();
+
+  // 24/7 Cloud Keep-Alive Self-Ping (Runs every 8 mins to prevent cloud host spin-down)
+  const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_API_URL || 'https://martflow-whatsapp-ai-sales-agent.onrender.com';
+  if (KEEP_ALIVE_URL && KEEP_ALIVE_URL.startsWith('http') && process.env.NODE_ENV !== 'test') {
+    const keepAliveTimer = setInterval(async () => {
+      try {
+        const pingRes = await fetch(KEEP_ALIVE_URL + '/api/health', { signal: AbortSignal.timeout(10000) });
+        if (pingRes.ok) {
+          addLog('[Keep-Alive] 24/7 ping successful: ' + KEEP_ALIVE_URL + '/api/health');
+        }
+      } catch (err) {
+        // Silent fallback
+      }
+    }, 8 * 60 * 1000);
+    if (typeof keepAliveTimer.unref === 'function') keepAliveTimer.unref();
+  }
+
   // Auto-resume existing WhatsApp session if auth_info/creds.json already exists!
   if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
     addLog('Saved WhatsApp session detected — auto-reconnecting...');
