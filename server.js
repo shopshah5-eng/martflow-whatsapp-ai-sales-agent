@@ -1211,6 +1211,93 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     }
   }
 
+  // Owner Offer Command: offer: <text with Valid till date>
+  if (isFounderControl && /^offer\s*:\s*([\s\S]+)$/i.test((incomingText || '').trim())) {
+    const match = (incomingText || '').trim().match(/^offer\s*:\s*([\s\S]+)$/i);
+    const offerText = match ? match[1].trim() : '';
+    if (offerText) {
+      try {
+        const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        const cleanOffer = offerText.replace(/^OFFER:\s*/i, '').trim();
+        const offerLine = `OFFER: ${cleanOffer} [Added ${timestamp}]`;
+        let updatedKnowledge = offerLine;
+        let existing = '';
+        if (supabaseAdmin) {
+          try {
+            const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
+            existing = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
+            updatedKnowledge = existing ? `${existing}\n${offerLine}` : offerLine;
+            await supabaseAdmin.from('organizations').update({
+              website_knowledge: updatedKnowledge,
+              updated_at: new Date().toISOString()
+            }).eq('id', orgId);
+          } catch (dbErr) {
+            addLog(`[Remote Control] DB error saving offer: ${dbErr.message}`);
+          }
+        } else {
+          existing = freshOrg.website_knowledge || '';
+          updatedKnowledge = existing ? `${existing}\n${offerLine}` : offerLine;
+        }
+        ownerUndoSnapshots.set(orgId, {
+          action: 'knowledge',
+          oldKnowledge: existing
+        });
+        freshOrg.website_knowledge = updatedKnowledge;
+        const confirmMsg = `✅ *Offer Activated!*\n"${offerLine}"\n\n💡 Send \`offer off\` anytime to deactivate.`;
+        const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        addLog(`[Remote Control] Live offer added by owner for org ${orgId}: ${cleanOffer}`);
+      } catch (e) {
+        addLog(`[Remote Control] Error updating live offer: ${e.message}`);
+        try {
+          await activeSock.sendMessage(rawRemote, { text: `❌ Failed to update offer: ${e.message}` });
+        } catch (_) {}
+      }
+      return;
+    }
+  }
+
+  // Owner Offer Off Command: offer off
+  if (isFounderControl && /^(?:offer\s+off|offers\s+off)$/i.test(cmd)) {
+    try {
+      let existing = '';
+      let updatedKnowledge = '';
+      if (supabaseAdmin) {
+        try {
+          const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
+          existing = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
+          const lines = existing.split(/\r?\n/).filter(line => !/^\s*OFFER:/i.test(line));
+          updatedKnowledge = lines.join('\n').trim();
+          await supabaseAdmin.from('organizations').update({
+            website_knowledge: updatedKnowledge,
+            updated_at: new Date().toISOString()
+          }).eq('id', orgId);
+        } catch (dbErr) {
+          addLog(`[Remote Control] DB error removing offers: ${dbErr.message}`);
+        }
+      } else {
+        existing = freshOrg.website_knowledge || '';
+        const lines = existing.split(/\r?\n/).filter(line => !/^\s*OFFER:/i.test(line));
+        updatedKnowledge = lines.join('\n').trim();
+      }
+      ownerUndoSnapshots.set(orgId, {
+        action: 'knowledge',
+        oldKnowledge: existing
+      });
+      freshOrg.website_knowledge = updatedKnowledge;
+      const confirmMsg = `✅ *Active Offers Removed.* All OFFER lines cleared from knowledge base.`;
+      const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      addLog(`[Remote Control] Active offers removed by owner for org ${orgId}`);
+    } catch (e) {
+      addLog(`[Remote Control] Error removing offers: ${e.message}`);
+      try {
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to clear offers: ${e.message}` });
+      } catch (_) {}
+    }
+    return;
+  }
+
   // Typo-Tolerant Pause Command: manual / mannual / manul / pause / stop / off
   if (isFounderControl && /^(manual|mannual|manul|pause|stop|off)$/.test(cmd)) {
     try {
@@ -2634,6 +2721,26 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       }
     }
 
+    // Negotiation / Discount Push Alert to Owner
+    const isDiscountInquiry = /(discount|kam\s*karo|kam\s*hoga|kam\s*rate|kam\s*price|kam\s*kijiye|sasta|cheaper|best\s*rate|best\s*price|concession|bargain|gunjaish|thoda\s*kam)/i.test(incomingText);
+    const mentionsOwnerConfirm = Boolean(aiReplyObj?.reply && /(owner will confirm|team will confirm|malik se|confirm kar ke|senior se)/i.test(aiReplyObj.reply));
+    if ((isDiscountInquiry || mentionsOwnerConfirm) && ownerTarget && ownerTarget !== senderPhone) {
+      const discAlertKey = `${orgId}:${senderPhone}:discount_push`;
+      if (!orderAlertSentSet.has(discAlertKey)) {
+        orderAlertSentSet.add(discAlertKey);
+        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
+        const discCard = `💰 *Discount / Negotiation Alert*\n\n` +
+          `👤 *Customer:* ${pushName}\n` +
+          `📱 *Phone:* ${phoneDisplay}\n` +
+          `💬 *Buyer Asked:* "${incomingText}"\n` +
+          `🤖 *Bot Replied:* "${aiReplyObj?.reply || 'Owner will confirm.'}"\n\n` +
+          `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n` +
+          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
+        await sendOwnerAlert(activeSock, ownerTarget, discCard);
+        addLog(`[Negotiation Alert] Sent discount request alert to owner (${maskPhone(ownerTarget)}) for +${senderPhone}`);
+      }
+    }
+
     // Wire aiResult.isCallRequest into hot alert priority path
     if (aiReplyObj?.isCallRequest && ownerTarget && ownerTarget !== senderPhone) {
       const canAlertCall = await shouldSendAlert({
@@ -3113,6 +3220,37 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
   }
 }
 
+// Check if an OFFER line in website_knowledge has expired based on Asia/Kolkata date
+function isOfferExpired(offerLine) {
+  if (!/^\s*OFFER:/i.test(offerLine)) return false;
+  const match = offerLine.match(/valid\s+(?:till|until|to|through)\s+([a-zA-Z0-9\s,\/\-]+?)(?:\s*[\(\[\.\;\)]|$)/i);
+  if (!match) return false;
+  const rawDateStr = match[1].trim().replace(/(?:st|nd|rd|th)(?=[\s,])/gi, '');
+  
+  const kolkataNowStr = new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' });
+  const kolkataNow = new Date(kolkataNowStr);
+
+  const dmyMatch = rawDateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  let offerExpiryTime = null;
+  if (dmyMatch) {
+    const day = parseInt(dmyMatch[1], 10);
+    const month = parseInt(dmyMatch[2], 10) - 1;
+    const year = parseInt(dmyMatch[3], 10);
+    offerExpiryTime = new Date(year, month, day, 23, 59, 59, 999).getTime();
+  } else {
+    const parsed = Date.parse(rawDateStr);
+    if (!isNaN(parsed)) {
+      const d = new Date(parsed);
+      offerExpiryTime = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999).getTime();
+    }
+  }
+
+  if (offerExpiryTime !== null) {
+    return kolkataNow.getTime() > offerExpiryTime;
+  }
+  return false;
+}
+
 // ============================================================================
 // CONCISE WHATSAPP AI SALES CLOSER (MAX 18–38 WORDS, BUSY FOUNDER PERSONA)
 // ============================================================================
@@ -3140,6 +3278,13 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
       const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', organizationId).maybeSingle();
       if (curOrg?.website_knowledge) orgKnowledge = curOrg.website_knowledge;
     } catch (e) {}
+  }
+  // OFFER EXPIRY: filter out expired OFFER lines (Asia/Kolkata date comparison) so they are never quoted
+  if (orgKnowledge && orgKnowledge.includes('OFFER:')) {
+    orgKnowledge = orgKnowledge
+      .split(/\r?\n/)
+      .filter(line => !isOfferExpired(line))
+      .join('\n');
   }
   const extraKnowledge = orgKnowledge
     ? `\nBusiness & Service Knowledge Base:\n${orgKnowledge.slice(0, 10000)}\n`
@@ -3266,6 +3411,36 @@ CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
 1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.
 2. If earlier chat history mentions unrelated products (such as packaging machinery, industrial equipment, etc. from a previous catalog), DISREGARD THEM COMPLETELY! Acknowledge the current business offerings and answer strictly from your active catalog above. NEVER invent or offer products that do not exist in the active catalog!
 3. If the customer asks about astrology, consultations, services, products, or says "check again" / "I'm talking about X", immediately answer from the active catalog above. Acknowledge and apologize if an earlier message mentioned something unrelated, and present what you actually offer.
+
+NEGOTIATION & OFFER RULE:
+- Never reduce a price, invent a discount, or reveal a minimum/floor price on your own. Use only discounts/slabs/offers that appear in the workspace data (products, website_knowledge).
+- If the buyer asks for a discount: stay calm and polite, restate the value from the data (quality, fabric, policy), mention any real non-price benefit in the data (free shipping above X, bulk slab), and ask quantity/city. If data defines a slab and the buyer qualifies, quote it exactly.
+- If the buyer pushes a second time, or asks beyond the data's slabs, do not argue and do not promise a discount; say the owner will confirm for that quantity, and send the owner's main WhatsApp (owner_alert_number, 91-normalized) a short alert with item, quantity, city and the price the buyer asked for.
+- OFFER EXPIRY: when website_knowledge contains lines starting with "OFFER:" that include "Valid till <date>", compare to today's date in Asia/Kolkata and treat expired offers as not available; never quote them.
+- Never use fake urgency or false scarcity. 1-2 short sentences per reply.
+
+TOP SALES PLAYBOOK (applies to any industry; always use the workspace's own products and knowledge as the only source of facts):
+
+ROLE: You are a calm, warm, experienced sales advisor for this business. Think like a top salesperson: curious first, helpful second, selling third. Never sound scripted, pushy or like a bot. Mirror the customer's language (Hindi, Punjabi, Hinglish, English) and tone. Use their name once you know it.
+
+EVERY REPLY: (1) answer exactly what they asked, (2) add one useful detail that builds confidence, (3) ask ONE simple question that moves them forward. Maximum 2 short sentences. Never ask more than one question at a time.
+
+DISCOVER BEFORE YOU PITCH: find out what they need, the quantity or budget, the city/timeline, and who decides. Recommend 1 best-fit option (at most 2), not a list of everything.
+
+BUYING SIGNALS: asking price, delivery, availability, payment, quantity, sizes, or "how to order" means they are ready. Move to the close: confirm the option, collect the order details (item, size/quantity, name, city) and alert the owner. Do not keep selling after they are ready.
+
+OBJECTIONS (acknowledge first, never argue):
+- Too expensive: stay calm, restate the real value from the data, mention any real slab/free-shipping benefit, never lower the price yourself; if they push twice, say the owner will confirm and alert the owner.
+- Need to think: respect it, offer the single most useful next step (sample, demo, site visit, a short trial), and ask what they want to compare.
+- Trust or quality doubt: give factual proof from the data (policy, warranty, reviews, certifications). If none exists, offer a video call or live photo from the owner.
+- Comparing with a competitor: never criticise others; explain what is strong here and ask what matters most to them.
+- Not interested or "ok": thank them politely and stop. No follow-up pressure.
+
+HONESTY RULES: no fake urgency, no false scarcity, no made-up facts, offers or guarantees. If you do not know, say the owner will confirm, collect quantity and city, and alert the owner. Never promise exact live stock.
+
+LEAD QUALITY: treat one-piece timewasters and curiosity chats briefly and politely. For serious buyers (clear need + quantity/budget/timeline), send the owner a short summary: name, item, quantity or budget, city, what they objected to, and the buying signal.
+
+INDUSTRY ADAPTATION: infer the industry from the products/knowledge. Wholesale: lead with MOQ, set size, dispatch. Retail brand: lead with size, delivery time, returns. Services (clinic, visa, real estate, astrology, coaching): answer basics, never diagnose or give deep paid predictions, then book or connect to the expert. High-ticket (cars, property, solar): ask budget and finance need, then book a visit or call.
 
 STRICT LENGTH RULE:
 1. Reply like a real busy human founder/manager on WhatsApp — 1 to 2 short sentences ONLY (strictly 18 to 38 words max) unless the customer explicitly asks to compare multiple plans/items.
