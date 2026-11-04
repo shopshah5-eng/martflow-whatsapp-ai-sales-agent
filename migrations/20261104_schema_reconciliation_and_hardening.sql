@@ -78,6 +78,10 @@ BEGIN
         v_digits := v_clean_phone;
     END IF;
 
+    v_product := p_product_inquired;
+    v_message := p_query_message;
+    v_pdf_sent := COALESCE(p_pdf_brochure_sent, FALSE);
+
     -- 1. Lock organization record FIRST for atomic serialization to prevent concurrent duplicate intake & quota double-counting
     SELECT o.monthly_lead_limit, o.leads_used, o.plan_status, o.trial_ends_at
     INTO v_limit, v_used, v_plan_status, v_trial_ends

@@ -1,33 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 140" width="100%" height="100%" fill="none">
+  <title>Electrical &amp; Automation</title>
   <defs>
-    <linearGradient id="ind-grad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#087F5B"/>
-      <stop offset="100%" stop-color="#064E3B"/>
+    <linearGradient id="bg-grad-electrical" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#093527"/>
+      <stop offset="100%" stop-color="#05241a"/>
+    </linearGradient>
+    <linearGradient id="card-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F8FAFC"/>
     </linearGradient>
   </defs>
-  <rect width="600" height="400" rx="16" fill="#F7FAF8" stroke="#E5EAE7" stroke-width="1.5"/>
-  <rect x="30" y="30" width="540" height="340" rx="12" fill="#FFFFFF" stroke="#E5EAE7"/>
-  <circle cx="80" cy="80" r="32" fill="url(#ind-grad)"/>
-  <path d="M82 66L72 82H82L78 94L90 78H80L82 66Z" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="130" y="75" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#111827">Electrical & Automation</text>
-  <text x="130" y="96" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#087F5B">Switchgear, Cables, Transformers, Relays, Panels</text>
+  <!-- Background -->
+  <rect width="400" height="140" fill="url(#bg-grad-electrical)"/>
   
-  <rect x="50" y="140" width="500" height="1" fill="#E5EAE7"/>
-  <g transform="translate(50, 160)">
-    <rect width="235" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
-    <text x="16" y="30" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#64748B">TYPICAL INQUIRY VOLUME</text>
-    <text x="16" y="58" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#087F5B">300 - 1,500 / mo</text>
+  <!-- Subtle Grid Pattern -->
+  <path d="M0 35H400 M0 70H400 M0 105H400 M100 0V140 M200 0V140 M300 0V140" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
+  
+  <!-- Vertical Eyebrow Badge -->
+  <rect x="18" y="14" width="190" height="18" rx="9" fill="#10B981" fill-opacity="0.18"/>
+  <circle cx="27" cy="23" r="3" fill="#10B981"/>
+  <text x="35" y="26" font-family="Inter, -apple-system, sans-serif" font-size="8.5" font-weight="800" fill="#34D399" letter-spacing="0.04em">Electrical &amp; Automation</text>
 
-    <g transform="translate(255, 0)">
-      <rect width="235" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
-      <text x="16" y="30" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#64748B">AVG QUOTATION TIME</text>
-      <text x="16" y="58" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#087F5B">&lt; 3 Seconds</text>
-    </g>
+  <!-- Watermark Icon in top right -->
+  <g transform="translate(345, 12)" opacity="0.22">
+    <path d="M16 2L6 18H16L14 30L26 14H16L18 2Z" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" fill="none"/>
+  </g>
 
-    <g transform="translate(0, 95)">
-      <rect width="490" height="60" rx="8" fill="#E6F4F0" stroke="#C2E2D7"/>
-      <text x="16" y="26" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#087F5B">⚡ Solved Pain Point:</text>
-      <text x="16" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#111827">Instant spec matching &amp; PDF dispatch prevents buyers from purchasing from competitors.</text>
-    </g>
+  <!-- Metric Card 1: Inquiries -->
+  <g transform="translate(18, 42)">
+    <rect width="176" height="82" rx="12" fill="url(#card-grad)" stroke="#E2E8F0" stroke-width="1"/>
+    <text x="14" y="24" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="700" fill="#64748B" letter-spacing="0.04em">TYPICAL MONTHLY INQUIRIES</text>
+    <text x="14" y="55" font-family="Inter, -apple-system, sans-serif" font-size="20" font-weight="900" fill="#0F172A" letter-spacing="-0.03em">350 – 1,800</text>
+    <text x="14" y="71" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="500" fill="#10B981">● Automated AI intake</text>
+  </g>
+
+  <!-- Metric Card 2: Dispatch Time -->
+  <g transform="translate(206, 42)">
+    <rect width="176" height="82" rx="12" fill="url(#card-grad)" stroke="#E2E8F0" stroke-width="1"/>
+    <text x="14" y="24" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="700" fill="#64748B" letter-spacing="0.04em">SPEC &amp; QUOTE DISPATCH</text>
+    <text x="14" y="55" font-family="Inter, -apple-system, sans-serif" font-size="20" font-weight="900" fill="#087F5B" letter-spacing="-0.03em">< 2.2s</text>
+    <text x="14" y="71" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="500" fill="#64748B">Instant PDF / spec quote</text>
   </g>
 </svg>

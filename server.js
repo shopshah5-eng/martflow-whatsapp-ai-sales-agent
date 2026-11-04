@@ -2614,9 +2614,10 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     }
 
     // Out of Stock or Custom Pricing Inquiry Alert to Owner
+    const orgProducts = aiReplyObj?.products || [];
     const isOutOrCustomRate = Boolean(
       (aiReplyObj?.reply && /(out of stock|currently unavailable|rate depends on design|owner will confirm|khatam|available nahi)/i.test(aiReplyObj.reply)) ||
-      (products.some(p => (p.description || '').startsWith('[OUT OF STOCK]') && (incomingText || '').toLowerCase().includes((p.name || '').toLowerCase())))
+      (orgProducts.some(p => (p.description || '').startsWith('[OUT OF STOCK]') && (incomingText || '').toLowerCase().includes((p.name || '').toLowerCase())))
     );
     if (isOutOrCustomRate && ownerTarget && ownerTarget !== senderPhone) {
       const stockAlertKey = `${orgId}:${senderPhone}:stock_inquiry`;
@@ -3311,6 +3312,7 @@ STRICT LENGTH RULE:
             reply = reply.replace(/^["']|["']$/g, '').trim();
             return {
               reply,
+              products: products || [],
               matchedBrochureUrl,
               matchedBrochureName,
               matchedImageUrl,
@@ -3335,6 +3337,7 @@ STRICT LENGTH RULE:
 
   return {
     reply: fallbackObj?.reply || `Ji Namaste! ${orgName} mein aapka swagat hai. Batayein aapko kis model ki requirement hai?`,
+    products: products || [],
     matchedBrochureUrl: matchedBrochureUrl || fallbackObj?.matchedBrochureUrl,
     matchedBrochureName: matchedBrochureName || fallbackObj?.matchedBrochureName,
     matchedImageUrl: matchedImageUrl || fallbackObj?.matchedImageUrl,

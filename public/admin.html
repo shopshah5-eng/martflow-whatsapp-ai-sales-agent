@@ -304,6 +304,72 @@
         <div class="flex gap-2"><button type="button" onclick="setCatalogPermission(true)" class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-xs">Grant access</button><button type="button" onclick="setCatalogPermission(false)" class="px-4 py-2 rounded-lg bg-rose-700 text-white text-xs">Revoke access</button></div>
         <p id="catalogGrantStatus" role="status" class="text-xs text-slate-700"></p>
       </section>
+      <!-- Section: Authorized Client Workspaces & Dedicated Product Management -->
+      <section class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-4" id="section-client-management">
+        <div class="flex items-center justify-between border-b pb-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Authorized Client Workspaces</h2>
+            <p class="text-xs text-slate-500">Manage catalogues, pricing, and stock exclusively for your authorized client accounts.</p>
+          </div>
+          <span class="text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-full">
+            🔒 Privacy Isolated: Inboxes &amp; Chats Private to Clients
+          </span>
+        </div>
+
+        <div class="space-y-3">
+          <label class="block text-xs font-semibold text-slate-700">Select Client Workspace</label>
+          <div class="flex gap-2">
+            <select id="adminClientDropdown" onchange="onAdminSelectClient()" class="flex-1 border rounded-lg p-2 text-xs font-medium text-slate-800 bg-slate-50">
+              <option value="">Loading assigned clients...</option>
+            </select>
+            <button type="button" onclick="loadAuthorizedClients()" class="px-3 py-2 bg-slate-100 border text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200">
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Selected Client Info & Product Manager -->
+        <div id="adminClientDetails" class="hidden space-y-4 pt-2">
+          <div class="bg-slate-50 border rounded-xl p-3 flex flex-wrap gap-4 text-xs text-slate-700">
+            <div><span class="text-slate-400">Client ID:</span> <span id="clientDisplayId" class="font-mono font-bold"></span></div>
+            <div><span class="text-slate-400">Name:</span> <span id="clientDisplayName" class="font-bold"></span></div>
+            <div><span class="text-slate-400">City:</span> <span id="clientDisplayCity"></span></div>
+            <div><span class="text-slate-400">Plan:</span> <span id="clientDisplayPlan" class="font-bold text-emerald-700"></span></div>
+          </div>
+
+          <!-- Client Products Table & Actions -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Client Product Catalogue</h3>
+              <div class="flex gap-2">
+                <button type="button" onclick="openAdminAddProductModal()" class="px-3 py-1.5 bg-[#087F5B] text-white rounded-lg text-xs font-bold hover:bg-[#066548]">
+                  + Add SKU for Client
+                </button>
+                <button type="button" onclick="syncAdminClientWebsite()" class="px-3 py-1.5 bg-slate-100 border text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-200">
+                  🌐 Sync Website
+                </button>
+              </div>
+            </div>
+
+            <div class="border rounded-xl overflow-hidden text-xs">
+              <table class="w-full text-left">
+                <thead class="bg-slate-100 text-slate-600 font-semibold border-b">
+                  <tr>
+                    <th class="p-2.5">SKU / Code</th>
+                    <th class="p-2.5">Product Name</th>
+                    <th class="p-2.5">Price</th>
+                    <th class="p-2.5">Stock Status</th>
+                    <th class="p-2.5 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="adminProductsTableBody" class="divide-y divide-slate-100 text-slate-700">
+                  <tr><td colspan="5" class="p-4 text-center text-slate-400">No products found for this client.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
       <section id="view-engineer" class="view-panel space-y-6">
         <div>
           <div class="flex items-center space-x-2">
@@ -574,6 +640,155 @@
         await apiFetch('/api/admin/catalog-permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, userId, allow }) });
         status.textContent = allow ? 'Catalogue access granted.' : 'Catalogue access revoked.';
       } catch (error) { status.textContent = 'Unable to change access: ' + error.message; }
+    }
+
+    let currentAdminClients = [];
+    let selectedAdminClient = null;
+
+    async function loadAuthorizedClients() {
+      const dropdown = document.getElementById('adminClientDropdown');
+      if (!dropdown) return;
+      dropdown.innerHTML = '<option value="">Loading assigned clients...</option>';
+      try {
+        const res = await apiFetch('/api/admin/clients');
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.clients)) {
+          currentAdminClients = data.clients;
+          if (currentAdminClients.length === 0) {
+            dropdown.innerHTML = '<option value="">No clients assigned to this account</option>';
+            return;
+          }
+          dropdown.innerHTML = '<option value="">-- Choose an Authorized Client Workspace --</option>' +
+            currentAdminClients.map(c => `<option value="${c.id}">${c.name || 'Unnamed Client'} (${c.city_base || 'No city'}) [${c.id.slice(0, 8)}]</option>`).join('');
+          
+          if (currentAdminClients.length === 1) {
+            dropdown.value = currentAdminClients[0].id;
+            onAdminSelectClient();
+          }
+        } else {
+          dropdown.innerHTML = '<option value="">Unable to load assigned clients</option>';
+        }
+      } catch (e) {
+        dropdown.innerHTML = '<option value="">Error loading clients: ' + (e.message || 'Network error') + '</option>';
+      }
+    }
+
+    async function onAdminSelectClient() {
+      const dropdown = document.getElementById('adminClientDropdown');
+      const details = document.getElementById('adminClientDetails');
+      const clientId = dropdown ? dropdown.value : '';
+      if (!clientId) {
+        if (details) details.classList.add('hidden');
+        selectedAdminClient = null;
+        return;
+      }
+      selectedAdminClient = currentAdminClients.find(c => c.id === clientId) || { id: clientId, name: 'Client ' + clientId.slice(0, 8) };
+      if (details) details.classList.remove('hidden');
+      document.getElementById('clientDisplayId').textContent = selectedAdminClient.id;
+      document.getElementById('clientDisplayName').textContent = selectedAdminClient.name || 'Client Workspace';
+      document.getElementById('clientDisplayCity').textContent = selectedAdminClient.city_base || 'Unspecified';
+      document.getElementById('clientDisplayPlan').textContent = selectedAdminClient.plan_status ? selectedAdminClient.plan_status.toUpperCase() : 'ACTIVE';
+      loadAdminClientProducts(selectedAdminClient.id);
+    }
+
+    async function loadAdminClientProducts(orgId) {
+      const tbody = document.getElementById('adminProductsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Loading client catalog...</td></tr>';
+      try {
+        const res = await apiFetch('/api/catalog/products?org_id=' + encodeURIComponent(orgId));
+        const data = await res.json();
+        const prods = (data.ok && Array.isArray(data.products)) ? data.products : [];
+        if (prods.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">No products configured for this client.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = prods.map(p => {
+          const isOut = (p.description || '').startsWith('[OUT OF STOCK]');
+          const stockBadge = isOut
+            ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">OUT OF STOCK</span>'
+            : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">IN STOCK</span>';
+          return `<tr>
+            <td class="p-2.5 font-mono text-[11px] text-slate-500">${p.sku || p.id.slice(0, 8)}</td>
+            <td class="p-2.5 font-semibold text-slate-900">${p.name}</td>
+            <td class="p-2.5 font-bold text-emerald-700">${p.price_raw || (p.price_inr ? '₹' + p.price_inr : 'Contact for rate')}</td>
+            <td class="p-2.5">${stockBadge}</td>
+            <td class="p-2.5 text-right space-x-2">
+              <button type="button" onclick="deleteAdminProduct('${p.id}', '${orgId}')" class="text-rose-600 hover:text-rose-800 font-semibold text-[11px]">Delete</button>
+            </td>
+          </tr>`;
+        }).join('');
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-rose-500">Error loading catalog: ' + (e.message || 'Network error') + '</td></tr>';
+      }
+    }
+
+    async function openAdminAddProductModal() {
+      if (!selectedAdminClient) return alert('Please select a client workspace first.');
+      const name = prompt('Enter Product / SKU Name:');
+      if (!name || !name.trim()) return;
+      const priceRaw = prompt('Enter Price / Rate (e.g. ₹4,500 / unit):', '₹');
+      const specs = prompt('Enter Model / Specifications (optional):', '');
+      try {
+        const res = await apiFetch('/api/catalog/quick-add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orgId: selectedAdminClient.id,
+            name: name.trim(),
+            priceRaw: (priceRaw || '').trim(),
+            specifications: (specs || '').trim(),
+            sku: 'SKU-' + Date.now().toString().slice(-6)
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Product added successfully to client catalog.');
+          loadAdminClientProducts(selectedAdminClient.id);
+        } else {
+          alert('Error: ' + (data.error || 'Failed to add product.'));
+        }
+      } catch (e) {
+        alert('Error adding product: ' + e.message);
+      }
+    }
+
+    async function deleteAdminProduct(productId, orgId) {
+      if (!confirm('Are you sure you want to delete this product from the client catalog?')) return;
+      try {
+        const res = await apiFetch('/api/catalog/products/' + encodeURIComponent(productId) + '?org_id=' + encodeURIComponent(orgId), {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (data.ok) {
+          loadAdminClientProducts(orgId);
+        } else {
+          alert('Delete failed: ' + (data.error || 'Permission denied.'));
+        }
+      } catch (e) {
+        alert('Error deleting product: ' + e.message);
+      }
+    }
+
+    async function syncAdminClientWebsite() {
+      if (!selectedAdminClient) return alert('Please select a client workspace first.');
+      if (!confirm('Run website catalog sync for ' + selectedAdminClient.name + '?')) return;
+      try {
+        const res = await apiFetch('/api/catalog/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId: selectedAdminClient.id })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('Website sync initiated successfully: ' + (data.message || 'Done'));
+          loadAdminClientProducts(selectedAdminClient.id);
+        } else {
+          alert('Sync error: ' + (data.error || 'Sync failed.'));
+        }
+      } catch (e) {
+        alert('Sync error: ' + e.message);
+      }
     }
 
     function formatDisplayPhone(rawPhone) {
@@ -4521,7 +4736,7 @@
         const allowed = res.ok && data.ok && data.role === 'superadmin';
         if (adminDenied) adminDenied.classList.toggle('hidden', allowed);
         if (adminContent) adminContent.classList.toggle('hidden', !allowed);
-        if (allowed) loadEngineerSettings();
+        if (allowed) { loadEngineerSettings(); loadAuthorizedClients(); }
       } catch (e) {
         if (adminDenied) adminDenied.classList.remove('hidden');
         if (adminContent) adminContent.classList.add('hidden');

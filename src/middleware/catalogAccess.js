@@ -5,16 +5,18 @@ import { repository } from '../db/repository.js';
 // Only explicit platform-managed grants (or platform superadmins) can edit.
 export async function canManageCatalog(req) {
   if (req.role === 'superadmin') return true;
-  if (!req.userId || !req.organizationId) return false;
+  // Always evaluate against verified authenticated workspace first
+  const targetOrg = req.organizationId || req.query?.org_id || req.body?.orgId;
+  if (!req.userId || !targetOrg) return false;
   const sb = repository.getSupabase();
   if (sb) {
     const { data, error } = await sb.from('catalog_management_grants')
-      .select('user_id').eq('org_id', req.organizationId).eq('user_id', req.userId).maybeSingle();
+      .select('user_id').eq('org_id', targetOrg).eq('user_id', req.userId).maybeSingle();
     if (error) throw Object.assign(new Error('Catalogue permissions are unavailable.'), { statusCode: 503 });
     return Boolean(data);
   }
   return Boolean(db.findOne('catalog_management_grants', grant =>
-    grant.organization_id === req.organizationId && grant.user_id === req.userId));
+    (grant.organization_id === targetOrg || grant.org_id === targetOrg) && grant.user_id === req.userId));
 }
 
 export async function requireCatalogManager(req, res, next) {
@@ -23,5 +25,22 @@ export async function requireCatalogManager(req, res, next) {
     next();
   } catch (error) {
     res.status(error.statusCode || 503).json({ ok: false, error: 'Catalogue permissions are unavailable.' });
+  }
+}
+
+// Conversation privacy: Only the client's authorized dashboard users may view that client's WhatsApp conversations.
+// Admin catalogue access must NOT grant inbox access.
+export async function requireConversationAccess(req, res, next) {
+  try {
+    if (!req.userId || !req.organizationId) {
+      return res.status(401).json({ ok: false, error: 'Authentication required.' });
+    }
+    // Catalogue managers / agency users with role 'catalog_manager' are forbidden from client conversations
+    if (req.role === 'catalog_manager' || req.isCatalogOnly) {
+      return res.status(403).json({ ok: false, error: 'Catalogue managers cannot access conversation logs or inbox messages.' });
+    }
+    next();
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message });
   }
 }

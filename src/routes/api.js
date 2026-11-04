@@ -10,7 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { signUp, login, demoLogin, handleGoogleAuth, sendPhoneOtp, verifyPhoneOtp } from '../auth/authService.js';
 import { authenticate, requireRole } from '../middleware/authMiddleware.js';
-import { canManageCatalog, requireCatalogManager } from '../middleware/catalogAccess.js';
+import { canManageCatalog, requireCatalogManager, requireConversationAccess } from '../middleware/catalogAccess.js';
 import { LeadService } from '../services/leadService.js';
 import { CatalogService } from '../services/catalogService.js';
 import { CallSchedulerService } from '../services/callSchedulerService.js';
@@ -363,7 +363,7 @@ router.post('/leads/simulate', authenticate, async (req, res) => {
   }
 });
 
-router.get('/leads/export.csv', authenticate, (req, res) => {
+router.get('/leads/export.csv', authenticate, requireConversationAccess, (req, res) => {
   const csv = LeadService.exportLeadsCsv(req.organizationId);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="Leadsy_Leads_${Date.now()}.csv"`);
@@ -529,7 +529,7 @@ router.post('/callbacks/request-demo', authenticate, async (req, res) => {
 // ==========================================
 // 3. CONVERSATIONS INBOX ENDPOINTS
 // ==========================================
-router.get('/conversations', authenticate, async (req, res) => {
+router.get('/conversations', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const sb = repository.getSupabase();
     if (sb) {
@@ -588,7 +588,7 @@ router.get('/conversations', authenticate, async (req, res) => {
   }
 });
 
-router.get('/conversations/:id/messages', authenticate, async (req, res) => {
+router.get('/conversations/:id/messages', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const sb = repository.getSupabase();
     if (sb) {
@@ -630,7 +630,7 @@ router.get('/conversations/:id/messages', authenticate, async (req, res) => {
 });
 
 // --- Conversation Memory Endpoints ---
-router.get('/conversations/:id/memory', authenticate, async (req, res) => {
+router.get('/conversations/:id/memory', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const memory = await ConversationMemoryService.getMemory(req.organizationId, req.params.id);
     res.json({ ok: true, memory });
@@ -639,7 +639,7 @@ router.get('/conversations/:id/memory', authenticate, async (req, res) => {
   }
 });
 
-router.put('/conversations/:id/memory', authenticate, requireRole(['owner', 'admin', 'sales_manager']), async (req, res) => {
+router.put('/conversations/:id/memory', authenticate, requireConversationAccess, requireRole(['owner', 'admin', 'sales_manager']), async (req, res) => {
   try {
     const memory = await ConversationMemoryService.updateMemory(req.organizationId, req.params.id, req.body);
     res.json({ ok: true, memory });
@@ -648,7 +648,7 @@ router.put('/conversations/:id/memory', authenticate, requireRole(['owner', 'adm
   }
 });
 
-router.delete('/conversations/:id/memory', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+router.delete('/conversations/:id/memory', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const deleted = await ConversationMemoryService.deleteMemory(req.organizationId, req.params.id);
     res.json({ ok: true, deleted });
@@ -670,7 +670,7 @@ router.post('/follow-ups/opt-out', authenticate, async (req, res) => {
   }
 });
 
-router.post('/conversations/:id/mode', authenticate, requireRole(['owner', 'admin', 'sales_manager', 'sales_rep']), async (req, res) => {
+router.post('/conversations/:id/mode', authenticate, requireConversationAccess, requireRole(['owner', 'admin', 'sales_manager', 'sales_rep']), async (req, res) => {
   try {
     const { mode } = req.body;
     if (!['ai', 'human'].includes(mode)) {
@@ -703,7 +703,7 @@ router.post('/conversations/:id/mode', authenticate, requireRole(['owner', 'admi
   }
 });
 
-router.post('/conversations/:id/reply', authenticate, requireRole(['owner', 'admin', 'sales_manager', 'sales_rep']), async (req, res) => {
+router.post('/conversations/:id/reply', authenticate, requireConversationAccess, requireRole(['owner', 'admin', 'sales_manager', 'sales_rep']), async (req, res) => {
   try {
     const { message } = req.body;
     if (!message || !message.trim()) {
@@ -861,6 +861,55 @@ router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin
     res.json({ ok: true, orgId, userId, canManageCatalog: allow });
   } catch (error) {
     res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to change catalogue access.' });
+  }
+});
+
+// Authorized Client List for Admins / Catalogue Managers
+router.get('/admin/clients', authenticate, async (req, res) => {
+  try {
+    const sb = repository.getSupabase();
+    if (req.role === 'superadmin') {
+      if (sb) {
+        const { data: orgs, error } = await sb.from('organizations')
+          .select('id, name, city_base, plan_status, created_at')
+          .order('name');
+        if (error) throw new DatabaseUnavailableError(error.message);
+        return res.json({ ok: true, clients: orgs || [] });
+      }
+      const orgs = db.find('organizations', () => true);
+      return res.json({ ok: true, clients: orgs.map(o => ({ id: o.id, name: o.name, city_base: o.city_base, plan_status: o.plan_status })) });
+    }
+
+    // For agency admins / catalogue managers: return only assigned organizations
+    let orgIds = [];
+    if (sb) {
+      const { data: grants, error } = await sb.from('catalog_management_grants')
+        .select('org_id')
+        .eq('user_id', req.userId);
+      if (error) throw new DatabaseUnavailableError(error.message);
+      orgIds = (grants || []).map(g => g.org_id);
+    } else {
+      const grants = db.find('catalog_management_grants', g => g.user_id === req.userId);
+      orgIds = grants.map(g => g.organization_id || g.org_id);
+    }
+
+    if (orgIds.length === 0) {
+      return res.json({ ok: true, clients: [] });
+    }
+
+    if (sb) {
+      const { data: orgs, error } = await sb.from('organizations')
+        .select('id, name, city_base, plan_status, created_at')
+        .in('id', orgIds)
+        .order('name');
+      if (error) throw new DatabaseUnavailableError(error.message);
+      return res.json({ ok: true, clients: orgs || [] });
+    }
+
+    const orgs = db.find('organizations', o => orgIds.includes(o.id));
+    return res.json({ ok: true, clients: orgs.map(o => ({ id: o.id, name: o.name, city_base: o.city_base, plan_status: o.plan_status })) });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
 });
 
