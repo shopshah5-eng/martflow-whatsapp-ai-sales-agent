@@ -794,9 +794,10 @@ router.post('/whatsapp/disconnect', authenticate, requireRole(['owner', 'admin']
 // ==========================================
 router.get('/catalog/products', authenticate, async (req, res) => {
   try {
+    const targetOrg = (req.role === 'superadmin' && req.query?.org_id) ? req.query.org_id : req.organizationId;
     const sb = repository.getSupabase();
     if (sb) {
-      let query = sb.from('products').select('*').eq('org_id', req.organizationId).neq('is_active', false);
+      let query = sb.from('products').select('*').eq('org_id', targetOrg).neq('is_active', false);
       if (req.query?.category) query = query.eq('category', req.query.category);
       if (req.query?.search) {
         query = query.or(`name.ilike.%${req.query.search}%,sku_code.ilike.%${req.query.search}%`);
@@ -839,14 +840,23 @@ router.post('/catalog/upload', authenticate, requireCatalogManager, async (req, 
 // The grant is limited to a workspace of which that user is already a member.
 router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin']), async (req, res) => {
   try {
-    const { orgId, userId, allow } = req.body || {};
+    let { orgId, userId, allow } = req.body || {};
     if (typeof orgId !== 'string' || !orgId || typeof userId !== 'string' || !userId || typeof allow !== 'boolean') {
       return res.status(400).json({ ok: false, error: 'orgId, userId and boolean allow are required.' });
+    }
+    const sb = repository.getSupabase();
+    if (userId.includes('@')) {
+      if (sb) {
+        const { data: prof } = await sb.from('profiles').select('id, user_id').eq('email', userId.trim().toLowerCase()).maybeSingle();
+        if (prof) userId = prof.id || prof.user_id;
+      } else {
+        const u = db.findOne('users', x => x.email === userId.trim().toLowerCase()) || db.findOne('profiles', p => p.email === userId.trim().toLowerCase());
+        if (u) userId = u.id || u.user_id;
+      }
     }
     if (allow && (!await repository.getOrganizationById(orgId) || !await repository.getMembership(userId, orgId))) {
       return res.status(400).json({ ok: false, error: 'The user must already be a member of this workspace.' });
     }
-    const sb = repository.getSupabase();
     if (sb) {
       const query = allow
         ? sb.from('catalog_management_grants').upsert({ org_id: orgId, user_id: userId, granted_by: req.userId }, { onConflict: 'org_id,user_id' })
@@ -871,10 +881,14 @@ router.get('/admin/clients', authenticate, async (req, res) => {
     if (req.role === 'superadmin') {
       if (sb) {
         const { data: orgs, error } = await sb.from('organizations')
-          .select('id, name, city_base, plan_status, created_at')
+          .select('id, name, city_base, company_city, plan_status, created_at')
           .order('name');
         if (error) throw new DatabaseUnavailableError(error.message);
-        return res.json({ ok: true, clients: orgs || [] });
+        const clients = (orgs || []).map(o => ({
+          ...o,
+          city_base: o.city_base || o.company_city || 'Unspecified'
+        }));
+        return res.json({ ok: true, clients });
       }
       const orgs = db.find('organizations', () => true);
       return res.json({ ok: true, clients: orgs.map(o => ({ id: o.id, name: o.name, city_base: o.city_base, plan_status: o.plan_status })) });
@@ -899,11 +913,15 @@ router.get('/admin/clients', authenticate, async (req, res) => {
 
     if (sb) {
       const { data: orgs, error } = await sb.from('organizations')
-        .select('id, name, city_base, plan_status, created_at')
+        .select('id, name, city_base, company_city, plan_status, created_at')
         .in('id', orgIds)
         .order('name');
       if (error) throw new DatabaseUnavailableError(error.message);
-      return res.json({ ok: true, clients: orgs || [] });
+      const clients = (orgs || []).map(o => ({
+        ...o,
+        city_base: o.city_base || o.company_city || 'Unspecified'
+      }));
+      return res.json({ ok: true, clients });
     }
 
     const orgs = db.find('organizations', o => orgIds.includes(o.id));
@@ -916,7 +934,8 @@ router.get('/admin/clients', authenticate, async (req, res) => {
 // Quick-Add SKU (10-second manual product addition)
 router.post('/catalog/quick-add', authenticate, requireCatalogManager, async (req, res) => {
   try {
-    const { name, priceRaw, model, specifications, sku } = req.body;
+    const { name, priceRaw, model, specifications, sku, orgId } = req.body;
+    const targetOrgId = (req.role === 'superadmin' && orgId) ? orgId : req.organizationId;
     if (!name || !name.trim()) {
       return res.status(400).json({ ok: false, error: 'Product name is required.' });
     }
@@ -924,7 +943,7 @@ router.post('/catalog/quick-add', authenticate, requireCatalogManager, async (re
     const sb = repository.getSupabase();
     if (sb) {
       const { data, error } = await sb.from('products').insert({
-        org_id: req.organizationId,
+        org_id: targetOrgId,
         name: name.trim(),
         sku: String(sku || `SKU-${crypto.randomBytes(4).toString('hex').toUpperCase()}`).slice(0, 200),
         category: 'Commercial Products',
