@@ -8,6 +8,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { LeadService } from '../../services/leadService.js';
 import db from '../../db/index.js';
+import { repository } from '../../db/repository.js';
 
 export class B2BWebhook {
   // Normalize raw B2B Push API or CRM payload
@@ -50,7 +51,7 @@ export class B2BWebhook {
     }
 
     // Verify webhook token against organization webhook key or connection secret
-    const org = db.findById('organizations', organizationId);
+    const org = (await repository.getOrganizationById(organizationId)) || db.findById('organizations', organizationId);
     const conn = db.findOne('integration_connections', (c) =>
       c.organization_id === organizationId && (c.provider === 'b2b_push')
     );

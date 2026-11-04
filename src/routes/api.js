@@ -363,11 +363,52 @@ router.post('/leads/simulate', authenticate, async (req, res) => {
   }
 });
 
-router.get('/leads/export.csv', authenticate, requireConversationAccess, (req, res) => {
-  const csv = LeadService.exportLeadsCsv(req.organizationId);
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="Leadsy_Leads_${Date.now()}.csv"`);
-  res.send(csv);
+router.get('/leads/export.csv', authenticate, requireConversationAccess, async (req, res) => {
+  try {
+    let leads = [];
+    const sb = repository.getSupabase();
+    if (sb) {
+      leads = await repository.getLeads(req.organizationId);
+    } else {
+      leads = db.findScoped('leads', req.organizationId);
+    }
+    const headers = [
+      'Lead ID',
+      'Created At (IST)',
+      'Buyer Name',
+      'Phone Number',
+      'City',
+      'Product Inquired',
+      'Status',
+      'PDF Brochure Sent',
+      'First Response Time (ms)',
+      'Source'
+    ];
+
+    const esc = (v) => {
+      const clean = LeadService.sanitizeCsvCell(v);
+      return `"${clean.replace(/"/g, '""')}"`;
+    };
+    const rows = (leads || []).map((l) => [
+      l.id,
+      l.created_at ? new Date(l.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '',
+      l.buyer_name || 'Unspecified',
+      l.buyer_phone || l.phone || '',
+      l.buyer_city || l.city || '',
+      l.product_inquired || '',
+      l.status || 'new',
+      l.pdf_brochure_sent ? 'YES' : 'NO',
+      l.first_response_ms || '',
+      l.source || 'Direct'
+    ].map(esc).join(','));
+
+    const csv = [headers.join(','), ...rows].join('\r\n');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="Leadsy_Leads_${Date.now()}.csv"`);
+    res.send(csv);
+  } catch (err) {
+    res.status(500).send('Error generating export: ' + err.message);
+  }
 });
 
 router.get('/leads/:id', authenticate, async (req, res) => {
@@ -710,6 +751,59 @@ router.post('/conversations/:id/reply', authenticate, requireConversationAccess,
       return res.status(400).json({ ok: false, error: 'Message text is required.' });
     }
 
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { data: conv, error: convErr } = await sb
+        .from('conversations')
+        .select('*')
+        .eq('id', req.params.id)
+        .eq('org_id', req.organizationId)
+        .maybeSingle();
+      if (convErr) throw new DatabaseUnavailableError(convErr.message);
+      if (!conv) return res.status(404).json({ ok: false, error: 'Conversation not found.' });
+
+      let buyerPhone = conv.buyer_phone;
+      if (!buyerPhone && conv.lead_id) {
+        const lead = await repository.getLeadById(req.organizationId, conv.lead_id);
+        buyerPhone = lead?.buyer_phone;
+      }
+      if (!buyerPhone) {
+        return res.status(400).json({ ok: false, error: 'No phone number linked to this lead or conversation.' });
+      }
+
+      // Cancel any pending automated follow-up upon human agent reply
+      FollowUpService.cancelPendingFollowUps(req.organizationId, buyerPhone, 'human_takeover');
+
+      // Send strictly via live Baileys socket belonging to this tenant
+      const sendResult = await baileysManager.sendMessage(req.organizationId, buyerPhone, message.trim());
+      if (!sendResult.ok) {
+        return res.status(500).json({ ok: false, error: sendResult.error || 'Failed to dispatch via WhatsApp.' });
+      }
+
+      // Save message record in Supabase
+      const { data: msgRecord } = await sb.from('messages').insert({
+        org_id: req.organizationId,
+        conversation_id: conv.id,
+        sender_type: 'agent',
+        sender_id: req.userId,
+        content: message.trim(),
+        delivery_status: 'sent',
+        provider_message_id: sendResult.messageId
+      }).select().single();
+
+      // Update conversation last interaction preview & timestamp
+      await sb.from('conversations').update({
+        last_message_preview: message.trim().slice(0, 160),
+        updated_at: new Date().toISOString()
+      }).eq('id', conv.id);
+
+      return res.json({ ok: true, message: msgRecord || { content: message.trim(), sender_type: 'agent' } });
+    }
+
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
+    }
+
     const conv = db.findById('conversations', req.params.id);
     if (!conv || conv.organization_id !== req.organizationId) {
       return res.status(404).json({ ok: false, error: 'Conversation not found.' });
@@ -720,16 +814,13 @@ router.post('/conversations/:id/reply', authenticate, requireConversationAccess,
       return res.status(400).json({ ok: false, error: 'No phone number linked to this lead.' });
     }
 
-    // Cancel any pending automated follow-up upon human agent reply
     FollowUpService.cancelPendingFollowUps(req.organizationId, lead.buyer_phone, 'human_takeover');
 
-    // Send strictly via live Baileys socket belonging to this tenant
     const sendResult = await baileysManager.sendMessage(req.organizationId, lead.buyer_phone, message.trim());
     if (!sendResult.ok) {
       return res.status(500).json({ ok: false, error: sendResult.error || 'Failed to dispatch via WhatsApp.' });
     }
 
-    // Save message record
     const msgRecord = db.insert('messages', {
       organization_id: req.organizationId,
       conversation_id: conv.id,
@@ -740,7 +831,6 @@ router.post('/conversations/:id/reply', authenticate, requireConversationAccess,
       provider_message_id: sendResult.messageId
     });
 
-    // If tenant is opted in to conversational learning, propose verified facts from this human agent turn
     if (LearningService.isLearningOptedIn(req.organizationId)) {
       try {
         const convMessages = db.findScoped('messages', req.organizationId, (m) => m.conversation_id === conv.id) || [];
@@ -847,30 +937,43 @@ router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin
     const sb = repository.getSupabase();
     if (userId.includes('@')) {
       if (sb) {
-        const { data: prof } = await sb.from('profiles').select('id, user_id').eq('email', userId.trim().toLowerCase()).maybeSingle();
+        const { data: prof } = await sb.from('profiles').select('id, user_id, email').eq('email', userId.trim().toLowerCase()).maybeSingle();
         if (prof) userId = prof.id || prof.user_id;
+        else return res.status(404).json({ ok: false, error: `No user profile registered with email ${userId}.` });
       } else {
         const u = db.findOne('users', x => x.email === userId.trim().toLowerCase()) || db.findOne('profiles', p => p.email === userId.trim().toLowerCase());
         if (u) userId = u.id || u.user_id;
+        else return res.status(404).json({ ok: false, error: `No user found with email ${userId}.` });
       }
     }
+
+    const targetOrg = await repository.getOrganizationById(orgId);
+    if (!targetOrg) {
+      return res.status(404).json({ ok: false, error: `Workspace ${orgId} not found.` });
+    }
+
     if (allow && (!await repository.getOrganizationById(orgId) || !await repository.getMembership(userId, orgId))) {
       return res.status(400).json({ ok: false, error: 'The user must already be a member of this workspace.' });
     }
+
     if (sb) {
       const query = allow
         ? sb.from('catalog_management_grants').upsert({ org_id: orgId, user_id: userId, granted_by: req.userId }, { onConflict: 'org_id,user_id' })
         : sb.from('catalog_management_grants').delete().eq('org_id', orgId).eq('user_id', userId);
       const { error } = await query;
-      if (error) throw new DatabaseUnavailableError(error.message);
+      if (error) {
+        console.error('[Admin Catalog Permissions Error]:', error);
+        return res.status(500).json({ ok: false, error: error.message || 'Database error updating permissions.' });
+      }
     } else {
-      const existing = db.findOne('catalog_management_grants', g => g.organization_id === orgId && g.user_id === userId);
+      const existing = db.findOne('catalog_management_grants', g => (g.organization_id === orgId || g.org_id === orgId) && g.user_id === userId);
       if (allow && !existing) db.insert('catalog_management_grants', { organization_id: orgId, user_id: userId, granted_by: req.userId });
       if (!allow && existing) db.delete('catalog_management_grants', existing.id);
     }
     res.json({ ok: true, orgId, userId, canManageCatalog: allow });
   } catch (error) {
-    res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to change catalogue access.' });
+    console.error('[Admin Catalog Permissions Exception]:', error);
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message || 'Unable to change catalogue access.' });
   }
 });
 
@@ -1055,6 +1158,9 @@ router.patch('/catalog/knowledge', authenticate, requireCatalogManager, async (r
 
 router.patch('/catalog/products/:id', authenticate, requireCatalogManager, async (req, res) => {
   try {
+    const targetOrgId = (req.role === 'superadmin' && (req.query?.org_id || req.body?.orgId))
+      ? (req.query?.org_id || req.body?.orgId)
+      : req.organizationId;
     const updates = {};
     for (const [key, max] of Object.entries({ name: 500, sku: 200, price_raw: 80, model_specs: 600 })) {
       if (Object.hasOwn(req.body || {}, key)) {
@@ -1066,40 +1172,44 @@ router.patch('/catalog/products/:id', authenticate, requireCatalogManager, async
     const sb = repository.getSupabase();
     let product;
     if (sb) {
-      const { data, error } = await sb.from('products').update(updates).eq('org_id', req.organizationId).eq('id', req.params.id).select().maybeSingle();
+      const { data, error } = await sb.from('products').update(updates).eq('org_id', targetOrgId).eq('id', req.params.id).select().maybeSingle();
       if (error) throw new DatabaseUnavailableError(error.message);
       product = data;
     } else {
-      const existing = db.findOne('products', p => p.id === req.params.id && (p.organization_id === req.organizationId || p.org_id === req.organizationId));
+      const existing = db.findOne('products', p => p.id === req.params.id && (p.organization_id === targetOrgId || p.org_id === targetOrgId));
       if (existing) product = db.update('products', existing.id, updates);
     }
     if (!product) return res.status(404).json({ ok: false, error: 'Product not found.' });
-    invalidateCache(req.organizationId);
+    invalidateCache(targetOrgId);
     res.json({ ok: true, product });
   } catch (error) { res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to update product.' }); }
 });
 
 router.delete('/catalog/products/:id', authenticate, requireCatalogManager, async (req, res) => {
   try {
+    const targetOrgId = (req.role === 'superadmin' && (req.query?.org_id || req.body?.orgId))
+      ? (req.query?.org_id || req.body?.orgId)
+      : req.organizationId;
     const sb = repository.getSupabase();
     if (sb) {
       const { data, error } = await sb
         .from('products')
         .delete()
         .eq('id', req.params.id)
-        .eq('org_id', req.organizationId)
+        .eq('org_id', targetOrgId)
         .select();
       if (error) throw new DatabaseUnavailableError(error.message);
       if (!data || data.length === 0) {
         return res.status(404).json({ ok: false, error: 'Product not found or unauthorized' });
       }
-      invalidateCache(req.organizationId);
+      invalidateCache(targetOrgId);
       return res.json({ ok: true, deleted: true });
     }
     if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
       throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
     }
-    CatalogService.deleteProduct(req.organizationId, req.params.id);
+    CatalogService.deleteProduct(targetOrgId, req.params.id);
+    invalidateCache(targetOrgId);
     res.json({ ok: true, deleted: true });
   } catch (err) {
     res.status(err.statusCode || 400).json({ ok: false, error: err.message });
@@ -1414,7 +1524,15 @@ router.post(['/webhook/b2b', '/webhook/indiamart'], async (req, res) => {
       return res.status(401).json({ status: 'unauthorized', error: 'Authentication required: Missing valid tenant webhook key or token.' });
     }
 
-    const org = db.findByWebhookKey(token);
+    let org = null;
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { data } = await sb.from('organizations').select('*').eq('webhook_key', token).maybeSingle();
+      org = data;
+    }
+    if (!org) {
+      org = db.findByWebhookKey(token);
+    }
     if (!org) {
       return res.status(401).json({ status: 'unauthorized', error: 'Invalid tenant webhook token or key.' });
     }
@@ -1469,45 +1587,67 @@ router.post('/webhook/whatsapp', async (req, res) => {
 // ==========================================
 // 10. WORKSPACE MEMBERSHIP & DUAL PAYMENT ENGINE
 // ==========================================
-router.get('/membership/status', authenticate, (req, res) => {
-  const org = db.findById('organizations', req.organizationId) || req.organization;
-  const leads = db.findScoped('leads', req.organizationId);
-  const leadsUsed = org.leads_used || leads.length;
-  res.json({
-    ok: true,
-    membership: {
-      planStatus: org.plan_status || 'trial',
-      trialEndsAt: org.trial_ends_at || null,
-      monthlyLeadLimit: org.monthly_lead_limit || 25,
-      leadsUsed,
-      customQuoteInr: org.custom_quote_inr || null,
-      companyName: org.name,
-      currency: 'INR',
-      merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
-      merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
-      isRazorpayConfigured: false,
-      razorpayKeyId: null
+router.get('/membership/status', authenticate, async (req, res) => {
+  try {
+    const org = await repository.getOrganizationById(req.organizationId) || req.organization || {};
+    let leadsCount = 0;
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { count } = await sb.from('leads').select('*', { count: 'exact', head: true }).eq('org_id', req.organizationId);
+      leadsCount = typeof count === 'number' ? count : (org.leads_used || 0);
+    } else {
+      leadsCount = db.findScoped('leads', req.organizationId).length;
     }
-  });
+    const leadsUsed = org.leads_used || leadsCount;
+    res.json({
+      ok: true,
+      membership: {
+        planStatus: org.plan_status || 'trial',
+        trialEndsAt: org.trial_ends_at || null,
+        monthlyLeadLimit: org.monthly_lead_limit || 25,
+        leadsUsed,
+        customQuoteInr: org.custom_quote_inr || null,
+        companyName: org.name,
+        currency: 'INR',
+        merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
+        merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
+        isRazorpayConfigured: false,
+        razorpayKeyId: null
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
-router.get('/billing', authenticate, (req, res) => {
-  const org = db.findById('organizations', req.organizationId) || req.organization;
-  const leads = db.findScoped('leads', req.organizationId);
-  const leadsUsed = org.leads_used || leads.length;
-  res.json({
-    ok: true,
-    billing: {
-      planStatus: org.plan_status || 'trial',
-      monthlyLeadLimit: org.monthly_lead_limit || 25,
-      currentUsage: leadsUsed,
-      customQuoteInr: org.custom_quote_inr || null,
-      merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
-      merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
-      isConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
-      currency: 'INR'
+router.get('/billing', authenticate, async (req, res) => {
+  try {
+    const org = await repository.getOrganizationById(req.organizationId) || req.organization || {};
+    let leadsCount = 0;
+    const sb = repository.getSupabase();
+    if (sb) {
+      const { count } = await sb.from('leads').select('*', { count: 'exact', head: true }).eq('org_id', req.organizationId);
+      leadsCount = typeof count === 'number' ? count : (org.leads_used || 0);
+    } else {
+      leadsCount = db.findScoped('leads', req.organizationId).length;
     }
-  });
+    const leadsUsed = org.leads_used || leadsCount;
+    res.json({
+      ok: true,
+      billing: {
+        planStatus: org.plan_status || 'trial',
+        monthlyLeadLimit: org.monthly_lead_limit || 25,
+        currentUsage: leadsUsed,
+        customQuoteInr: org.custom_quote_inr || null,
+        merchantUpiId: process.env.MERCHANT_UPI_ID || 'YOUR_REAL_UPI_ID',
+        merchantName: process.env.MERCHANT_NAME || 'MartFlow AI',
+        isConfigured: Boolean(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+        currency: 'INR'
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 router.get('/public-config', (req, res) => {

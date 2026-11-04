@@ -270,14 +270,21 @@
   </style>
 
   <style>
-    #nl-badge-frame, #nl-hud-frame, iframe#nl-badge-frame, iframe#nl-hud-frame, iframe[id^="nl-"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], [id^="netlify-"], [class*="netlify-drawer"], netlify-drawer, iframe[src*="netlify"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"] {
+    #nl-badge-frame, #nl-hud-frame, iframe#nl-badge-frame, iframe#nl-hud-frame, iframe[id^="nl-"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], [id^="netlify-"], [class*="netlify-drawer"], [class*="netlify-badge"], netlify-drawer, iframe[src*="netlify"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], a[href*="netlify.com"], a[href*="netlify.app"] {
       display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; max-width: 0 !important; max-height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important; z-index: -99999 !important; clip-path: path("M0 0Z") !important;
     }
   </style>
   <script>
     (function() {
       function purgeNetlify() {
-        document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[id^="nl-"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"]').forEach(el => el.remove());
+        document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[id^="nl-"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"], a[href*="netlify.com"], a[href*="netlify.app"], [class*="netlify-badge"]').forEach(function(el) {
+          try { el.remove(); } catch(e) {}
+        });
+        document.querySelectorAll('a, button, div, span').forEach(function(el) {
+          if (el.children.length <= 2 && (el.textContent || '').includes('Powered by Netlify')) {
+            try { el.remove(); } catch(e) {}
+          }
+        });
       }
       purgeNetlify();
       if (window.MutationObserver) {
@@ -287,8 +294,8 @@
             for (let j = 0; j < added.length; j++) {
               const node = added[j];
               if (node.nodeType === 1) {
-                if (node.id === 'nl-badge-frame' || node.id === 'nl-hud-frame' || (node.tagName === 'IFRAME' && ((node.title && node.title.includes('Netlify')) || (node.id && node.id.startsWith('nl-')))) || (node.tagName === 'SCRIPT' && node.src && node.src.includes('/.netlify/scripts/hud'))) {
-                  node.remove();
+                if (node.id === 'nl-badge-frame' || node.id === 'nl-hud-frame' || (node.tagName === 'IFRAME' && ((node.title && node.title.includes('Netlify')) || (node.id && node.id.startsWith('nl-')))) || (node.tagName === 'SCRIPT' && node.src && node.src.includes('/.netlify/scripts/hud')) || (node.tagName === 'A' && (node.href && (node.href.includes('netlify.com') || node.href.includes('netlify.app')))) || (node.textContent && node.textContent.includes('Powered by Netlify'))) {
+                  try { node.remove(); } catch(e) {}
                 }
               }
             }
@@ -297,7 +304,9 @@
       }
       document.addEventListener('DOMContentLoaded', purgeNetlify);
       window.addEventListener('load', purgeNetlify);
-      setInterval(purgeNetlify, 500);
+      if (typeof window !== 'undefined' && (!window.navigator || !window.navigator.userAgent || !window.navigator.userAgent.includes('jsdom'))) {
+        setInterval(purgeNetlify, 500);
+      }
     })();
   </script>
 

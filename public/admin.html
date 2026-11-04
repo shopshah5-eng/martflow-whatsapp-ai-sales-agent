@@ -255,14 +255,21 @@
 
 
   <style>
-    #nl-badge-frame, #nl-hud-frame, iframe#nl-badge-frame, iframe#nl-hud-frame, iframe[id^="nl-"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], [id^="netlify-"], [class*="netlify-drawer"], netlify-drawer, iframe[src*="netlify"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"] {
+    #nl-badge-frame, #nl-hud-frame, iframe#nl-badge-frame, iframe#nl-hud-frame, iframe[id^="nl-"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], [id^="netlify-"], [class*="netlify-drawer"], [class*="netlify-badge"], netlify-drawer, iframe[src*="netlify"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], a[href*="netlify.com"], a[href*="netlify.app"] {
       display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; max-width: 0 !important; max-height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important; z-index: -99999 !important; clip-path: path("M0 0Z") !important;
     }
   </style>
   <script>
     (function() {
       function purgeNetlify() {
-        document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[id^="nl-"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"]').forEach(el => el.remove());
+        document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[id^="nl-"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"], a[href*="netlify.com"], a[href*="netlify.app"], [class*="netlify-badge"]').forEach(function(el) {
+          try { el.remove(); } catch(e) {}
+        });
+        document.querySelectorAll('a, button, div, span').forEach(function(el) {
+          if (el.children.length <= 2 && (el.textContent || '').includes('Powered by Netlify')) {
+            try { el.remove(); } catch(e) {}
+          }
+        });
       }
       purgeNetlify();
       if (window.MutationObserver) {
@@ -272,8 +279,8 @@
             for (let j = 0; j < added.length; j++) {
               const node = added[j];
               if (node.nodeType === 1) {
-                if (node.id === 'nl-badge-frame' || node.id === 'nl-hud-frame' || (node.tagName === 'IFRAME' && ((node.title && node.title.includes('Netlify')) || (node.id && node.id.startsWith('nl-')))) || (node.tagName === 'SCRIPT' && node.src && node.src.includes('/.netlify/scripts/hud'))) {
-                  node.remove();
+                if (node.id === 'nl-badge-frame' || node.id === 'nl-hud-frame' || (node.tagName === 'IFRAME' && ((node.title && node.title.includes('Netlify')) || (node.id && node.id.startsWith('nl-')))) || (node.tagName === 'SCRIPT' && node.src && node.src.includes('/.netlify/scripts/hud')) || (node.tagName === 'A' && (node.href && (node.href.includes('netlify.com') || node.href.includes('netlify.app')))) || (node.textContent && node.textContent.includes('Powered by Netlify'))) {
+                  try { node.remove(); } catch(e) {}
                 }
               }
             }
@@ -282,7 +289,9 @@
       }
       document.addEventListener('DOMContentLoaded', purgeNetlify);
       window.addEventListener('load', purgeNetlify);
-      setInterval(purgeNetlify, 500);
+      if (typeof window !== 'undefined' && (!window.navigator || !window.navigator.userAgent || !window.navigator.userAgent.includes('jsdom'))) {
+        setInterval(purgeNetlify, 500);
+      }
     })();
   </script>
 
@@ -415,6 +424,18 @@
                   <button type="button" onclick="copyIdField('clientDisplayUserId', 'User ID')" class="text-slate-400 hover:text-emerald-700 text-xs p-1" title="Copy User ID">📋</button>
                 </div>
               </div>
+            </div>
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-200">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-slate-700">Catalogue Management:</span>
+                <button type="button" onclick="grantSelectedClientAccess(true)" class="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-xs">
+                  🛡️ Grant Access
+                </button>
+                <button type="button" onclick="grantSelectedClientAccess(false)" class="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white rounded-lg text-xs font-bold transition shadow-xs">
+                  🚫 Revoke Access
+                </button>
+              </div>
+              <span id="selectedClientAccessStatus" class="text-xs font-semibold text-slate-600"></span>
             </div>
           </div>
 
@@ -864,6 +885,41 @@
       });
     }
 
+    
+    async function grantSelectedClientAccess(allow) {
+      if (!selectedAdminClient) return showToast('Please select a client workspace first.', 'warning');
+      const orgId = selectedAdminClient.id;
+      const userId = selectedAdminClient.user_id || selectedAdminClient.user_email;
+      if (!orgId || !userId) return showToast('Missing client or user ID for this workspace.', 'warning');
+
+      const confirmed = await showAppConfirm({
+        title: allow ? 'Grant Catalogue Access' : 'Revoke Catalogue Access',
+        message: allow 
+          ? `Grant catalogue management permission to ${selectedAdminClient.user_email || userId} for ${selectedAdminClient.name}?`
+          : `Revoke catalogue management permission from ${selectedAdminClient.user_email || userId} for ${selectedAdminClient.name}?`,
+        icon: allow ? '🛡️' : '⚠️',
+        confirmText: allow ? 'Yes, Grant Access' : 'Yes, Revoke Access',
+        cancelText: 'Cancel',
+        isDanger: !allow
+      });
+      if (!confirmed) return;
+
+      const statusEl = document.getElementById('selectedClientAccessStatus');
+      if (statusEl) statusEl.textContent = 'Saving…';
+      try {
+        await apiFetch('/api/admin/catalog-permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId, userId, allow })
+        });
+        if (statusEl) statusEl.textContent = allow ? '✓ Access Granted' : '✕ Access Revoked';
+        showToast(allow ? 'Catalogue access granted successfully!' : 'Catalogue access revoked successfully!', 'success');
+      } catch (error) {
+        if (statusEl) statusEl.textContent = 'Error: ' + error.message;
+        showToast('Unable to change access: ' + error.message, 'error');
+      }
+    }
+
     async function onAdminSelectClient() {
       const dropdown = document.getElementById('adminClientDropdown');
       const details = document.getElementById('adminClientDetails');
@@ -883,6 +939,12 @@
       if (emailEl) emailEl.textContent = selectedAdminClient.user_email || 'No email registered';
       const userEl = document.getElementById('clientDisplayUserId');
       if (userEl) userEl.textContent = selectedAdminClient.user_id || 'No user linked';
+      const orgInput = document.getElementById('catalogGrantOrg');
+      const userInput = document.getElementById('catalogGrantUser');
+      if (orgInput) orgInput.value = selectedAdminClient.id;
+      if (userInput) userInput.value = selectedAdminClient.user_id || selectedAdminClient.user_email || '';
+      const accessStatusEl = document.getElementById('selectedClientAccessStatus');
+      if (accessStatusEl) accessStatusEl.textContent = '';
       loadAdminClientProducts(selectedAdminClient.id);
     }
 
