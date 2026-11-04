@@ -540,22 +540,55 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     content?.conversation ||
     content?.extendedTextMessage?.text ||
     content?.imageMessage?.caption ||
+    content?.videoMessage?.caption ||
     content?.documentMessage?.caption ||
     '';
 
   const isAudio = Boolean(content?.audioMessage);
   const isImage = Boolean(content?.imageMessage);
+  const isVideo = Boolean(content?.videoMessage);
   const isLocation = Boolean(content?.locationMessage);
 
+  // Download image buffer if buyer sent a photo / outfit screenshot
+  let imageBase64 = null;
+  let imageMime = 'image/jpeg';
+  if (isImage) {
+    try {
+      imageMime = content?.imageMessage?.mimetype || 'image/jpeg';
+      const imgBuffer = await downloadMediaMessage(msg, 'buffer', {}, {
+        logger: activeSock?.logger || pino({ level: 'silent' }),
+        reuploadRequest: activeSock?.updateMediaMessage
+      });
+      if (imgBuffer) {
+        imageBase64 = Buffer.isBuffer(imgBuffer) ? imgBuffer.toString('base64') : Buffer.from(imgBuffer).toString('base64');
+      }
+    } catch (e) {
+      addLog(`[Image Download] Error downloading image message: ${e.message}`);
+    }
+  }
+
+  // Detect Meta Click-to-WhatsApp Ad headline (externalAdReply)
+  const adContext =
+    content?.extendedTextMessage?.contextInfo?.externalAdReply ||
+    content?.imageMessage?.contextInfo?.externalAdReply ||
+    msg.message?.extendedTextMessage?.contextInfo?.externalAdReply ||
+    msg.message?.imageMessage?.contextInfo?.externalAdReply;
+  const clickedAdInfo = (adContext?.title || adContext?.body)
+    ? `Clicked Ad Info: "${(adContext.title || '').trim()} - ${(adContext.body || '').trim()}"`
+    : '';
+
   if (!incomingText) {
-    if (isImage) incomingText = '[Buyer sent photo / product sample]';
-    else if (isLocation) {
+    if (isImage) {
+      incomingText = '[Customer sent a product/outfit photo screenshot — identify the matching category, share wholesale/price range & MOQ, and ask quantity/city]';
+    } else if (isVideo) {
+      incomingText = content?.videoMessage?.caption || '[Customer shared a video/reel inquiry — ask screenshot or desired quantity & share matching category range]';
+    } else if (isLocation) {
       const loc = content.locationMessage;
       incomingText = `[Buyer shared location: ${loc.name || loc.address || 'GPS Location'}]`;
     }
   }
 
-  if (!incomingText && !isAudio && !content?.documentMessage) return;
+  if (!incomingText && !isAudio && !isImage && !isVideo && !content?.documentMessage) return;
 
   const altJid = msg.key.remoteJidAlt || msg.key.participant || '';
   const resolvedPhone = resolvePhoneFromJid(rawRemote, altJid);
@@ -785,6 +818,39 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
   const isFounderControl = isSelfChat || isFromOwner;
   const cmd = (incomingText || '').trim().toLowerCase();
+
+  // Live AI Note / Stock Update Command: note: <text> or stock: <text>
+  if (isFounderControl && /^(?:note|stock)\s*:\s*([\s\S]+)$/i.test((incomingText || '').trim())) {
+    const match = (incomingText || '').trim().match(/^(?:note|stock)\s*:\s*([\s\S]+)$/i);
+    const updateText = match ? match[1].trim() : '';
+    if (updateText) {
+      try {
+        const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+        const noteLine = `[Live Update ${timestamp}]: ${updateText}`;
+        let updatedKnowledge = noteLine;
+        if (supabaseAdmin) {
+          const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
+          const existing = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
+          updatedKnowledge = existing ? `${existing}\n${noteLine}` : noteLine;
+          await supabaseAdmin.from('organizations').update({
+            website_knowledge: updatedKnowledge,
+            updated_at: new Date().toISOString()
+          }).eq('id', orgId);
+        } else {
+          const existing = freshOrg.website_knowledge || '';
+          updatedKnowledge = existing ? `${existing}\n${noteLine}` : noteLine;
+        }
+        freshOrg.website_knowledge = updatedKnowledge;
+        const sent = await activeSock.sendMessage(rawRemote, { text: "✅ Live AI note updated!" });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        addLog(`[Remote Control] Live AI note updated by owner for org ${orgId}: ${updateText}`);
+      } catch (e) {
+        addLog(`[Remote Control] Error updating live note: ${e.message}`);
+        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to update note: ${e.message}` });
+      }
+      return;
+    }
+  }
 
   // Typo-Tolerant Pause Command: manual / mannual / manul / pause / stop / off
   if (isFounderControl && /^(manual|mannual|manul|pause|stop|off)$/.test(cmd)) {
@@ -1193,7 +1259,10 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       lead: sLead || { name: pushName, phone: senderPhone },
       incomingText,
       conversationHistory: convHistory,
-      customerMemory
+      customerMemory,
+      imageBase64,
+      imageMime,
+      clickedAdInfo
     });
 
     if (!aiReplyObj || !aiReplyObj.reply) return;
@@ -1680,7 +1749,7 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
 // ============================================================================
 // CONCISE WHATSAPP AI SALES CLOSER (MAX 18–38 WORDS, BUSY FOUNDER PERSONA)
 // ============================================================================
-async function generateShortSalesReply({ organizationId, org, lead, incomingText, conversationHistory, customerMemory }) {
+async function generateShortSalesReply({ organizationId, org, lead, incomingText, conversationHistory, customerMemory, imageBase64, imageMime, clickedAdInfo }) {
   const geminiKey = (process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
   const orgName = org?.name || config.companyName || 'Leadsy AI';
   const cityBase = org?.city_base || org?.company_city || config.cityBase || 'Delhi NCR / Ludhiana';
@@ -1743,10 +1812,16 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
   }
 
   if (geminiKey && geminiKey.length > 10) {
+    const adPromptContext = clickedAdInfo ? `\nActive Reel/Ad Context:\n${clickedAdInfo}\n` : '';
     const systemInstruction = `You are a real, busy business founder/manager on WhatsApp for "${orgName}" (${cityBase}).
 Catalog & Pricing Knowledge:
 ${catalogContext || 'Standard verified offerings apply.'}
-${extraKnowledge}${memoryContext}
+${extraKnowledge}${memoryContext}${adPromptContext}
+
+AD REEL & LIVE STOCK RULE:
+(a) If the customer asks about "the outfit/item in the video/ad" WITHOUT sharing a photo or specific name (and no Clicked Ad Info is present), politely share our main category price range in 1 line and ask them to send a quick screenshot + required sets/quantity.
+(b) Never blindly guarantee exact colour/print stock quantity or promise exact godown stock availability, and NEVER ask the customer to pay before owner confirmation.
+(c) Confirm our category price/MOQ, note that fresh matching designs are also ready, tell the buyer we are confirming live rack availability & fresh matching colours via our Main Dispatch Team once they share required sets & city, and hand off serious buyers to our Main Team on WhatsApp for live stock photos/video call.
 
 CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
 1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.
@@ -1781,7 +1856,10 @@ STRICT LENGTH RULE:
               contents: [
                 {
                   role: 'user',
-                  parts: [{ text: `Customer: "${incomingText}"\n\nRecent chat context:\n${historyText || '(New inquiry)'}` }]
+                  parts: [
+                    ...(imageBase64 ? [{ inlineData: { mimeType: imageMime || 'image/jpeg', data: imageBase64 } }] : []),
+                    { text: `Customer: "${incomingText}"${clickedAdInfo ? `\n${clickedAdInfo}` : ''}\n\nRecent chat context:\n${historyText || '(New inquiry)'}` }
+                  ]
                 }
               ],
               generationConfig: {
