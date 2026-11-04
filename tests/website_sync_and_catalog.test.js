@@ -192,7 +192,7 @@ test('FRONTEND ASSETS & LAYOUT: industry cards use matching SVGs and hero-whatsa
   const bMatPath = path.join(__dirname, '../public/assets/building-materials.svg');
   assert.ok(fs.existsSync(bMatPath), 'building-materials.svg must exist');
   const bMatContent = fs.readFileSync(bMatPath, 'utf8');
-  assert.ok(bMatContent.includes('Building Materials &amp; Construction'), 'Must have title in SVG');
+  assert.ok(bMatContent.includes('<title>Building materials</title>'), 'Must have the artwork title');
 });
 
 test('PROMPT GROUNDING: generateShortSalesReply includes WEBSITE PRODUCT & BUY-LINK RULE', async () => {

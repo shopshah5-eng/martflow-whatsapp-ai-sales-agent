@@ -1,44 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 140" width="100%" height="100%" fill="none">
-  <title>Building Materials &amp; Construction</title>
-  <defs>
-    <linearGradient id="bg-grad-building-materials" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#093527"/>
-      <stop offset="100%" stop-color="#05241a"/>
-    </linearGradient>
-    <linearGradient id="card-grad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#F8FAFC"/>
-    </linearGradient>
-  </defs>
-  <!-- Background -->
-  <rect width="400" height="140" fill="url(#bg-grad-building-materials)"/>
-  
-  <!-- Subtle Grid Pattern -->
-  <path d="M0 35H400 M0 70H400 M0 105H400 M100 0V140 M200 0V140 M300 0V140" stroke="#FFFFFF" stroke-opacity="0.04" stroke-width="1"/>
-  
-  <!-- Vertical Eyebrow Badge -->
-  <rect x="18" y="14" width="190" height="18" rx="9" fill="#10B981" fill-opacity="0.18"/>
-  <circle cx="27" cy="23" r="3" fill="#10B981"/>
-  <text x="35" y="26" font-family="Inter, -apple-system, sans-serif" font-size="8.5" font-weight="800" fill="#34D399" letter-spacing="0.04em">Building Materials &amp; Construction</text>
-
-  <!-- Watermark Icon in top right -->
-  <g transform="translate(345, 12)" opacity="0.22">
-    <path d="M4 30V6L24 6 M8 6V30 M12 6V30 M16 6V30 M24 6L28 12V30 M2 30H30" stroke="#FFFFFF" stroke-width="2" fill="none"/>
-  </g>
-
-  <!-- Metric Card 1: Inquiries -->
-  <g transform="translate(18, 42)">
-    <rect width="176" height="82" rx="12" fill="url(#card-grad)" stroke="#E2E8F0" stroke-width="1"/>
-    <text x="14" y="24" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="700" fill="#64748B" letter-spacing="0.04em">TYPICAL MONTHLY INQUIRIES</text>
-    <text x="14" y="55" font-family="Inter, -apple-system, sans-serif" font-size="20" font-weight="900" fill="#0F172A" letter-spacing="-0.03em">400 – 2,500</text>
-    <text x="14" y="71" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="500" fill="#10B981">● Automated AI intake</text>
-  </g>
-
-  <!-- Metric Card 2: Dispatch Time -->
-  <g transform="translate(206, 42)">
-    <rect width="176" height="82" rx="12" fill="url(#card-grad)" stroke="#E2E8F0" stroke-width="1"/>
-    <text x="14" y="24" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="700" fill="#64748B" letter-spacing="0.04em">SPEC &amp; QUOTE DISPATCH</text>
-    <text x="14" y="55" font-family="Inter, -apple-system, sans-serif" font-size="20" font-weight="900" fill="#087F5B" letter-spacing="-0.03em">< 2.5s</text>
-    <text x="14" y="71" font-family="Inter, -apple-system, sans-serif" font-size="8" font-weight="500" fill="#64748B">Instant PDF / spec quote</text>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 140" role="img" aria-label="Building materials">
+<title>Building materials</title>
+<rect width="400" height="140" fill="#f2faf6"/>
+<circle cx="200" cy="70" r="68" fill="#e3f6ec"/>
+<circle cx="96" cy="32" r="5" fill="#bcebd4"/><circle cx="311" cy="100" r="6" fill="#c8efdd"/>
+<path d="M87 111h226" stroke="#bde8d2" stroke-width="2" stroke-linecap="round"/>
+<path d="M126 112V54l33-21 34 21v58h-67Z" fill="#e0f7eb" stroke="#087f5b" stroke-width="3" stroke-linejoin="round"/><path d="M140 63h11v11h-11zm26 0h11v11h-11zm-26 22h11v11h-11zm26 0h11v11h-11z" fill="#fff" stroke="#087f5b" stroke-width="2"/><path d="M210 90h62v22h-62zM220 68h62v22h-62zM210 46h62v22h-62z" fill="#fff" stroke="#087f5b" stroke-width="3" stroke-linejoin="round"/><path d="M241 46v22m-10 0v22m10 0v22" stroke="#98d8bb" stroke-width="2"/>
 </svg>

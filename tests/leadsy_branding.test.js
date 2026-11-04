@@ -11,6 +11,7 @@ test('customer-facing pages display the Leadsy brand without changing existing r
     const { document } = dom.window;
     assert.match(document.title, /Leadsy/);
     assert.match(document.body.textContent, /Leadsy/);
+    assert.ok(document.querySelector('img[src="/assets/leadsy-mark.png"]'), 'Use the uncropped brand mark');
     assert.equal(document.querySelectorAll('[id="links"] a[href="/login"]').length > 0 || page !== 'index', true);
     if (page === 'index') {
       assert.doesNotMatch(document.querySelector('main').textContent, /MartFlow/i);

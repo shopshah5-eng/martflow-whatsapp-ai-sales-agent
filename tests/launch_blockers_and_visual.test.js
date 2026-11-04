@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'fs';
 import path from 'path';
 import express from 'express';
+import { JSDOM } from 'jsdom';
 import crypto from 'node:crypto';
 import apiRouter from '../src/routes/api.js';
 import db from '../src/db/index.js';
@@ -133,8 +134,11 @@ test('LAUNCH BLOCKERS & PRIVACY: Suite Verification', async (t) => {
       assert.ok(fs.existsSync(p), `${ind}.svg exists`);
       const content = fs.readFileSync(p, 'utf-8');
       assert.match(content, /viewBox="0 0 400 140"/);
-      assert.match(content, /TYPICAL MONTHLY INQUIRIES/);
-      assert.match(content, /SPEC &amp; QUOTE DISPATCH/);
+      const svg = new JSDOM(content, { contentType: 'image/svg+xml' });
+      assert.equal(svg.window.document.documentElement.localName, 'svg');
+      assert.ok(svg.window.document.querySelector('title')?.textContent);
+      assert.ok(svg.window.document.querySelector('path'), 'Vector artwork should include paths');
+      svg.window.close();
     }
   });
 
