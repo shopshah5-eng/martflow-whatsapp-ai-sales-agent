@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="ind-grad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#087F5B"/>
+      <stop offset="100%" stop-color="#064E3B"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="400" rx="16" fill="#F7FAF8" stroke="#E5EAE7" stroke-width="1.5"/>
+  <rect x="30" y="30" width="540" height="340" rx="12" fill="#FFFFFF" stroke="#E5EAE7"/>
+  <circle cx="80" cy="80" r="32" fill="url(#ind-grad)"/>
+  <path d="M68 92V74L80 66L92 74V92H68Z M74 80H86" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="130" y="75" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#111827">Building Materials &amp; Construction</text>
+  <text x="130" y="96" font-family="Inter, sans-serif" font-size="12" font-weight="500" fill="#087F5B">Cement, TMT Steel, Tiles, Paints, Hardware</text>
+  
+  <rect x="50" y="140" width="500" height="1" fill="#E5EAE7"/>
+  <g transform="translate(50, 160)">
+    <rect width="235" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+    <text x="16" y="30" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#64748B">TYPICAL INQUIRY VOLUME</text>
+    <text x="16" y="58" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#087F5B">400 - 2,500 / mo</text>
+
+    <g transform="translate(255, 0)">
+      <rect width="235" height="80" rx="8" fill="#F8FAFC" stroke="#E2E8F0"/>
+      <text x="16" y="30" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#64748B">AVG QUOTATION TIME</text>
+      <text x="16" y="58" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#087F5B">&lt; 2.5 Seconds</text>
+    </g>
+
+    <g transform="translate(0, 95)">
+      <rect width="490" height="60" rx="8" fill="#E6F4F0" stroke="#C2E2D7"/>
+      <text x="16" y="26" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#087F5B">⚡ Solved Pain Point:</text>
+      <text x="16" y="44" font-family="Inter, sans-serif" font-size="11" font-weight="500" fill="#111827">Instant rate quotation by lot or tonnage keeps commercial contractors engaged.</text>
+    </g>
+  </g>
+</svg>

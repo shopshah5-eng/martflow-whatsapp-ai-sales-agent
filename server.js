@@ -516,7 +516,353 @@ const inboundMsgIdTimestamps = new Map();
 const ownerPendingConfirmations = new Map(); // orgId -> { type, data, actions, product, summary, expiresAt }
 const ownerUndoSnapshots = new Map();        // orgId -> { action, data, rollbacks }
 const conversationSentPhotos = new Map();    // `${orgId}:${senderPhone}` -> Set<productNameOrId>
+const conversationSentBuyLinks = new Map();  // `${orgId}:${senderPhone}` -> Set<productKeyOrUrl>
+const lastOrgWebsiteSync = new Map();        // orgId -> timestamp
 const orderAlertSentSet = new Set();         // `${orgId}:${senderPhone}:order_intent`
+
+// --- Website Sync & SSRF Protection Helpers ---
+function stripHtmlTags(str) {
+  if (!str) return '';
+  return str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function isPrivateIp(ip) {
+  if (!ip) return true;
+  const cleanIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+  if (cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp === '0.0.0.0' || cleanIp === 'localhost') return true;
+  const parts = cleanIp.split('.').map(Number);
+  if (parts.length === 4 && parts.every(n => !isNaN(n) && n >= 0 && n <= 255)) {
+    if (parts[0] === 10) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    if (parts[0] === 127) return true;
+    if (parts[0] === 0) return true;
+    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
+  }
+  if (cleanIp.startsWith('fc') || cleanIp.startsWith('fd') || cleanIp.startsWith('fe80:')) return true;
+  return false;
+}
+
+async function isSafePublicUrl(urlString) {
+  try {
+    const parsed = new URL(urlString);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal') || hostname.endsWith('.localhost')) {
+      return false;
+    }
+    if (isPrivateIp(hostname)) return false;
+    try {
+      const records = await dns.promises.lookup(hostname, { all: true });
+      for (const rec of records) {
+        if (isPrivateIp(rec.address)) return false;
+      }
+    } catch (_) {
+      return false;
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function safeFetchWebsite(url, maxBytes = 3 * 1024 * 1024, timeoutMs = 10000) {
+  const isSafe = await isSafePublicUrl(url);
+  if (!isSafe) {
+    throw new Error(`SSRF blocked: Domain or IP for ${url} is private or forbidden`);
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LeadsyCatalogBot/1.0',
+        'Accept': 'application/json, text/xml, application/xml, text/html, */*'
+      },
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      return { ok: false, status: res.status, text: '' };
+    }
+    const cl = res.headers.get('content-length');
+    if (cl && parseInt(cl, 10) > maxBytes) {
+      throw new Error(`Response exceeded max limit of ${maxBytes} bytes`);
+    }
+    const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength > maxBytes) {
+      throw new Error(`Response body exceeded max limit of ${maxBytes} bytes`);
+    }
+    const text = Buffer.from(arrayBuffer).toString('utf8');
+    return { ok: true, status: res.status, text, headers: res.headers };
+  } catch (err) {
+    clearTimeout(timer);
+    throw err;
+  }
+}
+
+function getOrgWebsiteUrl(websiteKnowledge) {
+  if (!websiteKnowledge) return '';
+  const firstLine = websiteKnowledge.split('\n')[0] || '';
+  const m = firstLine.match(/^WEBSITE_URL:\s*(https?:\/\/[^\s]+)/i);
+  return m ? m[1].trim() : '';
+}
+
+function setOrgWebsiteUrl(existingKnowledge, newUrl) {
+  const cleanUrl = newUrl.trim();
+  const restLines = (existingKnowledge || '')
+    .split('\n')
+    .filter(line => !line.startsWith('WEBSITE_URL:'))
+    .join('\n')
+    .trim();
+  const newHeader = `WEBSITE_URL: ${cleanUrl}`;
+  return restLines ? `${newHeader}\n${restLines}` : newHeader;
+}
+
+async function syncWebsiteProducts(orgId, websiteUrl, activeSock = null, rawRemote = null) {
+  try {
+    addLog(`[Website Sync] Initiating sync for org ${orgId} from ${websiteUrl}`);
+    const parsed = new URL(websiteUrl);
+    const origin = `${parsed.protocol}//${parsed.host}`;
+    const syncedItems = [];
+
+    // Attempt (a): Shopify products.json
+    try {
+      const shopifyUrl = `${origin}/products.json?limit=250`;
+      const sRes = await safeFetchWebsite(shopifyUrl);
+      if (sRes.ok && sRes.text) {
+        let sData = null;
+        try { sData = JSON.parse(sRes.text); } catch (_) {}
+        if (sData && Array.isArray(sData.products) && sData.products.length > 0) {
+          addLog(`[Website Sync] Detected Shopify store with ${sData.products.length} products`);
+          for (const p of sData.products) {
+            const title = (p.title || '').trim();
+            if (!title) continue;
+            const handle = p.handle || String(p.id);
+            const sku = `WEB-${handle}`;
+            const v0 = p.variants?.[0] || {};
+            const priceVal = v0.price;
+            let price_raw = 'Price on request';
+            if (priceVal !== undefined && priceVal !== null && priceVal !== '') {
+              price_raw = String(priceVal).includes('₹') || String(priceVal).includes('$') ? String(priceVal) : `₹${priceVal}`;
+            }
+            const isAvailable = p.variants?.some(v => v.available !== false) ?? true;
+            const shortDesc = stripHtmlTags(p.body_html || '').slice(0, 300).trim();
+            const prodUrl = `${origin}/products/${handle}`;
+            const desc = `${isAvailable ? '' : '[OUT OF STOCK] '}${shortDesc ? shortDesc + '\n' : ''}Buy link: ${prodUrl}`.trim();
+            const img = p.images?.[0]?.src || null;
+            syncedItems.push({
+              sku,
+              name: title,
+              price_raw,
+              description: desc,
+              brochure_url: img,
+              brochure_filename: `${title.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`,
+              isAvailable
+            });
+          }
+        }
+      }
+    } catch (sErr) {
+      addLog(`[Website Sync] Shopify attempt error: ${sErr.message}`);
+    }
+
+    // Attempt (b): WooCommerce Store API
+    if (syncedItems.length === 0) {
+      try {
+        const wcUrl = `${origin}/wp-json/wc/store/v1/products?per_page=100`;
+        const wRes = await safeFetchWebsite(wcUrl);
+        if (wRes.ok && wRes.text) {
+          let wData = null;
+          try { wData = JSON.parse(wRes.text); } catch (_) {}
+          if (Array.isArray(wData) && wData.length > 0) {
+            addLog(`[Website Sync] Detected WooCommerce store with ${wData.length} products`);
+            for (const p of wData) {
+              const name = (p.name || '').trim();
+              if (!name) continue;
+              const handle = p.slug || String(p.id);
+              const sku = `WEB-${handle}`;
+              const sym = p.prices?.currency_symbol || '₹';
+              const rawVal = p.prices?.price || p.prices?.regular_price;
+              const unit = p.prices?.currency_minor_unit ?? 2;
+              let price_raw = 'Price on request';
+              if (rawVal) {
+                const num = Number(rawVal) / Math.pow(10, unit);
+                price_raw = isNaN(num) ? `₹${rawVal}` : `${sym}${num.toLocaleString('en-IN')}`;
+              }
+              const isAvailable = p.is_in_stock !== false;
+              const shortDesc = stripHtmlTags(p.short_description || p.description || '').slice(0, 300).trim();
+              const prodUrl = p.permalink || `${origin}/?p=${p.id}`;
+              const desc = `${isAvailable ? '' : '[OUT OF STOCK] '}${shortDesc ? shortDesc + '\n' : ''}Buy link: ${prodUrl}`.trim();
+              const img = p.images?.[0]?.src || null;
+              syncedItems.push({
+                sku,
+                name,
+                price_raw,
+                description: desc,
+                brochure_url: img,
+                brochure_filename: `${name.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`,
+                isAvailable
+              });
+            }
+          }
+        }
+      } catch (wErr) {
+        addLog(`[Website Sync] WooCommerce attempt error: ${wErr.message}`);
+      }
+    }
+
+    // Attempt (c): Sitemap + Schema.org JSON-LD fallback
+    if (syncedItems.length === 0) {
+      try {
+        const sitemapPaths = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap-products.xml', '/product-sitemap.xml'];
+        let sitemapXml = '';
+        for (const smp of sitemapPaths) {
+          try {
+            const smRes = await safeFetchWebsite(`${origin}${smp}`);
+            if (smRes.ok && smRes.text && (smRes.text.includes('<urlset') || smRes.text.includes('<sitemapindex') || smRes.text.includes('<loc>'))) {
+              sitemapXml = smRes.text;
+              break;
+            }
+          } catch (_) {}
+        }
+        if (sitemapXml) {
+          const urlMatches = Array.from(sitemapXml.matchAll(/<loc>(https?:\/\/[^<]+)<\/loc>/gi)).map(m => m[1].trim());
+          const productUrls = urlMatches.filter(u => {
+            const low = u.toLowerCase();
+            return (low.includes('/product/') || low.includes('/products/') || low.includes('/item/') || low.includes('/p/'))
+              && !low.includes('/category/') && !low.includes('/tag/') && !low.endsWith('.xml');
+          }).slice(0, 60);
+
+          const urlsToFetch = productUrls.length > 0 ? productUrls : urlMatches.filter(u => !u.endsWith('.xml')).slice(0, 30);
+          addLog(`[Website Sync] Sitemap found. Scanning ${urlsToFetch.length} candidate URLs for JSON-LD`);
+
+          for (let i = 0; i < urlsToFetch.length; i += 5) {
+            const batch = urlsToFetch.slice(i, i + 5);
+            await Promise.all(batch.map(async (pUrl) => {
+              try {
+                const pageRes = await safeFetchWebsite(pUrl);
+                if (pageRes.ok && pageRes.text) {
+                  const jsonLdMatches = Array.from(pageRes.text.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi));
+                  for (const jm of jsonLdMatches) {
+                    try {
+                      const parsedLd = JSON.parse(jm[1]);
+                      const itemsArray = Array.isArray(parsedLd) ? parsedLd : (parsedLd['@graph'] || [parsedLd]);
+                      for (const item of itemsArray) {
+                        if (item && (item['@type'] === 'Product' || (Array.isArray(item['@type']) && item['@type'].includes('Product')))) {
+                          const name = (item.name || '').trim();
+                          if (!name) continue;
+                          const handle = pUrl.split('/').filter(Boolean).pop() || crypto.createHash('md5').update(name).digest('hex').slice(0, 8);
+                          const sku = `WEB-${handle}`;
+                          const offer = Array.isArray(item.offers) ? item.offers[0] : (item.offers || {});
+                          const priceVal = offer.price;
+                          const curr = offer.priceCurrency || '₹';
+                          let price_raw = 'Price on request';
+                          if (priceVal) {
+                            price_raw = String(priceVal).includes('₹') || String(priceVal).includes('$') ? String(priceVal) : `${curr} ${priceVal}`;
+                          }
+                          const avail = String(offer.availability || '');
+                          const isAvailable = !avail.toLowerCase().includes('outofstock');
+                          const shortDesc = stripHtmlTags(item.description || '').slice(0, 300).trim();
+                          const img = typeof item.image === 'string' ? item.image : (Array.isArray(item.image) ? item.image[0] : (item.image?.url || null));
+                          const desc = `${isAvailable ? '' : '[OUT OF STOCK] '}${shortDesc ? shortDesc + '\n' : ''}Buy link: ${pUrl}`.trim();
+                          syncedItems.push({
+                            sku,
+                            name,
+                            price_raw,
+                            description: desc,
+                            brochure_url: img,
+                            brochure_filename: `${name.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`,
+                            isAvailable
+                          });
+                        }
+                      }
+                    } catch (_) {}
+                  }
+                }
+              } catch (_) {}
+            }));
+          }
+        }
+      } catch (smErr) {
+        addLog(`[Website Sync] Sitemap attempt error: ${smErr.message}`);
+      }
+    }
+
+    const toUpsert = syncedItems.slice(0, 300);
+    let upsertCount = 0;
+    for (const item of toUpsert) {
+      try {
+        let existing = null;
+        if (supabaseAdmin) {
+          const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).or(`sku.eq.${item.sku},name.ilike.${item.name}`).limit(1).maybeSingle();
+          existing = data;
+        }
+        if (!existing) {
+          existing = db.findOne('products', p => (p.org_id === orgId || p.organization_id === orgId) && (p.sku === item.sku || p.name.toLowerCase() === item.name.toLowerCase()));
+        }
+        if (existing) {
+          const upd = {
+            name: item.name,
+            price_raw: item.price_raw,
+            description: item.description,
+            brochure_url: item.brochure_url || existing.brochure_url,
+            brochure_filename: item.brochure_filename || existing.brochure_filename,
+            is_active: true,
+            updated_at: new Date().toISOString()
+          };
+          if (supabaseAdmin) await supabaseAdmin.from('products').update(upd).eq('id', existing.id).eq('org_id', orgId);
+          try { db.update('products', existing.id, { ...upd, org_id: orgId, organization_id: orgId }); } catch (_) {}
+        } else {
+          const newId = crypto.randomUUID();
+          const rec = {
+            id: newId,
+            org_id: orgId,
+            organization_id: orgId,
+            sku: item.sku,
+            name: item.name,
+            price_raw: item.price_raw,
+            description: item.description,
+            brochure_url: item.brochure_url,
+            brochure_filename: item.brochure_filename,
+            is_active: true,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          if (supabaseAdmin) {
+            const sbRec = { ...rec };
+            delete sbRec.organization_id;
+            await supabaseAdmin.from('products').insert(sbRec);
+          }
+          try { db.insert('products', rec); } catch (_) {}
+        }
+        upsertCount++;
+      } catch (upErr) {
+        addLog(`[Website Sync] Error upserting product ${item.name}: ${upErr.message}`);
+      }
+    }
+
+    lastOrgWebsiteSync.set(orgId, Date.now());
+    const replyMsg = `Synced ${upsertCount} products from your website.`;
+    addLog(`[Website Sync] Completed: ${replyMsg}`);
+    if (activeSock && rawRemote) {
+      const sent = await activeSock.sendMessage(rawRemote, { text: replyMsg });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+    }
+    return upsertCount;
+  } catch (err) {
+    addLog(`[Website Sync Critical] ${err.message}`);
+    if (activeSock && rawRemote) {
+      try {
+        const sent = await activeSock.sendMessage(rawRemote, { text: `❌ Website sync error: ${err.message}` });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      } catch (_) {}
+    }
+    return 0;
+  }
+}
 
 async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   if (!msg || !msg.message) return;
@@ -1423,6 +1769,60 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         addLog(`[Owner Control] Error listing products: ${e.message}`);
         return;
       }
+    }
+
+    // Command: website: https://theirsite.com (sets website URL and runs sync)
+    if (/^website\s*:\s*https?:\/\//i.test(trimmedText)) {
+      const targetUrl = trimmedText.replace(/^website\s*:\s*/i, '').trim();
+      try {
+        new URL(targetUrl);
+      } catch (_) {
+        const sent = await activeSock.sendMessage(rawRemote, { text: "❌ Invalid URL format. Example: website: https://yourdomain.com" });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        return;
+      }
+      let existingKnowledge = '';
+      if (supabaseAdmin) {
+        const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
+        existingKnowledge = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
+      } else {
+        existingKnowledge = freshOrg.website_knowledge || '';
+      }
+      const updatedKnowledge = setOrgWebsiteUrl(existingKnowledge, targetUrl);
+      if (supabaseAdmin) {
+        await supabaseAdmin.from('organizations').update({
+          website_knowledge: updatedKnowledge,
+          updated_at: new Date().toISOString()
+        }).eq('id', orgId);
+      }
+      try { db.update('organizations', orgId, { website_knowledge: updatedKnowledge }); } catch (_) {}
+      freshOrg.website_knowledge = updatedKnowledge;
+      ownerUndoSnapshots.set(orgId, { action: 'knowledge', oldKnowledge: existingKnowledge });
+      const sent = await activeSock.sendMessage(rawRemote, { text: `Website saved: ${targetUrl}. Starting sync…` });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      await syncWebsiteProducts(orgId, targetUrl, activeSock, rawRemote);
+      return;
+    }
+
+    // Command: sync (syncs products from the stored website URL)
+    if (/^(sync|sync\s*products?|refresh\s*catalog)$/i.test(lowerCmd)) {
+      let existingKnowledge = '';
+      if (supabaseAdmin) {
+        const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
+        existingKnowledge = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
+      } else {
+        existingKnowledge = freshOrg.website_knowledge || '';
+      }
+      const siteUrl = getOrgWebsiteUrl(existingKnowledge);
+      if (!siteUrl) {
+        const sent = await activeSock.sendMessage(rawRemote, { text: "Please set your website first using: website: https://yourdomain.com" });
+        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+        return;
+      }
+      const sent = await activeSock.sendMessage(rawRemote, { text: `Syncing products from ${siteUrl}…` });
+      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
+      await syncWebsiteProducts(orgId, siteUrl, activeSock, rawRemote);
+      return;
     }
 
     // 9. Command 9: PDF document from owner
@@ -2648,8 +3048,14 @@ export {
   ownerPendingConfirmations,
   ownerUndoSnapshots,
   conversationSentPhotos,
+  conversationSentBuyLinks,
   handleOrgIncomingMessage,
-  generateShortSalesReply
+  generateShortSalesReply,
+  syncWebsiteProducts,
+  getOrgWebsiteUrl,
+  setOrgWebsiteUrl,
+  isSafePublicUrl,
+  safeFetchWebsite
 };
 
 export function generateNaturalBusinessReply({ org, lead, incomingText, products = [] }) {
@@ -2735,11 +3141,41 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
     ? `\nVerified Customer Context:\n- Summary: ${customerMemory.summary_text}\n- Inquired: ${customerMemory.buyer_requirements || 'Standard'}\n`
     : '';
 
-  const catalogContext = products.map((p, idx) => {
+  // Relevance filtering: if catalog > 15 products, select top ~15 most relevant products
+  let relevantProducts = products;
+  if (products.length > 15) {
+    const queryTokens = (incomingText || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+    const historyTokens = (conversationHistory || []).slice(-3).map(m => (m.text || m.content || '').toLowerCase()).join(' ').replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+    const allTokens = [...new Set([...queryTokens, ...historyTokens])];
+
+    const scored = products.map(p => {
+      let score = 0;
+      const pName = (p.name || '').toLowerCase();
+      const pDesc = (p.description || '').toLowerCase();
+      const pSpecs = (p.model_specs || '').toLowerCase();
+      for (const t of allTokens) {
+        if (pName.includes(t)) score += 5;
+        if (pSpecs.includes(t)) score += 2;
+        if (pDesc.includes(t)) score += 1;
+      }
+      if (!(p.description || '').startsWith('[OUT OF STOCK]')) score += 0.5;
+      return { product: p, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    relevantProducts = scored.slice(0, 15).map(s => s.product);
+  }
+
+  const catalogContext = relevantProducts.map((p, idx) => {
     const isOut = (p.description || '').startsWith('[OUT OF STOCK]');
     const stockLabel = isOut ? ' [CURRENTLY OUT OF STOCK]' : ' [IN STOCK]';
     const price = p.price_raw || p.priceRange || 'Price on request';
-    return `${idx + 1}. "${p.name}" | Price: ${price}${stockLabel} | Specs: ${p.model_specs || p.description || 'Standard'}`;
+    const buyLinkMatch = (p.description || '').match(/Buy link:\s*(https?:\/\/[^\s]+)/i);
+    const buyLinkStr = buyLinkMatch ? ` | Buy link: ${buyLinkMatch[1]}` : '';
+    const cleanSpecs = (p.model_specs || p.description || 'Standard')
+      .replace(/Buy link:\s*https?:\/\/[^\s]+/gi, '')
+      .replace(/\[OUT OF STOCK\]/gi, '')
+      .trim();
+    return `${idx + 1}. "${p.name}" | Price: ${price}${stockLabel} | Specs: ${cleanSpecs}${buyLinkStr}`;
   }).join('\n');
 
   // Match brochure or image if requested
@@ -2812,6 +3248,13 @@ NO-PRICE-LIST & GROUNDING SAFETY RULE:
 ORDER INTENT RULE:
 When a buyer clearly wants to place an order (gives items, size, quantity, address/city, or asks for payment details), acknowledge politely that their order details have been noted and the owner will finalize dispatch and payment shortly.
 
+WEBSITE PRODUCT & BUY-LINK RULE:
+1. Answer buyer questions about products (pricing, specifications, availability) strictly from the catalog data above.
+2. When a buyer is clearly serious (wants to buy, asks how to order/pay, or explicitly asks for a link), send the EXACT "Buy link: <exact product url>" of that product, once per product per chat.
+3. ONLY use URLs found in the catalog data above; NEVER invent, modify, or shorten links. Do NOT send links to casual browsers who have not shown buying intent.
+4. If a product is marked [CURRENTLY OUT OF STOCK] or [OUT OF STOCK], politely say it is currently sold out and suggest 1-2 similar in-stock products with their exact buy links.
+5. If a product is not found in the catalog, say the team will confirm, collect details (item, size, quantity, city), and alert the owner.
+
 CRITICAL CATALOG PRIORITY & ANTI-HALLUCINATION RULE:
 1. You represent "${orgName}". Your ONLY active products and services are in "Catalog & Pricing Knowledge" and "Business & Service Knowledge Base" above.
 2. If earlier chat history mentions unrelated products (such as packaging machinery, industrial equipment, etc. from a previous catalog), DISREGARD THEM COMPLETELY! Acknowledge the current business offerings and answer strictly from your active catalog above. NEVER invent or offer products that do not exist in the active catalog!
@@ -2832,6 +3275,8 @@ STRICT LENGTH RULE:
     const modelsToTry = ['gemini-flash-lite-latest', 'gemini-2.5-flash-latest', 'gemini-flash-latest'];
     for (const model of modelsToTry) {
       try {
+        const convBuyLinkKey = `${organizationId}:${lead?.phone || 'anon'}`;
+        const sentBuyLinksForChat = conversationSentBuyLinks.get(convBuyLinkKey) || new Set();
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`,
           {
@@ -4077,6 +4522,8 @@ Return a strict JSON object with this structure:
     const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
     for (const m of models) {
       try {
+        const convBuyLinkKey = `${organizationId}:${lead?.phone || 'anon'}`;
+        const sentBuyLinksForChat = conversationSentBuyLinks.get(convBuyLinkKey) || new Set();
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(activeGeminiKey)}`,
           {
@@ -4587,6 +5034,30 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   addLog(`Leadsy WhatsApp AI Server running at http://localhost:${PORT}`);
   initCatalogKnowledge();
   initSupabaseWorker();
+  // 24-hour background website sync interval (checks hourly)
+  const syncIntervalTimer = setInterval(async () => {
+    try {
+      let orgsWithUrls = [];
+      if (supabaseAdmin) {
+        const { data } = await supabaseAdmin.from('organizations').select('id, website_knowledge').like('website_knowledge', '%WEBSITE_URL:%');
+        if (Array.isArray(data)) orgsWithUrls = data;
+      }
+      const now = Date.now();
+      for (const org of orgsWithUrls) {
+        const siteUrl = getOrgWebsiteUrl(org.website_knowledge);
+        if (!siteUrl) continue;
+        const lastSync = lastOrgWebsiteSync.get(org.id) || 0;
+        if (now - lastSync >= 24 * 60 * 60 * 1000) {
+          lastOrgWebsiteSync.set(org.id, now);
+          addLog(`[Website Sync] Running scheduled 24h product sync for org ${org.id} (${siteUrl})`);
+          await syncWebsiteProducts(org.id, siteUrl, null, null);
+        }
+      }
+    } catch (e) {
+      addLog(`[Website Sync Worker Error] ${e.message}`);
+    }
+  }, 60 * 60 * 1000);
+  if (typeof syncIntervalTimer.unref === 'function') syncIntervalTimer.unref();
   // Auto-resume existing WhatsApp session if auth_info/creds.json already exists!
   if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
     addLog('Saved WhatsApp session detected — auto-reconnecting...');

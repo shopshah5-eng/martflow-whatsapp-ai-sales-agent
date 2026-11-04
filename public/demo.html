@@ -133,7 +133,23 @@
         btn.disabled = false;
         btn.textContent = 'Submit demo enquiry';
         if (data.ok) {
-          document.getElementById('okBox').style.display = 'block';
+          const okBox = document.getElementById('okBox');
+          okBox.style.display = 'block';
+          okBox.textContent = '✅ Enquiry received. Connecting you to WhatsApp demo…';
+          let botNum = ['9191', '1574', '8457'].join('');
+          try {
+            const cfg = await fetch('/api/public-config').then(r => r.json());
+            if (cfg && cfg.demoBotWhatsapp) botNum = String(cfg.demoBotWhatsapp).replace(/\D/g, '');
+          } catch (_) {}
+          const msg = encodeURIComponent(`Hi Leadsy AI, I want to try the live WhatsApp demo for ${productQuery}${city ? ` in ${city}` : ''}.`);
+          const waUrl = `https://wa.me/${botNum}?text=${msg}`;
+          setTimeout(() => {
+            if (typeof window.open === 'function') {
+              window.open(waUrl, '_blank');
+            } else {
+              window.location.assign(waUrl);
+            }
+          }, 500);
         } else {
           alert(data.error || 'Unable to submit enquiry. Please try again.');
         }

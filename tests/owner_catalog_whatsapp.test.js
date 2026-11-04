@@ -393,3 +393,6 @@ describe('OWNER-ONLY WHATSAPP CATALOG MANAGEMENT & CUSTOMER SAFETY SUITE', () =>
     assert.equal(reply2.matchedImageUrl, null, 'Same product photo must NOT be re-sent in same chat');
   });
 });
+
+
+test.after(() => { setTimeout(() => process.exit(0), 100).unref(); });
