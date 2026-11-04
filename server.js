@@ -2737,8 +2737,8 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
         addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp socket already connected. Reusing session.`);
         return;
       }
-      if (existing.isConnecting || existing.state?.status === 'connecting') {
-        addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp socket currently connecting. Skipping duplicate initialization.`);
+      if (existing.isConnecting) {
+        addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp socket currently initializing. Skipping duplicate initialization.`);
         return;
       }
     }
@@ -2796,9 +2796,12 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
       version,
       auth: state,
       logger: pino({ level: 'silent' }),
-      browser: Browsers.windows('Chrome'),
+      browser: Browsers.ubuntu('Chrome'),
       syncFullHistory: false,
-      markOnlineOnConnect: false
+      markOnlineOnConnect: false,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 25000
     });
 
     sessionObj.sock = newSock;
@@ -2895,13 +2898,16 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
             }).eq('id', orgId);
           }
         } else {
-          sessionObj.state.status = 'connecting';
-          sessionObj.state.lastEvent = `Connection interrupted (code: ${statusCode || 'unknown'}). Reconnecting...`;
-          addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp closed (code: ${statusCode}). Auto-reconnecting in 2s...`);
+          const isRestart = statusCode === DisconnectReason.restartRequired || statusCode === 515;
+          sessionObj.state.status = 'reconnecting';
+          sessionObj.state.lastEvent = isRestart ? 'Finalizing pairing handshake with phone...' : `Connection interrupted (code: ${statusCode || 'unknown'}). Reconnecting...`;
+          const delay = isRestart ? 150 : 2000;
+          addLog(`[Org: ${orgId.slice(0, 8)}] WhatsApp closed (code: ${statusCode}). Auto-reconnecting in ${delay}ms...`);
           if (sessionObj.reconnectTimer) clearTimeout(sessionObj.reconnectTimer);
           sessionObj.reconnectTimer = setTimeout(() => {
+            sessionObj.isConnecting = false;
             startOrgWhatsApp(orgId, false);
-          }, 2000);
+          }, delay);
         }
       }
     });
