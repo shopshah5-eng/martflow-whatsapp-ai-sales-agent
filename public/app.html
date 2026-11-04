@@ -2320,8 +2320,17 @@
       currentAuthToken = session.access_token;
       // Verify active organization membership with the backend. Never create a
       // workspace from the browser or trust profile/organization cache alone.
-      const data = await apiFetch('/api/auth/me');
-      if (!data.ok || !data.user || !data.organization) {
+      let data = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          data = await apiFetch('/api/auth/me');
+          if (data && data.ok && data.user && data.organization) break;
+        } catch (e) {
+          if (attempt === 2) throw e;
+        }
+        await new Promise(r => setTimeout(r, 400));
+      }
+      if (!data || !data.ok || !data.user || !data.organization) {
         throw new Error('Unable to verify your workspace membership.');
       }
       currentOrg = data.organization;
@@ -2835,7 +2844,16 @@
         const _cbParams = detectOAuthCallback();
         if (_cbParams.hasCallback) {
           let session = null;
-          for (let attempt = 0; attempt < 6; attempt++) {
+          if (_cbParams.accessToken && typeof sb.auth?.setSession === 'function') {
+            try {
+              const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+              const hashParams = new URLSearchParams(hash);
+              const refreshToken = hashParams.get('refresh_token') || '';
+              const { data: setData } = await sb.auth.setSession({ access_token: _cbParams.accessToken, refresh_token: refreshToken });
+              if (setData?.session) session = setData.session;
+            } catch (_) {}
+          }
+          for (let attempt = 0; !session && attempt < 6; attempt++) {
             const { data } = await sb.auth.getSession();
             if (data?.session) {
               session = data.session;
