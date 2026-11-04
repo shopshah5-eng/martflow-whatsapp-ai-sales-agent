@@ -57,7 +57,7 @@ export function inferProductCategory(p = {}) {
   if (sku.startsWith('CR-') || /car|suv|sedan|vehicle|pre-owned/i.test(name)) return 'Automobiles & Pre-Owned Cars';
   if (sku.startsWith('WD-') || /marriage/i.test(name)) return 'Wedding Banquets & Catering';
   if (sku.startsWith('IN-')) return 'Interiors & Modular Kitchens';
-  if (sku.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(name)) return 'MartFlow AI Setup Plans';
+  if (sku.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(name)) return 'Leadsy AI Setup Plans';
 
   return 'Commercial Products';
 }

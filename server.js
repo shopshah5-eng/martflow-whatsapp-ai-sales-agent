@@ -578,7 +578,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   if (!freshOrg) {
     freshOrg = {
       id: orgId,
-      name: config.companyName || 'MartFlow AI',
+      name: config.companyName || 'Leadsy AI',
       owner_alert_number: config.ownerAlertPhone || '919781018975',
       wa_connected_number: activeSock?.user?.id?.split(':')[0]?.split('@')[0] || '919115748457',
       wa_auto_reply: config.autoReplyEnabled,
@@ -1021,7 +1021,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
 
       // 1. New Lead Alert Card
       if (canAlertNew) {
-        const newLeadCard = `🔔 *MartFlow AI — New Inbound Lead*\n` +
+        const newLeadCard = `🔔 *Leadsy AI — New Inbound Lead*\n` +
           `👤 *Customer:* ${pushName}\n` +
           `📱 *Phone:* ${phoneDisplay}\n` +
           `📍 *City:* ${freshOrg.city_base || 'Direct Inquiry'}\n` +
@@ -1038,7 +1038,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           ? intentResult.matchedKeywords.join(', ')
           : (isAudio ? 'voice_note' : 'high_intent');
 
-        const hotLeadCard = `🔥 *MartFlow AI — Hot Lead Alert!* (Score: ${intentResult.score})\n` +
+        const hotLeadCard = `🔥 *Leadsy AI — Hot Lead Alert!* (Score: ${intentResult.score})\n` +
           `👤 *Customer:* ${pushName}\n` +
           `📱 *Phone:* ${phoneDisplay}\n` +
           `🎯 *Keywords:* ${keywordsStr}\n` +
@@ -1199,7 +1199,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         const actionLinks = !senderPhone || senderPhone.length < 10
           ? `💬 *Chat:* ${rawRemote}`
           : `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n📞 *Call:* tel:+${senderPhone}`;
-        const callCard = `🔥 *MartFlow AI — Call / Meeting Requested*\n` +
+        const callCard = `🔥 *Leadsy AI — Call / Meeting Requested*\n` +
           `👤 *Customer:* ${pushName}\n` +
           `📱 *Phone:* ${phoneDisplay}\n` +
           `💬 *Intent:* Buyer requested direct phone discussion with technical director / owner.\n\n` +
@@ -1248,7 +1248,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           const brochureSent = await activeSock.sendMessage(rawRemote, {
             document: pdfBuffer,
             mimetype: 'application/pdf',
-            fileName: aiReplyObj.matchedBrochureName || 'MartFlow_Catalog.pdf',
+            fileName: aiReplyObj.matchedBrochureName || 'Leadsy_Catalog.pdf',
             caption: `Aapka official technical brochure & price catalog! 📄`
           });
           if (brochureSent?.key?.id) botSentMsgIds.add(brochureSent.key.id);
@@ -1649,7 +1649,7 @@ export function generateNaturalBusinessReply({ org, lead, incomingText, products
 // ============================================================================
 async function generateShortSalesReply({ organizationId, org, lead, incomingText, conversationHistory }) {
   const geminiKey = (process.env.GEMINI_API_KEY || config.geminiApiKey || '').trim();
-  const orgName = org?.name || config.companyName || 'MartFlow AI';
+  const orgName = org?.name || config.companyName || 'Leadsy AI';
   const cityBase = org?.city_base || org?.company_city || config.cityBase || 'Delhi NCR / Ludhiana';
 
   // Get catalog products strictly for this organization (Zero cross-tenant leak)
@@ -2896,7 +2896,7 @@ app.get('/api/leads.csv', authenticate, requireRole(['owner', 'admin', 'sales_ma
   ].map(sanitizeCell).join(','));
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="MartFlow_B2B_Qualified_Leads.csv"');
+  res.setHeader('Content-Disposition', 'attachment; filename="Leadsy_B2B_Qualified_Leads.csv"');
   res.send([headers.join(','), ...rows].join('\n'));
 });
 
@@ -3291,7 +3291,7 @@ async function initSupabaseWorker() {
         } else if (cmd === 'send_test') {
           const payload = org.wa_command_payload || {};
           const toPhone = payload.to_phone || org.owner_alert_number;
-          const msgText = payload.message_text || 'Test message from MartFlow AI';
+          const msgText = payload.message_text || 'Test message from Leadsy AI';
           const pdfPath = payload.pdf_path || null;
           await baileysManager.sendMessage(org.id, toPhone, msgText, pdfPath);
         }
@@ -3481,7 +3481,7 @@ app.get('*', (req, res, next) => {
 
 const PORT = Number(process.env.PORT || 3000);
 app.listen(PORT, '0.0.0.0', () => {
-  addLog(`MartFlow B2B WhatsApp AI Server running at http://localhost:${PORT}`);
+  addLog(`Leadsy B2B WhatsApp AI Server running at http://localhost:${PORT}`);
   initCatalogKnowledge();
   initSupabaseWorker();
   // Auto-resume existing WhatsApp session if auth_info/creds.json already exists!

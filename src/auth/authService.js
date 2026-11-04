@@ -274,7 +274,7 @@ export async function demoLogin() {
   if (!org) {
     org = db.insert('organizations', {
       id: demoOrgId,
-      name: 'MartFlow Sandbox Demo (Read-Only)',
+      name: 'Leadsy Sandbox Demo (Read-Only)',
       slug: 'martflow-sandbox-demo',
       webhook_key: 'whk_sandbox_demo_' + crypto.randomBytes(8).toString('hex'),
       plan_status: 'trial',
@@ -378,7 +378,7 @@ export async function sendPhoneOtp(phone) {
         body: new URLSearchParams({
           To: `+${cleanPhone}`,
           From: twilioFrom,
-          Body: `Your MartFlow verification code is: ${otp}`
+          Body: `Your Leadsy verification code is: ${otp}`
         })
       });
       if (!resp.ok) throw new Error('Twilio SMS dispatch failed');

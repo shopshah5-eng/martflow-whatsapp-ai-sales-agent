@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <title>System Administration | MartFlow AI</title>
+  <title>System Administration | Leadsy AI</title>
   
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MartFlow AI — Autonomous B2B WhatsApp Sales Executive</title>
+  <title>Leadsy AI — Autonomous B2B WhatsApp Sales Executive</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -263,7 +263,7 @@
         <div class="w-8 h-8 rounded-lg bg-[#087F5B] flex items-center justify-center text-white">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
         </div>
-        <span class="font-bold tracking-tight text-sm">MartFlow AI · Administration Portal</span>
+        <span class="font-bold tracking-tight text-sm">Leadsy AI · Administration Portal</span>
       </a>
       <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold uppercase">Superadmin Only</span>
     </div>
@@ -331,7 +331,7 @@
                 <label class="block font-semibold text-slate-700 mb-1">Supabase Anon Public Key</label>
                 <input type="password" id="engSupabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
               </div>
-              <p class="text-[11px] text-slate-400">If blank, MartFlow seamlessly runs on isolated transactional local/in-browser storage.</p>
+              <p class="text-[11px] text-slate-400">If blank, Leadsy seamlessly runs on isolated transactional local/in-browser storage.</p>
             </div>
           </div>
 
@@ -362,7 +362,7 @@
 
               <div>
                 <label class="block font-semibold text-slate-700 mb-1">Backend Server API Base URL</label>
-                <input type="text" id="engApiBase" placeholder="https://api.martflow.ai (leave blank if local)" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
+                <input type="text" id="engApiBase" placeholder="https://your-api-domain.example (leave blank if local)" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono">
               </div>
             </div>
           </div>
@@ -421,7 +421,7 @@
 
     function openDemoBotChat(customMessage) {
       const deskNum = getDemoDeskNumber();
-      const defaultText = 'Hi MartFlow AI! I want to test the live B2B sales demo bot on WhatsApp.';
+      const defaultText = 'Hi Leadsy AI! I want to test the live B2B sales demo bot on WhatsApp.';
       const text = encodeURIComponent(customMessage || defaultText);
       window.open(`https://wa.me/${deskNum}?text=${text}`, '_blank');
     }
@@ -483,26 +483,26 @@
       if (upiText) upiText.textContent = `UPI ID: ${upi}`;
 
       const deskPhone = document.getElementById('upgradeDeskPhone');
-      if (deskPhone) deskPhone.textContent = 'MartFlow Priority Onboarding Desk';
+      if (deskPhone) deskPhone.textContent = 'Leadsy Priority Onboarding Desk';
 
       const upgradeUpi = document.getElementById('upgradeModalUpi');
       if (upgradeUpi) upgradeUpi.textContent = upi;
 
       const upgradeWaLink = document.getElementById('upgradeWaLink');
       if (upgradeWaLink) {
-        upgradeWaLink.href = `https://wa.me/${phone}?text=${encodeURIComponent('Hi MartFlow Team, I want to upgrade my plan')}`;
+        upgradeWaLink.href = `https://wa.me/${phone}?text=${encodeURIComponent('Hi Leadsy Team, I want to upgrade my plan')}`;
       }
 
       const anyDeskWaBtn = document.getElementById('anyDeskWaBtn');
       if (anyDeskWaBtn) {
-        anyDeskWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent('Namaste MartFlow Team! Please connect via AnyDesk to set up my B2B portal & WhatsApp catalog.')}`;
+        anyDeskWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent('Namaste Leadsy Team! Please connect via AnyDesk to set up my B2B portal & WhatsApp catalog.')}`;
       }
 
       const actWaBtn = document.getElementById('actWaBtn');
       if (actWaBtn) {
         const planTitle = document.getElementById('actPlanTitle')?.textContent || 'Commercial Sales License';
         const planPrice = document.getElementById('actPlanPrice')?.textContent || '₹999';
-        actWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(`Namaste MartFlow Team! I want to activate the ${planTitle} (${planPrice}) for my workspace.`)}`;
+        actWaBtn.href = `https://wa.me/${phone}?text=${encodeURIComponent(`Namaste Leadsy Team! I want to activate the ${planTitle} (${planPrice}) for my workspace.`)}`;
       }
 
       try {
@@ -685,7 +685,7 @@
         }
         showMarketingView();
         openAuthModal('login', false);
-        document.title = 'Sign In | MartFlow AI';
+        document.title = 'Sign In | Leadsy AI';
         return;
       }
       if (cleanPath === '/signup' || cleanPath === '#/signup') {
@@ -694,13 +694,13 @@
         }
         showMarketingView();
         openAuthModal('signup', false);
-        document.title = 'Create Company Workspace | MartFlow AI';
+        document.title = 'Create Company Workspace | Leadsy AI';
         return;
       }
       if (cleanPath === '/forgot-password' || cleanPath === '#/forgot-password') {
         showMarketingView();
         openAuthModal('recovery', false);
-        document.title = 'Reset Password | MartFlow AI';
+        document.title = 'Reset Password | Leadsy AI';
         return;
       }
 
@@ -716,40 +716,40 @@
 
         if (cleanPath === '/dashboard' || cleanPath === '/dashboard/overview') {
           switchView('dashboard', false);
-          document.title = 'Executive Overview | MartFlow AI';
+          document.title = 'Executive Overview | Leadsy AI';
         } else if (cleanPath === '/dashboard/inbox') {
           switchView('conversations', false);
-          document.title = 'WhatsApp Inbox | MartFlow AI';
+          document.title = 'WhatsApp Inbox | Leadsy AI';
         } else if (cleanPath === '/dashboard/leads') {
           switchView('leads', false);
-          document.title = 'Leads Pipeline | MartFlow AI';
+          document.title = 'Leads Pipeline | Leadsy AI';
         } else if (cleanPath === '/dashboard/catalogue' || cleanPath === '/dashboard/catalog') {
           switchView('catalog', false);
-          document.title = 'Product Catalogue | MartFlow AI';
+          document.title = 'Product Catalogue | Leadsy AI';
         } else if (cleanPath === '/dashboard/ai-assistant') {
           switchView('whatsapp', false);
-          document.title = 'AI Assistant & Settings | MartFlow AI';
+          document.title = 'AI Assistant & Settings | Leadsy AI';
         } else if (cleanPath === '/dashboard/automations') {
           switchView('settings', false);
-          document.title = 'Automations & Rules | MartFlow AI';
+          document.title = 'Automations & Rules | Leadsy AI';
         } else if (cleanPath === '/dashboard/appointments' || cleanPath === '/dashboard/calls') {
           switchView('calls', false);
-          document.title = 'Scheduled Calls | MartFlow AI';
+          document.title = 'Scheduled Calls | Leadsy AI';
         } else if (cleanPath === '/dashboard/analytics') {
           switchView('analytics', false);
-          document.title = 'Sales Analytics | MartFlow AI';
+          document.title = 'Sales Analytics | Leadsy AI';
         } else if (cleanPath === '/dashboard/settings') {
           switchView('settings', false);
-          document.title = 'Workspace Settings | MartFlow AI';
+          document.title = 'Workspace Settings | Leadsy AI';
         } else if (cleanPath === '/dashboard/billing') {
           switchView('billing', false);
-          document.title = 'Membership & Billing | MartFlow AI';
+          document.title = 'Membership & Billing | Leadsy AI';
         } else if (cleanPath === '/admin') {
           const isAdmin = (currentUser && (currentUser.role === 'superadmin' || currentUser.role === 'admin')) ||
                           new URLSearchParams(window.location.search).get('admin') === '1';
           if (isAdmin) {
             switchView('engineer', false);
-            document.title = 'System Administration | MartFlow AI';
+            document.title = 'System Administration | Leadsy AI';
           } else {
             showToast('Restricted: Superadmin credentials required.', 'warning');
             navigateTo('/dashboard/overview', true);
@@ -763,22 +763,22 @@
       closeAuthModal(false);
 
       if (cleanPath === '/features') {
-        document.title = 'Features | MartFlow AI';
+        document.title = 'Features | Leadsy AI';
         scrollToSection('pl-features');
       } else if (cleanPath === '/industries') {
-        document.title = 'Industries & Sectors | MartFlow AI';
+        document.title = 'Industries & Sectors | Leadsy AI';
         scrollToSection('pl-industries');
       } else if (cleanPath === '/pricing') {
-        document.title = 'Pricing & Pilot Plans | MartFlow AI';
+        document.title = 'Pricing & Pilot Plans | Leadsy AI';
         scrollToSection('pl-pricing');
       } else if (cleanPath === '/about') {
-        document.title = 'About Us | MartFlow AI';
+        document.title = 'About Us | Leadsy AI';
         scrollToSection('pl-about');
       } else if (cleanPath === '/contact') {
-        document.title = 'Contact Sales | MartFlow AI';
+        document.title = 'Contact Sales | Leadsy AI';
         scrollToSection('pl-contact');
       } else {
-        document.title = 'MartFlow AI | WhatsApp Sales Executive for Manufacturers & B2B';
+        document.title = 'Leadsy AI | WhatsApp Sales Executive for Manufacturers & B2B';
       }
     }
 
@@ -915,7 +915,7 @@
           const pending = JSON.parse(pendingUtrRaw);
           if (pending && pending.utr) {
             const partnerRef = localStorage.getItem('mf_affiliate_ref');
-            let planWithRef = pending.plan || 'MartFlow VIP License';
+            let planWithRef = pending.plan || 'Leadsy VIP License';
             if (partnerRef && !planWithRef.includes('[Ref:') && !planWithRef.includes('[Partner Ref:')) {
               planWithRef = `${planWithRef} [Ref: ${partnerRef}]`;
             }
@@ -2136,7 +2136,7 @@
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `MartFlow_Leads_${new Date().toISOString().slice(0, 10)}.csv`);
+        link.setAttribute('download', `Leadsy_Leads_${new Date().toISOString().slice(0, 10)}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -2291,7 +2291,7 @@
         return `
           <div class="flex ${isBuyer ? 'justify-start' : 'justify-end'} mb-3">
             <div class="max-w-[75%] p-3 rounded-2xl text-xs ${isBuyer ? 'bg-white border border-gray-200 text-slate-800' : 'bg-slate-900 text-white shadow-sm'}">
-              <div class="text-[10px] font-bold mb-1 opacity-70">${isBuyer ? 'Buyer' : (m.sender === 'ai' ? 'MartFlow AI' : 'Sales Representative')}</div>
+              <div class="text-[10px] font-bold mb-1 opacity-70">${isBuyer ? 'Buyer' : (m.sender === 'ai' ? 'Leadsy AI' : 'Sales Representative')}</div>
               <div class="leading-relaxed whitespace-pre-wrap">${(m.text || m.content || '').startsWith('[Product Photo Sent:') ? '<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md font-semibold text-[11px]">📸 Product Photo Attached & Sent</span>' : (m.text || m.content || '').startsWith('[Brochure Sent:') ? '<span class="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md font-semibold text-[11px]">📄 Official PDF Brochure Delivered</span>' : escapeHtml(m.text || m.content || '')}</div>
               <div class="text-[9px] text-right mt-1 opacity-60 font-mono">${new Date(m.created_at || m.ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
@@ -3597,7 +3597,7 @@
 
       const amount = window.selectedCheckoutAmount || currentOrg?.custom_quote_inr || 999;
       const partnerRef = localStorage.getItem('mf_affiliate_ref');
-      const basePlan = window.selectedCheckoutPlan || 'MartFlow VIP License';
+      const basePlan = window.selectedCheckoutPlan || 'Leadsy VIP License';
       const plan = basePlan + (partnerRef ? ' [Ref: ' + partnerRef + ']' : '');
 
       if (!currentOrg) {
@@ -3652,7 +3652,7 @@
       if (m) m.classList.add('hidden');
     }
     function openActivationModal(planTitle, planPrice, planDesc, numericAmount) {
-      window.selectedCheckoutPlan = planTitle || 'MartFlow AI License';
+      window.selectedCheckoutPlan = planTitle || 'Leadsy AI License';
       const m = document.getElementById('activationModal');
       if (m) m.classList.remove('hidden');
       if (planTitle && document.getElementById('actPlanTitle')) document.getElementById('actPlanTitle').textContent = planTitle;
@@ -3685,8 +3685,8 @@
       const waBtn = document.getElementById('actWaBtn');
       if (waBtn) {
         const waMsg = partnerRef
-          ? `Namaste MartFlow Team! I want to activate my workspace plan with Partner Ref: ${partnerRef.toUpperCase()}`
-          : `Namaste MartFlow Team! I want to activate my workspace plan`;
+          ? `Namaste Leadsy Team! I want to activate my workspace plan with Partner Ref: ${partnerRef.toUpperCase()}`
+          : `Namaste Leadsy Team! I want to activate my workspace plan`;
         waBtn.setAttribute('onclick', `openDemoBotChat(${JSON.stringify(waMsg)})`);
       }
 
@@ -4181,7 +4181,7 @@
       if (s.startsWith('CR-') || /car|suv|sedan|vehicle|pre-owned/i.test(n)) return 'Automobiles & Pre-Owned Cars';
       if (s.startsWith('WD-') || /wedding|banquet|hall|catering|marriage/i.test(n)) return 'Wedding Banquets & Catering';
       if (s.startsWith('IN-') || /kitchen|modular|interior|wardrobe|plywood/i.test(n)) return 'Interiors & Modular Kitchens';
-      if (s.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(n)) return 'MartFlow AI Setup Plans';
+      if (s.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(n)) return 'Leadsy AI Setup Plans';
       if (/ielts|pte|visa|coaching|english batch/i.test(n)) return 'Education & Study Visa';
       if (/pouch|packing|packaging|collar|auger/i.test(n)) return 'Pouch Packing Machinery';
       if (/liquid|filling|paste|bottle|syrup/i.test(n)) return 'Liquid & Paste Filling';

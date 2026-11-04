@@ -360,7 +360,7 @@ router.post('/leads/simulate', authenticate, async (req, res) => {
 router.get('/leads/export.csv', authenticate, (req, res) => {
   const csv = LeadService.exportLeadsCsv(req.organizationId);
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="MartFlow_Leads_${Date.now()}.csv"`);
+  res.setHeader('Content-Disposition', `attachment; filename="Leadsy_Leads_${Date.now()}.csv"`);
   res.send(csv);
 });
 

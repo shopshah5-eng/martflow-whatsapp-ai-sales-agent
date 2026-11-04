@@ -1,17 +1,16 @@
-# 🚀 MartFlow AI — Production B2B WhatsApp AI Sales SaaS
+# 🚀 Leadsy AI — B2B WhatsApp AI Sales SaaS
 
 > **Autonomous Multi-Tenant B2B Sales & Deal Closing SaaS for Indian Manufacturers & Wholesalers.**  
 > Grounded in real catalog specs with zero hallucinations, 2-way factory owner call booking, sub-10 second WhatsApp brochure dispatch, and multi-tenant PostgreSQL/Supabase architecture.
 
 [![Netlify Production Site](https://img.shields.io/badge/Netlify-Live%20Dashboard-00C7B7?style=for-the-badge&logo=netlify&logoColor=white)](https://martflow-ai-sales.netlify.app)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-Repo-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/shopshah5-eng/martflow-whatsapp-ai-sales-agent)
-[![Tests Passing](https://img.shields.io/badge/Tests-7%2F7%20Passed-10B981?style=for-the-badge)](https://github.com/shopshah5-eng/martflow-whatsapp-ai-sales-agent)
 
 ---
 
 ## 🌟 Executive Summary
 
-**MartFlow AI** transforms slow, manual marketplace inquiry follow-ups into an **Autonomous 24/7 AI Sales Representative** operating directly on WhatsApp for Indian factories and industrial suppliers:
+**Leadsy AI** is designed to help Indian factories and industrial suppliers respond to WhatsApp enquiries and manage sales conversations:
 1. **⚡ Sub-10s Inbound Engagement**: Ingests incoming buyer inquiries via official webhook, verifies identity, and dispatches the exact matching PDF brochure on WhatsApp in under 10 seconds.
 2. **🎙️ Natural Voice Notes (On-Demand)**: Speaks conversational Hindi, Hinglish, and English encoded in 48kHz mono Opus OGG (`audio/ogg; codecs=opus`) strictly on-demand.
 3. **📑 Multi-Format Catalog Knowledge**: Ingests PDF catalogs, Excel (`.xlsx`, `.xls`), and CSV files into structured, tenant-isolated product specifications with zero price hallucination.
@@ -29,7 +28,7 @@ graph TD
         WA["Meta WhatsApp Cloud API"] --> WH_WA["POST /api/webhook/whatsapp"]
     end
 
-    subgraph SaaS_Core["MartFlow AI SaaS Engine"]
+    subgraph SaaS_Core["Leadsy AI SaaS Engine"]
         SEC["Security & Idempotency Layer"]
         AUTH["Auth & Tenant RBAC Middleware"]
         ROUTER["Modular API Router (/api/*)"]

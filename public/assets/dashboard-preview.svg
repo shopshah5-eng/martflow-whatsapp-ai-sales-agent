@@ -28,7 +28,7 @@
   <g transform="translate(100, 26)">
     <rect width="24" height="24" rx="6" fill="#087F5B"/>
     <path d="M12 6L6 14H11L10 18L16 10H11L12 6Z" fill="#FFFFFF"/>
-    <text x="32" y="17" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#111827">MartFlow <tspan fill="#087F5B">AI</tspan></text>
+    <text x="32" y="17" font-family="Inter, sans-serif" font-size="14" font-weight="800" fill="#111827">Leadsy <tspan fill="#087F5B">AI</tspan></text>
     <rect x="130" y="1" width="110" height="22" rx="11" fill="#E6F4F0" stroke="#C2E2D7" stroke-width="0.8"/>
     <circle cx="140" cy="12" r="3.5" fill="#087F5B"/>
     <text x="148" y="15" font-family="Inter, sans-serif" font-size="10" font-weight="700" fill="#087F5B">Sales Engine Active</text>

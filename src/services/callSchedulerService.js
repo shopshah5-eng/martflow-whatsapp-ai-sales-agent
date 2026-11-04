@@ -64,7 +64,7 @@ export class CallSchedulerService {
       `📍 *Location:* ${city}`,
       `📦 *Requirement:* ${product}`,
       `⏰ *Confirmed Slot:* ${timeSlot}`,
-      `🏢 *Workspace:* ${org.name || 'MartFlow'}`
+      `🏢 *Workspace:* ${org.name || 'Leadsy'}`
     ].join('\n');
   }
 
