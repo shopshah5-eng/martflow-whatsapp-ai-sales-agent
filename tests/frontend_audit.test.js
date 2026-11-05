@@ -14,11 +14,11 @@ test('FRONTEND AUDIT: homepage uses the real existing asset, working routes and 
   assert.ok(d.querySelector('a[href="/login"]'));
   assert.ok(d.querySelector('a[href="/signup"]'));
   assert.ok(d.querySelector('a[href="/demo"]'));
-  assert.ok(d.querySelector('#contactForm'));
-  assert.ok(d.querySelector('#contactConsent[required]'));
-  assert.ok(html.includes('/api/public/demo-enquiry'));
+  assert.equal(d.querySelector('#contactForm'), null);
+  assert.match(d.querySelector('#contactWhatsApp').href, /^https:\/\/wa\.me\/\d+/);
+  assert.equal(d.querySelector('#contactWhatsApp').getAttribute('rel'), 'noopener noreferrer');
+  assert.equal(html.includes('/api/public/demo-enquiry'), false);
   assert.equal(/\balert\s*\(/.test(html), false);
-  assert.equal(html.includes('9115748457'), false);
   for (const a of d.querySelectorAll('a[href^="#"]')) {
     const id = a.getAttribute('href').slice(1);
     assert.ok(id && d.getElementById(id), `Missing anchor #${id}`);
@@ -30,6 +30,8 @@ test('FRONTEND AUDIT: homepage uses the real existing asset, working routes and 
 
 test('workspace retains the application handlers on the dedicated app page', () => {
   const html = read('app.html');
+  assert.equal(html.includes('Send Live Test WhatsApp Now'), false);
+  assert.equal(html.includes('sendLiveTestWhatsApp'), false);
   for (const fn of ['openSimulationModal', 'debounceLeadsSearch', 'switchView', 'toggleChatMode', 'sendManualReply', 'checkWaConnection', 'saveAiSettings', 'loadAnalyticsData', 'openQuickAddModal', 'escapeHtml', 'showToast']) {
     assert.match(html, new RegExp(`function\\s+${fn}\\b`), `${fn} missing from workspace`);
   }

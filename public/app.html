@@ -1085,39 +1085,6 @@
           
         </div>
       
-          <!-- Card 4: Send Live Test WhatsApp Now -->
-          <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm space-y-4">
-            <div class="flex items-center space-x-3">
-              <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg">🧪</div>
-              <div>
-                <h3 class="text-sm font-bold text-slate-900">Send Live Test WhatsApp Now</h3>
-                <p class="text-xs text-slate-500 mt-0.5">Test real message & PDF delivery to your phone in 1 click</p>
-              </div>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Recipient Phone Number (with Country Code)</label>
-              <input type="text" id="testRecipientPhone" placeholder="e.g. 98XXXXXXXX (no +91 needed)" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none" />
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Attach Product Brochure PDF</label>
-              <select id="testBrochureSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none bg-white">
-                <option value="">-- No Brochure (Text Message Only) --</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs font-semibold text-slate-700 mb-1">Test Message</label>
-              <textarea id="testMessageText" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none">Hi! Here are the details you requested from our team.</textarea>
-            </div>
-
-            <button onclick="sendLiveTestWhatsApp()" id="btnSendTestWa" class="w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-xs transition shadow-sm flex items-center justify-center space-x-1.5">
-              <span>🚀 Send Live WhatsApp Test</span>
-            </button>
-            <div id="testDispatchStatus" class="hidden text-xs text-center font-medium mt-1"></div>
-          </div>
-  
       </section>
 
       <!-- ============================================== -->
@@ -3492,19 +3459,6 @@
         else bSub.textContent = 'Instant product brochure dispatch, buyer qualification, and priority call scheduling.';
       }
 
-      // 6. Test WhatsApp Message Default
-      const testMsgInput = document.getElementById('testMessageText');
-      if (testMsgInput && (!testMsgInput.value || testMsgInput.value.includes('Factory Sales Engine') || testMsgInput.value.startsWith('Hi! Here are the details'))) {
-        if (bType === 'coaching_ielts') testMsgInput.value = 'Hello! Thank you for inquiring about our IELTS & Study Visa programs. Here are the brochure and fee details.';
-        else if (bType === 'solar') testMsgInput.value = 'Namaste! Thank you for inquiring about our Solar Rooftop solutions. Here is the technical brochure & estimated savings.';
-        else if (bType === 'real_estate') testMsgInput.value = 'Hello! Thank you for showing interest in our properties. Here are the floor plans & project overview.';
-        else if (bType === 'interiors') testMsgInput.value = 'Namaste! Here is our design catalog & modular interior packages for your review.';
-        else if (bType === 'manufacturing') testMsgInput.value = 'Namaste! Thank you for requesting a quotation. Here is our manufacturing capability brochure.';
-        else if (bType === 'services') testMsgInput.value = 'Hello! Thank you for connecting with us. Here are our service details and scope of work.';
-        else if (bType === 'machinery') testMsgInput.value = 'Namaste! Here is the official machine technical brochure & specifications for your production line.';
-        else testMsgInput.value = 'Hi! Here are the product details and specifications you requested from our team.';
-      }
-
       // 7. Update live greeting preview
       updateWelcomePreview();
     }
@@ -4531,7 +4485,6 @@
         if (qrMsg) qrMsg.textContent = 'Ready to pair spare WhatsApp Business SIM.';
       }
 
-      populateTestBrochures();
     }
 
     async function disconnectLiveWa() {
@@ -4781,106 +4734,6 @@
         currentOrg.wa_pairing_code = null;
         showToast('WhatsApp session disconnected.', 'info');
         checkWaConnection();
-      }
-    }
-
-    async function populateTestBrochures() {
-      const sel = document.getElementById('testBrochureSelect');
-      if (!sel || !currentOrg || sel.options.length > 1) return;
-      if (sb) {
-        const { data: prods } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
-        (prods || []).forEach(p => {
-          if (p.brochure_url && /^https?:\/\//i.test(p.brochure_url)) {
-            const opt = document.createElement('option');
-            opt.value = p.brochure_url;
-            opt.textContent = p.name + ' (' + (p.brochure_filename || 'PDF Brochure') + ')';
-            opt.dataset.name = p.name;
-            sel.appendChild(opt);
-          }
-        });
-      }
-    }
-
-    async function sendLiveTestWhatsApp() {
-      if (!currentOrg) return showToast('Please sign in first', 'warning');
-      if (currentOrg.wa_status !== 'connected') {
-        return showToast('Please scan QR code to link your WhatsApp first before testing.', 'warning');
-      }
-      const rawPhone = (document.getElementById('testRecipientPhone')?.value || '').trim();
-      const phoneClean = cleanPhoneNumber(rawPhone);
-      if (!phoneClean || phoneClean.length < 10) {
-        return showToast('Please enter a valid 10-digit recipient phone number (e.g. 98XXXXXXXX)', 'warning');
-      }
-      const brochureSelect = document.getElementById('testBrochureSelect');
-      const brochureUrl = brochureSelect ? brochureSelect.value : null;
-      const brochureName = brochureSelect?.selectedOptions?.[0]?.dataset?.name || 'Product Catalog';
-      const msg = (document.getElementById('testMessageText')?.value || '').trim() || 'Hi! Here are the details you requested from our team.';
-
-      const btn = document.getElementById('btnSendTestWa');
-      const statusBox = document.getElementById('testDispatchStatus');
-      if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span>⏳ Sending Test WhatsApp...</span>';
-      }
-      if (statusBox) {
-        statusBox.classList.remove('hidden');
-        statusBox.className = 'text-xs text-center font-medium mt-1 text-slate-500';
-        statusBox.textContent = 'Queuing message to WhatsApp socket...';
-      }
-
-      if (sb) {
-        const { data: queueItem, error } = await sb.from('wa_outbound_queue').insert({
-          org_id: currentOrg.id,
-          to_phone: phoneClean,
-          message_text: msg,
-          pdf_url: brochureUrl || null,
-          pdf_name: brochureUrl ? brochureName + '.pdf' : null,
-          status: 'pending'
-        }).select().single();
-
-        if (error) {
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
-          }
-          if (statusBox) {
-            statusBox.className = 'text-xs text-center font-medium mt-1 text-rose-600';
-            statusBox.textContent = '❌ Failed to queue: ' + error.message;
-          }
-          return showToast(error.message, 'error');
-        }
-
-        showToast('Message queued! Verifying delivery...', 'info');
-
-        let checks = 0;
-        const checkTimer = setInterval(async () => {
-          checks++;
-          const { data: item } = await sb.from('wa_outbound_queue').select('status, error_text').eq('id', queueItem.id).single();
-          if (item) {
-            if (item.status === 'sent') {
-              clearInterval(checkTimer);
-              if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
-              }
-              if (statusBox) {
-                statusBox.className = 'text-xs text-center font-bold mt-1 text-emerald-600';
-                statusBox.textContent = '✓ Delivered to +' + phoneClean + ' on WhatsApp!';
-              }
-              showToast('Test message delivered to +' + phoneClean + '!', 'success');
-            } else if (item.status === 'failed' || checks >= 8) {
-              clearInterval(checkTimer);
-              if (btn) {
-                btn.disabled = false;
-                btn.innerHTML = '<span>🚀 Send Live WhatsApp Test</span>';
-              }
-              if (statusBox) {
-                statusBox.className = 'text-xs text-center font-medium mt-1 text-rose-600';
-                statusBox.textContent = '⚠️ Delivery timeout or failed: ' + (item.error_text || 'Check WhatsApp worker');
-              }
-            }
-          }
-        }, 1000);
       }
     }
 

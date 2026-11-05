@@ -148,23 +148,15 @@ test('legacy dashboard deep links are routed to the workspace on both hosts', ()
   assert.match(fs.readFileSync(new URL('../server.js', import.meta.url), 'utf8'), /'\/dashboard\/\*'/);
 });
 
-test('contact form sends the fields the API expects and reports connection failures honestly', async () => {
-  const { dom } = openPage('index');
+test('contact section links to WhatsApp without a form or automatic submission', async () => {
+  const { dom, calls, errors } = openPage('index');
   await wait(30);
-  const w = dom.window, d = w.document;
-  for (const [id, value] of Object.entries({ name: 'Test User', business: 'Test company', email: 'test@example.test', phone: '9876543210', message: 'Synthetic enquiry' })) d.getElementById(id).value = value;
-  d.getElementById('contactConsent').checked = true;
-  let payload;
-  w.fetch = async (_url, options) => { payload = JSON.parse(options.body); throw new Error('offline'); };
-  await w.handleContactSubmit();
-  assert.equal(payload.name, 'Test User');
-  assert.equal(payload.phone, '9876543210');
-  assert.match(payload.message, /Business: Test company/);
-  assert.match(payload.message, /Email: test@example.test/);
-  assert.match(payload.message, /Synthetic enquiry/);
-  assert.match(d.getElementById('formNote').textContent, /Unable to submit/i);
-  assert.equal(d.getElementById('contactSubmit').disabled, false);
-  assert.equal(d.getElementById('business').value, 'Test company');
+  const d = dom.window.document, link = d.getElementById('contactWhatsApp');
+  assert.equal(d.getElementById('contactForm'), null);
+  assert.match(link.href, /^https:\/\/wa\.me\/\d+\?text=/);
+  assert.equal(link.target, '_blank');
+  assert.equal(calls.some(call => call.options.method === 'POST'), false);
+  assert.deepEqual(errors, []);
   dom.window.close();
 });
 
@@ -366,52 +358,40 @@ test('homepage menu, FAQ and plan enquiry remain accessible and functional', asy
   faq.click();
   assert.equal(faq.getAttribute('aria-expanded'), 'false');
   d.querySelector('[data-interest="Standard Growth"]').click();
-  assert.match(d.getElementById('formNote').textContent, /Standard Growth/);
+  assert.match(d.getElementById('contactInterest').textContent, /Standard Growth/);
+  assert.match(decodeURIComponent(d.getElementById('contactWhatsApp').href), /Standard Growth/);
   assert.deepEqual(errors, []);
   dom.window.close();
 });
 
-test('homepage enquiry validates consent, retains fields on failure and resets only on confirmed success', async () => {
-  const { dom } = openPage('index', { path: '/?ref=Partner_42' });
-  await wait(30);
-  const w = dom.window, d = w.document;
-  for (const [id, value] of Object.entries({ name: 'Test User', business: 'Synthetic Co', email: 'test@example.test', phone: '9876543210', message: 'Synthetic requirement' })) d.getElementById(id).value = value;
-  let calls = [];
-  w.fetch = async (url, options) => { calls.push({ url, options }); return { ok: true, json: async () => ({ ok: true }) }; };
-  await w.handleContactSubmit();
-  assert.equal(calls.length, 0, 'consent must be checked');
-  d.getElementById('contactConsent').checked = true;
+test('homepage updates WhatsApp destination from config and preserves selected interest', async () => {
+  let resolveConfig;
+  const vc = new VirtualConsole(); const errors = [];
+  vc.on('jsdomError', e => { if (!e.message.includes('navigation to another Document')) errors.push(e.message); });
+  const dom = new JSDOM(html('index'), { url: 'https://example.test/', runScripts: 'dangerously', virtualConsole: vc,
+    beforeParse(window) { window.fetch = () => new Promise(resolve => { resolveConfig = resolve; }); }
+  });
+  const d = dom.window.document;
   d.querySelector('[data-interest="Pro Business"]').click();
-  await w.handleContactSubmit();
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, '/api/public/demo-enquiry');
-  const payload = JSON.parse(calls[0].options.body);
-  assert.equal(payload.productQuery, 'Pro Business');
-  assert.match(payload.message, /Partner reference: Partner_42/);
-  assert.match(payload.message, /Synthetic requirement/);
-  assert.match(d.getElementById('formNote').textContent, /received/i);
-  assert.equal(d.getElementById('name').value, '');
-  assert.equal(d.getElementById('contactConsent').checked, false);
+  resolveConfig({ ok: true, json: async () => ({ demoBotWhatsapp: '+91 98765 43210' }) });
+  await wait(30);
+  const url = new URL(d.getElementById('contactWhatsApp').href);
+  assert.equal(url.host, 'wa.me');
+  assert.equal(url.pathname, '/919876543210');
+  assert.match(url.searchParams.get('text'), /Pro Business/);
+  assert.deepEqual(errors, []);
   dom.window.close();
 });
 
-
-test('homepage prevents duplicate submissions and keeps entered data when the API rejects an enquiry', async () => {
-  const { dom } = openPage('index', { path: '/' }); await wait(30);
-  const w = dom.window, d = w.document;
-  for (const [id, value] of Object.entries({ name: 'Test User', business: 'Synthetic Co', email: 'test@example.test', phone: '9876543210' })) d.getElementById(id).value = value;
-  d.getElementById('contactConsent').checked = true;
-  let resolveFetch, calls = 0;
-  w.fetch = () => { calls++; return new Promise(resolve => { resolveFetch = resolve; }); };
-  const first = w.handleContactSubmit();
-  await w.handleContactSubmit();
-  assert.equal(calls, 1);
-  resolveFetch({ ok: false, json: async () => ({ ok: false, error: 'Enquiries are unavailable.' }) });
-  await first;
-  assert.match(d.getElementById('formNote').textContent, /unavailable/i);
-  assert.equal(d.getElementById('business').value, 'Synthetic Co');
-  assert.equal(d.getElementById('contactSubmit').disabled, false);
-  dom.window.close();
+test('homepage keeps its existing public fallback if bot config fails or is invalid', async () => {
+  for (const value of ['', 'not-a-number', '123']) {
+    const dom = new JSDOM(html('index'), { url: 'https://example.test/', runScripts: 'dangerously',
+      beforeParse(window) { window.fetch = async () => ({ ok: true, json: async () => ({ demoBotWhatsapp: value }) }); }
+    });
+    await wait(20);
+    assert.equal(new URL(dom.window.document.getElementById('contactWhatsApp').href).pathname, '/919115748457');
+    dom.window.close();
+  }
 });
 
 test('login never falls back to a client profile after a rejected workspace verification', async () => {

@@ -6,39 +6,31 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import apiRouter from '../src/routes/api.js';
 import db from '../src/db/index.js';
 
-test('homepage submits a consented synthetic enquiry to the isolated local API', async () => {
-  process.env.NODE_ENV = 'test'; process.env.USE_LOCAL_DB = 'true';
+test('homepage uses the configured WhatsApp bot without creating a lead or sending a message', async () => {
+  process.env.NODE_ENV = 'test'; process.env.USE_LOCAL_DB = 'true'; process.env.SUPPORT_WHATSAPP = '919876543210';
   db.persist = () => {};
   const orgId = '6fd354d9-3437-412d-856e-28bc19d44268';
   db.tables.organizations = new Map([[orgId, { id: orgId, name: 'Synthetic demo tenant', plan_status: 'active' }]]);
   db.tables.leads = new Map(); db.tables.conversations = new Map(); db.tables.audit_logs = new Map();
   const app = express(); app.use(express.json()); app.use('/api', apiRouter);
   const server = app.listen(0, '127.0.0.1'); await new Promise(resolve => server.once('listening', resolve));
-  const origin = `http://127.0.0.1:${server.address().port}`;
-  const vc = new VirtualConsole(); const errors = [];
+  const origin = `http://127.0.0.1:${server.address().port}`, requests = [];
+  const vc = new VirtualConsole(), errors = [];
   vc.on('jsdomError', error => { if (!error.message.includes('navigation to another Document')) errors.push(error.message); });
   const dom = new JSDOM(fs.readFileSync(new URL('../public/index.html', import.meta.url), 'utf8'), {
     url: `${origin}/?ref=PARTNER`, runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc,
-    beforeParse(window) { window.fetch = (url, options) => fetch(new URL(url, origin), options); }
+    beforeParse(window) { window.fetch = (url, options) => { requests.push({url, options}); return fetch(new URL(url, origin), options); }; }
   });
   try {
-    const w = dom.window, d = w.document;
-    await new Promise(resolve => setTimeout(resolve, 20));
-    for (const [id, value] of Object.entries({ name: 'Synthetic Customer', business: 'Example Factory', email: 'synthetic@example.test', phone: '9876543210', message: 'Synthetic product enquiry' })) d.getElementById(id).value = value;
-    d.getElementById('contactConsent').checked = true;
+    await new Promise(resolve => setTimeout(resolve, 100));
+    const d=dom.window.document;
     d.querySelector('[data-interest="Standard Growth"]').click();
-    await w.handleContactSubmit();
-    assert.match(d.getElementById('formNote').textContent, /received/i);
-    const leads = db.findScoped('leads', orgId);
-    assert.equal(leads.length, 1);
-    assert.equal(leads[0].buyer_name, 'Synthetic Customer');
-    assert.equal(leads[0].buyer_phone, '919876543210');
-    assert.equal(leads[0].product_inquired, 'Standard Growth');
-    assert.match(leads[0].requirement, /Business: Example Factory/);
-    assert.match(leads[0].requirement, /Email: synthetic@example.test/);
-    assert.match(leads[0].requirement, /Partner reference: PARTNER/);
+    const url = new URL(d.getElementById('contactWhatsApp').href);
+    assert.equal(url.pathname, '/919876543210');
+    assert.match(url.searchParams.get('text'), /Standard Growth/);
+    assert.match(url.searchParams.get('text'), /Partner reference: PARTNER/);
+    assert.equal(db.findScoped('leads', orgId).length, 0);
+    assert.equal(requests.some(r => r.options?.method === 'POST'), false);
     assert.deepEqual(errors, []);
-  } finally {
-    dom.window.close(); await new Promise(resolve => server.close(resolve));
-  }
+  } finally { dom.window.close(); await new Promise(resolve => server.close(resolve)); }
 });

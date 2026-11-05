@@ -198,12 +198,13 @@ test('WHATSAPP JOURNEY DIAGNOSTICS & FIX SUITE: Complete Flow Verification', asy
     assert.equal(rogueBuyer.isOwnerCommand, false);
   });
 
-  await t.test('9. Frontend file integrity: demo.html and index.html reference live demo endpoints', async () => {
+  await t.test('9. Frontend file integrity: demo retains its endpoint and homepage links to WhatsApp', async () => {
     const demoHtml = fs.readFileSync(path.join(process.cwd(), 'public', 'demo.html'), 'utf8');
     assert.ok(demoHtml.includes('/api/public/demo-enquiry'), 'demo.html must call /api/public/demo-enquiry');
 
     const indexHtml = fs.readFileSync(path.join(process.cwd(), 'public', 'index.html'), 'utf8');
-    assert.ok(indexHtml.includes('/api/public/demo-enquiry'), 'the homepage must submit enquiries to the existing API');
+    assert.ok(indexHtml.includes('id="contactWhatsApp"'), 'the homepage must offer the WhatsApp link');
+    assert.ok(!indexHtml.includes('id="contactForm"'), 'the homepage enquiry form must be removed');
   });
 
   await t.test('10. Baileys pairing code retry: recovers from transient Connection Closed error on socket opening', async () => {
