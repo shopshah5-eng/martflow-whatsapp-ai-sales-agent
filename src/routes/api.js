@@ -117,7 +117,12 @@ router.post('/auth/provision', async (req, res) => {
       return res.status(403).json({ ok: false, error: 'Access denied: account membership is inactive or unassigned.' });
     }
 
-    // Transactional provisioning
+    // The historical create-organization/profile sequence is not atomic and
+    // can race. Production signup must use the reviewed provisioning trigger
+    // until a transactional, idempotent service-side RPC is deployed.
+    if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
+      return res.status(503).json({ ok: false, error: 'Workspace provisioning is unavailable; please contact support.' });
+    }
     const userEmail = (user.email || '').toLowerCase().trim();
     const fullName = req.body.fullName || user.user_metadata?.full_name || userEmail.split('@')[0] || 'User';
     const companyName = req.body.companyName || user.user_metadata?.company_name || fullName + ' Enterprise';
@@ -951,6 +956,7 @@ router.get('/catalog/products', authenticate, async (req, res) => {
 router.post('/catalog/upload', authenticate, requireCatalogManager, async (req, res) => {
   try {
     if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') return res.status(503).json({ ok: false, error: 'File import is not available yet; add products manually.' });
+    if ((req.query?.org_id || req.body?.orgId || req.organizationId) !== req.organizationId) return res.status(400).json({ ok: false, error: 'Cross-workspace file import is not supported.' });
     const { filename, fileBase64 } = req.body;
     if (!filename || !fileBase64) {
       return res.status(400).json({ ok: false, error: 'filename and fileBase64 required.' });
@@ -1209,13 +1215,14 @@ router.post('/catalog/quick-add', authenticate, requireCatalogManager, async (re
   try {
     const { name, priceRaw, model, specifications, sku, orgId } = req.body;
     let targetOrgId = req.organizationId;
-    if (orgId && orgId !== req.organizationId) {
-      const allowed = await resolveTargetCatalogOrgId(req, orgId);
+    const requestedOrgId = req.query?.org_id || orgId;
+    if (requestedOrgId && requestedOrgId !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, requestedOrgId);
       if (!allowed) return res.status(403).json({ ok: false, error: 'Unauthorized to manage this client catalogue.' });
       targetOrgId = allowed;
     }
-    if (!name || !name.trim()) {
-      return res.status(400).json({ ok: false, error: 'Product name is required.' });
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 500) {
+      return res.status(400).json({ ok: false, error: 'Product name must contain 1 to 500 characters.' });
     }
 
     const sb = repository.getSupabase();
@@ -1356,13 +1363,20 @@ router.post('/catalog/sync', authenticate, requireCatalogManager, async (req, re
   try {
     const { orgId, products, companyName, businessType, websiteKnowledge, catalogPdfName } = req.body || {};
     let targetOrgId = req.organizationId;
-    if (orgId && orgId !== req.organizationId) {
-      const allowed = await resolveTargetCatalogOrgId(req, orgId);
+    const requestedOrgId = req.query?.org_id || orgId;
+    if (requestedOrgId && requestedOrgId !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, requestedOrgId);
       if (!allowed) return res.status(403).json({ ok: false, error: 'Cannot modify another organization without authorization' });
       targetOrgId = allowed;
     }
     if (products !== undefined && (!Array.isArray(products) || products.length > 10000 || products.some(p => !p || typeof p.name !== 'string' || !p.name.trim()))) {
       return res.status(400).json({ ok: false, error: 'Products must be an array of named products (maximum 10000).' });
+    }
+    // Legacy bulk sync replaces the entire catalogue without an import review.
+    // Keep it unavailable until a conflict-aware, atomic import is implemented.
+    if (products !== undefined) return res.status(409).json({ ok: false, error: 'Bulk replacement is unavailable. Edit products individually until reviewed imports are ready.' });
+    if (targetOrgId !== req.organizationId && [companyName, businessType, websiteKnowledge, catalogPdfName].some(value => value !== undefined && value !== null)) {
+      return res.status(403).json({ ok: false, error: 'Catalogue access does not permit changing client settings.' });
     }
     const rows = products?.map((p, idx) => ({
       sku: String(p.sku || p.sku_code || `ITEM-${101 + idx}`).slice(0, 200),

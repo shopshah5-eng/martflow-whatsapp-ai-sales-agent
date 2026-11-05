@@ -10,8 +10,10 @@
 /signup           /login.html       200
 /forgot-password  /login.html       200
 /demo             /demo.html        200
-/admin/*          /admin.html       200
-/admin            /admin.html       200
+/admin/*          /catalog-admin.html 200
+/admin            /catalog-admin.html 200
+/superadmin/*     /catalog-admin.html 200
+/superadmin       /catalog-admin.html 200
 
 # Proxy all /api/* and /catalogs/* requests to the live Render backend
 /api/*  https://martflow-whatsapp-ai-sales-agent.onrender.com/api/:splat  200!

@@ -5,7 +5,7 @@ import { repository } from '../db/repository.js';
 // Only explicit platform-managed grants (or platform superadmins) can edit.
 export async function canManageCatalog(req) {
   if (req.role === 'superadmin') return true;
-  // Always evaluate against verified authenticated workspace first
+  // Catalogue targets are checked against explicit grants.
   const targetOrg = req.query?.org_id || req.body?.orgId || req.organizationId;
   if (!req.userId || !targetOrg) return false;
   const sb = repository.getSupabase();
@@ -21,6 +21,9 @@ export async function canManageCatalog(req) {
 
 export async function requireCatalogManager(req, res, next) {
   try {
+    if (req.query?.org_id && req.body?.orgId && req.query.org_id !== req.body.orgId) {
+      return res.status(400).json({ ok: false, error: 'Conflicting catalogue workspace targets.' });
+    }
     if (!await canManageCatalog(req)) return res.status(403).json({ ok: false, error: 'Catalogue editing is managed by your agency.' });
     next();
   } catch (error) {

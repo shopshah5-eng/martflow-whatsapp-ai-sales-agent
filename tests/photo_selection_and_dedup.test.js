@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { getConversationTrackingKey } from '../src/services/conversationTracking.js';
 
 test('CUSTOMER PHOTO SELECTION: Specific product match takes precedence over first product in list', async () => {
   const products = [
@@ -63,22 +64,6 @@ test('CUSTOMER PHOTO SELECTION: Specific product match takes precedence over fir
 });
 
 test('CUSTOMER PHOTO DEDUPLICATION: Different customers never share a deduplication key', async () => {
-  function getConversationTrackingKey(orgId, lead) {
-    const identifier = lead?.phone || lead?.buyer_phone || lead?.senderPhone || lead?.customer_phone ||
-      lead?.id || lead?.conversation_id || lead?.sessionKey || (lead?.name ? 'name:' + lead.name : null);
-    if (identifier) {
-      const cleanId = String(identifier).trim().replace(/\D/g, '') || String(identifier).trim().replace(/\s+/g, '_');
-      return `${orgId}:${cleanId}`;
-    }
-    if (lead && typeof lead === 'object') {
-      if (!lead._trackingKey) {
-        lead._trackingKey = 'ephem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-      }
-      return `${orgId}:${lead._trackingKey}`;
-    }
-    return `${orgId}:ephem_` + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-  }
-
   const orgId = '00000000-0000-4000-8000-000000000001';
 
   // 1. Two different phone numbers produce distinct keys
@@ -87,8 +72,10 @@ test('CUSTOMER PHOTO DEDUPLICATION: Different customers never share a deduplicat
   const keyA = getConversationTrackingKey(orgId, customerA);
   const keyB = getConversationTrackingKey(orgId, customerB);
   assert.notEqual(keyA, keyB, 'Distinct phone numbers must produce distinct keys');
-  assert.equal(keyA, `${orgId}:919876543210`);
-  assert.equal(keyB, `${orgId}:919123456789`);
+  assert.equal(keyA, getConversationTrackingKey(orgId, { phone: '919876543210' }));
+  assert.notEqual(keyA, getConversationTrackingKey('another-org', customerA));
+  assert.notEqual(getConversationTrackingKey(orgId, { id: 'a-12' }), getConversationTrackingKey(orgId, { id: 'b-12' }));
+  assert.notEqual(getConversationTrackingKey(orgId, { name: 'Alex' }), getConversationTrackingKey(orgId, { name: 'Alex' }));
 
   // 2. Two different anonymous customers without phone or id must NOT collapse into the same key
   const anonLead1 = { inquiry: 'Need price' };

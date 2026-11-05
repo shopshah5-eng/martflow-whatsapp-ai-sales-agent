@@ -830,6 +830,7 @@
               <button onclick="fetchCatalogProducts()" class="text-xs text-[#087F5B] hover:underline">Refresh</button>
             </div>
           </div>
+          <p class="text-xs text-slate-500">Bulk import, website sync and clear-all are temporarily unavailable while safe review and privacy controls are completed. Authorized catalogue managers can edit individual items.</p>
           <div id="catalogProductsContainer" class="overflow-x-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead>
@@ -2933,7 +2934,7 @@
       setHidden('btnSimLead', !isAdmin);
       setHidden('cardManagedAiKnowledge', catalogCanManage);
       setHidden('btnQuickAddSku', !catalogCanManage);
-      setHidden('btnClearCatalog', !catalogCanManage);
+      setHidden('btnClearCatalog', true); // Bulk replacement is intentionally unavailable.
       // Private asset uploads and bulk replacement are unavailable until their
       // storage and import workflows are secured; manual management remains available.
       setHidden('catalogDropzone', true);

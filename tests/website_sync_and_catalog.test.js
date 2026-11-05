@@ -52,7 +52,7 @@ test('WEBSITE URL: getOrgWebsiteUrl and setOrgWebsiteUrl preserve existing knowl
   assert.equal(getOrgWebsiteUrl(replaced), 'https://newdomain.com');
 });
 
-test('SHOPIFY SYNC: syncWebsiteProducts parses products.json, maps buy links and out-of-stock, and never touches owner products', async () => {
+test('WEBSITE SYNC: unreviewed legacy import does not change products', async () => {
   const orgId = 'shopify-test-org-001';
   db.tables.products = new Map();
   db.tables.organizations = new Map([[orgId, { id: orgId, name: 'Shopify Tenant' }]]);
@@ -111,7 +111,7 @@ test('SHOPIFY SYNC: syncWebsiteProducts parses products.json, maps buy links and
   try {
     const mockOrigin = `http://127.0.0.1:${mockPort}`;
     const syncedCount = await syncWebsiteProducts(orgId, mockOrigin).catch(() => 0);
-    // Since 127.0.0.1 is blocked by SSRF, syncWebsiteProducts safely catches the SSRF error and returns 0 without crashing
+    // Website import is disabled until it supports preview and conflict review.
     assert.equal(syncedCount, 0);
 
     // Verify manual product was not deleted
@@ -157,8 +157,8 @@ test('OWNER CONTROL: website: and sync commands are owner-only and ignore custom
   }, fakeSock);
 
   const orgAfterOwner = db.findById('organizations', orgId);
-  assert.equal(getOrgWebsiteUrl(orgAfterOwner.website_knowledge), 'https://myverifiedstore.com');
-  assert.ok(dispatchedReplies.some(r => r.text && r.text.includes('Website saved: https://myverifiedstore.com')));
+  assert.equal(getOrgWebsiteUrl(orgAfterOwner.website_knowledge), '');
+  assert.ok(dispatchedReplies.some(r => r.text && r.text.includes('disabled')));
 });
 
 test('FRONTEND ASSETS & LAYOUT: industry cards use matching SVGs and hero-whatsapp.png is a transparent RGBA PNG', () => {

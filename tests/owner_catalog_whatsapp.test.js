@@ -83,191 +83,6 @@ describe('OWNER-ONLY WHATSAPP CATALOG MANAGEMENT & CUSTOMER SAFETY SUITE', () =>
     assert.equal(added, undefined, 'Customer message must NEVER add a product to the catalog');
   });
 
-  test('2. Owner Command "add: Name | price | details" inserts ONE product with auto-generated WA SKU', async () => {
-    const sock = mockSock();
-    const ownerMsg = {
-      key: {
-        remoteJid: `${ownerPhone}@s.whatsapp.net`,
-        fromMe: false,
-        id: `owner_${Date.now()}`
-      },
-      pushName: 'Owner',
-      message: {
-        conversation: 'add: Maroon Suit | 550 | Pure cotton with dupatta'
-      }
-    };
-
-    await handleOrgIncomingMessage(orgA, ownerMsg, sock);
-
-    const prods = db.findScoped('products', orgA);
-    const prod = prods.find(p => p.name === 'Maroon Suit');
-    assert.ok(prod, 'Product Maroon Suit should be inserted');
-    assert.equal(prod.price_raw, '550');
-    assert.equal(prod.description, 'Pure cotton with dupatta');
-    assert.ok(prod.sku.startsWith('WA-'), 'SKU should start with WA-');
-
-    assert.ok(sock.sentMessages.length > 0, 'Confirmation message should be sent to owner');
-    assert.ok(sock.sentMessages[0].content.text.includes('Done: Maroon Suit added. Type undo to reverse.'));
-  });
-
-  test('3. Owner Command "add:" with same name updates existing product instead of duplicating', async () => {
-    db.insert('products', {
-      id: 'prod_101',
-      org_id: orgA,
-      organization_id: orgA,
-      name: 'Maroon Suit',
-      price_raw: '500',
-      description: 'Old details',
-      sku: 'WA-101'
-    });
-
-    const sock = mockSock();
-    const ownerMsg = {
-      key: {
-        remoteJid: `${ownerPhone}@s.whatsapp.net`,
-        fromMe: false,
-        id: `owner_${Date.now()}`
-      },
-      message: {
-        conversation: 'add: maroon suit | 650 | Upgraded 100% fine cotton'
-      }
-    };
-
-    await handleOrgIncomingMessage(orgA, ownerMsg, sock);
-
-    const prods = db.findScoped('products', orgA);
-    const matches = prods.filter(p => p.name.toLowerCase() === 'maroon suit');
-    assert.equal(matches.length, 1, 'Should NOT create duplicate product with same name');
-    assert.equal(matches[0].price_raw, '650', 'Price should be updated to 650');
-    assert.equal(matches[0].description, 'Upgraded 100% fine cotton', 'Description should be updated');
-  });
-
-  test('4. Owner Command "price: Name = 595" updates price_raw of matching product only', async () => {
-    db.insert('products', {
-      id: 'prod_102',
-      org_id: orgA,
-      organization_id: orgA,
-      name: 'Green Kurti',
-      price_raw: '450',
-      sku: 'WA-102'
-    });
-
-    const sock = mockSock();
-    const ownerMsg = {
-      key: {
-        remoteJid: `${ownerPhone}@s.whatsapp.net`,
-        fromMe: false,
-        id: `owner_${Date.now()}`
-      },
-      message: {
-        conversation: 'price: Green Kurti = 595'
-      }
-    };
-
-    await handleOrgIncomingMessage(orgA, ownerMsg, sock);
-
-    const updated = db.findById('products', 'prod_102');
-    assert.equal(updated.price_raw, '595');
-    assert.ok(sock.sentMessages[0].content.text.includes('Done: Green Kurti price updated to 595. Type undo to reverse.'));
-  });
-
-  test('5. Owner Command "out: Name" and "in: Name" toggles [OUT OF STOCK] prefix on description', async () => {
-    db.insert('products', {
-      id: 'prod_103',
-      org_id: orgA,
-      organization_id: orgA,
-      name: 'Yellow Anarkali',
-      price_raw: '999',
-      description: 'Festive collection',
-      sku: 'WA-103'
-    });
-
-    const sock = mockSock();
-    // 5a. Out of stock
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `owner_out_${Date.now()}` },
-      message: { conversation: 'out: Yellow Anarkali' }
-    }, sock);
-
-    let p = db.findById('products', 'prod_103');
-    assert.ok(p.description.startsWith('[OUT OF STOCK]'), 'Description should start with [OUT OF STOCK]');
-    assert.ok(sock.sentMessages[0].content.text.includes('Done: Yellow Anarkali marked OUT OF STOCK. Type undo to reverse.'));
-
-    // 5b. In stock
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `owner_in_${Date.now()}` },
-      message: { conversation: 'in: Yellow Anarkali' }
-    }, sock);
-
-    p = db.findById('products', 'prod_103');
-    assert.equal(p.description, 'Festive collection', 'Prefix should be cleanly removed');
-    assert.ok(sock.sentMessages[1].content.text.includes('Done: Yellow Anarkali marked IN STOCK. Type undo to reverse.'));
-  });
-
-  test('6. Owner Command "remove: Name" initiates 2-step confirmation and deletes only on YES', async () => {
-    db.insert('products', {
-      id: 'prod_104',
-      org_id: orgA,
-      organization_id: orgA,
-      name: 'Silk Dupatta',
-      price_raw: '300',
-      sku: 'WA-104'
-    });
-
-    const sock = mockSock();
-    // Step 1: remove: Silk Dupatta
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `owner_rem_${Date.now()}` },
-      message: { conversation: 'remove: Silk Dupatta' }
-    }, sock);
-
-    assert.ok(sock.sentMessages[0].content.text.includes('Remove Silk Dupatta? Reply YES within 2 minutes'));
-    assert.ok(db.findById('products', 'prod_104'), 'Product should NOT be deleted before YES');
-
-    // Step 2: Owner replies YES
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `owner_yes_${Date.now()}` },
-      message: { conversation: 'YES' }
-    }, sock);
-
-    assert.equal(db.findById('products', 'prod_104'), null, 'Product should be deleted after YES');
-    assert.ok(sock.sentMessages[1].content.text.includes('Done: Silk Dupatta removed. Type undo to reverse.'));
-  });
-
-  test('7. Undo reverses last change (re-inserts deleted product)', async () => {
-    db.insert('products', {
-      id: 'prod_105',
-      org_id: orgA,
-      organization_id: orgA,
-      name: 'Velvet Shawl',
-      price_raw: '1200',
-      sku: 'WA-105'
-    });
-
-    const sock = mockSock();
-    // Remove
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `rem_${Date.now()}` },
-      message: { conversation: 'remove: Velvet Shawl' }
-    }, sock);
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `yes_${Date.now()}` },
-      message: { conversation: 'YES' }
-    }, sock);
-
-    assert.equal(db.findById('products', 'prod_105'), null);
-
-    // Undo
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `undo_${Date.now()}` },
-      message: { conversation: 'undo' }
-    }, sock);
-
-    const restored = db.findById('products', 'prod_105');
-    assert.ok(restored, 'Product should be restored on undo');
-    assert.equal(restored.name, 'Velvet Shawl');
-  });
-
   test('8. Owner Command "list" returns numbered products with stock status', async () => {
     db.insert('products', {
       id: 'p1',
@@ -302,7 +117,7 @@ describe('OWNER-ONLY WHATSAPP CATALOG MANAGEMENT & CUSTOMER SAFETY SUITE', () =>
     assert.ok(reply.includes('IN STOCK'), 'Indicates IN STOCK');
   });
 
-  test('9. Owner sending photo with caption NOT starting with add: is ignored', async () => {
+  test('9. Owner photo cannot change catalogue', async () => {
     const sock = mockSock();
     await handleOrgIncomingMessage(orgA, {
       key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `img_ign_${Date.now()}` },
@@ -313,29 +128,7 @@ describe('OWNER-ONLY WHATSAPP CATALOG MANAGEMENT & CUSTOMER SAFETY SUITE', () =>
       }
     }, sock);
 
-    assert.equal(sock.sentMessages.length, 0, 'No action or storage for non-add photos from owner');
-  });
-
-  test('10. Multi-tenant isolation: Owner of Org A cannot view or mutate Org B products', async () => {
-    db.insert('products', {
-      id: 'prod_b_1',
-      org_id: orgB,
-      organization_id: orgB,
-      name: 'Org B Secret Gadget',
-      price_raw: '5000',
-      sku: 'WA-B1'
-    });
-
-    const sock = mockSock();
-    // Owner of Org A tries to change price of Org B product
-    await handleOrgIncomingMessage(orgA, {
-      key: { remoteJid: `${ownerPhone}@s.whatsapp.net`, fromMe: false, id: `hack_${Date.now()}` },
-      message: { conversation: 'price: Org B Secret Gadget = 10' }
-    }, sock);
-
-    const unchanged = db.findById('products', 'prod_b_1');
-    assert.equal(unchanged.price_raw, '5000', 'Org B product price must remain unchanged');
-    assert.ok(sock.sentMessages[0].content.text.includes('not found in catalog'), 'Should report not found for cross-tenant product');
+    assert.ok(sock.sentMessages[0].content.text.includes('disabled'));
   });
 
   test('11. Customer Side: Never send photos for products marked [OUT OF STOCK]', async () => {
@@ -396,3 +189,61 @@ describe('OWNER-ONLY WHATSAPP CATALOG MANAGEMENT & CUSTOMER SAFETY SUITE', () =>
 
 
 test.after(() => { setTimeout(() => process.exit(0), 100).unref(); });
+
+test('WhatsApp identity: unresolved LID cannot trigger owner commands', async () => {
+  const orgId='owner-lid-test';
+  db.insert('organizations',{id:orgId,name:'LID test',owner_alert_number:'919781018975',wa_auto_reply:false});
+  const sent=[];
+  const sock={user:{id:'919115748457:1@s.whatsapp.net'},sendMessage:async(jid,content)=>{sent.push({jid,content});return {key:{id:'response'}};},sendPresenceUpdate:async()=>{},readMessages:async()=>{}};
+  await handleOrgIncomingMessage(orgId,{key:{remoteJid:'148004724064491@lid',fromMe:false,id:'untrusted-lid'},message:{conversation:'add: Unauthorized product | 1 | details'}},sock);
+  assert.equal(db.find('products',p=>(p.org_id===orgId||p.organization_id===orgId)&&p.name==='Unauthorized product').length,0);
+});
+
+test('same inbound message ID in different workspaces is not suppressed', async () => {
+  const a='duplicate-id-org-a',b='duplicate-id-org-b',phone='919876543210';
+  for(const id of [a,b]) db.insert('organizations',{id,name:id,owner_alert_number:phone,wa_auto_reply:false});
+  const sock={user:{id:'919115748457:1@s.whatsapp.net'},sendMessage:async()=>({key:{id:'response'}}),sendPresenceUpdate:async()=>{},readMessages:async()=>{}};
+  const msg={key:{remoteJid:`${phone}@s.whatsapp.net`,fromMe:false,id:'shared-id'},message:{conversation:'note: Shared test note'}};
+  await handleOrgIncomingMessage(a,msg,sock); await handleOrgIncomingMessage(b,msg,sock);
+  for(const id of [a,b]) assert.match(db.findById('organizations',id).website_knowledge,/Shared test note/);
+});
+
+test('owner note and undo preserve the previous tenant knowledge', async () => {
+  const id='notes-undo-test',phone='919876543210';
+  db.insert('organizations',{id,name:id,owner_alert_number:phone,website_knowledge:'Original knowledge'});
+  const sent=[],sock={user:{id:'919115748457:1@s.whatsapp.net'},sendMessage:async(jid,content)=>{sent.push(content.text);return {key:{id:'response'}};},sendPresenceUpdate:async()=>{},readMessages:async()=>{}};
+  await handleOrgIncomingMessage(id,{key:{remoteJid:`${phone}@s.whatsapp.net`,fromMe:false,id:'note-1'},message:{conversation:'note: Special hours'}},sock);
+  assert.match(db.findById('organizations',id).website_knowledge,/Special hours/);
+  assert.match(sent[0],/Done/);
+  await handleOrgIncomingMessage(id,{key:{remoteJid:`${phone}@s.whatsapp.net`,fromMe:false,id:'note-undo'},message:{conversation:'undo'}},sock);
+  assert.equal(db.findById('organizations',id).website_knowledge,'Original knowledge');
+});
+
+
+test('owner phone alone cannot mutate catalogue or run imports', async () => {
+  const id='catalog-owner-block',phone='919876543210';
+  db.insert('organizations',{id,name:id,owner_alert_number:phone,website_knowledge:'Original'});
+  db.insert('products',{id:'catalog-owner-product',org_id:id,organization_id:id,name:'Existing',price_raw:'100'});
+  const sent=[],sock={user:{id:'919115748457:1@s.whatsapp.net'},sendMessage:async(jid,content)=>{sent.push(content.text);return {key:{id:'response'}};},sendPresenceUpdate:async()=>{},readMessages:async()=>{}};
+  for (const [i,text] of ['add: New | 1','price: Existing = 1','out: Existing','remove: Existing','yes','website: https://example.com','please change the price of Existing','stock: Existing is available','offer: 50 percent off'].entries()) {
+    await handleOrgIncomingMessage(id,{key:{remoteJid:`${phone}@s.whatsapp.net`,fromMe:false,id:`block-${i}`},message:{conversation:text}},sock);
+  }
+  await handleOrgIncomingMessage(id,{key:{remoteJid:`${phone}@s.whatsapp.net`,fromMe:false,id:'block-pdf'},message:{documentMessage:{mimetype:'application/pdf',fileName:'catalog.pdf'}}},sock);
+  assert.equal(db.findById('products','catalog-owner-product').price_raw,'100');
+  assert.equal(db.find('products',p=>p.org_id===id).length,1);
+  assert.equal(db.findById('organizations',id).website_knowledge,'Original');
+  assert.equal(sent.length,10);
+  assert.ok(sent.every(text=>text.includes('disabled')));
+});
+
+
+test('workspace manual and automatic modes do not change another workspace', async () => {
+  const a='mode-org-a', b='mode-org-b', phone='919876543210';
+  for (const id of [a,b]) db.insert('organizations',{id,name:id,owner_alert_number:phone,wa_auto_reply:true});
+  const sock={user:{id:'919115748457:1@s.whatsapp.net'},sendMessage:async()=>({key:{id:'response'}}),sendPresenceUpdate:async()=>{},readMessages:async()=>{}};
+  for (const [i,text] of ['manual','automatic'].entries()) {
+    await handleOrgIncomingMessage(a,{key:{remoteJid:`${phone}@s.whatsapp.net`,fromMe:false,id:`mode-${i}`},message:{conversation:text}},sock);
+    assert.equal(db.findById('organizations',a).wa_auto_reply, i === 1);
+    assert.equal(db.findById('organizations',b).wa_auto_reply,true);
+  }
+});

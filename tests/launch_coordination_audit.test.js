@@ -101,7 +101,7 @@ test('ACCOUNT LINKING: authMiddleware never reassigns or links existing profile 
   }
 });
 
-test('PROVISIONING: POST /api/auth/provision is transactional, idempotent and rejects unconfirmed users', async () => {
+test('PROVISIONING: local fallback is idempotent for sequential requests and rejects unconfirmed users', async () => {
   const { repository } = await import('../src/db/repository.js');
   const originalGetSupabase = repository.getSupabase;
   const originalGetProfileById = repository.getProfileById;
@@ -603,4 +603,26 @@ test('AI PROMPT GROUNDING: system instruction is strictly industry-neutral and f
   // Verify the new industry-neutral rule is present
   assert.ok(serverJsContent.includes('AD, MEDIA & LIVE INQUIRY RULE:'), 'Must contain industry-neutral AD, MEDIA & LIVE INQUIRY RULE');
   assert.ok(serverJsContent.includes('share the relevant category price range or model range strictly from the active catalog'), 'Must ground price in active catalog');
+});
+
+
+test('production refuses unsafe fallback provisioning when profile is absent', async () => {
+  const { repository } = await import('../src/db/repository.js');
+  const oldGetSupabase = repository.getSupabase, oldGetProfile = repository.getProfileById;
+  const oldNodeEnv = process.env.NODE_ENV, oldLocal = process.env.USE_LOCAL_DB;
+  let wrote = false;
+  repository.getSupabase = () => ({ auth: { getUser: async () => ({ data: { user: { id: 'confirmed-user', email: 'user@example.test', email_confirmed_at: '2026-01-01' } } }) }, from: () => { wrote = true; throw new Error('unexpected write'); } });
+  repository.getProfileById = async () => null;
+  process.env.NODE_ENV = 'production'; delete process.env.USE_LOCAL_DB;
+  const app = express(); app.use(express.json()); app.use('/api', apiRouter); const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/auth/provision`, { method: 'POST', headers: { Authorization: 'Bearer valid', 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal(response.status, 503); assert.equal(wrote, false);
+  } finally {
+    repository.getSupabase = oldGetSupabase; repository.getProfileById = oldGetProfile;
+    if (oldNodeEnv === undefined) delete process.env.NODE_ENV; else process.env.NODE_ENV = oldNodeEnv;
+    if (oldLocal === undefined) delete process.env.USE_LOCAL_DB; else process.env.USE_LOCAL_DB = oldLocal;
+    await new Promise(resolve => server.close(resolve));
+  }
 });

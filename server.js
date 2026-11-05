@@ -42,6 +42,7 @@ import {
   enableSessionBackups
 } from './src/integrations/whatsapp/sessionSync.js';
 import db from './src/db/index.js';
+import { repository } from './src/db/repository.js';
 import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook, invalidateCache } from './src/services/aiService.js';
 import { HIGH_INTENT_REGEX, scorePurchaseIntent, describeInboundContent } from './src/services/intentService.js';
 import takeoverService, {
@@ -57,6 +58,7 @@ import takeoverService, {
   maskPhone
 } from './src/services/takeoverService.js';
 import LearningService from './src/services/learningService.js';
+import { getConversationTrackingKey } from './src/services/conversationTracking.js';
 import { isSafePublicUrl, safeFetchWebsite } from './src/services/safeWebsiteFetch.js';
 
 dotenv.config();
@@ -278,16 +280,7 @@ function findProductMatches(queryText = '') {
     return config.products[2] ? [config.products[2]] : [config.products[0]];
   }
 
-  // 2. Check learned synonyms
-  const l = loadLearnings();
-  for (const [syn, mapped] of Object.entries(l.synonyms || {})) {
-    if (lower.includes(syn.toLowerCase())) {
-      const match = config.products.find(
-        (p) => mapped.toLowerCase().includes(p.id) || mapped.toLowerCase().includes(p.name.toLowerCase())
-      );
-      if (match) return [match];
-    }
-  }
+  // Global unscoped learned synonyms are intentionally not used.
 
   // 3. Score all products based on full catalog analysis (sub-models, keywords, applications)
   const scored = [];
@@ -455,37 +448,20 @@ let isConnecting = false;
 let reconnectTimer = null;
 let lidToPhoneMap = {}; // Maps WhatsApp @lid JIDs to normalized phone numbers
 
-function resolvePhoneFromJid(remoteJid, altJid) {
-  // 1. Direct remoteJid if it is a standard @s.whatsapp.net phone number
-  if (remoteJid && remoteJid.includes('@s.whatsapp.net')) {
-    const raw = remoteJid.split('@')[0].split(':')[0].replace(/\D/g, '');
-    if (raw && raw.length >= 10) {
-      return normalizeIndianPhone(raw);
-    }
+const tenantLidToPhoneMap = new Map();
+function resolvePhoneFromJid(orgId, remoteJid, altJid) {
+  function verifiedPhone(jid) {
+    if (typeof jid !== 'string' || !jid.endsWith('@s.whatsapp.net')) return null;
+    const raw = jid.split('@')[0].split(':')[0];
+    if (!/^\d{10,15}$/.test(raw)) return null;
+    return normalizeIndianPhone(raw);
   }
-
-  // 2. remoteJidAlt / participantAlt (Baileys v6.7+ format)
-  if (altJid && altJid.includes('@s.whatsapp.net')) {
-    const alt = altJid.split('@')[0].split(':')[0].replace(/\D/g, '');
-    if (alt && alt.length >= 10) {
-      if (remoteJid) lidToPhoneMap[remoteJid] = alt;
-      return normalizeIndianPhone(alt);
-    }
-  }
-
-  // 3. Cached lidToPhoneMap lookup
-  if (remoteJid && lidToPhoneMap[remoteJid]) {
-    return normalizeIndianPhone(lidToPhoneMap[remoteJid]);
-  }
-
-  // 4. Raw digits fallback if length matches valid phone or WhatsApp LID (10 to 16 digits)
-  const rawDigits = (remoteJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
-  if (rawDigits && rawDigits.length >= 10 && rawDigits.length <= 16) {
-    return normalizeIndianPhone(rawDigits);
-  }
-
-  // Unresolved JID
-  return null;
+  const direct = verifiedPhone(remoteJid);
+  if (direct) return direct;
+  const key = JSON.stringify([orgId, remoteJid]);
+  const alternate = verifiedPhone(altJid);
+  if (alternate) { tenantLidToPhoneMap.set(key, alternate); return alternate; }
+  return tenantLidToPhoneMap.get(key) || null;
 }
 
 // Unified Owner Alert Dispatcher with 131047 catch & dry-run support
@@ -515,32 +491,11 @@ const ownerPendingConfirmations = new Map(); // orgId -> { type, data, actions, 
 const ownerUndoSnapshots = new Map();        // orgId -> { action, data, rollbacks }
 const conversationSentPhotos = new Map();    // `${orgId}:${senderPhone}` -> Set<productNameOrId>
 const conversationSentBuyLinks = new Map();  // `${orgId}:${senderPhone}` -> Set<productKeyOrUrl>
-const lastOrgWebsiteSync = new Map();        // orgId -> timestamp
 const orderAlertSentSet = new Set();         // `${orgId}:${senderPhone}:order_intent`
 
-function getConversationTrackingKey(orgId, lead) {
-  const identifier = lead?.phone || lead?.buyer_phone || lead?.senderPhone || lead?.customer_phone ||
-    lead?.id || lead?.conversation_id || lead?.sessionKey || (lead?.name ? 'name:' + lead.name : null);
-  if (identifier) {
-    const cleanId = String(identifier).trim().replace(/\D/g, '') || String(identifier).trim().replace(/\s+/g, '_');
-    return `${orgId}:${cleanId}`;
-  }
-  if (lead && typeof lead === 'object') {
-    if (!lead._trackingKey) {
-      lead._trackingKey = 'ephem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-    }
-    return `${orgId}:${lead._trackingKey}`;
-  }
-  return `${orgId}:ephem_` + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-}
 
 
 // --- Website Sync & SSRF Protection Helpers ---
-function stripHtmlTags(str) {
-  if (!str) return '';
-  return str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
 function getOrgWebsiteUrl(websiteKnowledge) {
   if (!websiteKnowledge) return '';
   const firstLine = websiteKnowledge.split('\n')[0] || '';
@@ -560,246 +515,9 @@ function setOrgWebsiteUrl(existingKnowledge, newUrl) {
 }
 
 async function syncWebsiteProducts(orgId, websiteUrl, activeSock = null, rawRemote = null) {
-  try {
-    addLog(`[Website Sync] Initiating sync for org ${orgId} from ${websiteUrl}`);
-    const parsed = new URL(websiteUrl);
-    const origin = `${parsed.protocol}//${parsed.host}`;
-    const syncedItems = [];
-
-    // Attempt (a): Shopify products.json
-    try {
-      const shopifyUrl = `${origin}/products.json?limit=250`;
-      const sRes = await safeFetchWebsite(shopifyUrl);
-      if (sRes.ok && sRes.text) {
-        let sData = null;
-        try { sData = JSON.parse(sRes.text); } catch (_) {}
-        if (sData && Array.isArray(sData.products) && sData.products.length > 0) {
-          addLog(`[Website Sync] Detected Shopify store with ${sData.products.length} products`);
-          for (const p of sData.products) {
-            const title = (p.title || '').trim();
-            if (!title) continue;
-            const handle = p.handle || String(p.id);
-            const sku = `WEB-${handle}`;
-            const v0 = p.variants?.[0] || {};
-            const priceVal = v0.price;
-            let price_raw = 'Price on request';
-            if (priceVal !== undefined && priceVal !== null && priceVal !== '') {
-              price_raw = String(priceVal).includes('₹') || String(priceVal).includes('$') ? String(priceVal) : `₹${priceVal}`;
-            }
-            const isAvailable = p.variants?.some(v => v.available !== false) ?? true;
-            const shortDesc = stripHtmlTags(p.body_html || '').slice(0, 300).trim();
-            const prodUrl = `${origin}/products/${handle}`;
-            const desc = `${isAvailable ? '' : '[OUT OF STOCK] '}${shortDesc ? shortDesc + '\n' : ''}Buy link: ${prodUrl}`.trim();
-            const img = p.images?.[0]?.src || null;
-            syncedItems.push({
-              sku,
-              name: title,
-              price_raw,
-              description: desc,
-              brochure_url: img,
-              brochure_filename: `${title.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`,
-              isAvailable
-            });
-          }
-        }
-      }
-    } catch (sErr) {
-      addLog(`[Website Sync] Shopify attempt error: ${sErr.message}`);
-    }
-
-    // Attempt (b): WooCommerce Store API
-    if (syncedItems.length === 0) {
-      try {
-        const wcUrl = `${origin}/wp-json/wc/store/v1/products?per_page=100`;
-        const wRes = await safeFetchWebsite(wcUrl);
-        if (wRes.ok && wRes.text) {
-          let wData = null;
-          try { wData = JSON.parse(wRes.text); } catch (_) {}
-          if (Array.isArray(wData) && wData.length > 0) {
-            addLog(`[Website Sync] Detected WooCommerce store with ${wData.length} products`);
-            for (const p of wData) {
-              const name = (p.name || '').trim();
-              if (!name) continue;
-              const handle = p.slug || String(p.id);
-              const sku = `WEB-${handle}`;
-              const sym = p.prices?.currency_symbol || '₹';
-              const rawVal = p.prices?.price || p.prices?.regular_price;
-              const unit = p.prices?.currency_minor_unit ?? 2;
-              let price_raw = 'Price on request';
-              if (rawVal) {
-                const num = Number(rawVal) / Math.pow(10, unit);
-                price_raw = isNaN(num) ? `₹${rawVal}` : `${sym}${num.toLocaleString('en-IN')}`;
-              }
-              const isAvailable = p.is_in_stock !== false;
-              const shortDesc = stripHtmlTags(p.short_description || p.description || '').slice(0, 300).trim();
-              const prodUrl = p.permalink || `${origin}/?p=${p.id}`;
-              const desc = `${isAvailable ? '' : '[OUT OF STOCK] '}${shortDesc ? shortDesc + '\n' : ''}Buy link: ${prodUrl}`.trim();
-              const img = p.images?.[0]?.src || null;
-              syncedItems.push({
-                sku,
-                name,
-                price_raw,
-                description: desc,
-                brochure_url: img,
-                brochure_filename: `${name.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`,
-                isAvailable
-              });
-            }
-          }
-        }
-      } catch (wErr) {
-        addLog(`[Website Sync] WooCommerce attempt error: ${wErr.message}`);
-      }
-    }
-
-    // Attempt (c): Sitemap + Schema.org JSON-LD fallback
-    if (syncedItems.length === 0) {
-      try {
-        const sitemapPaths = ['/sitemap.xml', '/sitemap_index.xml', '/sitemap-products.xml', '/product-sitemap.xml'];
-        let sitemapXml = '';
-        for (const smp of sitemapPaths) {
-          try {
-            const smRes = await safeFetchWebsite(`${origin}${smp}`);
-            if (smRes.ok && smRes.text && (smRes.text.includes('<urlset') || smRes.text.includes('<sitemapindex') || smRes.text.includes('<loc>'))) {
-              sitemapXml = smRes.text;
-              break;
-            }
-          } catch (_) {}
-        }
-        if (sitemapXml) {
-          const urlMatches = Array.from(sitemapXml.matchAll(/<loc>(https?:\/\/[^<]+)<\/loc>/gi)).map(m => m[1].trim());
-          const productUrls = urlMatches.filter(u => {
-            const low = u.toLowerCase();
-            return (low.includes('/product/') || low.includes('/products/') || low.includes('/item/') || low.includes('/p/'))
-              && !low.includes('/category/') && !low.includes('/tag/') && !low.endsWith('.xml');
-          }).slice(0, 60);
-
-          const urlsToFetch = productUrls.length > 0 ? productUrls : urlMatches.filter(u => !u.endsWith('.xml')).slice(0, 30);
-          addLog(`[Website Sync] Sitemap found. Scanning ${urlsToFetch.length} candidate URLs for JSON-LD`);
-
-          for (let i = 0; i < urlsToFetch.length; i += 5) {
-            const batch = urlsToFetch.slice(i, i + 5);
-            await Promise.all(batch.map(async (pUrl) => {
-              try {
-                const pageRes = await safeFetchWebsite(pUrl);
-                if (pageRes.ok && pageRes.text) {
-                  const jsonLdMatches = Array.from(pageRes.text.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi));
-                  for (const jm of jsonLdMatches) {
-                    try {
-                      const parsedLd = JSON.parse(jm[1]);
-                      const itemsArray = Array.isArray(parsedLd) ? parsedLd : (parsedLd['@graph'] || [parsedLd]);
-                      for (const item of itemsArray) {
-                        if (item && (item['@type'] === 'Product' || (Array.isArray(item['@type']) && item['@type'].includes('Product')))) {
-                          const name = (item.name || '').trim();
-                          if (!name) continue;
-                          const handle = pUrl.split('/').filter(Boolean).pop() || crypto.createHash('md5').update(name).digest('hex').slice(0, 8);
-                          const sku = `WEB-${handle}`;
-                          const offer = Array.isArray(item.offers) ? item.offers[0] : (item.offers || {});
-                          const priceVal = offer.price;
-                          const curr = offer.priceCurrency || '₹';
-                          let price_raw = 'Price on request';
-                          if (priceVal) {
-                            price_raw = String(priceVal).includes('₹') || String(priceVal).includes('$') ? String(priceVal) : `${curr} ${priceVal}`;
-                          }
-                          const avail = String(offer.availability || '');
-                          const isAvailable = !avail.toLowerCase().includes('outofstock');
-                          const shortDesc = stripHtmlTags(item.description || '').slice(0, 300).trim();
-                          const img = typeof item.image === 'string' ? item.image : (Array.isArray(item.image) ? item.image[0] : (item.image?.url || null));
-                          const desc = `${isAvailable ? '' : '[OUT OF STOCK] '}${shortDesc ? shortDesc + '\n' : ''}Buy link: ${pUrl}`.trim();
-                          syncedItems.push({
-                            sku,
-                            name,
-                            price_raw,
-                            description: desc,
-                            brochure_url: img,
-                            brochure_filename: `${name.replace(/[^a-zA-Z0-9_-]/g, '_')}.jpg`,
-                            isAvailable
-                          });
-                        }
-                      }
-                    } catch (_) {}
-                  }
-                }
-              } catch (_) {}
-            }));
-          }
-        }
-      } catch (smErr) {
-        addLog(`[Website Sync] Sitemap attempt error: ${smErr.message}`);
-      }
-    }
-
-    const toUpsert = syncedItems.slice(0, 300);
-    let upsertCount = 0;
-    for (const item of toUpsert) {
-      try {
-        let existing = null;
-        if (supabaseAdmin) {
-          const { data } = await supabaseAdmin.from('products').select('*').eq('org_id', orgId).or(`sku.eq.${item.sku},name.ilike.${item.name}`).limit(1).maybeSingle();
-          existing = data;
-        }
-        if (!existing) {
-          existing = db.findOne('products', p => (p.org_id === orgId || p.organization_id === orgId) && (p.sku === item.sku || p.name.toLowerCase() === item.name.toLowerCase()));
-        }
-        if (existing) {
-          const upd = {
-            name: item.name,
-            price_raw: item.price_raw,
-            description: item.description,
-            brochure_url: item.brochure_url || existing.brochure_url,
-            brochure_filename: item.brochure_filename || existing.brochure_filename,
-            is_active: true,
-            updated_at: new Date().toISOString()
-          };
-          if (supabaseAdmin) await supabaseAdmin.from('products').update(upd).eq('id', existing.id).eq('org_id', orgId);
-          try { db.update('products', existing.id, { ...upd, org_id: orgId, organization_id: orgId }); } catch (_) {}
-        } else {
-          const newId = crypto.randomUUID();
-          const rec = {
-            id: newId,
-            org_id: orgId,
-            organization_id: orgId,
-            sku: item.sku,
-            name: item.name,
-            price_raw: item.price_raw,
-            description: item.description,
-            brochure_url: item.brochure_url,
-            brochure_filename: item.brochure_filename,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          if (supabaseAdmin) {
-            const sbRec = { ...rec };
-            delete sbRec.organization_id;
-            await supabaseAdmin.from('products').insert(sbRec);
-          }
-          try { db.insert('products', rec); } catch (_) {}
-        }
-        upsertCount++;
-      } catch (upErr) {
-        addLog(`[Website Sync] Error upserting product ${item.name}: ${upErr.message}`);
-      }
-    }
-
-    lastOrgWebsiteSync.set(orgId, Date.now());
-    const replyMsg = `Synced ${upsertCount} products from your website.`;
-    addLog(`[Website Sync] Completed: ${replyMsg}`);
-    if (activeSock && rawRemote) {
-      const sent = await activeSock.sendMessage(rawRemote, { text: replyMsg });
-      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-    }
-    return upsertCount;
-  } catch (err) {
-    addLog(`[Website Sync Critical] ${err.message}`);
-    if (activeSock && rawRemote) {
-      try {
-        const sent = await activeSock.sendMessage(rawRemote, { text: `❌ Website sync error: ${err.message}` });
-        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-      } catch (_) {}
-    }
-    return 0;
-  }
+  // Disabled until imports offer a non-destructive preview and conflict review.
+  if (activeSock && rawRemote) await activeSock.sendMessage(rawRemote, { text: 'Website import is unavailable until catalogue review is supported.' });
+  return 0;
 }
 
 async function handleOrgIncomingMessage(orgId, msg, activeSock) {
@@ -808,10 +526,12 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   // 1. Processed message ID deduplication with 24-hour TTL
   if (msg.key && msg.key.id) {
     const now = Date.now();
-    if (inboundMsgIdTimestamps.has(msg.key.id)) {
-      return; // Already processed
+    const inboundKey = JSON.stringify([orgId, msg.key.remoteJid || '', msg.key.id]);
+    const seenAt = inboundMsgIdTimestamps.get(inboundKey);
+    if (seenAt && now - seenAt < 86400000) {
+      return; // Already processed for this workspace and chat within the TTL
     }
-    inboundMsgIdTimestamps.set(msg.key.id, now);
+    inboundMsgIdTimestamps.set(inboundKey, now);
     if (inboundMsgIdTimestamps.size > 20000) {
       for (const [k, ts] of inboundMsgIdTimestamps.entries()) {
         if (now - ts > 86400000) inboundMsgIdTimestamps.delete(k); // 24h TTL
@@ -881,7 +601,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   if (!incomingText && !isAudio && !isImage && !isVideo && !content?.documentMessage) return;
 
   const altJid = msg.key.remoteJidAlt || msg.key.participant || '';
-  const resolvedPhone = resolvePhoneFromJid(rawRemote, altJid);
+  const resolvedPhone = resolvePhoneFromJid(orgId, rawRemote, altJid);
   let senderPhone = resolvedPhone ? normalizeIndianPhone(resolvedPhone) : '';
   const rawPushName = (msg.pushName || '').trim();
   const pushName = rawPushName && !/^(buyer|unknown|\.|\+?\d+|user|iphone|android|customer|sir|whatsapp|demo|admin)$/i.test(rawPushName) ? rawPushName : 'Customer';
@@ -894,47 +614,29 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       freshOrg = data;
     } catch (e) {}
   }
-  if (!freshOrg) {
+  if (!freshOrg && !supabaseAdmin) {
     try { freshOrg = db.findById('organizations', orgId); } catch (e) {}
   }
-  if (!freshOrg && supabaseAdmin) {
+  if (!freshOrg) {
     addLog(`[Org: ${orgId.slice(0, 8)}] Organization unavailable; inbound reply withheld.`);
     return;
   }
-  if (!freshOrg) {
-    freshOrg = {
-      id: orgId,
-      name: config.companyName || 'Leadsy AI',
-      owner_alert_number: config.ownerAlertPhone || '919781018975',
-      wa_connected_number: activeSock?.user?.id?.split(':')[0]?.split('@')[0] || '919115748457',
-      wa_auto_reply: config.autoReplyEnabled,
-      auto_reply_enabled: config.autoReplyEnabled,
-      plan_status: 'active'
-    };
-  }
 
   const rawJid = rawRemote || '';
-  // Multi-tenant safe owner alert target precedence:
-  let ownerTarget = normalizeIndianPhone(freshOrg.owner_alert_number);
-  if (!ownerTarget && (orgId === '6fd354d9-3437-412d-856e-28bc19d44268' || freshOrg.is_main_demo)) {
-    ownerTarget = normalizeIndianPhone(process.env.OWNER_ALERT_PHONE || process.env.OWNER_WHATSAPP || '919781018975');
-  }
-
+  const ownerTarget = normalizeIndianPhone(freshOrg.owner_alert_number);
   if (!ownerTarget) {
-    addLog(`[Owner Alert HALTED] Org ${freshOrg.name || orgId} has no owner_alert_number configured. Lead PII withheld to prevent cross-tenant data leakage.`);
+    addLog(`[Owner Alert HALTED] Org ${orgId} has no owner_alert_number configured. Lead PII withheld.`);
   }
 
-  const botPhone = normalizeIndianPhone(activeSock?.user?.id?.split(':')[0] || freshOrg.wa_connected_number || '919115748457');
-  const botPhoneDigits = botPhone.slice(-10);
+  const botPhone = normalizeIndianPhone(activeSock?.user?.id?.split(':')[0] || freshOrg.wa_connected_number || '');
   const botLidUser = (activeSock?.user?.lid || activeSock?.authState?.creds?.me?.lid || '').split(':')[0].split('@')[0];
-  const recipientPhone = normalizeIndianPhone(rawRemote.split('@')[0]);
+  const recipientPhone = rawRemote.endsWith('@s.whatsapp.net') ? normalizeIndianPhone(rawRemote.split('@')[0]) : '';
 
-  // Bulletproof @lid & Typo-Tolerant WhatsApp Remote Control:
+  // Owner commands require a verified phone identity or an exact self-chat.
   // 1. Detect Bot Self-Chat reliably even with @lid JIDs:
   const isSelfChat = Boolean(msg.key.fromMe && (
-    (botPhoneDigits && rawJid.includes(botPhoneDigits)) ||
-    (botLidUser && (rawJid.split('@')[0] === botLidUser || rawJid.includes(botLidUser))) ||
-    (recipientPhone === botPhone) ||
+    (botLidUser && rawJid.split('@')[0].split(':')[0] === botLidUser) ||
+    (botPhone && recipientPhone === botPhone) ||
     (rawRemote && activeSock?.user?.id && rawRemote.split('@')[0] === activeSock.user.id.split(':')[0])
   ));
 
@@ -942,19 +644,14 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   if (isSelfChat && (!senderPhone || senderPhone === botLidUser || senderPhone.length < 10)) {
     senderPhone = botPhone;
   } else if (!senderPhone) {
-    const rawDigits = rawRemote.split('@')[0].replace(/\D/g, '');
-    senderPhone = rawDigits.length >= 10 ? rawDigits : `lid_${rawRemote.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+    senderPhone = `lid_${rawRemote.replace(/[^a-zA-Z0-9_-]/g, '')}`;
   }
 
   // 2. Detect Owner Main Phone:
-  const isFromOwner = Boolean(
-    (senderPhone && ownerTarget && senderPhone === ownerTarget) ||
-    (rawJid.split('@')[0] === '148004724064491' && ownerTarget.includes('9781018975')) ||
-    (altJid && altJid.split('@')[0] === '148004724064491' && ownerTarget.includes('9781018975'))
-  );
+  const isFromOwner = Boolean(resolvedPhone && ownerTarget && senderPhone === ownerTarget);
 
   // OWNER COMMAND PARSER (Short-circuit BEFORE AI is called)
-  const ownerCmd = parseOwnerCommand(incomingText, senderPhone, ownerTarget);
+  const ownerCmd = parseOwnerCommand(incomingText, resolvedPhone ? senderPhone : '', ownerTarget);
   if (ownerCmd.isOwnerCommand) {
     addLog(`[Owner Command] Action: ${ownerCmd.action} for target ${maskPhone(ownerCmd.targetPhone || '')} from ${maskPhone(senderPhone)}`);
 
@@ -1112,26 +809,33 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   const isFounderControl = isSelfChat || isFromOwner;
   const cmd = (incomingText || '').trim().toLowerCase();
 
-  // Live AI Note / Stock Update Command: note: <text> or stock: <text>
-  if (isFounderControl && /^(?:note|stock)\s*:\s*([\s\S]+)$/i.test((incomingText || '').trim())) {
-    const match = (incomingText || '').trim().match(/^(?:note|stock)\s*:\s*([\s\S]+)$/i);
+  if (isFounderControl && (/^stock\s*:/i.test(cmd) || /^offers?(?:\s*:|\s+off\s*$)/i.test(cmd))) {
+    await activeSock.sendMessage(rawRemote, { text: 'Catalogue changes and offers via WhatsApp are disabled. Please use an authorized catalogue administrator.' });
+    return;
+  }
+
+  // Live AI Note Command: note: <text>
+  if (isFounderControl && /^note\s*:\s*([\s\S]+)$/i.test((incomingText || '').trim())) {
+    const match = (incomingText || '').trim().match(/^note\s*:\s*([\s\S]+)$/i);
     const updateText = match ? match[1].trim() : '';
     if (updateText) {
       try {
         const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
         const noteLine = `[Live Update ${timestamp}]: ${updateText}`;
         let updatedKnowledge = noteLine;
+        let existing = freshOrg.website_knowledge || '';
         if (supabaseAdmin) {
           const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
-          const existing = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
+          existing = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
           updatedKnowledge = existing ? `${existing}\n${noteLine}` : noteLine;
-          await supabaseAdmin.from('organizations').update({
+          const { error } = await supabaseAdmin.from('organizations').update({
             website_knowledge: updatedKnowledge,
             updated_at: new Date().toISOString()
           }).eq('id', orgId);
+          if (error) throw error;
         } else {
-          const existing = freshOrg.website_knowledge || '';
           updatedKnowledge = existing ? `${existing}\n${noteLine}` : noteLine;
+          db.update('organizations', orgId, { website_knowledge: updatedKnowledge });
         }
         ownerUndoSnapshots.set(orgId, {
           action: 'knowledge',
@@ -1140,7 +844,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         freshOrg.website_knowledge = updatedKnowledge;
         const sent = await activeSock.sendMessage(rawRemote, { text: "Done: Live note updated. Type undo to reverse." });
         if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-        addLog(`[Remote Control] Live AI note updated by owner for org ${orgId}: ${updateText}`);
+        addLog(`[Remote Control] Live AI note updated by owner for org ${orgId}.`);
       } catch (e) {
         addLog(`[Remote Control] Error updating live note: ${e.message}`);
         await activeSock.sendMessage(rawRemote, { text: `❌ Failed to update note: ${e.message}` });
@@ -1149,139 +853,43 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     }
   }
 
-  // Owner Offer Command: offer: <text with Valid till date>
-  if (isFounderControl && /^offer\s*:\s*([\s\S]+)$/i.test((incomingText || '').trim())) {
-    const match = (incomingText || '').trim().match(/^offer\s*:\s*([\s\S]+)$/i);
-    const offerText = match ? match[1].trim() : '';
-    if (offerText) {
-      try {
-        const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-        const cleanOffer = offerText.replace(/^OFFER:\s*/i, '').trim();
-        const offerLine = `OFFER: ${cleanOffer} [Added ${timestamp}]`;
-        let updatedKnowledge = offerLine;
-        let existing = '';
-        if (supabaseAdmin) {
-          try {
-            const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
-            existing = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
-            updatedKnowledge = existing ? `${existing}\n${offerLine}` : offerLine;
-            await supabaseAdmin.from('organizations').update({
-              website_knowledge: updatedKnowledge,
-              updated_at: new Date().toISOString()
-            }).eq('id', orgId);
-          } catch (dbErr) {
-            addLog(`[Remote Control] DB error saving offer: ${dbErr.message}`);
-          }
-        } else {
-          existing = freshOrg.website_knowledge || '';
-          updatedKnowledge = existing ? `${existing}\n${offerLine}` : offerLine;
-        }
-        ownerUndoSnapshots.set(orgId, {
-          action: 'knowledge',
-          oldKnowledge: existing
-        });
-        freshOrg.website_knowledge = updatedKnowledge;
-        const confirmMsg = `✅ *Offer Activated!*\n"${offerLine}"\n\n💡 Send \`offer off\` anytime to deactivate.`;
-        const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
-        if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-        addLog(`[Remote Control] Live offer added by owner for org ${orgId}: ${cleanOffer}`);
-      } catch (e) {
-        addLog(`[Remote Control] Error updating live offer: ${e.message}`);
-        try {
-          await activeSock.sendMessage(rawRemote, { text: `❌ Failed to update offer: ${e.message}` });
-        } catch (_) {}
-      }
-      return;
-    }
-  }
-
-  // Owner Offer Off Command: offer off
-  if (isFounderControl && /^(?:offer\s+off|offers\s+off)$/i.test(cmd)) {
+  // Mode changes affect only this workspace. Per-conversation human takeover
+  // is intentionally preserved when the workspace-wide mode is resumed.
+  if (isFounderControl && /^(manual|mannual|manul|pause|stop|off|automatic|automoatic|automtic|auto|start|resume|on)$/.test(cmd)) {
+    const enabled = /^(automatic|automoatic|automtic|auto|start|resume|on)$/.test(cmd);
     try {
-      let existing = '';
-      let updatedKnowledge = '';
       if (supabaseAdmin) {
-        try {
-          const { data: curOrg } = await supabaseAdmin.from('organizations').select('website_knowledge').eq('id', orgId).maybeSingle();
-          existing = curOrg?.website_knowledge || freshOrg.website_knowledge || '';
-          const lines = existing.split(/\r?\n/).filter(line => !/^\s*OFFER:/i.test(line));
-          updatedKnowledge = lines.join('\n').trim();
-          await supabaseAdmin.from('organizations').update({
-            website_knowledge: updatedKnowledge,
-            updated_at: new Date().toISOString()
-          }).eq('id', orgId);
-        } catch (dbErr) {
-          addLog(`[Remote Control] DB error removing offers: ${dbErr.message}`);
-        }
+        const { error } = await supabaseAdmin.from('organizations').update({ wa_auto_reply: enabled }).eq('id', orgId);
+        if (error) throw error;
       } else {
-        existing = freshOrg.website_knowledge || '';
-        const lines = existing.split(/\r?\n/).filter(line => !/^\s*OFFER:/i.test(line));
-        updatedKnowledge = lines.join('\n').trim();
+        db.update('organizations', orgId, { wa_auto_reply: enabled });
       }
-      ownerUndoSnapshots.set(orgId, {
-        action: 'knowledge',
-        oldKnowledge: existing
-      });
-      freshOrg.website_knowledge = updatedKnowledge;
-      const confirmMsg = `✅ *Active Offers Removed.* All OFFER lines cleared from knowledge base.`;
-      const sent = await activeSock.sendMessage(rawRemote, { text: confirmMsg });
+      freshOrg.wa_auto_reply = enabled;
+      const text = enabled
+        ? "✅ Automatic mode enabled for this workspace. Conversations already in manual mode remain paused."
+        : "⏸️ Manual mode enabled for this workspace. Send 'automatic' to resume.";
+      const sent = await activeSock.sendMessage(rawRemote, { text });
       if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-      addLog(`[Remote Control] Active offers removed by owner for org ${orgId}`);
+      addLog(`[Remote Control] Workspace auto-reply ${enabled ? 'enabled' : 'disabled'} for org ${orgId}`);
     } catch (e) {
-      addLog(`[Remote Control] Error removing offers: ${e.message}`);
-      try {
-        await activeSock.sendMessage(rawRemote, { text: `❌ Failed to clear offers: ${e.message}` });
-      } catch (_) {}
+      addLog(`[Remote Control] Unable to change workspace mode: ${e.message}`);
+      await activeSock.sendMessage(rawRemote, { text: '❌ Unable to update workspace mode. Please try again.' });
     }
     return;
   }
 
-  // Typo-Tolerant Pause Command: manual / mannual / manul / pause / stop / off
-  if (isFounderControl && /^(manual|mannual|manul|pause|stop|off)$/.test(cmd)) {
-    try {
-      if (supabaseAdmin) {
-        await supabaseAdmin.from('organizations').update({
-          wa_auto_reply: false
-        }).eq('id', orgId);
-      }
-      freshOrg.wa_auto_reply = false;
-      config.autoReplyEnabled = false;
-      const replyText = "⏸️ Manual Mode ON — AI paused. Send 'automatic' to resume.";
-      const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
-      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-      addLog(`[Remote Control] Manual mode activated by founder for org ${orgId}`);
-    } catch (e) {
-      addLog(`[Remote Control] Error enabling manual mode: ${e.message}`);
+  // Phone ownership is not proof of an authenticated catalogue-admin role.
+  // Keep the read-only list and undo of a knowledge note, but block all other
+  // legacy founder catalogue/import/website actions until a verified identity
+  // and permission model is available. Mode controls above remain available.
+  if (isFounderControl && cmd !== 'list' && !(cmd === 'undo' && ownerUndoSnapshots.get(orgId)?.action === 'knowledge')) {
+    if (cmd || content?.documentMessage) {
+      await activeSock.sendMessage(rawRemote, { text: 'Catalogue changes and imports via WhatsApp are disabled. Please use an authorized catalogue administrator.' });
     }
     return;
   }
-
-  // Typo-Tolerant Resume Command: automatic / automoatic / automtic / auto / start / resume / on
-  if (isFounderControl && /^(automatic|automoatic|automtic|auto|start|resume|on)$/.test(cmd)) {
-    try {
-      if (supabaseAdmin) {
-        await supabaseAdmin.from('organizations').update({
-          wa_auto_reply: true
-        }).eq('id', orgId);
-        await supabaseAdmin.from('conversations').update({
-          mode: 'auto'
-        }).eq('org_id', orgId);
-      }
-      freshOrg.wa_auto_reply = true;
-      config.autoReplyEnabled = true;
-      const replyText = "✅ Automatic Mode ON — AI active 24/7. Send 'manual' to pause.";
-      const sent = await activeSock.sendMessage(rawRemote, { text: replyText });
-      if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-      addLog(`[Remote Control] Automatic mode activated by founder for org ${orgId}`);
-    } catch (e) {
-      addLog(`[Remote Control] Error enabling automatic mode: ${e.message}`);
-    }
-    return;
-  }
-
-  // ============================================================================
-  // OWNER-ONLY WHATSAPP CATALOG MANAGEMENT (Strictly scoped to orgId, max 20 changes)
-  // ============================================================================
+  // Retained for read-only listing and knowledge-note undo; mutation branches
+  // are unreachable through the guard above.
   if (isFounderControl) {
     const trimmedText = (incomingText || '').trim();
     const lowerCmd = trimmedText.toLowerCase();
@@ -1431,7 +1039,6 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
         return;
       }
-      ownerUndoSnapshots.delete(orgId);
       try {
         if (lastChange.action === 'add') {
           if (lastChange.isInsert && lastChange.newProductId) {
@@ -1476,10 +1083,13 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
           try { db.insert('products', lastChange.product); } catch (ie) {}
         } else if (lastChange.action === 'knowledge') {
           if (supabaseAdmin) {
-            await supabaseAdmin.from('organizations').update({
+            const { error } = await supabaseAdmin.from('organizations').update({
               website_knowledge: lastChange.oldKnowledge,
               updated_at: new Date().toISOString()
             }).eq('id', orgId);
+            if (error) throw error;
+          } else {
+            db.update('organizations', orgId, { website_knowledge: lastChange.oldKnowledge });
           }
           freshOrg.website_knowledge = lastChange.oldKnowledge;
         } else if (lastChange.action === 'batch' && Array.isArray(lastChange.rollbacks)) {
@@ -1504,6 +1114,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             }
           }
         }
+        ownerUndoSnapshots.delete(orgId);
         const sent = await activeSock.sendMessage(rawRemote, { text: "Done: Last change reversed." });
         if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
         addLog(`[Owner Control] Reversed last change for org ${orgId}`);
@@ -1823,9 +1434,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       try { db.update('organizations', orgId, { website_knowledge: updatedKnowledge }); } catch (_) {}
       freshOrg.website_knowledge = updatedKnowledge;
       ownerUndoSnapshots.set(orgId, { action: 'knowledge', oldKnowledge: existingKnowledge });
-      const sent = await activeSock.sendMessage(rawRemote, { text: `Website saved: ${targetUrl}. Starting sync…` });
+      const sent = await activeSock.sendMessage(rawRemote, { text: `Website saved: ${targetUrl}. Product import is not available yet.` });
       if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-      await syncWebsiteProducts(orgId, targetUrl, activeSock, rawRemote);
       return;
     }
 
@@ -1844,9 +1454,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
         return;
       }
-      const sent = await activeSock.sendMessage(rawRemote, { text: `Syncing products from ${siteUrl}…` });
+      const sent = await activeSock.sendMessage(rawRemote, { text: 'Website import is not available yet; no products were changed.' });
       if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
-      await syncWebsiteProducts(orgId, siteUrl, activeSock, rawRemote);
       return;
     }
 
@@ -3097,12 +2706,15 @@ async function resolveWhatsAppJid(phoneDigits) {
 // AI BRAIN: GEMINI 2.5 FLASH (TEXT + VOICE NOTES) + ZERO-KEY HINGLISH FALLBACK
 // ============================================================================
 export {
+  app,
+  server,
   buildAdaptiveWelcomeMessage,
   getIndustryPlaybook,
   ownerPendingConfirmations,
   ownerUndoSnapshots,
   conversationSentPhotos,
   conversationSentBuyLinks,
+  getConversationTrackingKey,
   handleOrgIncomingMessage,
   generateShortSalesReply,
   syncWebsiteProducts,
@@ -3910,9 +3522,6 @@ async function handleIncomingWhatsAppMessage(msg) {
   } else {
     phoneDigits = normalizePhone(rawRemote.split('@')[0]);
   }
-  if (phoneDigits === '148004724064491') phoneDigits = '919781018975';
-  if (phoneDigits === '82012517978236') phoneDigits = '919463591820';
-  if (phoneDigits === '99273974743237') phoneDigits = '916280844278';
 
   // Unwrap ephemeral/viewOnce wrappers if present
   const content = msg.message?.ephemeralMessage?.message || msg.message;
@@ -4376,7 +3985,7 @@ app.get('/api/status', authenticate, requireConversationAccess, requireRole(['ow
   });
 });
 
-app.get('/api/config', authenticate, async (req, res) => {
+app.get('/api/config', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const org = await repository.getOrganizationById(req.organizationId) || db.findById('organizations', req.organizationId) || {};
     const settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
@@ -4397,7 +4006,7 @@ app.get('/api/config', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/config', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+app.post('/api/config', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const { companyName, cityBase, ownerAlertPhone, replyDelaySec, autoReplyEnabled, replyWithVoiceNotes } = req.body;
     const updates = {};
@@ -4639,6 +4248,7 @@ app.get('/client', (req, res) => {
 app.post('/api/upload-catalog', authenticate, requireCatalogManager, async (req, res) => {
   try {
     if (process.env.NODE_ENV === 'production' && process.env.USE_LOCAL_DB !== 'true') return res.status(503).json({ ok: false, error: 'File import is not available yet; add products manually.' });
+    if ((req.query?.org_id || req.body?.orgId || req.organizationId) !== req.organizationId) return res.status(400).json({ ok: false, error: 'Cross-workspace file import is not supported.' });
     const { filename, fileBase64, productName, priceRange, keywords } = req.body;
     if (!filename || !fileBase64) {
       return res.status(400).json({ ok: false, error: 'Filename and file data required.' });
@@ -4691,8 +4301,6 @@ Return a strict JSON object with this structure:
     const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-lite-latest'];
     for (const m of models) {
       try {
-        const convBuyLinkKey = `${organizationId}:${lead?.phone || 'anon'}`;
-        const sentBuyLinksForChat = conversationSentBuyLinks.get(convBuyLinkKey) || new Set();
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${encodeURIComponent(activeGeminiKey)}`,
           {
@@ -5203,30 +4811,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   addLog(`Leadsy WhatsApp AI Server running at http://localhost:${PORT}`);
   initCatalogKnowledge();
   initSupabaseWorker();
-  // 24-hour background website sync interval (checks hourly)
-  const syncIntervalTimer = setInterval(async () => {
-    try {
-      let orgsWithUrls = [];
-      if (supabaseAdmin) {
-        const { data } = await supabaseAdmin.from('organizations').select('id, website_knowledge').like('website_knowledge', '%WEBSITE_URL:%');
-        if (Array.isArray(data)) orgsWithUrls = data;
-      }
-      const now = Date.now();
-      for (const org of orgsWithUrls) {
-        const siteUrl = getOrgWebsiteUrl(org.website_knowledge);
-        if (!siteUrl) continue;
-        const lastSync = lastOrgWebsiteSync.get(org.id) || 0;
-        if (now - lastSync >= 24 * 60 * 60 * 1000) {
-          lastOrgWebsiteSync.set(org.id, now);
-          addLog(`[Website Sync] Running scheduled 24h product sync for org ${org.id} (${siteUrl})`);
-          await syncWebsiteProducts(org.id, siteUrl, null, null);
-        }
-      }
-    } catch (e) {
-      addLog(`[Website Sync Worker Error] ${e.message}`);
-    }
-  }, 60 * 60 * 1000);
-  if (typeof syncIntervalTimer.unref === 'function') syncIntervalTimer.unref();
+  // Unattended website sync is disabled until imports support conflict review.
 
   // 24/7 Cloud Keep-Alive Self-Ping (Runs every 8 mins to prevent cloud host spin-down)
   const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_API_URL || 'https://martflow-whatsapp-ai-sales-agent.onrender.com';

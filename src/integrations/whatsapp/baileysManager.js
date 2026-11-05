@@ -108,53 +108,37 @@ export class TenantBaileysInstance {
     this.isConnecting = false;
     this.isConnected = false;
     this.sentPdfs = new Set();
-    this.reverseLidMap = new Map([
-      ['148004724064491', '919781018975'],
-      ['82012517978236', '919463591820'],
-      ['99273974743237', '916280844278']
-    ]);
+    this.reverseLidMap = new Map();
   }
 
   resolvePhoneFromJid(remoteJid, altJid) {
-    let raw = (remoteJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
-    const alt = (altJid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
-    if (alt && alt.length >= 10 && alt.length <= 13) {
-      if (raw) this.reverseLidMap.set(raw, alt);
-      return alt;
-    }
-    if (this.reverseLidMap.has(raw)) {
-      return this.reverseLidMap.get(raw);
-    }
+    const phoneFromJid = jid => {
+      if (typeof jid !== 'string' || !jid.endsWith('@s.whatsapp.net')) return '';
+      const digits = jid.split('@')[0].split(':')[0];
+      if (!/^\d{10,15}$/.test(digits)) return '';
+      return digits.length === 10 && /^[6-9]/.test(digits) ? '91' + digits : digits;
+    };
+    const direct = phoneFromJid(remoteJid);
+    if (direct) return direct;
+    if (typeof remoteJid !== 'string' || !remoteJid.endsWith('@lid')) return '';
+    const raw = remoteJid.split('@')[0].split(':')[0];
+    if (!/^\d+$/.test(raw)) return '';
+    const alternate = phoneFromJid(altJid);
+    if (alternate) { this.reverseLidMap.set(raw, alternate); return alternate; }
+    if (this.reverseLidMap.has(raw)) return this.reverseLidMap.get(raw);
     try {
       const revFile = path.join(this.authDir, `lid-mapping-${raw}_reverse.json`);
       if (fs.existsSync(revFile)) {
         const val = JSON.parse(fs.readFileSync(revFile, 'utf8'));
-        if (val) {
-          const cleanVal = String(val).replace(/\D/g, '');
-          this.reverseLidMap.set(raw, cleanVal);
-          return cleanVal;
+        const digits = String(val || '');
+        if (/^\d{10,15}$/.test(digits)) {
+          const normalized = digits.length === 10 && /^[6-9]/.test(digits) ? '91' + digits : digits;
+          this.reverseLidMap.set(raw, normalized);
+          return normalized;
         }
       }
-      if (fs.existsSync(this.authDir)) {
-        const files = fs.readdirSync(this.authDir);
-        for (const f of files) {
-          if (f.startsWith('lid-mapping-') && f.endsWith('.json') && !f.includes('_reverse')) {
-            try {
-              const content = fs.readFileSync(path.join(this.authDir, f), 'utf8').trim().replace(/["']/g, '');
-              if (content === raw) {
-                const realPhone = f.replace('lid-mapping-', '').replace('.json', '').replace(/\D/g, '');
-                if (realPhone) {
-                  this.reverseLidMap.set(raw, realPhone);
-                  return realPhone;
-                }
-              }
-            } catch (e) {}
-          }
-        }
-      }
-    } catch (e) {}
-    if (raw.length === 10 && /^[6-9]/.test(raw)) return '91' + raw;
-    return raw;
+    } catch (_) {}
+    return ''; // An unknown LID is not a telephone number.
   }
 
   addLog(msg) {
@@ -358,7 +342,7 @@ export class TenantBaileysInstance {
           // Resolve WhatsApp multi-device LID (Linked ID) to genuine mobile number
           const altJid = msg.key.remoteJidAlt || msg.key.participant || '';
           let phone = this.resolvePhoneFromJid(remoteJid, altJid);
-          if (phone.length === 10 && /^[6-9]/.test(phone)) phone = '91' + phone;
+          if (!phone) { this.addLog('Inbound identity unresolved; message withheld until a verified number is available.'); continue; }
 
           const text =
             msg.message.conversation ||
@@ -368,11 +352,11 @@ export class TenantBaileysInstance {
 
           if (!text) continue;
 
-          this.addLog(`Inbound message from +${phone}: "${text.slice(0, 35)}..."`);
+          this.addLog('Inbound message received for this workspace.');
 
           // Strictly scope lead lookup and mutation to this.orgId
           let lead = db.findOne('leads', (l) =>
-            l.organization_id === this.orgId && l.buyer_phone.slice(-10) === phone.slice(-10)
+            l.organization_id === this.orgId && normalizeIndianPhone(l.buyer_phone || '') === normalizeIndianPhone(phone)
           );
 
           if (!lead) {

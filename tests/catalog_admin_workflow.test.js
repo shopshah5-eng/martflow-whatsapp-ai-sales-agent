@@ -43,7 +43,14 @@ test('email admin workflow enforces approval, limits, isolation and revocation',
     const ctx = await request(admin,'/catalog-admin/context'); assert.equal(ctx.body.clients.length,1); assert.equal(ctx.body.clients[0].id,client.org.id);
     const supctx=await request(superadmin,'/catalog-admin/context'); assert.equal(supctx.body.admins[0].clients[0].id,client.org.id);
     const add = await request(admin,'/catalog/quick-add','POST',{orgId:client.org.id,name:'Scoped product',priceRaw:'10'}); assert.equal(add.status,200);
-    assert.equal((await request(admin,`/catalog/products?org_id=${client.org.id}`)).body.products.length,1);
+    const viaQuery = await request(admin,`/catalog/quick-add?org_id=${client.org.id}`,'POST',{name:'Query target'}); assert.equal(viaQuery.status,200);
+    assert.equal(db.find('products', p => p.organization_id === admin.org.id && p.name === 'Query target').length,0);
+    assert.equal((await request(admin,`/catalog/quick-add?org_id=${client.org.id}`,'POST',{orgId:other.org.id,name:'Conflict'})).status,400);
+    assert.equal((await request(admin,`/catalog/sync?org_id=${client.org.id}`,'POST',{companyName:'Unauthorized change'})).status,403);
+    assert.equal(db.findById('organizations',client.org.id).name, 'client');
+    for (const changes of [{businessType:'other'},{websiteKnowledge:'tampered'},{catalogPdfName:'unapproved.pdf'}]) assert.equal((await request(admin,`/catalog/sync?org_id=${client.org.id}`,'POST',changes)).status,403);
+    assert.equal((await request(admin,`/catalog/sync?org_id=${client.org.id}`,'POST',{products:[]})).status,409);
+    assert.equal((await request(admin,`/catalog/products?org_id=${client.org.id}`)).body.products.length,2);
     assert.equal((await request(admin,`/catalog/products?org_id=${other.org.id}`)).status,403);
     assert.equal((await request(admin,'/catalog/quick-add','POST',{orgId:other.org.id,name:'Not authorized'})).status,403);
     assert.equal((await request(admin,'/catalog-admin/review','POST',{adminId:admin.user.id,orgId:other.org.id,approve:true})).status,403);

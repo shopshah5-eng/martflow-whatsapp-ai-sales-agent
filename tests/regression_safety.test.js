@@ -164,13 +164,15 @@ test('regression: missing Supabase in production fails closed', async () => {
   }
 });
 
-test('regression: failed catalog inserts fail visibly without non-transactional fallback', async () => {
+test('regression: bulk catalogue replacement fails before any RPC or mutation', async () => {
   const { server, owner, url } = await setup();
   const { setSupabaseAdmin } = await import('../src/services/aiService.js');
   try {
     db.insert('catalog_management_grants', { organization_id: owner.organization.id, user_id: owner.user.id });
+    let rpcCalls = 0;
     setSupabaseAdmin({
       rpc: async (fnName) => {
+        rpcCalls++;
         if (fnName === 'replace_tenant_catalog') {
           return { error: { message: 'RPC execution failed: disk full' } };
         }
@@ -186,10 +188,11 @@ test('regression: failed catalog inserts fail visibly without non-transactional 
       })
     });
 
-    assert.equal(response.status, 500);
+    assert.equal(response.status, 409);
     const data = await response.json();
     assert.equal(data.ok, false);
-    assert.match(data.error, /Catalog transaction failed/);
+    assert.match(data.error, /Bulk replacement is unavailable/);
+    assert.equal(rpcCalls, 0);
   } finally {
     setSupabaseAdmin(null);
     server.close();

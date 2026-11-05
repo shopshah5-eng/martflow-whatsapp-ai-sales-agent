@@ -26,9 +26,8 @@ test('SALES PLAYBOOK & OFFER INTEGRITY: server.js contains negotiation rules and
   assert.ok(serverJs.includes('LEAD QUALITY:'), 'Must contain LEAD QUALITY');
   assert.ok(serverJs.includes('INDUSTRY ADAPTATION:'), 'Must contain INDUSTRY ADAPTATION');
 
-  // Verify Offer commands in owner self-chat
-  assert.ok(serverJs.includes('/^offer\\s*:\\s*([\\s\\S]+)$/i'), 'Must support offer: <text> command');
-  assert.ok(serverJs.includes('/^(?:offer\\s+off|offers\\s+off)$/i'), 'Must support offer off command');
+  // Phone-only owner offer commands are disabled until catalogue roles can be verified.
+  assert.ok(serverJs.includes('Catalogue changes and offers via WhatsApp are disabled'));
   assert.ok(serverJs.includes('isOfferExpired'), 'Must contain isOfferExpired helper');
 });
 

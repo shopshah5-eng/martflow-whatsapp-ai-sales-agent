@@ -378,15 +378,12 @@ test('SECURITY SUITE: Cross-tenant negative access, SSRF, path traversal, and we
       })
     });
 
-    assert.equal(syncRes.status, 200);
+    assert.equal(syncRes.status, 409);
     const syncData = await syncRes.json();
-    assert.equal(syncData.ok, true);
-    assert.equal(syncData.count, 2);
+    assert.equal(syncData.ok, false);
+    assert.match(syncData.error, /Bulk replacement is unavailable/);
+    assert.equal(db.findScoped('products', user1.organization.id).length, 0);
 
-    // Verify products were actually inserted into the database for user1
-    const syncedProds = db.findScoped('products', user1.organization.id);
-    assert.equal(syncedProds.length, 2, 'Products must be persisted in database');
-    assert.ok(syncedProds.some(p => p.name.includes('Kundli')), 'Must find Kundli product in database');
   });
 
   server.close();
