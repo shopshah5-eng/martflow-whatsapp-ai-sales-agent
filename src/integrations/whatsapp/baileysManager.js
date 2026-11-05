@@ -22,6 +22,7 @@ import db from '../../db/index.js';
 import { AIService } from '../../services/aiService.js';
 import { ConversationMemoryService } from '../../services/conversationMemoryService.js';
 import { FollowUpService } from '../../services/followUpService.js';
+import { attachIncomingCallAlerts } from './incomingCallAlert.js';
 import {
   backupSessionToSupabase,
   debouncedBackupSession,
@@ -340,6 +341,9 @@ export class TenantBaileysInstance {
           }
         }
       });
+
+      // Listen for call offers without answering or rejecting the call.
+      attachIncomingCallAlerts(this.sock, this.orgId, { log: message => this.addLog(message) });
 
       // Tenant-isolated inbound WhatsApp message listener
       this.sock.ev.on('messages.upsert', async (m) => {

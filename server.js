@@ -33,6 +33,7 @@ import apiRouter from './src/routes/api.js';
 import { authenticate, requireRole } from './src/middleware/authMiddleware.js';
 import { requireCatalogManager, requireConversationAccess } from './src/middleware/catalogAccess.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
+import { attachIncomingCallAlerts } from './src/integrations/whatsapp/incomingCallAlert.js';
 import {
   backupSessionToSupabase,
   debouncedBackupSession,
@@ -2941,6 +2942,9 @@ async function startOrgWhatsApp(orgId, forceNew = false) {
         }
       }
     });
+
+    // Alert the workspace owner without answering or rejecting the call.
+    attachIncomingCallAlerts(newSock, orgId, { log: message => addLog(`[Call Alert] ${message}`) });
 
     newSock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return;
