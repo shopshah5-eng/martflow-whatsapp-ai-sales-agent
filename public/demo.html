@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Live Demo — Instant Packaging Machinery Catalog on WhatsApp</title>
+  <title>WhatsApp Demo | Leadsy AI</title>
+  <meta name="description" content="Request a Leadsy AI WhatsApp demo and continue the conversation on WhatsApp.">
+  <link rel="icon" type="image/png" href="/assets/leadsy-mark.png">
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -84,64 +86,41 @@
       display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; max-width: 0 !important; max-height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important; z-index: -99999 !important; clip-path: path("M0 0Z") !important;
     }
   </style>
-  <script>
-    (function() {
-      function purgeNetlify() {
-        document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[id^="nl-"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"]').forEach(el => el.remove());
-      }
-      purgeNetlify();
-      if (window.MutationObserver) {
-        new MutationObserver(function(mutations) {
-          for (let i = 0; i < mutations.length; i++) {
-            const added = mutations[i].addedNodes;
-            for (let j = 0; j < added.length; j++) {
-              const node = added[j];
-              if (node.nodeType === 1) {
-                if (node.id === 'nl-badge-frame' || node.id === 'nl-hud-frame' || (node.tagName === 'IFRAME' && ((node.title && node.title.includes('Netlify')) || (node.id && node.id.startsWith('nl-')))) || (node.tagName === 'SCRIPT' && node.src && node.src.includes('/.netlify/scripts/hud'))) {
-                  node.remove();
-                }
-              }
-            }
-          }
-        }).observe(document.documentElement, { childList: true, subtree: true });
-      }
-      document.addEventListener('DOMContentLoaded', purgeNetlify);
-      window.addEventListener('load', purgeNetlify);
-      setInterval(purgeNetlify, 500);
-    })();
-  </script>
+
 
 </head>
 <body>
-  <div class="card">
+  <main class="card">
     <div class="top-bar">
+      <a href="/" style="color:#fff">← Leadsy home</a>
       <span class="tag">LIVE B2B SPEED-TO-LEAD DEMO</span>
       <h1>Simulate an Inbound Buyer Enquiry</h1>
-      <p>Enter your contact details and pick a machine to submit a demo enquiry. WhatsApp delivery is not currently available through this form.</p>
+      <p>Submit an enquiry, then choose whether to continue on WhatsApp. No message is sent automatically.</p>
     </div>
     <div class="body">
-      <label>Your Name (Optional)</label>
-      <input id="bName" type="text" placeholder="e.g. Amit Kumar (or leave blank)" />
+      <label for="bName">Your name (optional)</label>
+      <input id="bName" type="text" maxlength="120" autocomplete="name" placeholder="e.g. Amit Kumar (or leave blank)" />
 
-      <label>Your WhatsApp Mobile Number</label>
-      <input id="bPhone" type="tel" placeholder="10-digit WhatsApp Number" />
+      <label for="bPhone">Your WhatsApp mobile number</label>
+      <input id="bPhone" type="tel" maxlength="20" autocomplete="tel" placeholder="10-digit WhatsApp Number" />
 
-      <label>Select Machinery Interested In</label>
+      <label for="bProduct">What are you interested in?</label>
       <select id="bProduct">
+        <option value="Other product or service">Other product or service</option>
         <option value="Automatic Pouch Packing Machine">Automatic Pouch Packing Machine (Namkeen / Spices)</option>
         <option value="Automatic Liquid & Paste Filling Machine">Automatic Liquid / Oil / Paste Filling Machine</option>
         <option value="Carton Sealer & Shrink Wrapping Machine">Carton Taping, Strapping & Shrink Tunnel</option>
       </select>
 
-      <label>Your City (Optional)</label>
-      <input id="bCity" type="text" placeholder="e.g. Ludhiana / Delhi / Rajkot" />
+      <label for="bCity">Your city (optional)</label>
+      <input id="bCity" type="text" maxlength="120" autocomplete="address-level2" placeholder="e.g. Ludhiana / Delhi / Rajkot" />
 
-      <button onclick="submitEnquiry()" id="subBtn">Submit demo enquiry</button>
-      <div class="success" id="okBox">
-        ✅ Enquiry received. No WhatsApp message has been sent by this form.
-      </div>
+      <label><input type="checkbox" id="demoConsent" style="width:auto" /> I agree to be contacted about this enquiry.</label>
+      <button type="button" onclick="submitEnquiry()" id="subBtn">Submit demo enquiry</button>
+      <div class="success" id="okBox" role="status" aria-live="polite"></div>
+      <p id="errorBox" role="alert" style="color:#b42318"></p>
     </div>
-  </div>
+  </main>
 
   <script>
     async function submitEnquiry() {
@@ -149,47 +128,48 @@
       const phone = document.getElementById('bPhone').value.trim();
       const productQuery = document.getElementById('bProduct').value;
       const city = document.getElementById('bCity').value.trim();
-      if (phone.replace(/\D/g, '').length < 10) {
-        alert('Please enter your 10-digit WhatsApp mobile number.');
+      const errorBox = document.getElementById('errorBox');
+      const okBox = document.getElementById('okBox');
+      errorBox.textContent = ''; okBox.style.display = 'none'; okBox.replaceChildren();
+      const digits = phone.replace(/\D/g, '');
+      const national = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+      if (!/^[6-9]\d{9}$/.test(national) || /^(\d)\1{9}$/.test(national)) {
+        errorBox.textContent = 'Please enter a valid 10-digit Indian mobile number.';
+        return;
+      }
+      if (!document.getElementById('demoConsent').checked) {
+        errorBox.textContent = 'Please agree to be contacted about this enquiry.';
         return;
       }
       const btn = document.getElementById('subBtn');
-      btn.disabled = true;
-      btn.textContent = 'Submitting enquiry...';
+      btn.disabled = true; btn.textContent = 'Submitting enquiry...';
       try {
-        let res = await fetch('/api/public/demo-enquiry', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, phone, productQuery, city, delaySec: 6 })
+        const res = await fetch('/api/public/demo-enquiry', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, productQuery, city })
         });
         const data = await res.json();
-        btn.disabled = false;
-        btn.textContent = 'Submit demo enquiry';
-        if (data.ok) {
-          const okBox = document.getElementById('okBox');
-          okBox.style.display = 'block';
-          okBox.textContent = '✅ Enquiry received. Connecting you to WhatsApp demo…';
-          let botNum = ['9191', '1574', '8457'].join('');
-          try {
-            const cfg = await fetch('/api/public-config').then(r => r.json());
-            if (cfg && cfg.demoBotWhatsapp) botNum = String(cfg.demoBotWhatsapp).replace(/\D/g, '');
-          } catch (_) {}
-          const msg = encodeURIComponent(`Hi Leadsy AI, I want to try the live WhatsApp demo for ${productQuery}${city ? ` in ${city}` : ''}.`);
-          const waUrl = `https://wa.me/${botNum}?text=${msg}`;
-          setTimeout(() => {
-            if (typeof window.open === 'function') {
-              window.open(waUrl, '_blank');
-            } else {
-              window.location.assign(waUrl);
-            }
-          }, 500);
-        } else {
-          alert(data.error || 'Unable to submit enquiry. Please try again.');
-        }
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Unable to submit enquiry. Please try again.');
+        let botNum = '919115748457';
+        try {
+          const configResponse = await fetch('/api/public-config');
+          if (configResponse.ok) {
+            const cfg = await configResponse.json();
+            const candidate = String(cfg.demoBotWhatsapp || '').replace(/\D/g, '');
+            if (/^\d{10,15}$/.test(candidate)) botNum = candidate;
+          }
+        } catch (_) {}
+        const text = `Hi Leadsy AI, I want to try the WhatsApp demo for ${productQuery}${city ? ` in ${city}` : ''}.`;
+        const link = document.createElement('a');
+        link.href = `https://wa.me/${botNum}?text=${encodeURIComponent(text)}`;
+        link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.textContent = 'Open WhatsApp demo →';
+        okBox.append(document.createTextNode('Enquiry received. No WhatsApp message has been sent. '), link);
+        okBox.style.display = 'block';
       } catch (err) {
-        btn.disabled = false;
-        btn.textContent = 'Submit demo enquiry';
-        alert('Connection error. Please check your network and try again.');
+        errorBox.textContent = err.message || 'Connection error. Please try again.';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Submit demo enquiry';
       }
     }
   </script>

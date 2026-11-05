@@ -162,7 +162,9 @@ export class B2BWebhook {
       org = db.findOne('organizations', (o) => o.webhook_key === webhookKey);
     }
     if (!org) {
-      throw new Error(`Invalid or unregistered B2B webhook key: ${webhookKey}`);
+      const error = new Error('Invalid or unregistered webhook credentials.');
+      error.statusCode = 401;
+      throw error;
     }
     return this.handleIncomingWebhook(org.id, rawBody, authToken || webhookKey);
   }

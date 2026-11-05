@@ -5,8 +5,16 @@
   for = "/*"
   [headers.values]
     X-Frame-Options = "DENY"
-    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     X-Content-Type-Options = "nosniff"
+
+# Retire the legacy admin page in favor of the server-authorized portal.
+[[redirects]]
+  from = "/admin.html"
+  to = "/admin"
+  status = 302
+  force = true
 
 # Dedicated Application Routes
 [[redirects]]
@@ -76,8 +84,8 @@
   status = 200
   force = true
 
-# Single Page Application HTML fallback
+# Unknown paths must not masquerade as the homepage
 [[redirects]]
   from = "/*"
-  to = "/index.html"
-  status = 200
+  to = "/404.html"
+  status = 404

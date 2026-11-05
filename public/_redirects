@@ -2,6 +2,7 @@
 # MartFlow AI — Netlify Reverse Proxy & Redirect Configuration
 # ==============================================================================
 # Dedicated Architecture Routes
+/admin.html       /admin            302!
 /app/*            /app.html         200
 /app              /app.html         200
 /dashboard/*      /app.html         200
@@ -19,5 +20,5 @@
 /api/*  https://martflow-whatsapp-ai-sales-agent.onrender.com/api/:splat  200!
 /catalogs/*  https://martflow-whatsapp-ai-sales-agent.onrender.com/catalogs/:splat  200!
 
-# Single Page Application (SPA) Fallback
-/*  /index.html  200
+# Unknown paths
+/*  /404.html  404

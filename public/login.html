@@ -4,10 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign In & Register | Leadsy AI</title>
+  <meta name="robots" content="noindex, nofollow">
   <meta name="description" content="Sign in or create your company workspace on Leadsy AI — Autonomous WhatsApp sales executive for manufacturers and distributors.">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23087F5B'><path d='M12 2C6.48 2 2 6.48 2 12c0 1.85.5 3.58 1.38 5.08L2 22l5.08-1.34A9.94 9.94 0 0012 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm-1 14.5h-2v-2h2v2zm0-4h-2V7h2v5.5z'/></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script src="/vendor/supabase-2.119.0.min.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -24,32 +25,7 @@
       display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; max-width: 0 !important; max-height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important; z-index: -99999 !important; clip-path: path("M0 0Z") !important;
     }
   </style>
-  <script>
-    (function() {
-      function purgeNetlify() {
-        document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[id^="nl-"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"]').forEach(el => el.remove());
-      }
-      purgeNetlify();
-      if (window.MutationObserver) {
-        new MutationObserver(function(mutations) {
-          for (let i = 0; i < mutations.length; i++) {
-            const added = mutations[i].addedNodes;
-            for (let j = 0; j < added.length; j++) {
-              const node = added[j];
-              if (node.nodeType === 1) {
-                if (node.id === 'nl-badge-frame' || node.id === 'nl-hud-frame' || (node.tagName === 'IFRAME' && ((node.title && node.title.includes('Netlify')) || (node.id && node.id.startsWith('nl-')))) || (node.tagName === 'SCRIPT' && node.src && node.src.includes('/.netlify/scripts/hud'))) {
-                  node.remove();
-                }
-              }
-            }
-          }
-        }).observe(document.documentElement, { childList: true, subtree: true });
-      }
-      document.addEventListener('DOMContentLoaded', purgeNetlify);
-      window.addEventListener('load', purgeNetlify);
-      setInterval(purgeNetlify, 500);
-    })();
-  </script>
+
 
 </head>
 <body class="min-h-screen text-slate-900 antialiased flex flex-col justify-between selection:bg-emerald-100 selection:text-emerald-900">
@@ -235,12 +211,12 @@
     <div class="flex items-center justify-center space-x-3 text-slate-500">
       <span class="flex items-center space-x-1">
         <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-        <span>End-to-End Encryption</span>
+        <span>Secure sign-in</span>
       </span>
       <span>•</span>
       <span class="flex items-center space-x-1">
         <svg class="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
-        <span>Private Business Data</span>
+        <span>Account access controls</span>
       </span>
     </div>
     <div>&copy; 2026 Leadsy AI. All rights reserved.</div>

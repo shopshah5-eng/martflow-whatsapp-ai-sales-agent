@@ -99,6 +99,13 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: true }));
+// Keep malformed API request responses JSON without reflecting request content.
+app.use((err, req, res, next) => {
+  if (!req.path.startsWith('/api/')) return next(err);
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ ok: false, error: 'Malformed request body.' });
+  if (err.type === 'entity.too.large') return res.status(413).json({ ok: false, error: 'Request body is too large.' });
+  return next(err);
+});
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -109,6 +116,8 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
+// The old direct admin page bypasses the current portal workflow.
+app.get('/admin.html', (_req, res) => res.redirect(302, '/admin'));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Mount MartFlow AI Multi-Tenant SaaS API
@@ -3940,63 +3949,8 @@ app.post('/api/config', authenticate, requireConversationAccess, requireRole(['o
   }
 });
 
-// Rate limiting map for public demo enquiries (max 5 requests per IP per 10 minutes)
-const publicDemoRateLimit = new Map();
-
-function checkPublicDemoRateLimit(ip) {
-  const now = Date.now();
-  const windowMs = 10 * 60 * 1000;
-  const maxRequests = 5;
-  const record = publicDemoRateLimit.get(ip) || [];
-  const valid = record.filter((ts) => now - ts < windowMs);
-  if (valid.length >= maxRequests) {
-    return false;
-  }
-  valid.push(now);
-  publicDemoRateLimit.set(ip, valid);
-  return true;
-}
-
-// 1. Dedicated Public Demo Enquiry Endpoint (Rate-Limited, Abuse-Protected)
-app.post('/api/public/demo-enquiry', async (req, res) => {
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
-  if (!checkPublicDemoRateLimit(clientIp)) {
-    return res.status(429).json({
-      ok: false,
-      error: 'Demo enquiry limit reached for this IP (max 5 inquiries per 10 minutes). Please wait a few minutes or test via WhatsApp directly.'
-    });
-  }
-
-  const { name, phone, productQuery, city, message, delaySec } = req.body || {};
-  const cleanPhone = normalizeIndianPhone(phone);
-  if (!cleanPhone || cleanPhone.length < 10) {
-    return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });
-  }
-
-  try {
-    const lead = await processNewB2BLead({
-      name: (name && !/^(buyer|unknown|sir|rajesh)$/i.test(name.trim())) ? name.trim() : 'Demo Buyer',
-      phone: cleanPhone,
-      productQuery: productQuery || 'Automatic Pouch Packing Machine',
-      city: city || 'Direct Demo Inquiry',
-      message: message || '',
-      source: 'Website Public Live Demo',
-      customDelaySec: delaySec !== undefined ? Number(delaySec) : 5
-    });
-    res.json({
-      ok: true,
-      lead: {
-        id: lead.id,
-        name: lead.name,
-        phone: lead.phone,
-        productName: lead.productName,
-        status: lead.status
-      }
-    });
-  } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
-  }
-});
+// Public demo enquiries are handled only by the rate-limited API router above.
+// Do not restore the old fallback that could initiate unsolicited messages.
 
 // Public Config Endpoint (exposes Supabase config, merchant UPI & live connected WhatsApp numbers)
 app.get('/api/public-config', (req, res) => {
@@ -4676,7 +4630,7 @@ app.get(['/admin', '/admin/*', '/superadmin', '/superadmin/*'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'catalog-admin.html'));
 });
 
-// SPA Wildcard Route Fallback: serves public/index.html for client routes (Home, Features, Pricing, About, etc.)
+// Unknown public routes are real 404s, not duplicate copies of the homepage.
 app.get('*', (req, res, next) => {
   if (
     req.path.startsWith('/api') ||
@@ -4686,7 +4640,7 @@ app.get('*', (req, res, next) => {
   ) {
     return next();
   }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
 });
 
 const PORT = Number(process.env.PORT || 3000);

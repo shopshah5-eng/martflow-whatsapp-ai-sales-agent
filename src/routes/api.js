@@ -1677,7 +1677,7 @@ router.post(['/webhook/b2b/:webhookKey', '/webhook/indiamart/:webhookKey', '/web
     const result = await B2BWebhook.handleWebhookByKey(key, req.body, token);
     res.json(result);
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    res.status(err.statusCode === 401 ? 401 : 503).json({ status: 'error', message: err.statusCode === 401 ? 'Invalid webhook credentials.' : 'Webhook service unavailable.' });
   }
 });
 
@@ -1841,6 +1841,11 @@ const publicEnquiryLimiter = rateLimit({
 });
 router.post('/public/demo-enquiry', publicEnquiryLimiter, async (req, res) => {
   const { name, phone, productQuery, city, message } = req.body || {};
+  for (const [value, limit] of [[name, 120], [phone, 30], [productQuery, 500], [city, 120], [message, 1500]]) {
+    if (value !== undefined && (typeof value !== 'string' || value.length > limit)) {
+      return res.status(400).json({ ok: false, error: 'Invalid or overlong enquiry fields.' });
+    }
+  }
   const cleanPhone = String(phone || '').replace(/\D/g, '');
   if (!/^\d{10,15}$/.test(cleanPhone)) {
     return res.status(400).json({ ok: false, error: 'Valid 10-digit WhatsApp mobile number required.' });

@@ -52,3 +52,23 @@ test('catalogue AI extraction reaches the model without undefined conversation v
     assert.equal(r.status,200); assert.equal(data.ok,true); assert.equal(data.items[0].name,'Example'); assert.equal(modelCalls,1);
   } finally { globalThis.fetch=originalFetch; if(oldKey===undefined)delete process.env.GEMINI_API_KEY;else process.env.GEMINI_API_KEY=oldKey; await new Promise(r=>local.close(r)); }
 });
+
+test('server returns real 404s and bounds public enquiry fields', async () => {
+  const local=app.listen(0,'127.0.0.1'); await new Promise(r=>local.once('listening',r));
+  const root=`http://127.0.0.1:${local.address().port}`;
+  try {
+    const malformed = await fetch(root+'/api/public/demo-enquiry',{method:'POST',headers:{'Content-Type':'application/json'},body:'{bad'});
+    assert.equal(malformed.status,400); assert.match(malformed.headers.get('content-type'),/application\/json/);
+    const badKey='synthetic-unregistered-webhook-key';
+    const hook=await fetch(root+'/api/webhook/b2b/'+badKey,{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    assert.equal(hook.status,401); assert.equal((await hook.text()).includes(badKey),false);
+    const missing = await fetch(root+'/a-deliberately-missing-page');
+    assert.equal(missing.status,404); assert.match(await missing.text(),/Page not found/);
+    const legacy=await fetch(root+'/admin.html',{redirect:'manual'}); assert.equal(legacy.status,302); assert.equal(legacy.headers.get('location'),'/admin');
+    const robots=await fetch(root+'/robots.txt'); assert.equal(robots.status,200); assert.match(await robots.text(),/Sitemap:/);
+    for (const body of [{ phone:'9876543210', name:'x'.repeat(121) }, {phone:'9876543210',message:'x'.repeat(1501)}, {phone:'9876543210',city:{bad:true}}]) {
+      const r=await fetch(root+'/api/public/demo-enquiry',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      assert.equal(r.status,400);
+    }
+  } finally { await new Promise(r=>local.close(r)); }
+});

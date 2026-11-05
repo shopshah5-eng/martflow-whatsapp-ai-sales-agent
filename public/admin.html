@@ -5,20 +5,14 @@
   
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Leadsy AI — Autonomous B2B WhatsApp Sales Executive</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/assets/leadsy-mark.png">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/martflow-design-system.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script>
-    if (window.pdfjsLib) {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    }
-  </script>
+  <script src="/vendor/supabase-2.119.0.min.js" integrity="sha384-uteMfOloLDGt042uDz+xHGF3ym63/WQ6rFq7murQRG8Ih7QrXGEGNtWd8688sb4O" crossorigin="anonymous"></script>
   <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
     tailwind.config = {
@@ -259,41 +253,7 @@
       display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; width: 0 !important; height: 0 !important; max-width: 0 !important; max-height: 0 !important; position: absolute !important; left: -99999px !important; top: -99999px !important; z-index: -99999 !important; clip-path: path("M0 0Z") !important;
     }
   </style>
-  <script>
-    (function() {
-      function purgeNetlify() {
-        document.querySelectorAll('#nl-badge-frame, #nl-hud-frame, iframe[id^="nl-"], iframe[title*="Netlify"], iframe[title*="Powered by Netlify"], script[src*="/.netlify/scripts/hud"], #netlify-badge, .netlify-badge, #netlify-drawer-iframe, [data-netlify-drawer], netlify-drawer, iframe[src*="netlify"], a[href*="netlify.com"], a[href*="netlify.app"], [class*="netlify-badge"]').forEach(function(el) {
-          try { el.remove(); } catch(e) {}
-        });
-        document.querySelectorAll('a, button, div, span').forEach(function(el) {
-          if (el.children.length <= 2 && (el.textContent || '').includes('Powered by Netlify')) {
-            try { el.remove(); } catch(e) {}
-          }
-        });
-      }
-      purgeNetlify();
-      if (window.MutationObserver) {
-        new MutationObserver(function(mutations) {
-          for (let i = 0; i < mutations.length; i++) {
-            const added = mutations[i].addedNodes;
-            for (let j = 0; j < added.length; j++) {
-              const node = added[j];
-              if (node.nodeType === 1) {
-                if (node.id === 'nl-badge-frame' || node.id === 'nl-hud-frame' || (node.tagName === 'IFRAME' && ((node.title && node.title.includes('Netlify')) || (node.id && node.id.startsWith('nl-')))) || (node.tagName === 'SCRIPT' && node.src && node.src.includes('/.netlify/scripts/hud')) || (node.tagName === 'A' && (node.href && (node.href.includes('netlify.com') || node.href.includes('netlify.app')))) || (node.textContent && node.textContent.includes('Powered by Netlify'))) {
-                  try { node.remove(); } catch(e) {}
-                }
-              }
-            }
-          }
-        }).observe(document.documentElement, { childList: true, subtree: true });
-      }
-      document.addEventListener('DOMContentLoaded', purgeNetlify);
-      window.addEventListener('load', purgeNetlify);
-      if (typeof window !== 'undefined' && (!window.navigator || !window.navigator.userAgent || !window.navigator.userAgent.includes('jsdom'))) {
-        setInterval(purgeNetlify, 500);
-      }
-    })();
-  </script>
+
 
 </head>
 <body class="bg-[#FAFAF9] text-slate-900 antialiased min-h-screen flex flex-col">
@@ -349,7 +309,7 @@
       <form id="directAdminLoginForm" onsubmit="handleDirectAdminLogin(event)" class="text-left space-y-3 pt-1">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Super Admin Email</label>
-          <input type="email" id="directAdminEmail" required placeholder="tanmayithakur267@gmail.com" value="tanmayithakur267@gmail.com" class="w-full text-xs font-medium border border-slate-300 rounded-xl p-3 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#087F5B] outline-none transition">
+          <input type="email" id="directAdminEmail" required placeholder="Your administrator email" autocomplete="username" class="w-full text-xs font-medium border border-slate-300 rounded-xl p-3 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#087F5B] outline-none transition">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
@@ -543,7 +503,7 @@
       <section id="view-engineer" class="view-panel space-y-6">
         <div>
           <div class="flex items-center space-x-2">
-            <span class="text-xs font-bold uppercase tracking-wider text-[#087F5B] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-[#E5EAE7]">Engineer Console (?admin=1)</span>
+            <span class="text-xs font-bold uppercase tracking-wider text-[#087F5B] bg-emerald-50 px-2.5 py-0.5 rounded-full border border-[#E5EAE7]">Engineer Console</span>
           </div>
           <h1 class="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight mt-1">Infrastructure, Database & Gateways</h1>
           <p class="text-xs text-slate-500 mt-0.5">Developer credentials for Supabase multi-tenant database, Razorpay API, and Merchant UPI.</p>
@@ -659,7 +619,7 @@
       const deskNum = getDemoDeskNumber();
       const defaultText = 'Hi Leadsy AI! I want to test the live B2B sales demo bot on WhatsApp.';
       const text = encodeURIComponent(customMessage || defaultText);
-      window.open(`https://wa.me/${deskNum}?text=${text}`, '_blank');
+      window.open(`https://wa.me/${deskNum}?text=${text}`, '_blank', 'noopener,noreferrer');
     }
 
     window.MERCHANT_UPI_ID_LIVE = null;
@@ -1081,23 +1041,36 @@
           tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">No products configured for this client.</td></tr>';
           return;
         }
-        tbody.innerHTML = prods.map(p => {
-          const isOut = (p.description || '').startsWith('[OUT OF STOCK]');
-          const stockBadge = isOut
-            ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-600 border border-rose-200">OUT OF STOCK</span>'
-            : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200">IN STOCK</span>';
-          return `<tr>
-            <td class="p-2.5 font-mono text-[11px] text-slate-500">${p.sku || p.id.slice(0, 8)}</td>
-            <td class="p-2.5 font-semibold text-slate-900">${p.name}</td>
-            <td class="p-2.5 font-bold text-emerald-700">${p.price_raw || (p.price_inr ? '₹' + p.price_inr : 'Contact for rate')}</td>
-            <td class="p-2.5">${stockBadge}</td>
-            <td class="p-2.5 text-right space-x-2">
-              <button type="button" onclick="deleteAdminProduct('${p.id}', '${orgId}')" class="text-rose-600 hover:text-rose-800 font-semibold text-[11px]">Delete</button>
-            </td>
-          </tr>`;
-        }).join('');
+        tbody.replaceChildren();
+        for (const p of prods) {
+          const row = document.createElement('tr');
+          const cells = [
+            p.sku || String(p.id || '').slice(0, 8),
+            p.name || '',
+            p.price_raw || (p.price_inr ? '₹' + p.price_inr : 'Contact for rate'),
+            String(p.description || '').startsWith('[OUT OF STOCK]') ? 'OUT OF STOCK' : 'IN STOCK'
+          ];
+          for (const value of cells) {
+            const td = document.createElement('td');
+            td.className = 'p-2.5';
+            td.textContent = String(value);
+            row.appendChild(td);
+          }
+          const actions = document.createElement('td');
+          actions.className = 'p-2.5 text-right';
+          const button = document.createElement('button');
+          button.type = 'button'; button.textContent = 'Delete';
+          button.className = 'text-rose-600 hover:text-rose-800 font-semibold text-[11px]';
+          button.addEventListener('click', () => deleteAdminProduct(String(p.id || ''), String(orgId)));
+          actions.appendChild(button); row.appendChild(actions); tbody.appendChild(row);
+        }
       } catch (e) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-rose-500">Error loading catalog: ' + (e.message || 'Network error') + '</td></tr>';
+        tbody.replaceChildren();
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 5; cell.className = 'p-4 text-center text-rose-500';
+        cell.textContent = 'Error loading catalog: ' + (e.message || 'Network error');
+        row.appendChild(cell); tbody.appendChild(row);
       }
     }
 
@@ -1190,11 +1163,9 @@
       if (!rawPhone) return '';
       const digits = String(rawPhone).replace(/\D/g, '');
       if (!digits) return '';
-      // If WhatsApp LID (longer than 12 digits, e.g. 148004724064491)
-      if (digits.length > 12) {
-        const last10 = digits.slice(-10);
-        return `+91 ${last10.slice(0, 5)} ${last10.slice(5)}`;
-      }
+      // A long opaque ID is not proof of an Indian phone number.
+      if (String(rawPhone).includes('@lid')) return `Unverified WhatsApp ID: ${digits}`;
+      if (digits.length > 12) return String(rawPhone).trim().startsWith('+') ? `+${digits}` : `Unverified ID: ${digits}`;
       if (digits.length === 12 && digits.startsWith('91')) {
         return `+91 ${digits.slice(2, 7)} ${digits.slice(7)}`;
       }
@@ -1355,8 +1326,7 @@
           switchView('billing', false);
           document.title = 'Membership & Billing | Leadsy AI';
         } else if (cleanPath === '/admin') {
-          const isAdmin = (currentUser && (currentUser.role === 'superadmin' || currentUser.role === 'admin')) ||
-                          new URLSearchParams(window.location.search).get('admin') === '1';
+          const isAdmin = currentUser?.role === 'superadmin';
           if (isAdmin) {
             switchView('engineer', false);
             document.title = 'System Administration | Leadsy AI';
@@ -1565,77 +1535,12 @@
       currentAuthToken = session.access_token;
       localStorage.setItem('mf_token', currentAuthToken);
 
-      if (sb) {
-        try {
-          const { data: profile } = await sb
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          let org = null;
-
-          if (!org && profile?.org_id) {
-            const { data: directOrg } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
-            org = directOrg;
-          }
-
-          if (!org) {
-            const companyName = session.user.user_metadata?.company_name || 
-              (session.user.user_metadata?.full_name ? `${session.user.user_metadata.full_name}'s Enterprise` : 'My Enterprise');
-
-            const { data: newOrg, error: orgErr } = await sb.from('organizations').insert({
-              name: companyName,
-              plan_status: 'pending_pilot',
-              monthly_lead_limit: 25,
-              leads_used: 0,
-              trial_ends_at: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-              wa_status: 'disconnected'
-            }).select().single();
-
-            if (!orgErr && newOrg) {
-              org = newOrg;
-              await sb.from('profiles').upsert({
-                id: session.user.id,
-                org_id: org.id,
-                full_name: session.user.user_metadata?.full_name || session.user.email.split('@')[0],
-                email: session.user.email,
-                phone: session.user.phone || null,
-                role: 'owner'
-              });
-            }
-          }
-
-          if (org && !org.trial_ends_at && org.plan_status === 'trial') {
-            const endsAt = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
-            await sb.from('organizations').update({ trial_ends_at: endsAt }).eq('id', org.id);
-            org.trial_ends_at = endsAt;
-          }
-
-          currentOrg = org;
-          currentUser = {
-            id: session.user.id,
-            email: session.user.email,
-            fullName: profile?.full_name || session.user.user_metadata?.full_name || session.user.email.split('@')[0]
-          };
-          closeAuthModal();
-          updateAuthUI();
-          await processPendingUtrIfAny();
-          await checkWaConnection();
-          startTrialCountdownTimer();
-          loadDashboardData();
-          return;
-        } catch (e) {
-          console.warn('Direct profile fetch exception:', e);
-        }
-      }
-
       // Fallback via backend API
       try {
         const data = await apiFetch('/api/auth/me');
         if (data.ok) {
           currentOrg = data.organization;
-          currentUser = data.user;
+          currentUser = { ...data.user, role: data.role };
           closeAuthModal();
           updateAuthUI();
           await processPendingUtrIfAny();
@@ -2080,7 +1985,7 @@
     }
 
     function checkAdminParam() {
-      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+      const isAdmin = currentUser?.role === 'superadmin';
       const navEng = document.getElementById('nav-engineer');
       const cardEng = document.getElementById('cardEngineerSettings');
       const onbCard = document.getElementById('dashOnboardingCard');
@@ -2101,11 +2006,11 @@
         if (execBanner) execBanner.classList.add('hidden');
         if (simBtn) simBtn.classList.remove('hidden');
         if (managedAiCard) managedAiCard.classList.add('hidden');
-        if (dropzone) dropzone.classList.remove('hidden');
+        if (dropzone) dropzone.classList.add('hidden');
         if (webSync) webSync.classList.remove('hidden');
         if (quickAdd) quickAdd.classList.remove('hidden');
-        if (replaceWrap) replaceWrap.classList.remove('hidden');
-        if (clearCatBtn) clearCatBtn.classList.remove('hidden');
+        if (replaceWrap) replaceWrap.classList.add('hidden');
+        if (clearCatBtn) clearCatBtn.classList.add('hidden');
         if (navCatText) navCatText.textContent = 'Product Catalog';
       } else {
         if (navEng) navEng.classList.add('hidden');
@@ -3006,7 +2911,7 @@
           custKnowInput.value = currentOrg.website_knowledge || '';
         }
 
-        const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+        const isAdmin = currentUser?.role === 'superadmin';
 
         if (prods.length === 0) {
           if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-400 font-medium">No products in catalog yet. Click "+ Quick Add SKU" or drag & drop an Excel / PDF brochure above!</td></tr>';
@@ -3019,7 +2924,7 @@
             ? `<img src="${escapeHtml(p.image_url)}" alt="${escapeHtml(p.name)}" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600',textContent:'📦'}));" class="w-12 h-12 object-cover rounded-lg border border-gray-200 shadow-sm bg-white">`
             : '<div class="w-10 h-10 rounded-lg bg-indigo-50 border border-indigo-200 flex items-center justify-center text-xs font-bold text-indigo-600">📦</div>';
           const pdfHtml = p.brochure_url
-            ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Brochure')}</span></a>`
+            ? `<a href="${escapeHtml(p.brochure_url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg text-[11px] font-semibold transition border border-indigo-200"><span>📄</span><span>${escapeHtml(p.brochure_filename || 'PDF Brochure')}</span></a>`
             : '<span class="text-slate-400 text-[11px]">No PDF</span>';
 
           return `
@@ -3437,7 +3342,7 @@
 
       const hb = currentOrg.wa_worker_heartbeat;
       const workerAlive = hb && ((Date.now() - new Date(hb).getTime()) / 1000 < 45);
-      const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1';
+      const isAdmin = currentUser?.role === 'superadmin';
 
       // Bottom-left sidebar socket status
       const waDot = document.getElementById('waStatusDot');
@@ -3894,7 +3799,7 @@
     }
 
     function saveCloudApiSettings() {
-      showToast('Cloud API keys updated.', 'info');
+      showToast('Cloud API settings are not available in this interface.', 'warning');
     }
 
     function copyWebhookUrl() {
@@ -4222,24 +4127,19 @@
       const upiInput = document.getElementById('engMerchantUpiId');
       if (upiInput) upiInput.value = getMerchantUpi();
       const geminiInput = document.getElementById('settingGeminiKey');
-      if (geminiInput) geminiInput.value = localStorage.getItem('mf_gemini_key') || '';
+      if (geminiInput) geminiInput.value = '';
+      try { localStorage.removeItem('mf_gemini_key'); } catch (_) {}
     }
     async function saveEngineerSettings() {
       const upi = document.getElementById('engMerchantUpiId')?.value?.trim();
       if (upi) localStorage.setItem('mf_merchant_upi', upi);
       const geminiKey = document.getElementById('settingGeminiKey')?.value?.trim();
       if (geminiKey) {
-        localStorage.setItem('mf_gemini_key', geminiKey);
-        try {
-          await apiFetch('/api/admin/gemini-key', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ key: geminiKey })
-          });
-        } catch (e) {}
+        showToast('Provider key configuration is unavailable in this interface. Configure it securely on the server.', 'warning');
+        return;
       }
       refreshPaymentAndSupportLinks();
-      showToast('Technical configuration & Gemini API key saved!', 'success');
+      showToast('Settings updated.', 'success');
     }
 
     function openSimulationModal() {
@@ -4524,373 +4424,12 @@
       }
     }
 
-    async function renderAndParsePdfWithImages(arrayBuffer) {
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const extractedItems = [];
-      const fullTextChunks = [];
-      const skuLineRegex = /^([A-Z]{2,4}-\d{2,4}[A-Z]?)\s+(.+?)\s+((?:Rs\.?|₹|INR)\s*[\d,]+(?:\s*\/\s*[A-Za-z.]+|\s*\([^)]+\)|\s*\+\s*[A-Za-z0-9.,/\s]+|\s*Deposit)?)$/i;
-      const priceFallbackRegex = /((?:Rs\.?|₹|INR)\s*[\d,]+[^\n|]*)/i;
-
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const scale = 1.6;
-        const viewport = page.getViewport({ scale });
-        const pageHeightPt = viewport.height / scale;
-
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        const ctx = canvas.getContext('2d');
-        await page.render({ canvasContext: ctx, viewport }).promise;
-
-        const content = await page.getTextContent();
-        const rowBuckets = [];
-        for (const it of content.items) {
-          const str = (it.str || '').trim();
-          if (!str) continue;
-          const xPt = it.transform[4];
-          const yPt = it.transform[5];
-          let bucket = rowBuckets.find(b => Math.abs(b.yPt - yPt) <= 3.5);
-          if (!bucket) {
-            bucket = { yPt, parts: [] };
-            rowBuckets.push(bucket);
-          }
-          bucket.parts.push({ xPt, str });
-        }
-        rowBuckets.sort((a, b) => b.yPt - a.yPt);
-        const lines = rowBuckets.map(b => {
-          b.parts.sort((p1, p2) => p1.xPt - p2.xPt);
-          return {
-            yPt: b.yPt,
-            minXPt: b.parts[0].xPt,
-            text: b.parts.map(p => p.str).join(' ').replace(/\s+/g, ' ').trim()
-          };
-        });
-        fullTextChunks.push(lines.map(l => l.text).join('\n'));
-
-        const cardIndices = [];
-        lines.forEach((ln, idx) => {
-          if (/^[A-Z]{2,4}-\d{2,4}[A-Z]?\b/.test(ln.text) && !/\b(?:Series|System)\s*-/i.test(ln.text)) {
-            cardIndices.push(idx);
-          }
-        });
-
-        // Universal heuristic for non-machinery brochures (Solar, Services, Clinic, Coaching, Real Estate, Fashion, etc.)
-        if (cardIndices.length === 0) {
-          lines.forEach((ln, idx) => {
-            const hasPrice = /(?:Rs\.?|₹|INR)\s*[\d,]+/i.test(ln.text);
-            const isBulletOrNum = /^\s*(?:\d+[\.\)]|[•\-\*])\s+[A-Za-z]/.test(ln.text);
-            const isGoodLength = ln.text.length >= 4 && ln.text.length <= 80;
-            const notMeta = !/^(page\s*\d+|copyright|all rights|contact|phone|email|website|address|call|http)/i.test(ln.text);
-            if (notMeta && (hasPrice || (isBulletOrNum && isGoodLength))) {
-              cardIndices.push(idx);
-            }
-          });
-        }
-        if (cardIndices.length === 0 && lines.length > 0) {
-          const contentLines = lines.filter(l => l.text.length >= 6 && l.text.length <= 80 && !/^(page\s*\d+|www\.|http|email|phone|contact)/i.test(l.text));
-          if (contentLines.length > 0) {
-            const step = Math.max(1, Math.floor(contentLines.length / 6));
-            for (let i = 0; i < contentLines.length; i += step) {
-              const lineIdx = lines.indexOf(contentLines[i]);
-              if (lineIdx !== -1 && !cardIndices.includes(lineIdx)) {
-                cardIndices.push(lineIdx);
-              }
-              if (cardIndices.length >= 6) break;
-            }
-          }
-        }
-
-        for (let cIdx = 0; cIdx < cardIndices.length; cIdx++) {
-          const startIdx = cardIndices[cIdx];
-          const nextIdx = cIdx + 1 < cardIndices.length ? cardIndices[cIdx + 1] : lines.length;
-          const headerLine = lines[startIdx];
-
-          let sku = `ITEM-${pageNum}${cIdx + 1}`;
-          let name = headerLine.text.replace(/^\s*(?:\d+[\.\)]|[•\-\*])\s*/, '').trim();
-          let price = 'Ask for Price';
-
-          const m = headerLine.text.match(skuLineRegex);
-          if (m) {
-            sku = m[1].trim();
-            name = m[2].trim();
-            price = m[3].trim();
-          } else {
-            const skuMatch = headerLine.text.match(/^([A-Z]{2,4}-\d{2,4}[A-Z]?)\s+(.+)$/);
-            if (skuMatch) {
-              sku = skuMatch[1].trim();
-              let rest = skuMatch[2].trim();
-              const pm = rest.match(priceFallbackRegex);
-              if (pm) {
-                price = pm[1].trim();
-                rest = rest.replace(pm[0], '').trim();
-              }
-              name = rest || sku;
-            } else {
-              const pm = headerLine.text.match(priceFallbackRegex);
-              if (pm) {
-                price = pm[1].trim();
-                name = headerLine.text.replace(pm[0], '').replace(/^\s*(?:\d+[\.\)]|[•\-\*])\s*/, '').trim() || `Service Option ${cIdx + 1}`;
-              }
-            }
-          }
-
-          const specLines = [];
-          for (let k = startIdx + 1; k < nextIdx; k++) {
-            const t = lines[k].text.replace(/^[•\-*]\s*/, '').trim();
-            if (!t) continue;
-            if (/^(?:HOW TO TEST|HOW YOUR|STORE SHIPPING|BOOKING,|WHOLESALE ORDERING|SUBSIDY PAPERWORK|CERTIFICATION,|SAYA DATE|CONSULTATION,|LIVE AI DEMO|WHATSAPP SALES)/i.test(t)) break;
-            specLines.push(t);
-          }
-
-          let thumbDataUrl = '';
-          try {
-            if (headerLine.minXPt >= 130) {
-              const topPt = pageHeightPt - (headerLine.yPt + 15);
-              const cropX = Math.max(0, Math.round(41 * scale));
-              const cropY = Math.max(0, Math.round(topPt * scale));
-              const cropSize = Math.round(108 * scale);
-              const tc = document.createElement('canvas');
-              tc.width = 220;
-              tc.height = 220;
-              const tctx = tc.getContext('2d');
-              tctx.fillStyle = '#ffffff';
-              tctx.fillRect(0, 0, 220, 220);
-              tctx.drawImage(canvas, cropX, cropY, cropSize, cropSize, 0, 0, 220, 220);
-              thumbDataUrl = tc.toDataURL('image/jpeg', 0.82);
-            }
-          } catch (cropErr) {
-            console.warn('Thumbnail crop skipped for', sku, cropErr);
-          }
-
-          extractedItems.push({
-            sku_code: sku,
-            name: name.substring(0, 120),
-            model_specs: (specLines.join(' | ') || 'Standard Specification').substring(0, 600),
-            price_raw: price.substring(0, 80),
-            moq: 'Standard',
-            stock_status: 'Available',
-            image_url: thumbDataUrl
-          });
-        }
-      }
-      if (extractedItems.length === 0 && fullTextChunks.length > 0) {
-        const fullClean = fullTextChunks.join('\n\n').trim();
-        if (fullClean.length > 10) {
-          extractedItems.push({
-            sku_code: 'CATALOG-01',
-            name: 'Official Services & Offerings',
-            model_specs: fullClean.slice(0, 500).replace(/\n+/g, ' '),
-            price_raw: 'Ask for Price',
-            moq: 'Standard',
-            stock_status: 'Available',
-            image_url: ''
-          });
-        }
-      }
-      return { items: extractedItems, rawText: fullTextChunks.join('\n\n') };
-    }
-
-    function inferCategory(name = '', sku = '') {
-      const n = (name || '').toLowerCase();
-      const s = (sku || '').toUpperCase();
-      if (s.startsWith('CL-') || /clothing|apparel|dress|kurti|shirt|suit|boutique/i.test(n)) return 'Apparel & Boutique';
-      if (s.startsWith('TR-') || /tour|travel|holiday|package|manali|kashmir|resort/i.test(n)) return 'Tours & Travel Packages';
-      if (s.startsWith('TX-') || /blanket|quilt|textile|bedsheet|mink/i.test(n)) return 'Blankets & Textiles';
-      if (s.startsWith('SL-') || /solar|rooftop|bifacial|panel|inverter/i.test(n)) return 'Solar Power Plants';
-      if (s.startsWith('CR-') || /car|suv|sedan|vehicle|pre-owned/i.test(n)) return 'Automobiles & Pre-Owned Cars';
-      if (s.startsWith('WD-') || /wedding|banquet|hall|catering|marriage/i.test(n)) return 'Wedding Banquets & Catering';
-      if (s.startsWith('IN-') || /kitchen|modular|interior|wardrobe|plywood/i.test(n)) return 'Interiors & Modular Kitchens';
-      if (s.startsWith('MF-') || /martflow|saas|whatsapp ai|setup plan/i.test(n)) return 'Leadsy AI Setup Plans';
-      if (/ielts|pte|visa|coaching|english batch/i.test(n)) return 'Education & Study Visa';
-      if (/pouch|packing|packaging|collar|auger/i.test(n)) return 'Pouch Packing Machinery';
-      if (/liquid|filling|paste|bottle|syrup/i.test(n)) return 'Liquid & Paste Filling';
-      if (/sealer|sealing|strap|strapping|carton/i.test(n)) return 'Carton Sealing & Strapping';
-      return 'General Products';
-    }
-
+    // File parsing remains disabled until a reviewed, private import workflow exists.
     async function processCatalogFile(file) {
       if (file) return processCatalogFiles([file]);
     }
-
-    async function processCatalogFiles(fileList) {
-      if (!fileList?.length) return;
-      if (!currentOrg) return showToast('Please sign in first to upload catalogs.', 'warning');
-
-      const statusBox = document.getElementById('uploadStatusToast');
-      const statusMsg = document.getElementById('uploadStatusText');
-      const setStatus = (msg) => {
-        if (statusBox) statusBox.classList.remove('hidden');
-        if (statusMsg) statusMsg.textContent = msg;
-      };
-
-      try {
-        const shouldReplace = document.getElementById('replaceCatalogToggle')
-          ? document.getElementById('replaceCatalogToggle').checked
-          : true;
-
-        // Cache existing SKU images so uploading an Excel sheet NEVER wipes out existing PDF photos!
-        const existingBySku = new Map();
-        if (sb) {
-          const { data: oldRows } = await sb.from('products').select('*').eq('org_id', currentOrg.id);
-          (oldRows || []).forEach(r => {
-            if (r.sku_code) existingBySku.set(String(r.sku_code).trim().toUpperCase(), r);
-          });
-        }
-
-        // Sort files so PDFs run FIRST (extracting photos + uploading PDF brochure), then Excel/CSV enriches/merges!
-        const sortedFiles = [...fileList].sort((a, b) => {
-          const aPdf = a.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
-          const bPdf = b.name.toLowerCase().endsWith('.pdf') ? 0 : 1;
-          return aPdf - bPdf;
-        });
-
-        const mergedMap = new Map();
-        if (!shouldReplace) {
-          existingBySku.forEach((r, key) => {
-            mergedMap.set(key, {
-              sku_code: r.sku_code,
-              name: r.name,
-              model_specs: r.model_specs,
-              price_raw: r.price_raw,
-              moq: r.moq || 'Standard',
-              stock_status: r.stock_status || 'Available',
-              image_url: r.image_url || ''
-            });
-          });
-        }
-
-        let uploadedPdfUrl = currentOrg.catalog_pdf_url || '';
-        let uploadedPdfName = currentOrg.catalog_pdf_name || '';
-
-        for (const file of sortedFiles) {
-          const ext = file.name.split('.').pop().toLowerCase();
-          let fileItems = [];
-
-          if (ext === 'pdf') {
-            setStatus(`Uploading ${file.name} & cropping product photos...`);
-            if (sb) {
-              const storagePath = `org_${currentOrg.id}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-              const { error: upErr } = await sb.storage.from('catalogs').upload(storagePath, file, { contentType: 'application/pdf', upsert: true });
-              if (!upErr) {
-                const { data: pubUrlData } = sb.storage.from('catalogs').getPublicUrl(storagePath);
-                if (pubUrlData?.publicUrl) {
-                  uploadedPdfUrl = pubUrlData.publicUrl;
-                  uploadedPdfName = file.name;
-                  currentOrg.catalog_pdf_url = pubUrlData.publicUrl;
-                  currentOrg.catalog_pdf_name = file.name;
-                }
-              }
-            }
-            const arrayBuf = await file.arrayBuffer();
-            const { items, rawText } = await renderAndParsePdfWithImages(arrayBuf);
-            fileItems = items;
-
-            if (rawText && rawText.trim().length > 20) {
-              const truncatedKnowledge = rawText.slice(0, 50000);
-              currentOrg.website_knowledge = truncatedKnowledge;
-
-              // Infer clean brand name from file name if current name is generic
-              const cleanBrand = file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').replace(/\bcatalog\b|\bbrochure\b|\bpdf\b/gi, '').trim();
-              if (cleanBrand && cleanBrand.length >= 3 && (!currentOrg.name || /martflow|my enterprise/i.test(currentOrg.name))) {
-                currentOrg.name = cleanBrand;
-              }
-
-              if (sb) {
-                try {
-                  await sb.from('organizations').update({
-                    name: currentOrg.name,
-                    website_knowledge: truncatedKnowledge,
-                    updated_at: new Date().toISOString()
-                  }).eq('id', currentOrg.id);
-                } catch (e) {}
-              }
-            }
-
-            if (fileItems.length === 0 && rawText.trim().length > 20) {
-              setStatus(`Extracting items from ${file.name} with AI...`);
-              const resp = await fetch(`${API_BASE}/api/catalog/extract-ai`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ rawText, fileName: file.name })
-              }).catch(() => null);
-              if (resp && resp.ok) {
-                const j = await resp.json();
-                if (Array.isArray(j.items)) fileItems = j.items;
-              }
-            }
-          } else if (['xlsx', 'xls', 'csv'].includes(ext)) {
-            setStatus(`Reading spreadsheet ${file.name}...`);
-            const buf = await file.arrayBuffer();
-            const wb = XLSX.read(buf, { type: 'array' });
-            const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-            fileItems = rows.map((r, i) => ({
-              sku_code: String(r.SKU || r['SKU Code'] || r.Code || `ITEM-${101 + i}`).trim(),
-              name: String(r['Product Name'] || r.Name || r.Item || r.Title || '').trim(),
-              price_raw: String(r.Price || r.Rate || r.MRP || 'Ask for Price').trim(),
-              model_specs: String(r['Specifications & Details'] || r.Specifications || r.Specs || r.Description || 'Standard').trim(),
-              moq: String(r.MOQ || 'Standard').trim(),
-              stock_status: 'Available',
-              image_url: String(r['Image URL'] || r.Image || '').trim()
-            })).filter(x => x.name);
-          }
-
-          // Smart SKU Merge across PDF + Excel!
-          for (const item of fileItems) {
-            const key = (item.sku_code || item.name).trim().toUpperCase();
-            const prev = mergedMap.get(key);
-            const fallbackOldImg = existingBySku.get(key)?.image_url || '';
-            mergedMap.set(key, {
-              sku_code: item.sku_code || prev?.sku_code || 'ITEM',
-              name: item.name || prev?.name || '',
-              model_specs: (item.model_specs && item.model_specs.length >= (prev?.model_specs?.length || 0)) ? item.model_specs : (prev?.model_specs || item.model_specs),
-              price_raw: (item.price_raw && item.price_raw !== 'Ask for Price') ? item.price_raw : (prev?.price_raw || 'Ask for Price'),
-              moq: item.moq || prev?.moq || 'Standard',
-              stock_status: item.stock_status || prev?.stock_status || 'Available',
-              image_url: item.image_url || prev?.image_url || fallbackOldImg || ''
-            });
-          }
-        }
-
-        const finalItems = Array.from(mergedMap.values());
-        if (!finalItems.length) throw new Error('Could not detect items in the selected file(s).');
-
-        setStatus(`Saving ${finalItems.length} merged items & photos to live database...`);
-        const rowsToInsert = finalItems.map(item => ({
-          sku: item.sku_code || item.sku || 'ITEM',
-          name: item.name,
-          category: item.category || inferCategory(item.name, item.sku_code || item.sku),
-          model_specs: String(item.model_specs || '').substring(0, 600),
-          price_raw: String(item.price_raw || 'Ask for Price').substring(0, 80),
-          image_url: item.image_url || '',
-          brochure_url: uploadedPdfUrl || item.brochure_url || '',
-          brochure_filename: uploadedPdfName || item.brochure_filename || '',
-          is_active: true
-        }));
-
-        // One authorized transactional write; never clear chat history.
-        const syncResponse = await fetch(`${API_BASE}/api/catalog/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(currentAuthToken ? { 'Authorization': `Bearer ${currentAuthToken}` } : {}) },
-          body: JSON.stringify({
-            orgId: currentOrg?.id, products: rowsToInsert,
-            websiteKnowledge: currentOrg?.website_knowledge || '',
-            companyName: currentOrg?.name || 'Our Company',
-            catalogPdfName: uploadedPdfName || ''
-          })
-        });
-        const syncResult = await syncResponse.json();
-        if (!syncResponse.ok || !syncResult.ok) throw new Error(syncResult.error || 'Catalog sync failed.');
-
-        await fetchCatalogProducts();
-        if (typeof updateCatalogBannerUI === 'function') updateCatalogBannerUI();
-        showToast(`✅ Synced ${finalItems.length} unique products with photos!`, 'success');
-      } catch (err) {
-        console.error('Catalog process error:', err);
-        showToast('Catalog upload error: ' + (err.message || err), 'error');
-      } finally {
-        setTimeout(() => { if (statusBox) statusBox.classList.add('hidden'); }, 1500);
-      }
+    async function processCatalogFiles(_files) {
+      showToast('File import is not available yet. Add products manually.', 'warning');
     }
 
     // =========================================================================

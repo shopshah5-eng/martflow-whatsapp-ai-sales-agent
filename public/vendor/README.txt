@@ -1,0 +1,1 @@
+Supabase JavaScript UMD browser distribution 2.119.0, vendored from the npm package @supabase/supabase-js under its MIT license. See supabase-LICENSE.txt. The HTML references include a SHA-384 integrity hash. Review and deliberately update both the file and hash when upgrading.
