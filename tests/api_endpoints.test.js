@@ -29,6 +29,11 @@ test('API ROUTES: Authenticated multi-tenant endpoints behave correctly', async 
       'Content-Type': 'application/json'
     };
 
+    // Previous runs may have persisted a sandbox catalogue grant. Start as a client.
+    for (const grant of db.tables.catalog_management_grants.values()) {
+      if (grant.user_id === demo.user.id && (grant.org_id === demo.organization.id || grant.organization_id === demo.organization.id)) db.delete('catalog_management_grants', grant.id);
+    }
+
     // 2. WhatsApp Status
     const waRes = await fetch(`${baseUrl}/api/whatsapp/status`, { headers });
     assert.equal(waRes.status, 200);
@@ -62,7 +67,7 @@ test('API ROUTES: Authenticated multi-tenant endpoints behave correctly', async 
     assert.ok(Array.isArray(convData.conversations));
 
     // An explicit platform grant is required even in the test sandbox.
-    db.insert('catalog_management_grants', { organization_id: demo.organization.id, user_id: demo.user.id });
+    const grant = db.insert('catalog_management_grants', { organization_id: demo.organization.id, user_id: demo.user.id });
 
     // 5. Quick Add SKU
     const skuRes = await fetch(`${baseUrl}/api/catalog/quick-add`, {
@@ -80,6 +85,10 @@ test('API ROUTES: Authenticated multi-tenant endpoints behave correctly', async 
     const skuData = await skuRes.json();
     assert.equal(skuData.ok, true);
     assert.equal(skuData.product.name, 'Continuous Band Sealer with Nitrogen Flushing');
+
+    // A catalogue-only identity cannot read client data; revoke before testing client export.
+    assert.equal((await fetch(`${baseUrl}/api/leads`, { headers })).status, 403);
+    db.delete('catalog_management_grants', grant.id);
 
     // 6. Authenticated CSV Export
     const csvRes = await fetch(`${baseUrl}/api/leads/export.csv`, {

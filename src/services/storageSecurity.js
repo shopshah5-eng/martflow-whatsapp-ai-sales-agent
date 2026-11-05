@@ -1,3 +1,4 @@
+import { isPublicAddress } from './safeWebsiteFetch.js';
 /**
  * MartFlow AI — Storage Security, Symlink Verification & Egress SSRF Guard
  * Guarantees that attachment reads and session paths are strictly tenant-contained
@@ -94,46 +95,9 @@ export function getSafeTenantCatalogPath(orgId, filename) {
 // 4. IP Range Validation (Blocks Private, Loopback, Carrier-Grade & Cloud Metadata)
 export function isPrivateOrReservedIP(ip) {
   if (!ip) return true;
-
-  // Normalize IPv4-mapped IPv6
-  let cleanIp = String(ip).trim();
-  if (cleanIp.startsWith('::ffff:')) {
-    cleanIp = cleanIp.slice(7);
-  }
-
-  const ipFamily = net.isIP(cleanIp);
-  // If not an IP literal (e.g. domain name), it's not a private IP literal
-  if (ipFamily === 0) {
-    return false;
-  }
-
-  // IPv4 Checks
-  if (ipFamily === 4) {
-    const parts = cleanIp.split('.').map(Number);
-    if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) return true;
-
-    const [a, b] = parts;
-    if (a === 0) return true; // Current network
-    if (a === 10) return true; // RFC 1918 Private
-    if (a === 127) return true; // Loopback
-    if (a === 169 && b === 254) return true; // Link-local / Cloud Metadata (169.254.169.254)
-    if (a === 172 && b >= 16 && b <= 31) return true; // RFC 1918 Private
-    if (a === 192 && b === 168) return true; // RFC 1918 Private
-    if (a === 100 && b >= 64 && b <= 127) return true; // Carrier-Grade NAT (RFC 6598)
-    if (a >= 224) return true; // Multicast / Reserved
-    return false;
-  }
-
-  // IPv6 Checks
-  if (ipFamily === 6) {
-    const lower = cleanIp.toLowerCase();
-    if (lower === '::1' || lower === '::') return true; // Loopback / Unspecified
-    if (lower.startsWith('fc') || lower.startsWith('fd')) return true; // Unique Local Address
-    if (lower.startsWith('fe8') || lower.startsWith('fe9') || lower.startsWith('fea') || lower.startsWith('feb')) return true; // Link-local
-    return false;
-  }
-
-  return true;
+  // Hostnames are classified after DNS resolution by the caller.
+  if (!net.isIP(ip)) return false;
+  return !isPublicAddress(ip);
 }
 
 // 5. Safe Media Attachment Fetcher

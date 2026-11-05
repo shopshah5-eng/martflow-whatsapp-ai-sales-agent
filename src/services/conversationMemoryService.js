@@ -126,7 +126,7 @@ export class ConversationMemoryService {
       answered_questions: Array.isArray(updates.answered_questions || updates.answeredQuestions)
         ? (updates.answered_questions || updates.answeredQuestions)
         : [],
-      consent_status: updates.consent_status || updates.consentStatus || 'pending',
+      ...((updates.consent_status || updates.consentStatus) ? { consent_status: updates.consent_status || updates.consentStatus } : {}),
       summary_text: updates.summary_text || updates.summaryText || null,
       updated_at: new Date().toISOString()
     };
@@ -156,6 +156,7 @@ export class ConversationMemoryService {
     const record = {
       org_id: orgId,
       conversation_id: conversationId,
+      consent_status: LOCAL_MEMORY_STORE.get(`${orgId}:${conversationId}`)?.consent_status || 'pending',
       ...cleanUpdates
     };
     LOCAL_MEMORY_STORE.set(`${orgId}:${conversationId}`, record);

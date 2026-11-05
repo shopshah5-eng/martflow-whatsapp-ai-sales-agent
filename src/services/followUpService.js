@@ -36,8 +36,8 @@ export class FollowUpService {
    * @param {string} params.buyerPhone - Normalized buyer phone number
    * @param {number} [params.delayHours=72] - Delay hours (default 72h = 3 days)
    * @param {string} [params.templateName] - Approved WhatsApp template name if outside 24h
-   * @param {boolean} [params.consentRecorded=true] - Positive consent flag
-   * @param {string} [params.consentStatus='consented'] - Positive consent status
+   * @param {boolean} [params.consentRecorded=false] - Positive consent flag
+   * @param {string} [params.consentStatus='pending'] - Positive consent status
    * @returns {Promise<Object>} Scheduled record or existing follow-up
    */
   static async scheduleOneTimeFollowUp({
@@ -46,18 +46,22 @@ export class FollowUpService {
     buyerPhone,
     delayHours = 72,
     templateName = 'b2b_followup_reminder',
-    consentRecorded = true,
-    consentStatus = 'consented'
+    consentRecorded = false,
+    consentStatus = 'pending'
   }) {
     if (!orgId || !buyerPhone) {
       throw new Error('orgId and buyerPhone are required to schedule a follow-up');
     }
 
-    if (consentRecorded === false) {
+    if (consentRecorded !== true || consentStatus !== 'consented') {
       return { ok: false, reason: 'missing_consent', scheduled: false, message: 'Explicit consent required.' };
     }
 
     const cleanPhone = String(buyerPhone).replace(/\D/g, '');
+    if (cleanPhone.length < 10) throw new Error('A valid buyer phone is required');
+    if (!Number.isFinite(Number(delayHours)) || Number(delayHours) < 72) {
+      return { ok: false, reason: 'minimum_delay_72_hours', scheduled: false };
+    }
     const lookupKey = `${orgId}:${cleanPhone}`;
 
     // 1. Consent / Opt-out check: if customer opted out, refuse scheduling

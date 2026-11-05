@@ -355,7 +355,7 @@ test('FOLLOW-UP: enforces at most ONE automatic follow-up per customer and cance
     orgId,
     leadId,
     buyerPhone,
-    delayHours: 72
+    delayHours: 72, consentRecorded: true, consentStatus: 'consented'
   });
   assert.equal(res1.ok, true);
   assert.equal(res1.scheduled, true);
@@ -367,7 +367,7 @@ test('FOLLOW-UP: enforces at most ONE automatic follow-up per customer and cance
     orgId,
     leadId,
     buyerPhone,
-    delayHours: 72
+    delayHours: 72, consentRecorded: true, consentStatus: 'consented'
   });
   assert.equal(res2.ok, true);
   assert.equal(res2.scheduled, false);
@@ -385,7 +385,7 @@ test('FOLLOW-UP: enforces at most ONE automatic follow-up per customer and cance
 
   // 5. Opt-out keyword ("STOP") blocks follow-up and future schedules
   const phone2 = '9811223344';
-  await FollowUpService.scheduleOneTimeFollowUp({ orgId, leadId: 'lead-2', buyerPhone: phone2 });
+  await FollowUpService.scheduleOneTimeFollowUp({ orgId, leadId: 'lead-2', buyerPhone: phone2, consentRecorded: true, consentStatus: 'consented' });
   const optedOut = FollowUpService.handleInboundMessage(orgId, phone2, 'STOP please');
   assert.equal(optedOut, true);
   assert.equal(FollowUpService.isOptedOut(orgId, phone2), true);
@@ -395,7 +395,7 @@ test('FOLLOW-UP: enforces at most ONE automatic follow-up per customer and cance
   assert.equal(fupOptedOut.cancellation_reason, 'opt_out');
 
   // Future scheduling for opted-out customer is refused
-  const resOptOut = await FollowUpService.scheduleOneTimeFollowUp({ orgId, buyerPhone: phone2 });
+  const resOptOut = await FollowUpService.scheduleOneTimeFollowUp({ orgId, buyerPhone: phone2, consentRecorded: true, consentStatus: 'consented' });
   assert.equal(resOptOut.scheduled, false);
   assert.equal(resOptOut.reason, 'buyer_opted_out');
 });
@@ -404,7 +404,7 @@ test('FOLLOW-UP: uncertain provider outcomes are marked uncertain_delivery and a
   const orgId = 'uncertain-org-' + Date.now();
   const buyerPhone = '9900112233';
 
-  const res = await FollowUpService.scheduleOneTimeFollowUp({ orgId, buyerPhone });
+  const res = await FollowUpService.scheduleOneTimeFollowUp({ orgId, buyerPhone, consentRecorded: true, consentStatus: 'consented' });
   const recordId = res.record.id;
 
   await FollowUpService.recordSendOutcome(recordId, 'uncertain');
@@ -420,7 +420,10 @@ test('FOLLOW-UP: worker disabled by default, consent requirement, durable opt-ou
   const orgId = 'consent-test-org-' + Date.now();
   const phone = '9876500001';
 
-  // 2. Schedule without consent is rejected
+  // 2. Consent is not inferred from an ordinary enquiry or an omitted status.
+  assert.equal((await FollowUpService.scheduleOneTimeFollowUp({ orgId, buyerPhone: phone })).reason, 'missing_consent');
+  assert.equal((await FollowUpService.scheduleOneTimeFollowUp({ orgId, buyerPhone: phone, consentRecorded: true })).reason, 'missing_consent');
+  assert.equal((await FollowUpService.scheduleOneTimeFollowUp({ orgId, buyerPhone: phone, consentRecorded: true, consentStatus: 'consented', delayHours: 24 })).reason, 'minimum_delay_72_hours');
   const resNoConsent = await FollowUpService.scheduleOneTimeFollowUp({
     orgId,
     buyerPhone: phone,

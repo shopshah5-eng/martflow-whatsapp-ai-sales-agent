@@ -36,11 +36,11 @@ export async function requireConversationAccess(req, res, next) {
       return res.status(401).json({ ok: false, error: 'Authentication required.' });
     }
     // Catalogue managers / agency users with role 'catalog_manager' are forbidden from client conversations
-    if (req.role === 'catalog_manager' || req.isCatalogOnly) {
+    if (req.role === 'superadmin' || req.role === 'catalog_manager' || req.isCatalogOnly || await canManageCatalog(req)) {
       return res.status(403).json({ ok: false, error: 'Catalogue managers cannot access conversation logs or inbox messages.' });
     }
     next();
   } catch (error) {
-    res.status(error.statusCode || 500).json({ ok: false, error: error.message });
+    res.status(error.statusCode || 503).json({ ok: false, error: 'Conversation permissions are unavailable.' });
   }
 }

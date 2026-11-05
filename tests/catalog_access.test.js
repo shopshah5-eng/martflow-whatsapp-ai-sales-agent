@@ -41,6 +41,12 @@ test('catalogue grants are explicit, tenant-scoped, revocable and fail closed', 
     assert.equal((await request('/admin/catalog-permissions', null, 'POST', { orgId, userId: other.user.id, allow: true }, true)).status, 400);
     assert.equal((await request('/admin/catalog-permissions', null, 'POST', { orgId, userId, allow: true }, true)).status, 200);
     assert.equal((await request('/auth/me', agencyToken)).body.permissions.canManageCatalog, true);
+    assert.equal((await request('/conversations', agencyToken)).status, 403);
+    assert.equal((await request('/leads', agencyToken)).status, 403);
+    assert.equal((await request('/learning/proposals', agencyToken)).status, 403);
+    assert.equal((await request('/leads/export.csv', agencyToken)).status, 403);
+    assert.equal((await request('/conversations', null, 'GET', undefined, true)).status, 403);
+    assert.equal((await request('/conversations', client.token)).status, 200);
     assert.equal((await request('/catalog/knowledge', agencyToken, 'PATCH', { websiteKnowledge: 'Agency setup', businessType: 'machinery' })).status, 200);
     assert.equal(db.findById('organizations', orgId).website_knowledge, 'Agency setup');
     assert.equal((await request('/catalog/knowledge', agencyToken, 'PATCH', { websiteKnowledge: '' })).status, 200);

@@ -293,7 +293,7 @@ router.get('/auth/me', authenticate, async (req, res) => {
 // ==========================================
 // 2. LEAD MANAGEMENT ENDPOINTS (TENANT SCOPED)
 // ==========================================
-router.get('/leads', authenticate, async (req, res) => {
+router.get('/leads', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const { page, limit, search, status, city, sortBy, sortOrder } = req.query;
     const sb = repository.getSupabase();
@@ -334,7 +334,7 @@ router.get('/leads', authenticate, async (req, res) => {
 });
 
 // Simulate Inbound Lead Modal
-router.post('/leads/simulate', authenticate, async (req, res) => {
+router.post('/leads/simulate', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const buyerPhone = req.body.buyerPhone || req.body.senderMobile;
     const buyerName = req.body.buyerName || req.body.senderName || 'Simulated Buyer';
@@ -411,7 +411,7 @@ router.get('/leads/export.csv', authenticate, requireConversationAccess, async (
   }
 });
 
-router.get('/leads/:id', authenticate, async (req, res) => {
+router.get('/leads/:id', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const sb = repository.getSupabase();
     if (sb) {
@@ -430,7 +430,7 @@ router.get('/leads/:id', authenticate, async (req, res) => {
   }
 });
 
-router.post('/leads/:id/status', authenticate, async (req, res) => {
+router.post('/leads/:id/status', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const { status } = req.body;
     const sb = repository.getSupabase();
@@ -449,7 +449,7 @@ router.post('/leads/:id/status', authenticate, async (req, res) => {
   }
 });
 
-router.post('/leads/:id/assign', authenticate, requireRole(['owner', 'admin', 'sales_manager']), (req, res) => {
+router.post('/leads/:id/assign', authenticate, requireConversationAccess, requireRole(['owner', 'admin', 'sales_manager']), (req, res) => {
   try {
     const updated = LeadService.assignLead(req.organizationId, req.params.id, req.body.agentId, req.userId);
     res.json({ ok: true, lead: updated });
@@ -458,7 +458,7 @@ router.post('/leads/:id/assign', authenticate, requireRole(['owner', 'admin', 's
   }
 });
 
-router.post('/leads/:id/notes', authenticate, (req, res) => {
+router.post('/leads/:id/notes', authenticate, requireConversationAccess, (req, res) => {
   try {
     const updated = LeadService.addNote(req.organizationId, req.params.id, req.body.note, req.userId);
     res.json({ ok: true, lead: updated });
@@ -470,7 +470,7 @@ router.post('/leads/:id/notes', authenticate, (req, res) => {
 // ==========================================
 // 2b. CALLBACK SCHEDULING (TENANT-SCOPED)
 // ==========================================
-router.post('/callbacks/confirm-time', authenticate, async (req, res) => {
+router.post('/callbacks/confirm-time', authenticate, requireConversationAccess, async (req, res) => {
   try {
     if (!req.organizationId) {
       return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
@@ -520,7 +520,7 @@ router.post('/callbacks/confirm-time', authenticate, async (req, res) => {
   }
 });
 
-router.post('/callbacks/request-demo', authenticate, async (req, res) => {
+router.post('/callbacks/request-demo', authenticate, requireConversationAccess, async (req, res) => {
   try {
     if (!req.organizationId) {
       return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
@@ -699,7 +699,7 @@ router.delete('/conversations/:id/memory', authenticate, requireConversationAcce
 });
 
 // --- Follow-Up Management Endpoints ---
-router.post('/follow-ups/opt-out', authenticate, async (req, res) => {
+router.post('/follow-ups/opt-out', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ ok: false, error: 'Phone number is required.' });
@@ -853,13 +853,13 @@ router.post('/conversations/:id/reply', authenticate, requireConversationAccess,
 // ==========================================
 // 4. WHATSAPP CONNECTION & QR MANAGEMENT (AUTHENTICATED & TENANT ISOLATED)
 // ==========================================
-router.get('/whatsapp/status', authenticate, (req, res) => {
+router.get('/whatsapp/status', authenticate, requireConversationAccess, (req, res) => {
   const orgId = req.organizationId;
   const state = baileysManager.getState(orgId);
   res.json({ ok: true, status: state.status, phoneNumber: state.connectedNumber, waState: state });
 });
 
-router.post('/whatsapp/connect', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+router.post('/whatsapp/connect', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const orgId = req.organizationId;
     await baileysManager.init(orgId);
@@ -869,7 +869,7 @@ router.post('/whatsapp/connect', authenticate, requireRole(['owner', 'admin']), 
   }
 });
 
-router.post('/whatsapp/disconnect', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+router.post('/whatsapp/disconnect', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   try {
     const orgId = req.organizationId;
     await baileysManager.disconnect(orgId);
@@ -1314,12 +1314,12 @@ router.post('/catalog/sync', authenticate, requireCatalogManager, async (req, re
 // ==========================================
 // 6. TWO-WAY CALL SCHEDULER ENDPOINTS
 // ==========================================
-router.get('/calls', authenticate, (req, res) => {
+router.get('/calls', authenticate, requireConversationAccess, (req, res) => {
   const calls = CallSchedulerService.listCalls(req.organizationId, req.query);
   res.json({ ok: true, calls });
 });
 
-router.post('/calls/request', authenticate, (req, res) => {
+router.post('/calls/request', authenticate, requireConversationAccess, (req, res) => {
   try {
     const callReq = CallSchedulerService.requestCall(req.organizationId, {
       leadId: req.body.leadId,
@@ -1331,7 +1331,7 @@ router.post('/calls/request', authenticate, (req, res) => {
   }
 });
 
-router.post('/calls/confirm', authenticate, async (req, res) => {
+router.post('/calls/confirm', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const result = await CallSchedulerService.confirmCallSlot(req.organizationId, {
       callRequestId: req.body.callRequestId || req.body.callId,
@@ -2173,7 +2173,7 @@ router.post('/payments/razorpay/verify', authenticate, async (req, res) => {
 // ==========================================
 // 12. SAFE CONVERSATIONAL LEARNING & REVIEW QUEUE
 // ==========================================
-router.get('/learning/proposals', authenticate, (req, res) => {
+router.get('/learning/proposals', authenticate, requireConversationAccess, (req, res) => {
   try {
     const proposals = LearningService.listProposals(req.organizationId, req.query);
     res.json({ ok: true, proposals });
@@ -2182,7 +2182,7 @@ router.get('/learning/proposals', authenticate, (req, res) => {
   }
 });
 
-router.post('/learning/proposals/:id/approve', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+router.post('/learning/proposals/:id/approve', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), (req, res) => {
   try {
     const result = LearningService.approveProposal(req.organizationId, req.params.id, req.userId);
     res.json(result);
@@ -2191,7 +2191,7 @@ router.post('/learning/proposals/:id/approve', authenticate, requireRole(['owner
   }
 });
 
-router.post('/learning/proposals/:id/reject', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+router.post('/learning/proposals/:id/reject', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), (req, res) => {
   try {
     const result = LearningService.rejectProposal(req.organizationId, req.params.id, req.userId, req.body?.reason);
     res.json(result);
@@ -2200,7 +2200,7 @@ router.post('/learning/proposals/:id/reject', authenticate, requireRole(['owner'
   }
 });
 
-router.get('/learning/facts', authenticate, (req, res) => {
+router.get('/learning/facts', authenticate, requireConversationAccess, (req, res) => {
   try {
     const facts = LearningService.listApprovedFacts(req.organizationId);
     res.json({ ok: true, facts });
@@ -2209,7 +2209,7 @@ router.get('/learning/facts', authenticate, (req, res) => {
   }
 });
 
-router.delete('/learning/facts/:id', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+router.delete('/learning/facts/:id', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), (req, res) => {
   try {
     const result = LearningService.deleteApprovedFact(req.organizationId, req.params.id);
     res.json(result);
@@ -2218,7 +2218,7 @@ router.delete('/learning/facts/:id', authenticate, requireRole(['owner', 'admin'
   }
 });
 
-router.post('/learning/opt-out', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+router.post('/learning/opt-out', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), (req, res) => {
   try {
     const result = LearningService.optOut(req.organizationId);
     res.json(result);

@@ -31,7 +31,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import apiRouter from './src/routes/api.js';
 import { authenticate, requireRole } from './src/middleware/authMiddleware.js';
-import { requireCatalogManager } from './src/middleware/catalogAccess.js';
+import { requireCatalogManager, requireConversationAccess } from './src/middleware/catalogAccess.js';
 import { baileysManager } from './src/integrations/whatsapp/baileysManager.js';
 import {
   backupSessionToSupabase,
@@ -56,6 +56,7 @@ import takeoverService, {
   maskPhone
 } from './src/services/takeoverService.js';
 import LearningService from './src/services/learningService.js';
+import { isSafePublicUrl, safeFetchWebsite } from './src/services/safeWebsiteFetch.js';
 
 dotenv.config();
 
@@ -524,83 +525,6 @@ const orderAlertSentSet = new Set();         // `${orgId}:${senderPhone}:order_i
 function stripHtmlTags(str) {
   if (!str) return '';
   return str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-function isPrivateIp(ip) {
-  if (!ip) return true;
-  const cleanIp = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-  if (cleanIp === '127.0.0.1' || cleanIp === '::1' || cleanIp === '0.0.0.0' || cleanIp === 'localhost') return true;
-  const parts = cleanIp.split('.').map(Number);
-  if (parts.length === 4 && parts.every(n => !isNaN(n) && n >= 0 && n <= 255)) {
-    if (parts[0] === 10) return true;
-    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
-    if (parts[0] === 192 && parts[1] === 168) return true;
-    if (parts[0] === 169 && parts[1] === 254) return true;
-    if (parts[0] === 127) return true;
-    if (parts[0] === 0) return true;
-    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
-  }
-  if (cleanIp.startsWith('fc') || cleanIp.startsWith('fd') || cleanIp.startsWith('fe80:')) return true;
-  return false;
-}
-
-async function isSafePublicUrl(urlString) {
-  try {
-    const parsed = new URL(urlString);
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
-    const hostname = parsed.hostname.toLowerCase();
-    if (hostname === 'localhost' || hostname.endsWith('.local') || hostname.endsWith('.internal') || hostname.endsWith('.localhost')) {
-      return false;
-    }
-    if (isPrivateIp(hostname)) return false;
-    try {
-      const records = await dns.promises.lookup(hostname, { all: true });
-      for (const rec of records) {
-        if (isPrivateIp(rec.address)) return false;
-      }
-    } catch (_) {
-      return false;
-    }
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-async function safeFetchWebsite(url, maxBytes = 3 * 1024 * 1024, timeoutMs = 10000) {
-  const isSafe = await isSafePublicUrl(url);
-  if (!isSafe) {
-    throw new Error(`SSRF blocked: Domain or IP for ${url} is private or forbidden`);
-  }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LeadsyCatalogBot/1.0',
-        'Accept': 'application/json, text/xml, application/xml, text/html, */*'
-      },
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-    if (!res.ok) {
-      return { ok: false, status: res.status, text: '' };
-    }
-    const cl = res.headers.get('content-length');
-    if (cl && parseInt(cl, 10) > maxBytes) {
-      throw new Error(`Response exceeded max limit of ${maxBytes} bytes`);
-    }
-    const arrayBuffer = await res.arrayBuffer();
-    if (arrayBuffer.byteLength > maxBytes) {
-      throw new Error(`Response body exceeded max limit of ${maxBytes} bytes`);
-    }
-    const text = Buffer.from(arrayBuffer).toString('utf8');
-    return { ok: true, status: res.status, text, headers: res.headers };
-  } catch (err) {
-    clearTimeout(timer);
-    throw err;
-  }
 }
 
 function getOrgWebsiteUrl(websiteKnowledge) {
@@ -2672,8 +2596,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         await ConversationMemoryService.updateMemory(orgId, sbConvId, {
           buyer_requirements: buyerTextSample,
           summary_text: `Customer asked: ${buyerTextSample.slice(0, 80)}`,
-          answered_questions: [answeredTopic],
-          consent_status: 'consented'
+          answered_questions: [answeredTopic]
         });
       } catch (memUpdateErr) {
         addLog(`[Memory Warning] Failed to update conversation memory: ${memUpdateErr.message}`);
@@ -3521,9 +3444,10 @@ STRICT LENGTH RULE:
     products: products || [],
     matchedBrochureUrl: matchedBrochureUrl || fallbackObj?.matchedBrochureUrl,
     matchedBrochureName: matchedBrochureName || fallbackObj?.matchedBrochureName,
-    matchedImageUrl: matchedImageUrl || fallbackObj?.matchedImageUrl,
-    matchedImagePath: matchedImagePath || fallbackObj?.matchedImagePath,
-    matchedImageCaption: matchedImageCaption || fallbackObj?.matchedImageCaption
+    // The fallback must not override stock and per-conversation photo checks.
+    matchedImageUrl,
+    matchedImagePath,
+    matchedImageCaption
   };
 }
 
@@ -4330,7 +4254,7 @@ async function handleIncomingWhatsAppMessage(msg) {
 // ============================================================================
 // REST API ROUTES FOR DASHBOARD, SIMULATOR & B2B PUSH WEBHOOK
 // ============================================================================
-app.get('/api/test-audio', async (req, res) => {
+app.get('/api/test-audio', authenticate, requireConversationAccess, async (req, res) => {
   try {
     const text = req.query.text || 'Namaste Rajesh ji! Hamare technical director ne confirm kiya hai ki wo aaj chaar baje free hain. Hamari team aapko call karegi. Dhanyawad!';
     const oggBuffer = await generateTtsAudio(text);
@@ -4379,7 +4303,7 @@ app.get('/api/ready', async (req, res) => {
   });
 });
 
-app.get('/api/status', authenticate, requireRole(['owner', 'admin', 'superadmin']), (req, res) => {
+app.get('/api/status', authenticate, requireConversationAccess, requireRole(['owner', 'admin', 'superadmin']), (req, res) => {
   const scopedLeads = db.findScoped('leads', req.organizationId) || [];
   const pendingCallbacks = scopedLeads.filter((l) => l.callbackStatus === 'awaiting_client_time');
   const org = db.findById('organizations', req.organizationId) || {};
@@ -4572,7 +4496,7 @@ app.post(['/api/webhook/b2b', '/api/webhook/b2b/:key', '/api/webhook/indiamart',
 // 3. Browser Dry-Run AI Chat Tester (Test AI replies with 0 WhatsApp messages!)
 const dryRunSessions = new Map();
 
-app.post('/api/dry-run-chat', authenticate, async (req, res) => {
+app.post('/api/dry-run-chat', authenticate, requireConversationAccess, async (req, res) => {
   const sessionKey = req.userId || req.organizationId || 'default';
   const { text, reset, customerName } = req.body;
   if (reset || !dryRunSessions.has(sessionKey)) {
@@ -4590,7 +4514,10 @@ app.post('/api/dry-run-chat', authenticate, async (req, res) => {
   if (customerName) sessionLead.name = customerName.trim();
   const inputMsg = text || req.body.message || '';
   sessionLead.history.push({ role: 'buyer', text: inputMsg, ts: new Date().toISOString() });
-  const result = await generateSalesReply({ lead: sessionLead, incomingText: inputMsg, organizationId: req.organizationId });
+  const result = await generateShortSalesReply({
+    organizationId: req.organizationId, org: req.organization, lead: sessionLead,
+    incomingText: inputMsg, conversationHistory: sessionLead.history
+  });
   if (result.extractedCustomerName && !sessionLead.name) {
     sessionLead.name = result.extractedCustomerName;
   }
@@ -4605,7 +4532,7 @@ app.post('/api/dry-run-chat', authenticate, async (req, res) => {
 });
 
 // 4. Export Qualified Leads as Excel-Ready CSV (Tenant-Scoped with Formula Injection Protection)
-app.get('/api/leads.csv', authenticate, requireRole(['owner', 'admin', 'sales_manager']), (req, res) => {
+app.get('/api/leads.csv', authenticate, requireConversationAccess, requireRole(['owner', 'admin', 'sales_manager']), (req, res) => {
   const headers = ['Lead ID', 'Time', 'Buyer Name', 'WhatsApp Mobile', 'Machine Interested', 'Buyer City', 'Requirement', 'Status', 'Source'];
   const sanitizeCell = (v) => {
     let s = String(v ?? '');
@@ -4632,7 +4559,7 @@ app.get('/api/leads.csv', authenticate, requireRole(['owner', 'admin', 'sales_ma
   res.send([headers.join(','), ...rows].join('\n'));
 });
 
-app.post('/api/leads/clear', authenticate, requireRole(['owner', 'admin']), (req, res) => {
+app.post('/api/leads/clear', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), (req, res) => {
   const tenantLeads = db.findScoped('leads', req.organizationId);
   for (const l of tenantLeads) {
     db.delete('leads', l.id);
@@ -4745,7 +4672,7 @@ Return a strict JSON object with this structure:
 });
 
 // Confirm available call time from Client Dashboard and notify both parties (Tenant-Scoped)
-app.post('/api/callbacks/confirm-time', authenticate, async (req, res) => {
+app.post('/api/callbacks/confirm-time', authenticate, requireConversationAccess, async (req, res) => {
   try {
     if (!req.organizationId) {
       return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
@@ -4791,7 +4718,7 @@ app.post('/api/callbacks/confirm-time', authenticate, async (req, res) => {
 });
 
 // Trigger a Demo Call Request to test the 2-way WhatsApp prompt
-app.post('/api/callbacks/request-demo', authenticate, async (req, res) => {
+app.post('/api/callbacks/request-demo', authenticate, requireConversationAccess, async (req, res) => {
   try {
     if (!req.organizationId) {
       return res.status(401).json({ ok: false, error: 'Authentication required with valid organization' });
@@ -5144,13 +5071,13 @@ async function initSupabaseWorker() {
 }
 
 // Authenticated local/cloud WhatsApp endpoints scoped to verified tenant
-app.get('/api/wa/status', authenticate, (req, res) => {
+app.get('/api/wa/status', authenticate, requireConversationAccess, (req, res) => {
   const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   res.json({ ok: true, state: inst.getState() });
 });
 
-app.get('/api/wa/status/:orgId', authenticate, (req, res) => {
+app.get('/api/wa/status/:orgId', authenticate, requireConversationAccess, (req, res) => {
   if (req.params.orgId !== req.organizationId && req.role !== 'superadmin') {
     return res.status(403).json({ ok: false, error: 'Unauthorized to view WhatsApp status for another organization.' });
   }
@@ -5158,14 +5085,14 @@ app.get('/api/wa/status/:orgId', authenticate, (req, res) => {
   res.json({ ok: true, state: inst.getState() });
 });
 
-app.post('/api/wa/start-qr', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+app.post('/api/wa/start-qr', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   await inst.init(true);
   res.json({ ok: true, message: 'QR initialization started' });
 });
 
-app.post('/api/wa/pair-code', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+app.post('/api/wa/pair-code', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   const orgId = req.organizationId;
   const { phone } = req.body;
   if (!phone) return res.status(400).json({ ok: false, error: 'Phone number required' });
@@ -5178,7 +5105,7 @@ app.post('/api/wa/pair-code', authenticate, requireRole(['owner', 'admin']), asy
   }
 });
 
-app.post('/api/wa/disconnect', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
+app.post('/api/wa/disconnect', authenticate, requireConversationAccess, requireRole(['owner', 'admin']), async (req, res) => {
   const orgId = req.organizationId;
   const inst = baileysManager.getInstance(orgId);
   await inst.disconnect();
