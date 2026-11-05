@@ -51,12 +51,22 @@
 
 [[redirects]]
   from = "/admin/*"
-  to = "/admin.html"
+  to = "/catalog-admin.html"
   status = 200
 
 [[redirects]]
   from = "/admin"
-  to = "/admin.html"
+  to = "/catalog-admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/superadmin/*"
+  to = "/catalog-admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/superadmin"
+  to = "/catalog-admin.html"
   status = 200
 
 # API requests proxy to backend service

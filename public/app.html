@@ -2039,6 +2039,7 @@
     let currentOrg = null;
     let currentUser = null;
     let catalogCanManage = false;
+    let canAccessCatalogAdmin = false;
     let activeConversationId = null;
     let leadsSearchDebounceTimer = null;
 
@@ -2486,6 +2487,7 @@
       currentOrg = data.organization;
       currentUser = { ...data.user, role: data.role };
       catalogCanManage = data.permissions?.canManageCatalog === true;
+      canAccessCatalogAdmin = data.permissions?.canAccessCatalogAdmin === true;
       localStorage.setItem('mf_token', currentAuthToken);
       localStorage.setItem('mf_auth_token', currentAuthToken);
       closeAuthModal();
@@ -2922,24 +2924,27 @@
       currentOrg = null;
       currentUser = null;
       catalogCanManage = false;
+      canAccessCatalogAdmin = false;
       currentAuthToken = '';
       updateAuthUI();
       renderEmptyDashboardState();
     }
 
     function checkAdminParam() {
-      const userEmail = (currentUser?.email || '').trim().toLowerCase();
-      const isPlatformAdmin = currentUser?.role === 'superadmin' || 
-                              userEmail === 'tanmayithakur267@gmail.com' || 
-                              userEmail === 'tanmayithakur26@gmail.com';
-      const isAgencyAdminOrManager = isPlatformAdmin || currentUser?.role === 'admin' || catalogCanManage;
+      const isPlatformAdmin = currentUser?.role === 'superadmin';
+      const isAgencyAdminOrManager = isPlatformAdmin || canAccessCatalogAdmin;
       const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role) || isPlatformAdmin;
       const setHidden = (id, hidden) => document.getElementById(id)?.classList.toggle('hidden', hidden);
-      setHidden('nav-engineer', !isPlatformAdmin);
+      setHidden('nav-engineer', true);
       setHidden('nav-superadmin', !isAgencyAdminOrManager);
       setHidden('headerSuperAdminBtn', !isAgencyAdminOrManager);
 
       const adminLabel = isPlatformAdmin ? 'Super Admin' : 'Admin Portal';
+      const destination = isPlatformAdmin ? '/superadmin' : '/admin';
+      const portalLink = document.getElementById('nav-superadmin');
+      if (portalLink) portalLink.setAttribute('href', destination);
+      const headerPortal = document.getElementById('headerSuperAdminBtn');
+      if (headerPortal) headerPortal.setAttribute('href', destination);
       const headerBtn = document.getElementById('headerSuperAdminBtn');
       if (headerBtn) {
         const textSpan = headerBtn.querySelector('span:last-child');
@@ -2955,7 +2960,7 @@
       if (isAgencyAdminOrManager && typeof loadDashClientWorkspaces === 'function') {
         loadDashClientWorkspaces();
       }
-      setHidden('cardEngineerSettings', !isPlatformAdmin);
+      setHidden('cardEngineerSettings', true);
       setHidden('dashOnboardingCard', !isAdmin);
       setHidden('dashExecutiveBanner', isAdmin);
       setHidden('btnSimLead', !isAdmin);
@@ -3061,6 +3066,7 @@
             currentUser = { ...data.user, role: data.role };
             currentOrg = data.organization;
             catalogCanManage = data.permissions?.canManageCatalog === true;
+            canAccessCatalogAdmin = data.permissions?.canAccessCatalogAdmin === true;
             updateAuthUI();
             return;
           }

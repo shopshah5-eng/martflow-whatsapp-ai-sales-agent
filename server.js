@@ -5181,8 +5181,8 @@ app.get(['/login', '/signup', '/forgot-password'], (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.get(['/admin', '/admin/*'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+app.get(['/admin', '/admin/*', '/superadmin', '/superadmin/*'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'catalog-admin.html'));
 });
 
 // SPA Wildcard Route Fallback: serves public/index.html for client routes (Home, Features, Pricing, About, etc.)

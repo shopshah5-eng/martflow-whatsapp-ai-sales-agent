@@ -283,8 +283,8 @@ test('workspace content is hidden until authentication is verified', async () =>
   dom.window.close();
 });
 
-test('workspace ignores forged admin query parameters and uses the verified role', async () => {
-  for (const [role, expectedHidden] of [['owner', true], ['superadmin', false]]) {
+test('engineer navigation stays hidden regardless of role or forged query parameters', async () => {
+  for (const [role, expectedHidden] of [['owner', true], ['superadmin', true]]) {
     const { dom } = openPage('app', { path: '/app?admin=1', token: 'synthetic', apiRole: role });
     await wait(120);
     assert.equal(dom.window.document.getElementById('nav-engineer').classList.contains('hidden'), expectedHidden);

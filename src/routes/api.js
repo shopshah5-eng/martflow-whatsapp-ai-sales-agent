@@ -22,10 +22,12 @@ import { baileysManager } from '../integrations/whatsapp/baileysManager.js';
 import { LearningService } from '../services/learningService.js';
 import { ConversationMemoryService } from '../services/conversationMemoryService.js';
 import { FollowUpService } from '../services/followUpService.js';
+import catalogAdminRouter from './catalogAdmin.js';
 import db from '../db/index.js';
 import { repository, DatabaseUnavailableError } from '../db/repository.js';
 
 const router = express.Router();
+router.use(catalogAdminRouter);
 
 // ==========================================
 // 1. PUBLIC AUTHENTICATION ENDPOINTS
@@ -278,13 +280,22 @@ router.get('/auth/me', authenticate, async (req, res) => {
     const profile = await repository.getProfileById(req.userId);
     // Missing grants/migration must never grant editing access or block sign-in.
     let catalogManager = false;
-    try { catalogManager = await canManageCatalog(req); } catch (_) {}
+    let catalogAdmin = req.role === 'superadmin';
+    let catalogPermissionsUnknown = false;
+    try { catalogManager = await canManageCatalog({ ...req, query: {}, body: {} }); } catch (_) { catalogPermissionsUnknown = true; }
+    if (!catalogAdmin) {
+      try {
+        const sb = repository.getSupabase();
+        if (sb) { const { data, error } = await sb.from('catalog_admin_accounts').select('user_id').eq('user_id', req.userId).maybeSingle(); if (!error && data) catalogAdmin = true; }
+        else catalogAdmin = Boolean(db.findOne('catalog_admin_accounts', a => a.user_id === req.userId));
+      } catch (_) {}
+    }
     res.json({
       ok: true,
       user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name || profile.fullName, phone: profile.phone } : null,
-      organization: sanitizeOrganization(req.organization, req.role, { canManageCatalog: catalogManager }),
+      organization: sanitizeOrganization(req.organization, req.role, { canManageCatalog: catalogManager || catalogPermissionsUnknown }),
       role: req.role,
-      permissions: { canManageCatalog: catalogManager }
+      permissions: { canManageCatalog: catalogManager, canAccessCatalogAdmin: catalogAdmin }
     });
   } catch (error) {
     res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to verify your account right now.' });
@@ -978,6 +989,12 @@ router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin
       }
     }
 
+    // Legacy writes are not transactionally quota-safe. Retire them in the
+    // authoritative store; the reviewed workflow uses locking RPCs instead.
+    // Local legacy fixtures remain supported only for non-workflow accounts.
+    if (sb || db.findOne('catalog_admin_accounts', a => a.user_id === userId)) {
+      return res.status(410).json({ ok: false, error: 'Use the catalogue admin approval workflow to change assignments.' });
+    }
     const targetOrg = await repository.getOrganizationById(orgId);
     if (!targetOrg) {
       return res.status(404).json({ ok: false, error: `Workspace ${orgId} not found.` });
@@ -1074,7 +1091,7 @@ router.get('/admin/clients', authenticate, async (req, res) => {
     }
 
     // Load quota details for current user or queried admin
-    const targetAdminUserId = req.query?.admin_id || req.userId;
+    const targetAdminUserId = req.role === 'superadmin' ? (req.query?.admin_id || req.userId) : req.userId;
     const quotaRec = db.findOne('admin_quotas', q => q.user_id === targetAdminUserId);
     const adminQuota = quotaRec?.max_accounts || 5;
 
@@ -1261,7 +1278,7 @@ router.patch('/catalog/knowledge', authenticate, requireCatalogManager, async (r
     }
     const organization = await repository.updateOrganizationScoped(targetOrgId, updates);
     if (!organization) return res.status(404).json({ ok: false, error: 'Workspace not found.' });
-    invalidateCache(req.organizationId);
+    invalidateCache(targetOrgId);
     res.json({ ok: true });
   } catch (error) { res.status(error.statusCode || 503).json({ ok: false, error: 'Unable to update catalogue setup.' }); }
 });
@@ -1529,8 +1546,7 @@ router.get('/analytics', authenticate, async (req, res) => {
 // ==========================================
 router.get('/settings', authenticate, async (req, res) => {
   try {
-    let catalogManager = false;
-    try { catalogManager = await canManageCatalog(req); } catch (_) {}
+    const catalogManager = await canManageCatalog({ ...req, query: {}, body: {} });
     const org = await repository.getOrganizationById(req.organizationId) || req.organization || {};
     let settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
     if (catalogManager && req.role !== 'owner' && req.role !== 'superadmin') {
@@ -1549,8 +1565,7 @@ router.get('/settings', authenticate, async (req, res) => {
 
 router.post('/settings', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
-    let catalogManager = false;
-    try { catalogManager = await canManageCatalog(req); } catch (_) {}
+    const catalogManager = await canManageCatalog({ ...req, query: {}, body: {} });
     if (catalogManager && req.role !== 'owner' && req.role !== 'superadmin') {
       return res.status(403).json({ ok: false, error: 'Catalogue managers cannot modify workspace settings or alert numbers.' });
     }
@@ -1583,8 +1598,7 @@ router.post('/settings', authenticate, requireRole(['owner', 'admin']), async (r
 
 router.post('/settings/whatsapp', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
-    let catalogManager = false;
-    try { catalogManager = await canManageCatalog(req); } catch (_) {}
+    const catalogManager = await canManageCatalog({ ...req, query: {}, body: {} });
     if (catalogManager && req.role !== 'owner' && req.role !== 'superadmin') {
       return res.status(403).json({ ok: false, error: 'Catalogue managers cannot configure WhatsApp connection settings.' });
     }
