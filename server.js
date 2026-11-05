@@ -44,7 +44,7 @@ import {
 import db from './src/db/index.js';
 import { repository } from './src/db/repository.js';
 import { AIService, buildAdaptiveWelcomeMessage, getIndustryPlaybook, invalidateCache } from './src/services/aiService.js';
-import { HIGH_INTENT_REGEX, scorePurchaseIntent, describeInboundContent } from './src/services/intentService.js';
+import { leadAlertQualifier } from './src/services/leadAlertQualification.js';
 import takeoverService, {
   DEFAULT_MANUAL_MODE_MS,
   DEFAULT_HOT_COOLDOWN_MS,
@@ -466,11 +466,11 @@ function resolvePhoneFromJid(orgId, remoteJid, altJid) {
 
 // Unified Owner Alert Dispatcher with 131047 catch & dry-run support
 async function sendOwnerAlert(activeSock, ownerPhone, text) {
-  if (!ownerPhone || !text) return;
+  if (!ownerPhone || !text) return false;
 
   if (process.env.ALERTS_DRY_RUN === 'true') {
-    addLog(`[ALERTS_DRY_RUN] (Not sent to WhatsApp) Alert to ${maskPhone(ownerPhone)}:\n${text}`);
-    return;
+    addLog(`[ALERTS_DRY_RUN] Owner alert not sent to ${maskPhone(ownerPhone)}.`);
+    return false;
   }
 
   try {
@@ -478,8 +478,10 @@ async function sendOwnerAlert(activeSock, ownerPhone, text) {
     const sent = await activeSock.sendMessage(ownerJid, { text });
     if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
     addLog(`[Owner Alert] Successfully dispatched to ${maskPhone(ownerPhone)}`);
+    return true;
   } catch (err) {
     addLog(`[Owner Alert Error] Failed to send alert to ${maskPhone(ownerPhone)}: ${err.message}`);
+    return false;
   }
 }
 
@@ -491,7 +493,6 @@ const ownerPendingConfirmations = new Map(); // orgId -> { type, data, actions, 
 const ownerUndoSnapshots = new Map();        // orgId -> { action, data, rollbacks }
 const conversationSentPhotos = new Map();    // `${orgId}:${senderPhone}` -> Set<productNameOrId>
 const conversationSentBuyLinks = new Map();  // `${orgId}:${senderPhone}` -> Set<productKeyOrUrl>
-const orderAlertSentSet = new Set();         // `${orgId}:${senderPhone}:order_intent`
 
 
 
@@ -554,6 +555,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
     content?.documentMessage?.caption ||
     '';
 
+  // Keep generated media prompts out of buyer qualification.
+  const buyerWrittenText = incomingText;
   const isAudio = Boolean(content?.audioMessage);
   const isImage = Boolean(content?.imageMessage);
   const isVideo = Boolean(content?.videoMessage);
@@ -1871,7 +1874,6 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   const task = async () => {
     try {
       let sbConvId = null;
-      let isBrandNewLead = false;
       let sLead = null;
 
       if (supabaseAdmin) {
@@ -1899,7 +1901,6 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
             return;
           }
 
-          isBrandNewLead = Boolean(res.out_is_new ?? res.is_new);
           sLead = {
             id: leadId,
             buyer_name: pushName,
@@ -1984,61 +1985,26 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
         }
       }
 
-    // Clean, Non-Spammy Private Owner Alerts (Zero Customer Visibility):
-    if (ownerTarget && ownerTarget !== senderPhone) {
-      const incomingDesc = describeInboundContent(content, incomingText);
-      const intentResult = scorePurchaseIntent(incomingText || incomingDesc.text);
-      const isUnresolved = !senderPhone || senderPhone.length < 10;
-      const cleanBuyerPhone = isUnresolved ? rawRemote : senderPhone;
-      const phoneDisplay = isUnresolved ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
-      const actionLinks = isUnresolved
-        ? `💬 *Chat:* ${rawRemote}`
-        : `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n📞 *Call:* tel:+${senderPhone}`;
-
-      const canAlertNew = isBrandNewLead && await shouldSendAlert({
-        orgId,
-        buyerPhone: cleanBuyerPhone,
-        kind: 'new_lead',
-        supabaseAdmin
-      });
-
-      const canAlertHot = (intentResult.isHot || isAudio) && await shouldSendAlert({
-        orgId,
-        buyerPhone: cleanBuyerPhone,
-        kind: 'hot_lead',
-        cooldownMs: DEFAULT_HOT_COOLDOWN_MS,
-        supabaseAdmin
-      });
-
-      // 1. New Lead Alert Card
-      if (canAlertNew) {
-        const newLeadCard = `🔔 *Leadsy AI — New Inbound Lead*\n` +
-          `👤 *Customer:* ${pushName}\n` +
-          `📱 *Phone:* ${phoneDisplay}\n` +
-          `📍 *City:* ${freshOrg.city_base || 'Direct Inquiry'}\n` +
-          `💬 *Message:* "${incomingDesc.text.slice(0, 300)}"\n\n` +
-          actionLinks;
-
-        await sendOwnerAlert(activeSock, ownerTarget, newLeadCard);
-        await recordAlertSent({ orgId, buyerPhone: cleanBuyerPhone, kind: 'new_lead', supabaseAdmin });
-      }
-
-      // 2. Hot Lead Priority Alert Card (Fires EVEN IF it is the first message — delivers BOTH cards!)
-      if (canAlertHot) {
-        const keywordsStr = intentResult.matchedKeywords.length > 0
-          ? intentResult.matchedKeywords.join(', ')
-          : (isAudio ? 'voice_note' : 'high_intent');
-
-        const hotLeadCard = `🔥 *Leadsy AI — Hot Lead Alert!* (Score: ${intentResult.score})\n` +
-          `👤 *Customer:* ${pushName}\n` +
-          `📱 *Phone:* ${phoneDisplay}\n` +
-          `🎯 *Keywords:* ${keywordsStr}\n` +
-          `💬 *Inquiry:* "${incomingDesc.text.slice(0, 300)}"\n\n` +
-          actionLinks + `\n\n` +
-          `✋ *To take over:* Send \`TAKE ${!isUnresolved ? senderPhone.slice(-10) : ''}\``;
-
-        await sendOwnerAlert(activeSock, ownerTarget, hotLeadCard);
-        await recordAlertSent({ orgId, buyerPhone: cleanBuyerPhone, kind: 'hot_lead', supabaseAdmin });
+    // A greeting, lone price question, or unknown voice note is not enough
+    // to notify the owner. Continue the normal conversation and retain leads.
+    // Explicit requests for a human have their own cooldown and take priority.
+    if (!msg.key.fromMe && !isFromOwner && ownerTarget && ownerTarget !== senderPhone && freshOrg.wa_owner_alerts !== false && senderPhone) {
+      const qualified = leadAlertQualifier.evaluate({ orgId, phone: senderPhone, text: buyerWrittenText });
+      if (qualified.shouldAlert) {
+        const kind = qualified.reason === 'human_request' ? 'human_request' : 'hot_lead';
+        const allowed = await shouldSendAlert({ orgId, buyerPhone: senderPhone, kind, cooldownMs: DEFAULT_HOT_COOLDOWN_MS, supabaseAdmin });
+        if (allowed) {
+          const title = kind === 'human_request' ? 'Human assistance requested' :
+            qualified.reason === 'purchase_intent' ? 'Purchase or booking interest' : 'Buyer interest with details';
+          const text = `🔔 *Leadsy — ${title}*\n` +
+            `👤 *Customer:* ${pushName}\n` +
+            `📱 *Phone:* +${senderPhone}\n` +
+            `💬 *Latest message:* "${buyerWrittenText.slice(0, 300)}"\n\n` +
+            `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n` +
+            `✋ *To take over:* Send \`TAKE ${senderPhone}\``;
+          const sent = await sendOwnerAlert(activeSock, ownerTarget, text);
+          if (sent) await recordAlertSent({ orgId, buyerPhone: senderPhone, kind, supabaseAdmin });
+        }
       }
     }
 
@@ -2226,91 +2192,8 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
       }
     }
 
-    // Order Intent Alert to Owner (item, size, quantity, customer name, city)
-    const orderIntentRegex = /\b(order\s*karna|confirm\s*order|mera\s*order|book\s*karna|final\s*karo|pack\s*karo|bhej\s*dijiye|bhej\s*do|deliver\s*to|deliver\s*karo|gpay|phonepe|bank\s*details|account\s*number|dispatch\s*karo)\b/i;
-    const hasOrderIntent = orderIntentRegex.test(incomingText) || (/\b(quantity|qty|sets|pieces|pcs|size)\b/i.test(incomingText) && /\b(chahiye|order|book|send|deliver)\b/i.test(incomingText));
-    if (hasOrderIntent && ownerTarget && ownerTarget !== senderPhone) {
-      const orderKey = `${orgId}:${senderPhone}:order_intent`;
-      if (!orderAlertSentSet.has(orderKey)) {
-        orderAlertSentSet.add(orderKey);
-        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
-        const orderCard = `🛒 *New Order Intent Alert!*\n\n` +
-          `👤 *Customer:* ${pushName}\n` +
-          `📱 *Phone:* ${phoneDisplay}\n` +
-          `💬 *Order Details:* "${incomingText}"\n` +
-          `📍 *Location:* ${freshOrg?.city_base || 'Check with customer'}\n\n` +
-          `⚡ *WhatsApp Customer:* https://wa.me/${senderPhone}\n` +
-          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
-        await sendOwnerAlert(activeSock, ownerTarget, orderCard);
-        addLog(`[Order Intent] Sent order summary alert to owner (${maskPhone(ownerTarget)}) for +${senderPhone}`);
-      }
-    }
-
-    // Out of Stock or Custom Pricing Inquiry Alert to Owner
-    const orgProducts = aiReplyObj?.products || [];
-    const isOutOrCustomRate = Boolean(
-      (aiReplyObj?.reply && /(out of stock|currently unavailable|rate depends on design|owner will confirm|khatam|available nahi)/i.test(aiReplyObj.reply)) ||
-      (orgProducts.some(p => (p.description || '').startsWith('[OUT OF STOCK]') && (incomingText || '').toLowerCase().includes((p.name || '').toLowerCase())))
-    );
-    if (isOutOrCustomRate && ownerTarget && ownerTarget !== senderPhone) {
-      const stockAlertKey = `${orgId}:${senderPhone}:stock_inquiry`;
-      if (!orderAlertSentSet.has(stockAlertKey)) {
-        orderAlertSentSet.add(stockAlertKey);
-        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
-        const alertCard = `⚠️ *Stock / Custom Pricing Alert*\n\n` +
-          `👤 *Customer:* ${pushName}\n` +
-          `📱 *Phone:* ${phoneDisplay}\n` +
-          `💬 *Inquired:* "${incomingText}"\n\n` +
-          `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n` +
-          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
-        await sendOwnerAlert(activeSock, ownerTarget, alertCard);
-      }
-    }
-
-    // Negotiation / Discount Push Alert to Owner
-    const isDiscountInquiry = /(discount|kam\s*karo|kam\s*hoga|kam\s*rate|kam\s*price|kam\s*kijiye|sasta|cheaper|best\s*rate|best\s*price|concession|bargain|gunjaish|thoda\s*kam)/i.test(incomingText);
-    const mentionsOwnerConfirm = Boolean(aiReplyObj?.reply && /(owner will confirm|team will confirm|malik se|confirm kar ke|senior se)/i.test(aiReplyObj.reply));
-    if ((isDiscountInquiry || mentionsOwnerConfirm) && ownerTarget && ownerTarget !== senderPhone) {
-      const discAlertKey = `${orgId}:${senderPhone}:discount_push`;
-      if (!orderAlertSentSet.has(discAlertKey)) {
-        orderAlertSentSet.add(discAlertKey);
-        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
-        const discCard = `💰 *Discount / Negotiation Alert*\n\n` +
-          `👤 *Customer:* ${pushName}\n` +
-          `📱 *Phone:* ${phoneDisplay}\n` +
-          `💬 *Buyer Asked:* "${incomingText}"\n` +
-          `🤖 *Bot Replied:* "${aiReplyObj?.reply || 'Owner will confirm.'}"\n\n` +
-          `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n` +
-          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
-        await sendOwnerAlert(activeSock, ownerTarget, discCard);
-        addLog(`[Negotiation Alert] Sent discount request alert to owner (${maskPhone(ownerTarget)}) for +${senderPhone}`);
-      }
-    }
-
-    // Wire aiResult.isCallRequest into hot alert priority path
-    if (aiReplyObj?.isCallRequest && ownerTarget && ownerTarget !== senderPhone) {
-      const canAlertCall = await shouldSendAlert({
-        orgId,
-        buyerPhone: senderPhone,
-        kind: 'hot_lead',
-        cooldownMs: DEFAULT_HOT_COOLDOWN_MS,
-        supabaseAdmin
-      });
-      if (canAlertCall) {
-        const phoneDisplay = !senderPhone || senderPhone.length < 10 ? `⚠️ unresolved number (${rawRemote})` : `+${senderPhone}`;
-        const actionLinks = !senderPhone || senderPhone.length < 10
-          ? `💬 *Chat:* ${rawRemote}`
-          : `⚡ *WhatsApp:* https://wa.me/${senderPhone}\n📞 *Call:* tel:+${senderPhone}`;
-        const callCard = `🔥 *Leadsy AI — Call / Meeting Requested*\n` +
-          `👤 *Customer:* ${pushName}\n` +
-          `📱 *Phone:* ${phoneDisplay}\n` +
-          `💬 *Intent:* Buyer requested direct phone discussion with technical director / owner.\n\n` +
-          actionLinks + `\n\n` +
-          `✋ *To take over:* Send \`TAKE ${senderPhone ? senderPhone.slice(-10) : ''}\``;
-        await sendOwnerAlert(activeSock, ownerTarget, callCard);
-        await recordAlertSent({ orgId, buyerPhone: senderPhone, kind: 'hot_lead', supabaseAdmin });
-      }
-    }
+    // Owner notifications are handled once above using buyer-written text;
+    // AI-generated phrases must not create additional or unqualified alerts.
 
     // Exactly 1 product photo per turn
     if (aiReplyObj.matchedImageUrl || aiReplyObj.matchedImagePath) {

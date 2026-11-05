@@ -269,7 +269,7 @@ export async function shouldSendAlert({ orgId, buyerPhone, kind, cooldownMs = DE
     if (kind === 'new_lead') {
       return false; // At most ONE new_lead alert ever
     }
-    if (kind === 'hot_lead' && (now - lastSent) < cooldownMs) {
+    if (kind !== 'new_lead' && (now - lastSent) < cooldownMs) {
       return false; // Still within 30-min cooldown
     }
   }
@@ -280,7 +280,7 @@ export async function shouldSendAlert({ orgId, buyerPhone, kind, cooldownMs = DE
       const { data } = await supabaseAdmin.from('alert_dedup')
         .select('last_sent_at')
         .eq('org_id', orgId)
-        .ilike('buyer_phone', `%${cleanPhone.slice(-10)}`)
+        .eq('buyer_phone', cleanPhone)
         .eq('kind', kind)
         .maybeSingle();
 
@@ -291,7 +291,7 @@ export async function shouldSendAlert({ orgId, buyerPhone, kind, cooldownMs = DE
         if (kind === 'new_lead') {
           return false;
         }
-        if (kind === 'hot_lead' && (now - lastSentMs) < cooldownMs) {
+        if (kind !== 'new_lead' && (now - lastSentMs) < cooldownMs) {
           return false;
         }
       }
