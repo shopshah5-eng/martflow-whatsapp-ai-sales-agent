@@ -227,9 +227,10 @@ router.get('/ready', async (req, res) => {
   });
 });
 
-export function sanitizeOrganization(org, role = 'member') {
+export function sanitizeOrganization(org, role = 'member', options = {}) {
   if (!org) return null;
-  const isPrivileged = role === 'owner' || role === 'admin' || role === 'superadmin';
+  const isCatalogOnly = Boolean(options.isCatalogOnly || (options.canManageCatalog && role !== 'owner' && role !== 'superadmin'));
+  const isOwnerOrAdmin = (role === 'owner' || role === 'admin' || role === 'superadmin') && !isCatalogOnly;
   const sanitized = {
     id: org.id,
     name: org.name,
@@ -243,15 +244,10 @@ export function sanitizeOrganization(org, role = 'member') {
     trial_lead_limit: org.trial_lead_limit || org.monthly_lead_limit || 25,
     custom_quote_inr: org.custom_quote_inr,
     company_city: org.company_city,
-    escalation_phone: org.escalation_phone,
     business_type: org.business_type,
     website_url: org.website_url,
     website_knowledge: org.website_knowledge,
     website_synced_at: org.website_synced_at,
-    wa_status: org.wa_status,
-    wa_connected_number: org.wa_connected_number,
-    bot_whatsapp_number: org.bot_whatsapp_number,
-    owner_alert_number: org.owner_alert_number,
     wa_auto_reply: org.wa_auto_reply !== false,
     auto_reply_enabled: org.auto_reply_enabled !== false,
     wa_auto_pdf: org.wa_auto_pdf !== false,
@@ -262,7 +258,12 @@ export function sanitizeOrganization(org, role = 'member') {
     created_at: org.created_at,
     updated_at: org.updated_at
   };
-  if (isPrivileged) {
+  if (isOwnerOrAdmin) {
+    sanitized.escalation_phone = org.escalation_phone;
+    sanitized.owner_alert_number = org.owner_alert_number;
+    sanitized.wa_status = org.wa_status;
+    sanitized.wa_connected_number = org.wa_connected_number;
+    sanitized.bot_whatsapp_number = org.bot_whatsapp_number;
     sanitized.wa_qr_data_url = org.wa_qr_data_url || null;
     sanitized.wa_pairing_code = org.wa_pairing_code || null;
     if (org.webhook_key) sanitized.webhook_key = org.webhook_key;
@@ -281,7 +282,7 @@ router.get('/auth/me', authenticate, async (req, res) => {
     res.json({
       ok: true,
       user: profile ? { id: profile.id, email: profile.email, fullName: profile.full_name || profile.fullName, phone: profile.phone } : null,
-      organization: sanitizeOrganization(req.organization, req.role),
+      organization: sanitizeOrganization(req.organization, req.role, { canManageCatalog: catalogManager }),
       role: req.role,
       permissions: { canManageCatalog: catalogManager }
     });
@@ -882,9 +883,39 @@ router.post('/whatsapp/disconnect', authenticate, requireConversationAccess, req
 // ==========================================
 // 5. PRODUCT CATALOG ENDPOINTS (TENANT SCOPED)
 // ==========================================
+// Helper to resolve and authorize target catalog organization for superadmins or granted catalogue managers
+export async function resolveTargetCatalogOrgId(req, requestedOrgId) {
+  if (!requestedOrgId || requestedOrgId === req.organizationId) {
+    return req.organizationId;
+  }
+  if (req.role === 'superadmin') {
+    return requestedOrgId;
+  }
+  if (!req.userId) return null;
+  const sb = repository.getSupabase();
+  if (sb) {
+    const { data } = await sb.from('catalog_management_grants')
+      .select('user_id')
+      .eq('org_id', requestedOrgId)
+      .eq('user_id', req.userId)
+      .maybeSingle();
+    return data ? requestedOrgId : null;
+  }
+  const grant = db.findOne('catalog_management_grants', g =>
+    (g.organization_id === requestedOrgId || g.org_id === requestedOrgId) && g.user_id === req.userId
+  );
+  return grant ? requestedOrgId : null;
+}
 router.get('/catalog/products', authenticate, async (req, res) => {
   try {
-    const targetOrg = (req.role === 'superadmin' && req.query?.org_id) ? req.query.org_id : req.organizationId;
+    let targetOrg = req.organizationId;
+    if (req.query?.org_id && req.query.org_id !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, req.query.org_id);
+      if (!allowed) {
+        return res.status(403).json({ ok: false, error: 'Unauthorized to view this client catalogue.' });
+      }
+      targetOrg = allowed;
+    }
     const sb = repository.getSupabase();
     if (sb) {
       let query = sb.from('products').select('*').eq('org_id', targetOrg).neq('is_active', false);
@@ -899,7 +930,7 @@ router.get('/catalog/products', authenticate, async (req, res) => {
     if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
       throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
     }
-    const products = CatalogService.listProducts(req.organizationId, req.query);
+    const products = CatalogService.listProducts(targetOrg, req.query);
     res.json({ ok: true, products });
   } catch (err) {
     res.status(err.statusCode || 500).json({ ok: false, error: err.message });
@@ -930,7 +961,7 @@ router.post('/catalog/upload', authenticate, requireCatalogManager, async (req, 
 // The grant is limited to a workspace of which that user is already a member.
 router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin']), async (req, res) => {
   try {
-    let { orgId, userId, allow } = req.body || {};
+    let { orgId, userId, allow, quota } = req.body || {};
     if (typeof orgId !== 'string' || !orgId || typeof userId !== 'string' || !userId || typeof allow !== 'boolean') {
       return res.status(400).json({ ok: false, error: 'orgId, userId and boolean allow are required.' });
     }
@@ -956,6 +987,40 @@ router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin
       return res.status(400).json({ ok: false, error: 'The user must already be a member of this workspace.' });
     }
 
+    // Admin Quota: Minimum 3, Maximum 20 (defaults to 5)
+    let assignedQuota = 5;
+    if (quota !== undefined && quota !== null && !isNaN(Number(quota))) {
+      assignedQuota = Math.max(3, Math.min(20, Math.floor(Number(quota))));
+      const existingQuotaRecord = db.findOne('admin_quotas', q => q.user_id === userId);
+      if (existingQuotaRecord) {
+        db.update('admin_quotas', existingQuotaRecord.id, { max_accounts: assignedQuota });
+      } else {
+        db.insert('admin_quotas', { user_id: userId, max_accounts: assignedQuota });
+      }
+    } else {
+      const existingQuotaRecord = db.findOne('admin_quotas', q => q.user_id === userId);
+      if (existingQuotaRecord && existingQuotaRecord.max_accounts) {
+        assignedQuota = Math.max(3, Math.min(20, existingQuotaRecord.max_accounts));
+      }
+    }
+
+    if (allow) {
+      let currentGrants = [];
+      if (sb) {
+        const { data: gList } = await sb.from('catalog_management_grants').select('org_id').eq('user_id', userId);
+        currentGrants = (gList || []).map(g => g.org_id);
+      } else {
+        currentGrants = db.find('catalog_management_grants', g => g.user_id === userId).map(g => g.org_id || g.organization_id);
+      }
+      const isAlreadyGranted = currentGrants.includes(orgId);
+      if (!isAlreadyGranted && currentGrants.length >= assignedQuota) {
+        return res.status(400).json({
+          ok: false,
+          error: `Admin quota limit reached: this admin currently manages ${currentGrants.length} of ${assignedQuota} allowed accounts (Quota range: 3 to 20). Super Admin can increase the quota (up to 20).`
+        });
+      }
+    }
+
     if (sb) {
       const query = allow
         ? sb.from('catalog_management_grants').upsert({ org_id: orgId, user_id: userId, granted_by: req.userId }, { onConflict: 'org_id,user_id' })
@@ -970,32 +1035,18 @@ router.post('/admin/catalog-permissions', authenticate, requireRole(['superadmin
       if (allow && !existing) db.insert('catalog_management_grants', { organization_id: orgId, user_id: userId, granted_by: req.userId });
       if (!allow && existing) db.delete('catalog_management_grants', existing.id);
     }
-    res.json({ ok: true, orgId, userId, canManageCatalog: allow });
+    res.json({ ok: true, orgId, userId, canManageCatalog: allow, quota: assignedQuota });
   } catch (error) {
     console.error('[Admin Catalog Permissions Exception]:', error);
     res.status(error.statusCode || 500).json({ ok: false, error: error.message || 'Unable to change catalogue access.' });
   }
 });
 
-// Authorized Client List for Admins / Catalogue Managers
 router.get('/admin/clients', authenticate, async (req, res) => {
   try {
     const sb = repository.getSupabase();
     // Helper to reliably fetch organizations and their profiles without PostgREST relationship ambiguity errors
     async function fetchOrganizationsWithProfiles(sb, orgIds = null) {
-      // 1. Try explicit foreign key embedding first
-      try {
-        let q = sb.from('organizations')
-          .select('id, name, city_base, company_city, plan_status, created_at, profiles!profiles_org_id_fkey(id, email, full_name, role)')
-          .order('name');
-        if (Array.isArray(orgIds)) q = q.in('id', orgIds);
-        const { data: orgs, error } = await q;
-        if (!error && Array.isArray(orgs)) return orgs;
-      } catch (e) {
-        // Fallback to separate queries
-      }
-
-      // 2. Safe Fallback: Query organizations and profiles separately (avoids PGRST201 embedding conflicts)
       let orgsQuery = sb.from('organizations')
         .select('id, name, city_base, company_city, plan_status, created_at')
         .order('name');
@@ -1005,9 +1056,10 @@ router.get('/admin/clients', authenticate, async (req, res) => {
       if (!orgs || orgs.length === 0) return [];
 
       const foundOrgIds = orgs.map(o => o.id);
-      const { data: profiles } = await sb.from('profiles')
+      const { data: profiles, error: profErr } = await sb.from('profiles')
         .select('id, email, full_name, role, org_id')
         .in('org_id', foundOrgIds);
+      if (profErr) throw new DatabaseUnavailableError(profErr.message);
 
       const profileMap = new Map();
       for (const p of (profiles || [])) {
@@ -1021,7 +1073,21 @@ router.get('/admin/clients', authenticate, async (req, res) => {
       }));
     }
 
+    // Load quota details for current user or queried admin
+    const targetAdminUserId = req.query?.admin_id || req.userId;
+    const quotaRec = db.findOne('admin_quotas', q => q.user_id === targetAdminUserId);
+    const adminQuota = quotaRec?.max_accounts || 5;
+
     if (req.role === 'superadmin') {
+      let allGrants = [];
+      if (sb) {
+        const { data: gData } = await sb.from('catalog_management_grants').select('org_id, user_id');
+        allGrants = gData || [];
+      } else {
+        allGrants = db.find('catalog_management_grants', () => true);
+      }
+      const grantedOrgSet = new Set(allGrants.filter(g => !targetAdminUserId || g.user_id === targetAdminUserId).map(g => g.org_id || g.organization_id));
+
       if (sb) {
         const orgs = await fetchOrganizationsWithProfiles(sb);
         const clients = (orgs || []).map(o => {
@@ -1036,16 +1102,31 @@ router.get('/admin/clients', authenticate, async (req, res) => {
             created_at: o.created_at,
             user_id: profile?.id || null,
             user_email: profile?.email || null,
-            user_name: profile?.full_name || null
+            user_name: profile?.full_name || null,
+            is_granted: grantedOrgSet.has(o.id)
           };
         });
-        return res.json({ ok: true, clients });
+        return res.json({ ok: true, clients, quota: { max_accounts: adminQuota, assigned_count: grantedOrgSet.size, min_accounts: 3, max_limit: 20 } });
       }
       const orgs = db.find('organizations', () => true);
-      return res.json({ ok: true, clients: orgs.map(o => ({ id: o.id, name: o.name, city_base: o.city_base, plan_status: o.plan_status })) });
+      const clients = orgs.map(o => {
+        const profile = db.findOne('profiles', p => p.org_id === o.id || p.organization_id === o.id);
+        return {
+          id: o.id,
+          name: o.name,
+          city_base: o.city_base || o.company_city || 'Unspecified',
+          plan_status: o.plan_status,
+          created_at: o.created_at,
+          user_id: profile?.id || null,
+          user_email: profile?.email || null,
+          user_name: profile?.full_name || null,
+          is_granted: grantedOrgSet.has(o.id)
+        };
+      });
+      return res.json({ ok: true, clients, quota: { max_accounts: adminQuota, assigned_count: grantedOrgSet.size, min_accounts: 3, max_limit: 20 } });
     }
 
-    // For agency admins / catalogue managers: return only assigned organizations
+    // For agency admins / catalogue managers: return assigned organizations
     let orgIds = [];
     if (sb) {
       const { data: grants, error } = await sb.from('catalog_management_grants')
@@ -1059,7 +1140,7 @@ router.get('/admin/clients', authenticate, async (req, res) => {
     }
 
     if (orgIds.length === 0) {
-      return res.json({ ok: true, clients: [] });
+      return res.json({ ok: true, clients: [], quota: { max_accounts: adminQuota, assigned_count: 0, min_accounts: 3, max_limit: 20 } });
     }
 
     if (sb) {
@@ -1076,14 +1157,31 @@ router.get('/admin/clients', authenticate, async (req, res) => {
           created_at: o.created_at,
           user_id: profile?.id || null,
           user_email: profile?.email || null,
-          user_name: profile?.full_name || null
+          user_name: profile?.full_name || null,
+          is_granted: true
         };
       });
-      return res.json({ ok: true, clients });
+      return res.json({ ok: true, clients, quota: { max_accounts: adminQuota, assigned_count: clients.length, min_accounts: 3, max_limit: 20 } });
     }
 
     const orgs = db.find('organizations', o => orgIds.includes(o.id));
-    return res.json({ ok: true, clients: orgs.map(o => ({ id: o.id, name: o.name, city_base: o.city_base, plan_status: o.plan_status })) });
+    return res.json({
+      ok: true,
+      clients: orgs.map(o => {
+        const profile = db.findOne('profiles', p => p.org_id === o.id || p.organization_id === o.id);
+        return {
+          id: o.id,
+          name: o.name,
+          city_base: o.city_base,
+          plan_status: o.plan_status,
+          user_id: profile?.id || null,
+          user_email: profile?.email || null,
+          user_name: profile?.full_name || null,
+          is_granted: true
+        };
+      }),
+      quota: { max_accounts: adminQuota, assigned_count: orgs.length, min_accounts: 3, max_limit: 20 }
+    });
   } catch (err) {
     res.status(err.statusCode || 500).json({ ok: false, error: err.message });
   }
@@ -1093,7 +1191,12 @@ router.get('/admin/clients', authenticate, async (req, res) => {
 router.post('/catalog/quick-add', authenticate, requireCatalogManager, async (req, res) => {
   try {
     const { name, priceRaw, model, specifications, sku, orgId } = req.body;
-    const targetOrgId = (req.role === 'superadmin' && orgId) ? orgId : req.organizationId;
+    let targetOrgId = req.organizationId;
+    if (orgId && orgId !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, orgId);
+      if (!allowed) return res.status(403).json({ ok: false, error: 'Unauthorized to manage this client catalogue.' });
+      targetOrgId = allowed;
+    }
     if (!name || !name.trim()) {
       return res.status(400).json({ ok: false, error: 'Product name is required.' });
     }
@@ -1110,7 +1213,7 @@ router.post('/catalog/quick-add', authenticate, requireCatalogManager, async (re
         is_active: true
       }).select().single();
       if (error) throw new DatabaseUnavailableError(error.message);
-      invalidateCache(req.organizationId);
+      invalidateCache(targetOrgId);
       return res.json({ ok: true, product: data });
     }
     if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
@@ -1119,7 +1222,7 @@ router.post('/catalog/quick-add', authenticate, requireCatalogManager, async (re
 
     const kw = name.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
     const product = db.insert('products', {
-      organization_id: req.organizationId,
+      organization_id: targetOrgId,
       name: name.trim(),
       sku: String(sku || `SKU-${crypto.randomBytes(4).toString('hex').toUpperCase()}`).slice(0, 200),
       category: 'Machinery Equipment',
@@ -1149,7 +1252,14 @@ router.patch('/catalog/knowledge', authenticate, requireCatalogManager, async (r
       updates.business_type = req.body.businessType;
     }
     if (!Object.keys(updates).length) return res.status(400).json({ ok: false, error: 'No catalogue setup changes supplied.' });
-    const organization = await repository.updateOrganizationScoped(req.organizationId, updates);
+    let targetOrgId = req.organizationId;
+    const requestedOrg = req.query?.org_id || req.body?.orgId;
+    if (requestedOrg && requestedOrg !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, requestedOrg);
+      if (!allowed) return res.status(403).json({ ok: false, error: 'Unauthorized to update catalogue setup for this client.' });
+      targetOrgId = allowed;
+    }
+    const organization = await repository.updateOrganizationScoped(targetOrgId, updates);
     if (!organization) return res.status(404).json({ ok: false, error: 'Workspace not found.' });
     invalidateCache(req.organizationId);
     res.json({ ok: true });
@@ -1158,9 +1268,13 @@ router.patch('/catalog/knowledge', authenticate, requireCatalogManager, async (r
 
 router.patch('/catalog/products/:id', authenticate, requireCatalogManager, async (req, res) => {
   try {
-    const targetOrgId = (req.role === 'superadmin' && (req.query?.org_id || req.body?.orgId))
-      ? (req.query?.org_id || req.body?.orgId)
-      : req.organizationId;
+    let targetOrgId = req.organizationId;
+    const requestedOrg = req.query?.org_id || req.body?.orgId;
+    if (requestedOrg && requestedOrg !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, requestedOrg);
+      if (!allowed) return res.status(403).json({ ok: false, error: 'Unauthorized to edit this client catalogue.' });
+      targetOrgId = allowed;
+    }
     const updates = {};
     for (const [key, max] of Object.entries({ name: 500, sku: 200, price_raw: 80, model_specs: 600 })) {
       if (Object.hasOwn(req.body || {}, key)) {
@@ -1187,9 +1301,13 @@ router.patch('/catalog/products/:id', authenticate, requireCatalogManager, async
 
 router.delete('/catalog/products/:id', authenticate, requireCatalogManager, async (req, res) => {
   try {
-    const targetOrgId = (req.role === 'superadmin' && (req.query?.org_id || req.body?.orgId))
-      ? (req.query?.org_id || req.body?.orgId)
-      : req.organizationId;
+    let targetOrgId = req.organizationId;
+    const requestedOrg = req.query?.org_id || req.body?.orgId;
+    if (requestedOrg && requestedOrg !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, requestedOrg);
+      if (!allowed) return res.status(403).json({ ok: false, error: 'Unauthorized to delete from this client catalogue.' });
+      targetOrgId = allowed;
+    }
     const sb = repository.getSupabase();
     if (sb) {
       const { data, error } = await sb
@@ -1220,9 +1338,11 @@ router.delete('/catalog/products/:id', authenticate, requireCatalogManager, asyn
 router.post('/catalog/sync', authenticate, requireCatalogManager, async (req, res) => {
   try {
     const { orgId, products, companyName, businessType, websiteKnowledge, catalogPdfName } = req.body || {};
-    const targetOrgId = req.role === 'superadmin' && orgId ? orgId : req.organizationId;
-    if (orgId && orgId !== targetOrgId && req.role !== 'superadmin') {
-      return res.status(403).json({ ok: false, error: 'Cannot modify another organization' });
+    let targetOrgId = req.organizationId;
+    if (orgId && orgId !== req.organizationId) {
+      const allowed = await resolveTargetCatalogOrgId(req, orgId);
+      if (!allowed) return res.status(403).json({ ok: false, error: 'Cannot modify another organization without authorization' });
+      targetOrgId = allowed;
     }
     if (products !== undefined && (!Array.isArray(products) || products.length > 10000 || products.some(p => !p || typeof p.name !== 'string' || !p.name.trim()))) {
       return res.status(400).json({ ok: false, error: 'Products must be an array of named products (maximum 10000).' });
@@ -1409,11 +1529,17 @@ router.get('/analytics', authenticate, async (req, res) => {
 // ==========================================
 router.get('/settings', authenticate, async (req, res) => {
   try {
+    let catalogManager = false;
+    try { catalogManager = await canManageCatalog(req); } catch (_) {}
     const org = await repository.getOrganizationById(req.organizationId) || req.organization || {};
-    const settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
+    let settings = await repository.getAiSettings(req.organizationId) || db.findOne('ai_settings', (s) => s.organization_id === req.organizationId) || {};
+    if (catalogManager && req.role !== 'owner' && req.role !== 'superadmin') {
+      const { escalation_phone, ...safeSettings } = settings;
+      settings = safeSettings;
+    }
     res.json({
       ok: true,
-      organization: sanitizeOrganization(org, req.role),
+      organization: sanitizeOrganization(org, req.role, { canManageCatalog: catalogManager }),
       settings
     });
   } catch (err) {
@@ -1423,6 +1549,11 @@ router.get('/settings', authenticate, async (req, res) => {
 
 router.post('/settings', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
+    let catalogManager = false;
+    try { catalogManager = await canManageCatalog(req); } catch (_) {}
+    if (catalogManager && req.role !== 'owner' && req.role !== 'superadmin') {
+      return res.status(403).json({ ok: false, error: 'Catalogue managers cannot modify workspace settings or alert numbers.' });
+    }
     const { companyName, cityBase, ownerAlertPhone, geminiApiKey } = req.body;
 
     if (companyName && companyName.trim()) {
@@ -1452,6 +1583,11 @@ router.post('/settings', authenticate, requireRole(['owner', 'admin']), async (r
 
 router.post('/settings/whatsapp', authenticate, requireRole(['owner', 'admin']), async (req, res) => {
   try {
+    let catalogManager = false;
+    try { catalogManager = await canManageCatalog(req); } catch (_) {}
+    if (catalogManager && req.role !== 'owner' && req.role !== 'superadmin') {
+      return res.status(403).json({ ok: false, error: 'Catalogue managers cannot configure WhatsApp connection settings.' });
+    }
     const { wabaId, phoneId, token } = req.body;
     const existing = db.findOne('integration_connections', (c) =>
       c.organization_id === req.organizationId && c.provider === 'whatsapp_cloud'

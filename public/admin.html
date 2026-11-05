@@ -330,10 +330,26 @@
       <h2 class="text-xl font-black text-slate-900 tracking-tight">Leadsy Super Admin Portal</h2>
       <p class="text-xs text-slate-600 leading-relaxed" id="adminDeniedMessage">Please sign in with your super admin credentials to manage client workspaces, catalogues, and platform configuration.</p>
 
-      <form id="directAdminLoginForm" onsubmit="handleDirectAdminLogin(event)" class="text-left space-y-3 pt-2">
+            <!-- Google Sign In for Super Admin -->
+      <button type="button" onclick="handleAdminGoogleLogin()" class="w-full py-2.5 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 font-bold rounded-xl text-xs transition shadow-xs flex items-center justify-center gap-2.5 cursor-pointer">
+        <svg class="w-4 h-4" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+        </svg>
+        <span>Sign in with Google (Super Admin)</span>
+      </button>
+
+      <div class="relative flex items-center justify-center my-3">
+        <div class="border-t border-slate-200 w-full"></div>
+        <span class="bg-white px-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider">or sign in with password</span>
+      </div>
+
+      <form id="directAdminLoginForm" onsubmit="handleDirectAdminLogin(event)" class="text-left space-y-3 pt-1">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Super Admin Email</label>
-          <input type="email" id="directAdminEmail" required placeholder="tanmayithakur26@gmail.com" value="tanmayithakur26@gmail.com" class="w-full text-xs font-medium border border-slate-300 rounded-xl p-3 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#087F5B] outline-none transition">
+          <input type="email" id="directAdminEmail" required placeholder="tanmayithakur267@gmail.com" value="tanmayithakur267@gmail.com" class="w-full text-xs font-medium border border-slate-300 rounded-xl p-3 bg-slate-50 text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#087F5B] outline-none transition">
         </div>
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Password</label>
@@ -360,9 +376,34 @@
       <section class="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm space-y-3" aria-labelledby="catalog-access-title">
         <h2 id="catalog-access-title" class="text-base font-bold text-slate-900">Catalogue manager access</h2>
         <p class="text-xs text-slate-600">Grant access only to a verified agency owner or admin who is already a member of this workspace. Client accounts are view-only by default. Revocation takes effect on the next catalogue request.</p>
-        <label class="block text-xs font-semibold">Workspace ID <input id="catalogGrantOrg" class="block w-full border rounded-lg p-2 mt-1" autocomplete="off"></label>
-        <label class="block text-xs font-semibold">Existing user ID <input id="catalogGrantUser" class="block w-full border rounded-lg p-2 mt-1" autocomplete="off"></label>
-        <div class="flex gap-2"><button type="button" onclick="setCatalogPermission(true)" class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-xs">Grant access</button><button type="button" onclick="setCatalogPermission(false)" class="px-4 py-2 rounded-lg bg-rose-700 text-white text-xs">Revoke access</button></div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label class="block text-xs font-semibold text-slate-700">Workspace ID (Client ID)
+            <input id="catalogGrantOrg" class="block w-full border rounded-lg p-2 mt-1 text-xs" placeholder="e.g. 6fd354d9-..." autocomplete="off">
+          </label>
+          <label class="block text-xs font-semibold text-slate-700">Admin User ID / Email
+            <input id="catalogGrantUser" class="block w-full border rounded-lg p-2 mt-1 text-xs" placeholder="e.g. admin@example.com or UUID" autocomplete="off">
+          </label>
+          <label class="block text-xs font-semibold text-slate-700">Admin Account Quota (3 to 20)
+            <select id="catalogGrantQuota" class="block w-full border rounded-lg p-2 mt-1 text-xs bg-slate-50 font-bold text-slate-800">
+              <option value="3">3 Accounts (Minimum)</option>
+              <option value="4">4 Accounts</option>
+              <option value="5" selected>5 Accounts (Default)</option>
+              <option value="6">6 Accounts</option>
+              <option value="7">7 Accounts</option>
+              <option value="8">8 Accounts</option>
+              <option value="9">9 Accounts</option>
+              <option value="10">10 Accounts</option>
+              <option value="12">12 Accounts</option>
+              <option value="15">15 Accounts</option>
+              <option value="18">18 Accounts</option>
+              <option value="20">20 Accounts (Maximum)</option>
+            </select>
+          </label>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" onclick="setCatalogPermission(true)" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold transition shadow-xs">🛡️ Grant Access</button>
+          <button type="button" onclick="setCatalogPermission(false)" class="px-4 py-2 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold transition shadow-xs">🚫 Revoke Access</button>
+        </div>
         <p id="catalogGrantStatus" role="status" class="text-xs text-slate-700"></p>
       </section>
       <!-- Section: Authorized Client Workspaces & Dedicated Product Management -->
@@ -469,6 +510,33 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+              <!-- Accounts Under Admin List with 1-Click Grant / Revoke Actions -->
+        <div class="space-y-3 pt-4 border-t border-slate-200">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Client Accounts Under Admin</h3>
+              <p class="text-[11px] text-slate-500">View and update access with 1-click Grant &amp; Revoke for each assigned account.</p>
+            </div>
+            <span id="adminQuotaIndicator" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+              Quota: Loading...
+            </span>
+          </div>
+          <div class="overflow-x-auto border border-gray-200 rounded-xl bg-white shadow-2xs">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-gray-200 text-slate-600 font-semibold">
+                  <th class="py-2.5 px-3">Client Workspace</th>
+                  <th class="py-2.5 px-3">Owner Email / Contact</th>
+                  <th class="py-2.5 px-3">Status</th>
+                  <th class="py-2.5 px-3 text-right">Quick Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adminClientsTableBody">
+                <tr><td colspan="4" class="text-center py-6 text-slate-400">Loading client accounts...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </section>
@@ -824,7 +892,7 @@
 
       status.textContent = 'Saving…';
       try {
-        await apiFetch('/api/admin/catalog-permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, userId, allow }) });
+        await apiFetch('/api/admin/catalog-permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, userId, allow, quota: Number(document.getElementById('catalogGrantQuota')?.value || 5) }) });
         status.textContent = allow ? 'Catalogue access granted.' : 'Catalogue access revoked.';
         showToast(allow ? 'Catalogue access granted successfully!' : 'Catalogue access revoked.', 'success');
       } catch (error) { 
@@ -836,8 +904,26 @@
     let currentAdminClients = [];
     let selectedAdminClient = null;
 
+    async function quickGrantClient(orgId, userId, allow) {
+      if (!orgId || !userId) return showToast('Client ID or User ID missing', 'warning');
+      const quotaVal = Number(document.getElementById('catalogGrantQuota')?.value || 5);
+      try {
+        await apiFetch('/api/admin/catalog-permissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orgId, userId, allow, quota: quotaVal })
+        });
+        showToast(allow ? '✓ Catalogue access granted for client!' : '✓ Catalogue access revoked.', 'success');
+        loadAuthorizedClients();
+      } catch (err) {
+        showToast(err.message || 'Failed to update access', 'error');
+      }
+    }
+
     async function loadAuthorizedClients() {
       const dropdown = document.getElementById('adminClientDropdown');
+      const tbody = document.getElementById('adminClientsTableBody');
+      const quotaBadge = document.getElementById('adminQuotaIndicator');
       if (!dropdown) return;
       dropdown.innerHTML = '<option value="">Loading assigned clients...</option>';
       try {
@@ -845,12 +931,45 @@
         const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (data.ok && Array.isArray(data.clients)) {
           currentAdminClients = data.clients;
+          if (quotaBadge && data.quota) {
+            quotaBadge.textContent = `Managing ${data.quota.assigned_count || 0} / ${data.quota.max_accounts || 5} Accounts (Quota: 3-20)`;
+            const quotaSelect = document.getElementById('catalogGrantQuota');
+            if (quotaSelect && data.quota.max_accounts) quotaSelect.value = String(data.quota.max_accounts);
+          }
           if (currentAdminClients.length === 0) {
             dropdown.innerHTML = '<option value="">No clients assigned to this account</option>';
+            if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-slate-400">No client workspaces currently assigned.</td></tr>';
             return;
           }
           dropdown.innerHTML = '<option value="">-- Choose an Authorized Client Workspace --</option>' +
-            currentAdminClients.map(c => `<option value="${c.id}">${c.name || 'Unnamed Client'} — ${c.user_email || c.city_base || 'No email'} [${c.id.slice(0, 8)}]</option>`).join('');
+            currentAdminClients.map(c => `<option value="${c.id}">${escapeHtml(c.name || 'Unnamed Client')} — ${escapeHtml(c.user_email || c.city_base || 'No email')} [${c.id.slice(0, 8)}]</option>`).join('');
+
+          if (tbody) {
+            tbody.innerHTML = currentAdminClients.map(c => {
+              const isGranted = Boolean(c.is_granted);
+              const uId = c.user_id || c.user_email || '';
+              return `<tr class="border-b border-gray-100 hover:bg-slate-50/60 transition">
+                <td class="py-2.5 px-3">
+                  <div class="font-bold text-slate-900">${escapeHtml(c.name || 'Client')}</div>
+                  <div class="text-[10px] text-slate-400 font-mono">${c.id}</div>
+                </td>
+                <td class="py-2.5 px-3">
+                  <div class="font-medium text-slate-700">${escapeHtml(c.user_email || 'No email registered')}</div>
+                  <div class="text-[10px] text-slate-400">${escapeHtml(c.city_base || '')}</div>
+                </td>
+                <td class="py-2.5 px-3">
+                  ${isGranted 
+                    ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">✓ Granted</span>'
+                    : '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-300">Unassigned</span>'
+                  }
+                </td>
+                <td class="py-2.5 px-3 text-right space-x-1 whitespace-nowrap">
+                  <button type="button" onclick="quickGrantClient('${c.id}', '${uId}', true)" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-[11px] font-bold shadow-2xs transition">Grant</button>
+                  <button type="button" onclick="quickGrantClient('${c.id}', '${uId}', false)" class="px-2.5 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-[11px] font-bold shadow-2xs transition">Revoke</button>
+                </td>
+              </tr>`;
+            }).join('');
+          }
           
           if (currentAdminClients.length === 1) {
             dropdown.value = currentAdminClients[0].id;
@@ -858,15 +977,17 @@
           }
         } else {
           dropdown.innerHTML = '<option value="">Unable to load assigned clients</option>';
+          if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-rose-500">Unable to load client accounts.</td></tr>';
         }
       } catch (e) {
         dropdown.innerHTML = '<option value="">Error loading clients: ' + (e.message || 'Network error') + '</option>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-6 text-rose-500">Error loading clients: ' + escapeHtml(e.message || 'Network error') + '</td></tr>';
       }
     }
 
     
     function autoFillCatalogGrant() {
-      if (!selectedAdminClient) return alert('Please select a client workspace first.');
+      if (!selectedAdminClient) return showToast('Please select a client workspace first.', 'warning');
       const orgInput = document.getElementById('catalogGrantOrg');
       const userInput = document.getElementById('catalogGrantUser');
       if (orgInput) orgInput.value = selectedAdminClient.id;
@@ -981,7 +1102,7 @@
     }
 
     async function openAdminAddProductModal() {
-      if (!selectedAdminClient) return alert('Please select a client workspace first.');
+      if (!selectedAdminClient) return showToast('Please select a client workspace first.', 'warning');
       const name = prompt('Enter Product / SKU Name:');
       if (!name || !name.trim()) return;
       const priceRaw = prompt('Enter Price / Rate (e.g. ₹4,500 / unit):', '₹');
@@ -1000,13 +1121,13 @@
         });
         const data = (res && typeof res.json === "function") ? await res.json() : res;
         if (data.ok) {
-          alert('Product added successfully to client catalog.');
+          showToast('Product added successfully to client catalog.', 'success');
           loadAdminClientProducts(selectedAdminClient.id);
         } else {
-          alert('Error: ' + (data.error || 'Failed to add product.'));
+          showToast('Error: ' + (data.error || 'Failed to add product.'), 'error');
         }
       } catch (e) {
-        alert('Error adding product: ' + e.message);
+        showToast('Error adding product: ' + e.message, 'error');
       }
     }
 
@@ -1448,11 +1569,11 @@
         try {
           const { data: profile } = await sb
             .from('profiles')
-            .select('*, organizations(*)')
+            .select('*')
             .eq('id', session.user.id)
             .maybeSingle();
 
-          let org = profile?.organizations;
+          let org = null;
 
           if (!org && profile?.org_id) {
             const { data: directOrg } = await sb.from('organizations').select('*').eq('id', profile.org_id).maybeSingle();
@@ -5015,6 +5136,35 @@
   </script>
 
   <script>
+    async function handleAdminGoogleLogin() {
+      const errBox = document.getElementById("directAdminError");
+      if (errBox) errBox.classList.add("hidden");
+      if (!sb && window.supabase && typeof window.supabase.createClient === "function" && typeof SUPABASE_URL !== "undefined") {
+        try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (_) {}
+      }
+      if (!sb) {
+        if (errBox) { errBox.textContent = "Google sign-in initializing, please try again."; errBox.classList.remove("hidden"); }
+        return;
+      }
+      try {
+        await sb.auth.signOut();
+        localStorage.removeItem("mf_token");
+        localStorage.removeItem("mf_auth_token");
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: window.location.origin + "/admin"
+          }
+        });
+        if (error) throw error;
+      } catch (err) {
+        if (errBox) {
+          errBox.textContent = err.message || "Google sign-in error";
+          errBox.classList.remove("hidden");
+        }
+      }
+    }
+
     async function handleDirectAdminLogin(event) {
       if (event) event.preventDefault();
       const btn = document.getElementById('directAdminLoginBtn');
@@ -5085,6 +5235,19 @@
     }
 
     window.addEventListener('DOMContentLoaded', async () => {
+      if (!sb && window.supabase && typeof window.supabase.createClient === 'function' && typeof SUPABASE_URL !== 'undefined') {
+        try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY); } catch (_) {}
+      }
+      if (sb) {
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          if (session?.access_token) {
+            localStorage.setItem('mf_token', session.access_token);
+            localStorage.setItem('mf_auth_token', session.access_token);
+            currentAuthToken = session.access_token;
+          }
+        } catch (_) {}
+      }
       const token = localStorage.getItem('mf_token') || localStorage.getItem('mf_auth_token');
       const adminDenied = document.getElementById('adminAccessDenied');
       const adminContent = document.getElementById('adminContent');

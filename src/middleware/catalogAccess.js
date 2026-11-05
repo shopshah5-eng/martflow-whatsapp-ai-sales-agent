@@ -6,7 +6,7 @@ import { repository } from '../db/repository.js';
 export async function canManageCatalog(req) {
   if (req.role === 'superadmin') return true;
   // Always evaluate against verified authenticated workspace first
-  const targetOrg = req.organizationId || req.query?.org_id || req.body?.orgId;
+  const targetOrg = req.query?.org_id || req.body?.orgId || req.organizationId;
   if (!req.userId || !targetOrg) return false;
   const sb = repository.getSupabase();
   if (sb) {

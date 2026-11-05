@@ -724,6 +724,28 @@
           </button>
         </div>
 
+        <!-- Authorized Client Workspace Switcher for Admins / Catalogue Managers -->
+        <div id="dashClientSelectorCard" class="hidden bg-white border border-emerald-200 rounded-2xl p-5 shadow-sm space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-emerald-100 pb-2">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">🏢</span>
+              <h2 class="text-xs font-bold text-slate-900 uppercase tracking-wider">Authorized Client Workspaces</h2>
+              <span class="text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full">
+                🔒 Privacy Isolated: Inboxes &amp; Chats Private to Clients
+              </span>
+            </div>
+            <span id="dashClientQuotaBadge" class="text-[11px] font-bold text-slate-600"></span>
+          </div>
+          <div class="flex flex-col sm:flex-row gap-2 items-center">
+            <select id="dashClientSelect" onchange="onDashChangeClientWorkspace()" class="flex-1 w-full border border-gray-300 rounded-lg p-2 text-xs font-semibold text-slate-800 bg-slate-50 focus:ring-2 focus:ring-[#087F5B]">
+              <option value="">Loading assigned client accounts...</option>
+            </select>
+            <button type="button" onclick="loadDashClientWorkspaces()" class="px-3.5 py-2 bg-slate-100 border text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-200 shrink-0">
+              🔄 Refresh Accounts
+            </button>
+          </div>
+        </div>
+
         <!-- Managed AI Knowledge Base Card (For Clients) -->
         <div id="cardManagedAiKnowledge" class="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 border border-slate-800 rounded-2xl p-6 text-white shadow-sm space-y-3">
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -2910,11 +2932,29 @@
       const isPlatformAdmin = currentUser?.role === 'superadmin' || 
                               userEmail === 'tanmayithakur267@gmail.com' || 
                               userEmail === 'tanmayithakur26@gmail.com';
+      const isAgencyAdminOrManager = isPlatformAdmin || currentUser?.role === 'admin' || catalogCanManage;
       const isAdmin = ['owner', 'admin', 'superadmin'].includes(currentUser?.role) || isPlatformAdmin;
       const setHidden = (id, hidden) => document.getElementById(id)?.classList.toggle('hidden', hidden);
       setHidden('nav-engineer', !isPlatformAdmin);
-      setHidden('nav-superadmin', !isPlatformAdmin);
-      setHidden('headerSuperAdminBtn', !isPlatformAdmin);
+      setHidden('nav-superadmin', !isAgencyAdminOrManager);
+      setHidden('headerSuperAdminBtn', !isAgencyAdminOrManager);
+
+      const adminLabel = isPlatformAdmin ? 'Super Admin' : 'Admin Portal';
+      const headerBtn = document.getElementById('headerSuperAdminBtn');
+      if (headerBtn) {
+        const textSpan = headerBtn.querySelector('span:last-child');
+        if (textSpan) textSpan.textContent = adminLabel;
+      }
+      const navSuperAdmin = document.getElementById('nav-superadmin');
+      if (navSuperAdmin) {
+        const titleSpan = navSuperAdmin.querySelector('div span:last-child');
+        if (titleSpan) titleSpan.textContent = adminLabel;
+      }
+
+      setHidden('dashClientSelectorCard', !isAgencyAdminOrManager);
+      if (isAgencyAdminOrManager && typeof loadDashClientWorkspaces === 'function') {
+        loadDashClientWorkspaces();
+      }
       setHidden('cardEngineerSettings', !isPlatformAdmin);
       setHidden('dashOnboardingCard', !isAdmin);
       setHidden('dashExecutiveBanner', isAdmin);
@@ -3857,6 +3897,54 @@
       }
     }
 
+    let activeCatalogOrgId = null;
+    let activeCatalogOrgName = '';
+    let dashAssignedClients = [];
+
+    async function loadDashClientWorkspaces() {
+      const select = document.getElementById('dashClientSelect');
+      const quotaBadge = document.getElementById('dashClientQuotaBadge');
+      if (!select) return;
+      select.innerHTML = '<option value="">Loading assigned client workspaces...</option>';
+      try {
+        const res = await apiFetch('/api/admin/clients');
+        const data = (res && typeof res.json === 'function') ? await res.json() : res;
+        if (data.ok && Array.isArray(data.clients)) {
+          dashAssignedClients = data.clients;
+          if (quotaBadge && data.quota) {
+            quotaBadge.textContent = `Managing ${data.quota.assigned_count || dashAssignedClients.length} / ${data.quota.max_accounts || 5} Client Accounts (Quota: 3-20)`;
+          }
+          let optionsHtml = '';
+          if (currentOrg) {
+            optionsHtml += `<option value="${currentOrg.id}">${escapeHtml(currentOrg.name || 'Current Workspace')} (Primary Account)</option>`;
+          }
+          dashAssignedClients.forEach(c => {
+            if (!currentOrg || c.id !== currentOrg.id) {
+              optionsHtml += `<option value="${c.id}">${escapeHtml(c.name || 'Client')} — ${escapeHtml(c.user_email || c.city_base || 'No email')} [${c.id.slice(0, 8)}]</option>`;
+            }
+          });
+          select.innerHTML = optionsHtml || '<option value="">No assigned client workspaces</option>';
+          if (activeCatalogOrgId) {
+            select.value = activeCatalogOrgId;
+          } else if (currentOrg) {
+            select.value = currentOrg.id;
+          }
+        }
+      } catch (err) {
+        select.innerHTML = '<option value="">Error loading client accounts: ' + escapeHtml(err.message || 'Network error') + '</option>';
+      }
+    }
+
+    async function onDashChangeClientWorkspace() {
+      const select = document.getElementById('dashClientSelect');
+      if (!select) return;
+      const selectedId = select.value;
+      activeCatalogOrgId = selectedId || currentOrg?.id;
+      const foundClient = dashAssignedClients.find(c => c.id === activeCatalogOrgId);
+      activeCatalogOrgName = foundClient ? foundClient.name : (currentOrg?.name || '');
+      showToast('Switched catalogue to ' + (activeCatalogOrgName || 'selected client'), 'info');
+      await fetchCatalogProducts();
+    }
     // =========================================================================
     // 📦 PRODUCT CATALOG & PDF UPLOAD
     // =========================================================================
@@ -3873,7 +3961,8 @@
 
       try {
         let prods = [];
-        const res = await apiFetch('/api/catalog/products');
+        const targetOrgParam = (activeCatalogOrgId && activeCatalogOrgId !== currentOrg?.id) ? `?org_id=${encodeURIComponent(activeCatalogOrgId)}` : '';
+        const res = await apiFetch(`/api/catalog/products${targetOrgParam}`);
         prods = res.products || [];
 
         catalogProductsCache = prods;
@@ -3955,7 +4044,8 @@
       if (!confirmed) return;
       if (!currentOrg) return;
       try {
-        await apiFetch(`/api/catalog/products/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        const targetQuery = (activeCatalogOrgId && activeCatalogOrgId !== currentOrg?.id) ? `?org_id=${encodeURIComponent(activeCatalogOrgId)}` : '';
+        await apiFetch(`/api/catalog/products/${encodeURIComponent(id)}${targetQuery}`, { method: 'DELETE' });
         showToast('Product removed from catalog', 'success');
         fetchCatalogProducts();
       } catch (err) {
@@ -4003,7 +4093,7 @@
         if (imgFile || pdfFile) throw new Error('File attachments are not available yet. Add the product details without files.');
         await apiFetch('/api/catalog/quick-add', {
           method: 'POST',
-          body: JSON.stringify({ name, sku, priceRaw: price_raw, model: model_specs })
+          body: JSON.stringify((activeCatalogOrgId && activeCatalogOrgId !== currentOrg?.id) ? { name, sku, priceRaw: price_raw, model: model_specs, orgId: activeCatalogOrgId } : { name, sku, priceRaw: price_raw, model: model_specs })
         });
 
         closeQuickAddModal();
@@ -5290,9 +5380,15 @@
       if (!catalogCanManage) return showToast('Catalogue setup is managed by your agency.', 'warning');
       const val = document.getElementById('customKnowledgeInput')?.value || '';
       try {
-        await apiFetch('/api/catalog/knowledge', { method: 'PATCH', body: JSON.stringify({ websiteKnowledge: val }) });
-        currentOrg.website_knowledge = val;
-        showToast('Business knowledge saved.', 'success');
+        const payload = { websiteKnowledge: val };
+        if (activeCatalogOrgId && activeCatalogOrgId !== currentOrg?.id) {
+          payload.orgId = activeCatalogOrgId;
+        }
+        await apiFetch('/api/catalog/knowledge', { method: 'PATCH', body: JSON.stringify(payload) });
+        if (!activeCatalogOrgId || activeCatalogOrgId === currentOrg?.id) {
+          currentOrg.website_knowledge = val;
+        }
+        showToast('Business knowledge saved for ' + (activeCatalogOrgName || 'workspace') + '.', 'success');
       } catch (error) { showToast('Failed to save knowledge: ' + error.message, 'error'); }
     }
 

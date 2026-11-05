@@ -503,11 +503,7 @@ async function sendOwnerAlert(activeSock, ownerPhone, text) {
     if (sent?.key?.id) botSentMsgIds.add(sent.key.id);
     addLog(`[Owner Alert] Successfully dispatched to ${maskPhone(ownerPhone)}`);
   } catch (err) {
-    if (err.message && err.message.includes('131047')) {
-      addLog(`[Owner Alert Warning] Meta 131047 24h window closed for ${maskPhone(ownerPhone)}. Template fallback triggered (${process.env.OWNER_TEMPLATE_NAME || 'martflow_alert_template'}).`);
-    } else {
-      addLog(`[Owner Alert Error] Failed to send alert to ${maskPhone(ownerPhone)}: ${err.message}`);
-    }
+    addLog(`[Owner Alert Error] Failed to send alert to ${maskPhone(ownerPhone)}: ${err.message}`);
   }
 }
 
@@ -521,6 +517,23 @@ const conversationSentPhotos = new Map();    // `${orgId}:${senderPhone}` -> Set
 const conversationSentBuyLinks = new Map();  // `${orgId}:${senderPhone}` -> Set<productKeyOrUrl>
 const lastOrgWebsiteSync = new Map();        // orgId -> timestamp
 const orderAlertSentSet = new Set();         // `${orgId}:${senderPhone}:order_intent`
+
+function getConversationTrackingKey(orgId, lead) {
+  const identifier = lead?.phone || lead?.buyer_phone || lead?.senderPhone || lead?.customer_phone ||
+    lead?.id || lead?.conversation_id || lead?.sessionKey || (lead?.name ? 'name:' + lead.name : null);
+  if (identifier) {
+    const cleanId = String(identifier).trim().replace(/\D/g, '') || String(identifier).trim().replace(/\s+/g, '_');
+    return `${orgId}:${cleanId}`;
+  }
+  if (lead && typeof lead === 'object') {
+    if (!lead._trackingKey) {
+      lead._trackingKey = 'ephem_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+    }
+    return `${orgId}:${lead._trackingKey}`;
+  }
+  return `${orgId}:ephem_` + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
+}
+
 
 // --- Website Sync & SSRF Protection Helpers ---
 function stripHtmlTags(str) {
@@ -2235,7 +2248,7 @@ async function handleOrgIncomingMessage(orgId, msg, activeSock) {
   const now = Date.now();
   const fpCooldownMs = (isFromOwner || isSelfChat) ? 1500 : 2500;
   if (recentInboundFingerprints.has(fpKey) && (now - recentInboundFingerprints.get(fpKey)) < fpCooldownMs) {
-    addLog(`[Deduplication] Ignored duplicate Meta inbound event from +${senderPhone} within ${fpCooldownMs}ms.`);
+    addLog(`[Deduplication] Ignored duplicate WhatsApp inbound event from +${senderPhone} within ${fpCooldownMs}ms.`);
     return;
   }
   recentInboundFingerprints.set(fpKey, now);
@@ -3276,18 +3289,59 @@ async function generateShortSalesReply({ organizationId, org, lead, incomingText
   let matchedImageUrl = null;
   let matchedImagePath = null;
   let matchedImageCaption = null;
-  const convPhotoKey = `${organizationId}:${lead?.phone || 'anon'}`;
+  const convPhotoKey = getConversationTrackingKey(organizationId, lead);
   const sentPhotosForChat = conversationSentPhotos.get(convPhotoKey) || new Set();
 
   if (sentPhotosForChat.size < 3) {
     let targetProd = null;
+
+    // 1. Explicit product match in customer query (prioritize longest matching name or SKU)
+    const candidates = [];
     for (const p of products) {
-      const pName = (p.name || '').toLowerCase();
-      if (pName && (qLower.includes(pName) || (isImageRequest && (p.image_url || p.imageUrl || p.brochure_url)))) {
-        targetProd = p;
-        break;
+      const pName = (p.name || '').toLowerCase().trim();
+      const pSku = (p.sku_code || p.sku || '').toLowerCase().trim();
+      if (pName && qLower.includes(pName)) {
+        candidates.push({ product: p, score: pName.length * 10 });
+      } else if (pSku && qLower.includes(pSku)) {
+        candidates.push({ product: p, score: pSku.length * 10 });
+      } else if (pName && qLower.split(/\s+/).some(w => w.length > 3 && pName.includes(w))) {
+        candidates.push({ product: p, score: 5 });
       }
     }
+
+    if (candidates.length > 0) {
+      candidates.sort((a, b) => b.score - a.score);
+      targetProd = candidates[0].product;
+    }
+
+    // 2. Fallback to lead.product_inquired or lead.productName if query didn't match a product
+    if (!targetProd) {
+      const leadProdName = (lead?.product_inquired || lead?.productName || '').toLowerCase().trim();
+      if (leadProdName) {
+        targetProd = products.find(p => {
+          const pName = (p.name || '').toLowerCase().trim();
+          return pName && (leadProdName.includes(pName) || pName.includes(leadProdName));
+        });
+      }
+    }
+
+    // 3. Fallback to last mentioned product in recent conversation history
+    if (!targetProd && conversationHistory && conversationHistory.length > 0) {
+      const recentText = conversationHistory.slice(-6).map(m => (m.text || m.content || '').toLowerCase()).join(' ');
+      for (const p of products) {
+        const pName = (p.name || '').toLowerCase().trim();
+        if (pName && recentText.includes(pName)) {
+          targetProd = p;
+          break;
+        }
+      }
+    }
+
+    // 4. ONLY if isImageRequest is true and no specific product was named, fall back to first product with an image
+    if (!targetProd && isImageRequest) {
+      targetProd = products.find(p => (p.image_url || p.imageUrl || p.brochure_url) && !(p.description || '').startsWith('[OUT OF STOCK]'));
+    }
+
     if (targetProd && !(targetProd.description || '').startsWith('[OUT OF STOCK]')) {
       const isImgBrochure = targetProd.brochure_url && /\.(jpe?g|png|webp)(\?.*)?$/i.test(targetProd.brochure_url);
       const imgCandidate = isImgBrochure ? targetProd.brochure_url : (targetProd.image_url || targetProd.imageUrl);
@@ -3384,7 +3438,7 @@ STRICT LENGTH RULE:
     const modelsToTry = ['gemini-flash-lite-latest', 'gemini-2.5-flash-latest', 'gemini-flash-latest'];
     for (const model of modelsToTry) {
       try {
-        const convBuyLinkKey = `${organizationId}:${lead?.phone || 'anon'}`;
+        const convBuyLinkKey = getConversationTrackingKey(organizationId, lead);
         const sentBuyLinksForChat = conversationSentBuyLinks.get(convBuyLinkKey) || new Set();
         const resp = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`,
