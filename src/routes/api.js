@@ -23,11 +23,13 @@ import { LearningService } from '../services/learningService.js';
 import { ConversationMemoryService } from '../services/conversationMemoryService.js';
 import { FollowUpService } from '../services/followUpService.js';
 import catalogAdminRouter from './catalogAdmin.js';
+import growthFeaturesRouter from './growthFeatures.js';
 import db from '../db/index.js';
 import { repository, DatabaseUnavailableError } from '../db/repository.js';
 
 const router = express.Router();
 router.use(catalogAdminRouter);
+router.use(growthFeaturesRouter);
 
 // ==========================================
 // 1. PUBLIC AUTHENTICATION ENDPOINTS
@@ -459,6 +461,8 @@ router.post('/leads/:id/status', authenticate, requireConversationAccess, async 
     if (repository.isProduction && process.env.USE_LOCAL_DB !== 'true') {
       throw new DatabaseUnavailableError('Primary database service is currently unavailable.');
     }
+    const existing = await repository.getLeadById(req.organizationId, req.params.id);
+    if (!existing) return res.status(404).json({ ok: false, error: 'Lead not found.' });
     const updated = LeadService.updateLeadStatus(req.organizationId, req.params.id, status, req.userId);
     res.json({ ok: true, lead: updated });
   } catch (err) {

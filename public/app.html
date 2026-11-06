@@ -581,6 +581,18 @@
           </div>
         </div>
 
+        <div id="reviewRequestPanel" class="hidden bg-white border border-gray-200 rounded-xl p-4 shadow-sm space-y-3">
+          <div><h2 class="text-sm font-bold text-slate-900">Google review requests</h2>
+          <p class="text-xs text-slate-500 mt-1">Save your review link and prepare requests for confirmed completed deals. Automatic sending is not available yet; no message will be sent.</p></div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <label class="text-xs font-semibold" for="reviewLink">Google review link</label>
+            <input id="reviewLink" type="url" maxlength="2048" placeholder="https://g.page/..." class="flex-1 min-w-[220px] text-xs px-3 py-2 border border-gray-300 rounded-lg">
+            <label class="text-xs"><input id="reviewEnabled" type="checkbox"> Enable preparation</label>
+            <button onclick="saveReviewSettings()" class="text-xs font-semibold px-3 py-2 rounded-lg bg-emerald-700 text-white">Save</button>
+          </div>
+          <p id="reviewRequestStatus" class="text-xs text-slate-500" role="status"></p>
+        </div>
+
         <!-- SEARCH & FILTER BAR -->
         <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-wrap gap-3 items-center justify-between">
           <div class="flex-1 min-w-[240px]">
@@ -2282,7 +2294,7 @@
       document.getElementById('mobileBackdrop')?.classList.add('hidden');
 
       if (viewName === 'dashboard') loadDashboardData();
-      if (viewName === 'leads') fetchLeadsList();
+      if (viewName === 'leads') { fetchLeadsList(); loadReviewSettings(); }
       if (viewName === 'conversations') {
         fetchConversationsList();
         if (!window.convsPollTimer) {
@@ -3521,6 +3533,7 @@
               </td>
               <td class="py-3 px-4 text-right">
                 <button onclick="switchView('conversations')" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold">Open Chat</button>
+                ${['owner','admin'].includes(currentUser?.role) && l.id ? `<button data-lead="${encodeURIComponent(String(l.id))}" data-status="${encodeURIComponent(String(status))}" onclick="prepareReviewRequest(this)" class="block mt-2 text-xs text-emerald-700 font-semibold">Confirm deal &amp; prepare review</button>` : ''}
               </td>
             </tr>
           `;
@@ -3552,6 +3565,45 @@
         if (container) container.innerHTML = `<div class="py-12 text-center text-xs text-rose-500">Error loading leads: ${escapeHtml(err.message)}</div>`;
         else if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-rose-500">Error loading leads: ${escapeHtml(err.message)}</td></tr>`;
       }
+    }
+
+    async function loadReviewSettings() {
+      const panel = document.getElementById('reviewRequestPanel');
+      if (!panel) return;
+      panel.classList.toggle('hidden', !['owner', 'admin'].includes(currentUser?.role));
+      if (panel.classList.contains('hidden')) return;
+      try {
+        const data = await apiFetch('/api/review-requests/settings');
+        document.getElementById('reviewLink').value = data.settings.reviewUrl || '';
+        document.getElementById('reviewEnabled').checked = data.settings.enabled === true;
+        const queue = await apiFetch('/api/review-requests');
+        document.getElementById('reviewRequestStatus').textContent = `${queue.requests.length} recent prepared requests. Delivery setup is required; nothing has been sent.`;
+      } catch (err) { document.getElementById('reviewRequestStatus').textContent = err.message; }
+    }
+    async function saveReviewSettings() {
+      try {
+        await apiFetch('/api/review-requests/settings', { method: 'PUT', body: JSON.stringify({ reviewUrl: document.getElementById('reviewLink').value.trim(), enabled: document.getElementById('reviewEnabled').checked }) });
+        showToast('Review settings saved. Sending is not available yet.', 'success');
+        await loadReviewSettings();
+      } catch (err) { showToast(err.message, 'error'); }
+    }
+    async function prepareReviewRequest(button) {
+      const leadId = decodeURIComponent(button.dataset.lead || '');
+      const status = decodeURIComponent(button.dataset.status || '').toLowerCase();
+      if (!confirm('Confirm this deal was successfully completed?')) return;
+      if (!confirm('Confirm that this customer gave permission to receive a neutral review request on WhatsApp? No message will be sent yet.')) return;
+      button.disabled = true;
+      let marked = false;
+      try {
+        if (!['won', 'completed', 'converted'].includes(status)) {
+          await apiFetch('/api/leads/' + encodeURIComponent(leadId) + '/status', { method: 'POST', body: JSON.stringify({ status: 'converted' }) });
+          marked = true;
+        }
+        await apiFetch('/api/review-requests', { method: 'POST', body: JSON.stringify({ leadId, dealConfirmed: true, consentConfirmed: true }) });
+        showToast('Request prepared; no WhatsApp message was sent.', 'success');
+        await loadReviewSettings();
+      } catch (err) { showToast((marked ? 'Deal marked completed, but request was not prepared: ' : '') + err.message, 'error'); }
+      finally { button.disabled = false; if (marked) fetchLeadsList(); }
     }
 
     async function exportLeadsCsv() {

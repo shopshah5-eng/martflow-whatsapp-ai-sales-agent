@@ -255,6 +255,9 @@ class TenantRepository {
       if (error) throw new DatabaseUnavailableError(error.message);
       return data;
     }
+    if (this.isProduction && process.env.USE_LOCAL_DB !== 'true') throw new DatabaseUnavailableError();
+    const existing = await this.getLeadById(orgId, leadId);
+    if (!existing) return null;
     return db.updateScoped('leads', leadId, orgId, updates);
   }
 

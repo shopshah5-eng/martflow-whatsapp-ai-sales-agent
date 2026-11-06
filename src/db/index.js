@@ -34,7 +34,10 @@ class MultiTenantDB {
       approved_facts: new Map(),
       admin_quotas: new Map(),
       catalog_admin_accounts: new Map(),
-      catalog_assignment_requests: new Map()
+      catalog_assignment_requests: new Map(),
+      review_request_settings: new Map(),
+      review_request_queue: new Map(),
+      custom_website_integrations: new Map()
     };
     this.dbFile = path.join(__dirname, '..', '..', 'martflow_data.json');
     this.load();
